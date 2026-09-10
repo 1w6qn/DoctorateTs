@@ -11,7 +11,7 @@ import { Draft } from "mutative";
 import { PlayerDataModel } from "../../../kernel/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "../../../kernel/playerdata";
 import { headcountMoodRelief, isDispersedAp, warmupHoursOf, MAX_AP } from "../mood";
-import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst, getRoomBasicSpeedBuff } from "@excel/building_excel";
 import {
   CharBuffSource,
   roomSpeedBonus,
@@ -28,6 +28,8 @@ import {
 } from "../unlocks";
 import {
   goldOrderDistribution,
+  goldOrderSeconds,
+  GOLD_ORDER_MIN_SECONDS,
   pickGoldCount,
   warmupSkillTier,
   WARMUP_ALPHA_HOURS,
@@ -114,6 +116,26 @@ export function _genTradingOrder(mgr: BuildingManager, draft: Draft<PlayerDataMo
       buff: [],
       ...(special ? { special } : {}),
     });
+    applyOrderSpan(room, count);
+}
+
+  /**
+   * 记录本次订单的整周期时长并同步到时间模型（`next.maxPoint`）
+   *
+   * 修复（2026-09-09，B9）：原实现只生成订单、从不改写 `next.maxPoint` —— 订单时长恒为
+   * 迁移时的旧值（官服存档中同为 Lv3 的两个贸易站分别为 12600 与 8640，即 3/2 赤金档）。
+   * 现按 `goldOrderSeconds(count)` 写入；同时把该时长记到房间扩展字段 `_lastOrderSpanSec`，
+   * 供静态补单节流（旧存档路径）按官方节奏而非固定 3600s 补单。
+   * @param room - 贸易站房间
+   * @param count - 本笔订单交付赤金数
+   */
+export function applyOrderSpan(room: any, count: number) : void {
+    const span = goldOrderSeconds(count);
+    room._lastOrderSpanSec = span;
+    // 仅时间模型已激活（已有 next 结构）时同步阈值
+    if (room.next && (room.next.maxPoint > 0 || room.next.order >= 0)) {
+      room.next.maxPoint = span;
+    }
 }
 
   /**
@@ -171,9 +193,12 @@ export function _accrueTrading(mgr: BuildingManager, draft: Draft<PlayerDataMode
       // 回写官方线格式 buff：speed=订单效率加成、limit=库存上限（任何工作时间贸易站）
       const slot = draft.building.roomSlots[slotId];
       const chars = mgr._roomCharSources(draft, slot);
+      // 修复（2026-09-09，B2）：补「每名在岗干员 +1%」基础效率（tradingData.basicSpeedBuff）
+      const stationed = (slot?.charInstIds ?? []).filter((i) => i > 0).length;
       const bonus =
         roomSpeedBonus(chars, "TRADING", [], mgr._specialCtx(draft)) +
-        controlBonus;
+        controlBonus +
+        getRoomBasicSpeedBuff("TRADING") * stationed;
       const roomBuff = (room.buff as any) ?? {};
       roomBuff.speed = bonus;
       roomBuff.limit = room.stockLimit ?? 0;
@@ -200,9 +225,12 @@ export function _accrueTrading(mgr: BuildingManager, draft: Draft<PlayerDataMode
         room.stock.length < limit
       ) {
         const orderId = (next.order ?? -1) + 1;
+        // 修复（2026-09-09，B9）：先记下本周期阈值再生成订单——_genTradingOrder 会按新订单的
+        // 赤金数改写 next.maxPoint（2/3/4 赤金 = 8640/12600/16560），若在生成后再减会扣错周期量。
+        const consumed = next.maxPoint;
         mgr._genTradingOrder(draft, room, orderId);
         next.order = orderId;
-        next.processPoint -= next.maxPoint;
+        next.processPoint -= consumed;
       }
     }
 }
@@ -264,10 +292,18 @@ export function _refreshTradingOrders(mgr: BuildingManager, draft: Draft<PlayerD
         if ((room as any)._lastOrderFillTs == null) (room as any)._lastOrderFillTs = ts;
         continue;
       }
-      // 补单节流：首次（守卫初始化）补满；此后需间隔 ≥ _TRADE_FILL_INTERVAL 才补 1 单
+      // 补单节流：首次（守卫初始化）补满；此后需间隔 ≥ 该房间上一笔订单的整周期才补 1 单
+      // 修复（2026-09-09，B9）：原实现用固定 `_TRADE_FILL_INTERVAL = 3600`，而官方订单周期为
+      // 8640/12600/16560（2/3/4 赤金）→ 旧存档补单快 2.4~4.6 倍。现按房间记录的上一笔订单时长，
+      // 无记录时回退最短档 8640（2:24）。
       const lastFill = (room as any)._lastOrderFillTs ?? 0;
       const isFirstFill = lastFill <= 0;
-      if (!isFirstFill && ts - lastFill < mgr._TRADE_FILL_INTERVAL) continue;
+      const recordedSpan = Number((room as any)._lastOrderSpanSec ?? 0);
+      const fillSpan =
+        recordedSpan > 0
+          ? recordedSpan
+          : Math.max(mgr._TRADE_FILL_INTERVAL, GOLD_ORDER_MIN_SECONDS);
+      if (!isFirstFill && ts - lastFill < fillSpan) continue;
       const missing = target - room.stock.length;
       const toFill = isFirstFill ? missing : 1;
       // instId 从现有库存最大值续增（保证递增连续）
@@ -299,16 +335,36 @@ export function _settleOrderInternal(mgr: BuildingManager, draft: Draft<PlayerDa
 }
 
   /**
+   * 加速所需无人机数量（1 架 = tradingReduceTimeUnit 秒，官方缺省 180s）
+   * @param cost - 客户端给出的无人机数（优先采用）
+   * @param maxPoint - 订单整周期秒数（cost 缺省时按其折算）
+   * @returns 需要消耗的无人机数量（至少 1）
+   */
+function _accelDroneCost(cost: number | undefined, maxPoint: number | undefined): number {
+  const unit = getBuildingConstant<number>("tradingReduceTimeUnit") ?? 180;
+  if (typeof cost === "number" && Number.isInteger(cost) && cost > 0) return cost;
+  const span = typeof maxPoint === "number" && maxPoint > 0 ? maxPoint : unit;
+  return Math.max(1, Math.ceil(span / unit));
+}
+
+  /**
    * 加速订单（立即结算指定订单——按 instId 查找）
    * @param args - 包含 slotId 和 orderId（订单 instId）的参数对象
    */
-export async function accelerateOrder(mgr: BuildingManager, args: { slotId: string; orderId: number }) {
+export async function accelerateOrder(mgr: BuildingManager, args: { slotId: string; orderId: number; cost?: number }) {
     const { slotId, orderId } = args;
     return await mgr._player.update(async (draft) => {
       const room = draft.building.rooms.TRADING[slotId];
       if (room && Array.isArray(room.stock)) {
         const idx = room.stock.findIndex((s: any) => s.instId === orderId);
         if (idx !== -1) {
+          // 修复（2026-09-09）：加速订单需消耗无人机（labor）——官方 tradingReduceTimeUnit=180s
+          // 即 1 架 = 3 分钟；原实现零消耗直接结算（无限免费加速）。cost 由客户端给出，
+          // 缺省时按订单整周期 maxPoint 折算。余额不足则不结算。
+          const droneCost = _accelDroneCost(args.cost, (room as any).next?.maxPoint);
+          const labor = draft.building.status.labor;
+          if ((labor.value ?? 0) < droneCost) return;
+          labor.value -= droneCost;
           mgr._settleOrderInternal(draft, room.stock[idx]);
           // 修复：splice 产生 DELETE patch（客户端删 stock 属性而非替换 → UI 残留）；
           // 用 filter 生成 replace patch（modified）
@@ -349,6 +405,11 @@ export async function accelerateSolution(mgr: BuildingManager, args: { slotId: s
       // 1 架 = 3 分钟制造时间 → 按有效产能推进等价进度（持有量为客户端本地状态，
       // 官服存档无无人机字段，服务端不校验余额）
       if (typeof cost === "number" && Number.isInteger(cost) && cost > 0) {
+        // 修复（2026-09-09）：加速方案消耗无人机——官方 manufactLaborCostUnit=1、
+        // manufactReduceTimeUnit=180（1 架 = 3 分钟）；原实现只按 cost 推进度、从不扣 labor。
+        const labor = draft.building.status.labor;
+        if ((labor.value ?? 0) < cost) return; // 无人机不足：不加速
+        labor.value -= cost;
         mgr._accrueManufacture(draft, slotId, now());
         if ((room.remainSolutionCnt ?? 0) <= 0) return; // 计划耗尽停摆，无可加速
         // 官方速率（2026-08-26 dc-fix）：1 点/秒 × (1+加成)——与 _accrueManufacture 同单位，
@@ -368,7 +429,14 @@ export async function accelerateSolution(mgr: BuildingManager, args: { slotId: s
         room.lastUpdateTime = now();
         return;
       }
-      // 兼容旧客户端（cost 缺省）：立即完成当前生产方案 1 个（私服既有行为）
+      // 兼容旧客户端（cost 缺省）：立即完成当前生产方案 1 个——仍按官方单位折算无人机
+      // （1 架 = 180 × (1+加成) 进度点，即完成 1 个方案需 ceil(costPoint / 每架进度点)）
+      const speedBonus0 = ((room.buff as any)?.speed as number) ?? 0;
+      const perDrone = Math.max(1, 180 * (1 + speedBonus0));
+      const fallbackCost = Math.max(1, Math.ceil((formula.costPoint ?? perDrone) / perDrone));
+      const laborFallback = draft.building.status.labor;
+      if ((laborFallback.value ?? 0) < fallbackCost) return; // 无人机不足：不加速
+      laborFallback.value -= fallbackCost;
       if ((room.remainSolutionCnt ?? 0) > 0) room.remainSolutionCnt -= 1;
       room.outputSolutionCnt = (room.outputSolutionCnt ?? 0) + 1;
       room.processPoint = 0;

@@ -1,4 +1,4 @@
-﻿import { PlayerCharacter } from "../../kernel/model";
+import { PlayerCharacter } from "../../kernel/model";
 import { ItemBundle } from "@excel/excel";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
@@ -32,7 +32,7 @@ import {
 
 
 import { _onCharInit, dailyRefresh, _rolloverWeekSp, _recoverLabor, _infoShareReward, _meetingCreditPerVisit, _settleDormCredit, _accumulateMessageLeaveSp, _accumulateSearchCredit, _refreshInfoShare, _refreshRoomCompletionTimes, _refreshBuildingEventTs, _nextDailyBoundary, _advanceBuilding, _accrueMeeting, _accrueHire, _touchActiveRooms, sync, advance, _accrueTraining, _accrueCharAp, _accrueWarmup, _accrueFavor } from "./logic/accrue";
-import { _manufactBaseCapacity, _roomCapacity, buildRoom, _canAfford, _unlockCtx, _touchMaxLevel, _canAffordCosts, _applyCosts, _powerBalance, upgradeRoom, completeUpgradeRoom, degradeRoom, _applyBuildCost, _applyItemDelta, _applyBundles, _applyGoldDelta, upgradeSpecialization, completeUpgradeSpecialization, upgradeDiyLevel } from "./logic/construction";
+import { _manufactBaseCapacity, _roomCapacity, buildRoom, _canAfford, _unlockCtx, _touchMaxLevel, _roomUnlockSatisfied, _canAffordCosts, _applyCosts, _powerBalance, upgradeRoom, completeUpgradeRoom, degradeRoom, _applyBuildCost, _applyItemDelta, _applyBundles, _applyGoldDelta, upgradeSpecialization, completeUpgradeSpecialization, upgradeDiyLevel } from "./logic/construction";
 import { setPrivateDormOwner, setBuildingAssist, _findRoomSlotIdByChar, _clearCharFromRooms, _charSource, _roomCharSources, _controlGlobalFor, _specialCtx, _dormBaseRecoveryPerHour, _workBaseScale, _recomputeCharScales, _controlSlot, assignChar, _pickHighestApPreset, batchChangeWorkChar, batchRestChar, _fillDormEmptySlots, cleanRoomSlot, _addFavor, gainIntimacy, gainAllIntimacy, gainAssistIntimacy, confirmPrivateDormIntimacy } from "./logic/chars";
 import { _genTradingOrder, _tradeWarmupActive, _accrueTrading, _touchOrderFillGuard, _refreshTradingOrders, _settleOrderInternal, accelerateOrder, accelerateSolution, deliveryOrder, deliveryBatchOrder, deleteOrder, settleSale, changeSaleSolution, changeStrategy, buyLabor } from "./logic/trading";
 import { _accrueManufacture, settleManufacture, _settleManufactureInternal, changeManufactureSolution, changeDiySolution, workshopSynthesis, _workshopChar, _workshopBonusIds, _wsBonusThreshold, _wsBonusMatches, workshopDecomposition } from "./logic/manufacture";
@@ -57,7 +57,7 @@ export class BuildingManager {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    // 事件订阅抽至 trigger.ts（注册顺序 refresh:daily → building:char:init 不变）
+    // 事件订阅抽至 trigger.ts（注册顺序 refresh:daily → char:init 不变）
     registerBuildingTriggers(_trigger, this);
   }
 
@@ -79,6 +79,39 @@ export class BuildingManager {
   get _intimacyGain(): number {
     const perDay = getBuildingConstant<number>("basicFavorPerDay") ?? 720;
     return Math.max(Math.round(perDay / 60), 1);
+  }
+
+  /**
+   * 待派发的「产出获得」事件队列
+   *
+   * 修复（2026-09-09，§5.8-B12 / §6.3-24）：制造站/加工站/贸易站的产出经
+   * @@_applyItemDelta@@ 直写 @@draft.inventory@@，**绕过** @@items:get@@ 事件通道 ——
+   * 产出不推进勋章（@@TotalSimpleTokenCount@@ 等）与任务。此队列在各入口的 update
+   * 完成后统一补发同样口径的追踪事件（只补事件、不重复入账，避免双重发放）。
+   */
+  _pendingGainEvents: { id: string; count: number }[] = [];
+
+  /**
+   * 派发并清空待补发的产出追踪事件（在 @@player.update@@ 之外调用）
+   *
+   * 与 @@InventoryManager@@ 的 @@items:get@@ 分支同口径补发三个追踪事件
+   * （@@TotalSimpleTokenCount@@ / @@GotItemBeforeTime@@ / @@ActivityCoinGain@@）——
+   * 物品本身已由 @@_applyItemDelta@@ 直接入账，此处**不得**再走 @@gainItem@@。
+   */
+  async _flushGainEvents(): Promise<void> {
+    if (!this._pendingGainEvents.length) return;
+    const pending = this._pendingGainEvents;
+    this._pendingGainEvents = [];
+    for (const it of pending) {
+      if (!it.id || it.count <= 0) continue;
+      await this._trigger.emit("TotalSimpleTokenCount", [
+        { itemId: it.id, count: it.count },
+      ]);
+      await this._trigger.emit("GotItemBeforeTime", [{ itemId: it.id }]);
+      await this._trigger.emit("ActivityCoinGain", [
+        { itemId: it.id, count: it.count },
+      ]);
+    }
   }
 
   static _CLUE_FACTIONS = [
@@ -253,6 +286,12 @@ export class BuildingManager {
     roomId: string,
     level: number,) : void {
     return _touchMaxLevel(this, draft, roomId, level);
+  }
+
+  /** 委派至 {@link _roomUnlockSatisfied}（logic/construction.ts） */
+  _roomUnlockSatisfied(draft: Draft<PlayerDataModel>,
+    condId: string | undefined,) : boolean {
+    return _roomUnlockSatisfied(this, draft, condId);
   }
 
   /** 委派至 {@link _canAffordCosts}（logic/construction.ts） */

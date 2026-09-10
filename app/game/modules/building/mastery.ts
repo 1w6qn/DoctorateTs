@@ -10,12 +10,16 @@
  */
 import excel from "@excel/excel";
 
+import { phaseRank } from "./buff-parse";
+
 /** 专精档位材料/时长配置 */
 export interface SpecCond {
   /** 基础训练时长（秒） */
   lvlUpTime: number;
   /** 训练材料（MATERIAL） */
   costs: { id: string; count: number; type: string }[];
+  /** 该档位的精英化前置（levelUpCostCond[].unlockCond.phase，缺省 0 表示无额外要求） */
+  phaseNeed: number;
 }
 
 /**
@@ -39,6 +43,7 @@ export function getSpecCond(
   return {
     lvlUpTime: cond.lvlUpTime ?? 28800,
     costs: cond.levelUpCost ?? [],
+    phaseNeed: phaseRank(cond.unlockCond?.phase),
   };
 }
 

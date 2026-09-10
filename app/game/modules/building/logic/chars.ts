@@ -8,6 +8,9 @@ import type { BuildingManager } from "../logic";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "../../../kernel/playerdata";
 import { headcountMoodRelief, isDispersedAp, warmupHoursOf, MAX_AP } from "../mood";
+
+/** 满心情 AP（mood.ts 的 MAX_AP 常量，1 点 = 360000 AP） */
+const FULL_AP = MAX_AP;
 import { splitDormBuffs, sumByGroupMax } from "../dorm-special";
 import {
   CharBuffSource,
@@ -422,18 +425,44 @@ export function _pickHighestApPreset(mgr: BuildingManager, draft: Draft<PlayerDa
     slotId: string,) : number[] | null {
     const queue = mgr._roomPresetQueue(draft, slotId);
     if (!queue || queue.length === 0) return null;
-    // 心情总和最高的组；固定比较顺序保证平手时选中第一组（无心情数据按 0 计）
+    // 训练位干员集合（专精训练中/协助训练中）——换班不得把训练中的干员拉走
+    const trainingIds = new Set<number>();
+    for (const room of Object.values(draft.building.rooms.TRAINING ?? {})) {
+      const traineeId = (room as any)?.trainee?.charInstId;
+      const trainerId = (room as any)?.trainer?.charInstId;
+      if (Number(traineeId) > 0) trainingIds.add(Number(traineeId));
+      if (Number(trainerId) > 0) trainingIds.add(Number(trainerId));
+    }
+    /** 干员心情 AP（building.chars[].ap；无记录返回 undefined——与 isDispersedAp 口径一致，不视为涣散） */
+    const apOf = (id: number): number | undefined =>
+      (draft.building.chars[String(id)] as any)?.ap;
+    /** 心情比例 = ap / 满心情（满值 24 点 × 360000 = 8640000，实测量级一致）；无记录按 0 参与比较但不排除 */
+    const apRatio = (id: number): number => {
+      const ap = apOf(id);
+      return ap != null && ap > 0 ? Math.min(1, ap / FULL_AP) : 0;
+    };
+    /** 涣散：有心情记录且为 0（无记录不判涣散，避免精简存档全部被排除） */
+    const isDispersed = (id: number): boolean => {
+      const ap = apOf(id);
+      return ap != null && ap <= 0;
+    };
+    // 修复（2026-09-09，B10）：官方「快速换班」选择规则为
+    //   ① 排除训练位干员（专精中不可被拉走）与涣散干员（心情为 0）；
+    //   ② 按**心情比例**（ap/满值）比较而非心情总和——原实现取总和最大，
+    //      「人多队列恒胜出」（3 人低心情组 > 2 人满心情组）；
+    //   ③ 平手时取队列序号靠前者（严格大于即保留先出现的一组）。
     let best: number[] | null = null;
-    let bestAp = -1;
+    let bestRatio = -1;
     for (const group of queue) {
       if (!Array.isArray(group)) continue;
-      const ap = group.reduce<number>(
-        (sum, id) =>
-          id > 0 ? sum + (draft.building.chars[String(id)]?.ap ?? 0) : sum,
-        0,
-      );
-      if (ap > bestAp) {
-        bestAp = ap;
+      const members = group.filter((id) => id > 0);
+      if (members.length === 0) continue;
+      if (members.some((id) => trainingIds.has(id))) continue; // 训练位干员不可被换走
+      if (members.some((id) => isDispersed(id))) continue; // 含涣散干员（心情 0）的组不排班
+      const ratio =
+        members.reduce<number>((sum, id) => sum + apRatio(id), 0) / members.length;
+      if (ratio > bestRatio) {
+        bestRatio = ratio;
         best = group;
       }
     }

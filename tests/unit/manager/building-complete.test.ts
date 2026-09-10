@@ -413,6 +413,46 @@ describe("BuildingManager 生产/事件接线完整性", () => {
     expect(mockTrigger.emit).toHaveBeenCalledWith("BuildingManufactureProductTimes", [{ count: 3 }]);
   });
 
+  // Round 38 / B12：制造产出经 _applyItemDelta 直写 draft.inventory，绕过 items:get
+  // 事件通道 → 勋章（TotalSimpleTokenCount / GotItemBeforeTime）与任务（ActivityCoinGain）
+  // 不推进。现由 _flushGainEvents 在 update 之外按 items:get 同口径补发追踪事件
+  // （只补事件、不重复入账）。
+  it("settleManufacture 产出的追踪事件补发（TotalSimpleTokenCount/GotItemBeforeTime/ActivityCoinGain）", async () => {
+    mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5 = {
+      state: 1, formulaId: "4", remainSolutionCnt: 73, outputSolutionCnt: 3,
+      processPoint: 0, lastUpdateTime: 0, completeWorkTime: -1, capacity: 24,
+    };
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.settleManufacture({ roomSlotIdList: ["slot_5"] } as any);
+    // F_GOLD 配方产出 3003（赤金）× outputSolutionCnt
+    expect(mockTrigger.emit).toHaveBeenCalledWith("TotalSimpleTokenCount", [
+      { itemId: "3003", count: 3 },
+    ]);
+    expect(mockTrigger.emit).toHaveBeenCalledWith("GotItemBeforeTime", [
+      { itemId: "3003" },
+    ]);
+    expect(mockTrigger.emit).toHaveBeenCalledWith("ActivityCoinGain", [
+      { itemId: "3003", count: 3 },
+    ]);
+  });
+
+  it("扣料不产生追踪事件（仅正增量登记）", async () => {
+    mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5 = {
+      state: 1, formulaId: "5", remainSolutionCnt: 73, outputSolutionCnt: 1,
+      processPoint: 0, lastUpdateTime: 0, completeWorkTime: -1, capacity: 24,
+    };
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.settleManufacture({ roomSlotIdList: ["slot_5"] } as any);
+    // 消耗的 3212/32001 不应出现在追踪事件里
+    const calls = (mockTrigger.emit as any).mock.calls.filter(
+      (c: any[]) => c[0] === "TotalSimpleTokenCount",
+    );
+    for (const c of calls) {
+      expect(c[1][0].itemId).not.toBe("3212");
+      expect(c[1][0].itemId).not.toBe("32001");
+    }
+  });
+
   it("workshopSynthesis 应 emit BuildingWorkshopSynthesisGroupByID 勋章事件（formulaType 过滤）", async () => {
     mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId = "";
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
@@ -706,24 +746,27 @@ describe("BuildingManager 会客室信用经济（socialReward 循环）", () =>
     vi.spyOn(accountManager, "getPlayerData").mockResolvedValue(mockPlayer as any);
   });
 
-  it("dailyRefresh 应按宿舍氛围结算当日被动信用（Cd=10+⌊Ad/125⌋，每间≤50）", async () => {
-    // 2026-08-23 模型：被动信用改为宿舍氛围每日结算（取代好友数×friendSlotInc）
+  it("dailyRefresh 不再把宿舍氛围信用写入会客室（改由昨日奖励/信用交易所承担）", async () => {
+    // 修复（2026-09-09，审计 §5.4-12）：PRTS「信用」页把「根据宿舍氛围获取信用」列在
+    // 「每日结算的信用」之下——次日于**信用交易所**手动领取（social.yesterdayReward.
+    // comfortAmount），并非会客室待领奖励。官服存档实测 MEETING.socialReward.daily = 0
+    // 而 social.yesterdayReward.comfortAmount = 200。
     const b = mockPlayer._playerdata.building;
     b.rooms.DORMITORY.room_d1 = { comfort: 5000 }; // 10+40 = 50（封顶）
     b.rooms.DORMITORY.room_d2 = { comfort: 2500 }; // 10+20 = 30
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.dailyRefresh();
     const room = mockPlayer._playerdata.building.rooms.MEETING.room_001;
-    expect(room.socialReward.daily).toBe(80);
+    expect(room.socialReward.daily).toBe(0);
   });
 
-  it("宿舍结算信用应封顶（每间≤50，全天≤200；覆盖昨日未领值）", async () => {
-    // dailyRefresh 写入的是当日结算值（覆盖，非累加）；无宿舍时结算 0 并封顶归零
+  it("宿舍结算值不再覆盖会客室每日遗留值（遗留值仍可在会客室领取一次）", async () => {
     mockPlayer._playerdata.building.rooms.MEETING.room_001.socialReward = { daily: 90, search: 0 };
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.dailyRefresh();
     const room = mockPlayer._playerdata.building.rooms.MEETING.room_001;
-    expect(room.socialReward.daily).toBe(0); // 无宿舍 → 当日结算 0（覆盖昨日 90）
+    // 旧实现会用宿舍结算值覆盖 daily（无宿舍 → 0）；现容器不再被每日刷新改写
+    expect(room.socialReward.daily).toBe(90);
   });
 
   it("getInfoShareReward 应按访客数累积主动信用（search，封顶 creditInitiativeLimit）", async () => {

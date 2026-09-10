@@ -11,7 +11,7 @@ import { now } from "@utils/time";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "../../../kernel/playerdata";
 import { headcountMoodRelief, isDispersedAp, warmupHoursOf, MAX_AP } from "../mood";
-import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst, getManufactureInputCapacity } from "@excel/building_excel";
 import {
   isFormulaUnlocked,
   isDiamondStrategyUnlocked,
@@ -107,9 +107,10 @@ export async function settleManufacture(mgr: BuildingManager, args: { roomSlotId
           if (isFree && supplement > 0) {
             // 免费生产自动补货：把刚收获的产量回填为剩余计划，继续保持生产
             const harvested = roomAfter.outputSolutionCnt || 0;
-            roomAfter.remainSolutionCnt = Math.max(
-              roomAfter.remainSolutionCnt ?? 0,
-              harvested,
+            // 修复（2026-09-09，B4）：回填后同样受 99 份上限约束
+            roomAfter.remainSolutionCnt = Math.min(
+              getManufactureInputCapacity(),
+              Math.max(roomAfter.remainSolutionCnt ?? 0, harvested),
             );
             roomAfter.outputSolutionCnt = 0;
             roomAfter.processPoint = 0;
@@ -134,6 +135,9 @@ export async function settleManufacture(mgr: BuildingManager, args: { roomSlotId
         { count: producedTotal },
       ]);
     }
+    // 产出的追踪事件补发（B12）：制造产出经 _applyItemDelta 直写库存，
+    // 绕过 items:get → 勋章/任务不推进
+    await mgr._flushGainEvents();
     // 返回结算的房间数（CS BuildingSettleManufactResponse.supplement）
     return list.length;
 }
@@ -235,10 +239,18 @@ export async function changeManufactureSolution(mgr: BuildingManager, args: {
       room.formulaId = targetFormulaId;
       room.lastUpdateTime = now();
       room.completeWorkTime = -1;
-      room.remainSolutionCnt = Math.max(0, solutionCount ?? 0);
+      // 修复（2026-09-09，B4）：制造站单次排产份数上限 = building_data.manufactInputCapacity（99）——
+      // 原实现 `Math.max(0, solutionCount)` 无上限，可排 999999 份。
+      // 官服存档佐证：制造站 remainSolutionCnt 73 + outputSolutionCnt 26 = 99（恰为上限）。
+      room.remainSolutionCnt = Math.min(
+        getManufactureInputCapacity(),
+        Math.max(0, Math.floor(solutionCount ?? 0)),
+      );
       room.outputSolutionCnt = 0;
       room.processPoint = 0;
     });
+    // 切换配方前会先结算已产出（B12 产出追踪事件补发）
+    await mgr._flushGainEvents();
     return { change: false };
 }
 
@@ -472,6 +484,8 @@ export async function workshopSynthesis(mgr: BuildingManager, args: {
         { groupId: synGroup },
       ]);
     }
+    // 加工副产品/产出的追踪事件补发（B12）
+    await mgr._flushGainEvents();
     return resultItem;
 }
 
@@ -541,4 +555,6 @@ export async function workshopDecomposition(mgr: BuildingManager, args: {
       const productCount = (info?.processedProductCount ?? 2) * count;
       mgr._applyItemDelta(draft, productId, productCount);
     });
+    // 分解产出的追踪事件补发（B12）
+    await mgr._flushGainEvents();
 }

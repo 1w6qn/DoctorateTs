@@ -12,7 +12,7 @@ import { Draft } from "mutative";
 import { PlayerDataModel } from "../../../kernel/playerdata";
 import { PlayerBuildingMeetingClue } from "../../../kernel/playerdata";
 import { accountManager } from "../../account/AccountManager";
-import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst, getClueConstant, getClueReceiveBonus } from "@excel/building_excel";
 import {
   CharBuffSource,
   roomSpeedBonus,
@@ -23,6 +23,7 @@ import {
   phaseRank,
 } from "../buff";
 import { random } from "../../../kernel/util/random";
+import { OWN_CLUE_LIMIT } from "../clue-speed";
 
   /** 获取首个会客室房间 */
 export function _meetingRoom(mgr: BuildingManager) {
@@ -82,6 +83,16 @@ export async function getDailyClue(mgr: BuildingManager, args: any) {
     return await mgr._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room || room.dailyReward) return;
+      // PRTS《罗德岛基建/会客室》：「仅在有干员进驻时，每日 4:00 可发放 1 份会客室
+      // 线索」——空会客室不发放（修复 2026-09-09，B11：原实现无进驻校验）。
+      const meetingSlot = Object.values(draft.building.roomSlots).find(
+        (s) => (s as { roomId?: string })?.roomId === "MEETING",
+      );
+      if (mgr._roomCharSources(draft, (meetingSlot ?? null) as any).length === 0) return;
+      // 自有库上限 10：「最多存储 10 份，达到上限时无法继续入库」——每日发放的线索
+      // 不适用干员搜集的「滞留」规则，满库时不入库（腾空后当日仍可领取，dailyReward
+      // 不置位，故不会永久损失）。
+      if ((room.ownStock?.length ?? 0) >= OWN_CLUE_LIMIT) return;
       const status = draft.status;
       // 特殊技能适配：进驻会客室干员的线索概率技能影响阵营抽取权重
       const clue: PlayerBuildingMeetingClue = {
@@ -100,8 +111,10 @@ export async function getDailyClue(mgr: BuildingManager, args: any) {
       };
       room.ownStock.push(clue);
       room.dailyReward = clue;
-      // 修复：线索生成信用（PRTS：进驻干员每张线索 +20 信用，无上限，访问基建自动领取）
-      draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 20;
+      // 线索生成信用（PRTS：每张线索 +20；数值取 clue_data.outputBasicBonus，勿写死）
+      draft.status.socialPoint =
+        (draft.status.socialPoint ?? 0) +
+        (getClueConstant<number>("outputBasicBonus") ?? 20);
       // 推送：新线索可处理 → 客户端会客室红点
       draft.pushFlags.hasClues = 1;
     });
@@ -132,8 +145,10 @@ export async function sendClue(mgr: BuildingManager, args: { id?: string; clueId
       clue.ts = now() + getClueExpiredDays() * 86400;
       room.receiveStock.push(clue);
       sent = true;
-      // 修复：传递线索信用（PRTS：向好友传递线索每张 +20 信用，无上限）
-      draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 20;
+      // 传递线索信用（PRTS：向好友传递线索每张 +20；数值取 clue_data.transferBonus）
+      draft.status.socialPoint =
+        (draft.status.socialPoint ?? 0) +
+        (getClueConstant<number>("transferBonus") ?? 20);
       // 推送：同步会客室红点（存在未上板线索 → 1）
       mgr._refreshClueFlag(draft, room);
     });
@@ -155,8 +170,10 @@ export async function sendClueAuto(mgr: BuildingManager, args: any) {
       // 好友赠送的线索进入线索盒（receiveStock）后限时保留（同 sendClue）
       clue.ts = now() + getClueExpiredDays() * 86400;
       room.receiveStock.push(clue);
-      // 修复：传递线索信用（PRTS：每张 +20，无上限；与 sendClue 一致）
-      draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 20;
+      // 传递线索信用（与 sendClue 一致，取 clue_data.transferBonus）
+      draft.status.socialPoint =
+        (draft.status.socialPoint ?? 0) +
+        (getClueConstant<number>("transferBonus") ?? 20);
       // 修复：自动发送后同步红点（与 sendClue 一致）
       mgr._refreshClueFlag(draft, room);
     });
@@ -181,10 +198,10 @@ export async function receiveClueToStock(mgr: BuildingManager, args: { id?: stri
         if (idx === -1) continue;
         const clue = room.receiveStock.splice(idx, 1)[0];
         room.ownStock.push(clue);
-        // 修复：接收好友线索信用（PRTS：每张依次 15/10/5，第 4 张起不获信用，每日刷新计次）
+        // 接收好友线索信用（PRTS：每张依次 15/10/5，第 4 张起不获信用，每日刷新计次）
+        // 数值取 clue_data.receiveTimeBonus（第 n 张 → receiveBonus）
         const receiveIdx = (room as any).clueReceiveCount ?? 0;
-        const receivePt =
-          receiveIdx === 0 ? 15 : receiveIdx === 1 ? 10 : receiveIdx === 2 ? 5 : 0;
+        const receivePt = getClueReceiveBonus(receiveIdx);
         if (receivePt > 0) {
           draft.status.socialPoint = (draft.status.socialPoint ?? 0) + receivePt;
           (room as any).clueReceiveCount = receiveIdx + 1;
@@ -288,9 +305,11 @@ export async function deleteOwnClue(mgr: BuildingManager, args: { id?: string; c
       if (!room) return;
       const before = room.ownStock.length;
       room.ownStock = room.ownStock.filter((c) => c.id !== id);
-      // 修复：回收自有库线索信用（PRTS：每张 +5 信用，无上限）——确实删除了一条才发放
+      // 回收自有库线索信用（PRTS：每张 +5；数值取 clue_data.recycleBonus）——确实删除了一条才发放
       if (room.ownStock.length < before) {
-        draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 5;
+        draft.status.socialPoint =
+          (draft.status.socialPoint ?? 0) +
+          (getClueConstant<number>("recycleBonus") ?? 5);
       }
       mgr._clearBoardEntry(draft, room, id);
       mgr._refreshClueFlag(draft, room);

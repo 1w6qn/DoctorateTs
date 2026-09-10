@@ -207,7 +207,7 @@ describe("BuildingManager", () => {
   });
 
   describe("constructor", () => {
-    it("应该正确初始化并注册 building:char:init 事件监听", () => {
+    it("应该正确初始化并注册 char:init 事件监听", () => {
       const onSpy = vi.spyOn(mockTrigger, "on");
       const manager = new BuildingManager(
         mockPlayer as any,
@@ -216,10 +216,9 @@ describe("BuildingManager", () => {
       expect(manager).toBeDefined();
       expect(manager._player).toBe(mockPlayer);
       expect(manager._trigger).toBe(mockTrigger);
-      expect(onSpy).toHaveBeenCalledWith(
-        "building:char:init",
-        expect.any(Function)
-      );
+      // 修复（2026-09-09，审计 §6.3-27）：原订阅 "building:char:init"（全仓无 emit 方），
+      // 干员模块真正派发的是 "char:init"
+      expect(onSpy).toHaveBeenCalledWith("char:init", expect.any(Function));
     });
   });
 
@@ -424,13 +423,11 @@ describe("BuildingManager", () => {
     });
   });
 
-  describe("building:char:init 事件", () => {
-    it("触发 building:char:init 事件应该初始化建筑干员数据", async () => {
-      new BuildingManager(mockPlayer as any, mockTrigger as any);
-
-      const char = {
-        instId: 1001,
-        charId: "char_001",
+  describe("char:init 事件（新干员基建建档）", () => {
+    function makeChar(instId: number, charId: string) {
+      return {
+        instId,
+        charId,
         level: 1,
         exp: 0,
         evolvePhase: 0,
@@ -440,7 +437,11 @@ describe("BuildingManager", () => {
         gainTime: 0,
         voiceLan: "CN_MANDARIN",
       };
-      await mockTrigger.emit("building:char:init", [char]);
+    }
+
+    it("触发 char:init 事件应该初始化建筑干员数据（官方条目形状）", async () => {
+      new BuildingManager(mockPlayer as any, mockTrigger as any);
+      await mockTrigger.emit("char:init", [makeChar(1001, "char_001")]);
 
       const buildingChar =
         mockPlayer._playerdata.building!.chars["1001"];
@@ -452,6 +453,23 @@ describe("BuildingManager", () => {
       expect(buildingChar.bubble.normal.add).toBe(-1);
       expect(buildingChar.bubble.assist.add).toBe(-1);
       expect(buildingChar.workTime).toBe(0);
+      expect(buildingChar.privateRooms).toEqual([]);
+    });
+
+    it("char:init 幂等：已有建档（心情/私人宿舍）不被覆盖", async () => {
+      const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+      await mockTrigger.emit("char:init", [makeChar(1001, "char_001")]);
+      // 模拟干员已进驻宿舍 + 心情已消耗 + 已分配私人宿舍
+      const rec = mockPlayer._playerdata.building!.chars['1001'] as any;
+      rec.ap = 1234;
+      rec.roomSlotId = "slot_1";
+      rec.privateRooms = ["slot_47"];
+      await mockTrigger.emit("char:init", [makeChar(1001, "char_001")]);
+      const after = mockPlayer._playerdata.building!.chars['1001'] as any;
+      expect(after.ap).toBe(1234);
+      expect(after.roomSlotId).toBe("slot_1");
+      expect(after.privateRooms).toEqual(["slot_47"]);
+      expect(manager).toBeDefined();
     });
   });
 });
@@ -809,16 +827,31 @@ describe("BuildingManager 贸易站", () => {
     expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.stock[0].instId).toBe(28208);
   });
 
-  it("accelerateOrder 应按 delivery/gain 结算指定订单", async () => {
+  it("accelerateOrder 应按 delivery/gain 结算指定订单（并消耗无人机）", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    // 修复（2026-09-09）：加速消耗无人机（labor）——给足余额后应结算并扣 1 架
+    mockPlayer._playerdata.building!.status.labor.value = 5;
     await manager.accelerateOrder({ slotId: "slot_6", orderId: 28207 } as any);
     expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.stock).toHaveLength(1);
     expect(mockPlayer._playerdata.inventory!["3003"]).toBe(7); // 10 - 3
     expect(mockPlayer._playerdata.status!.gold).toBe(2500); // 1000 + 1500
+    expect(mockPlayer._playerdata.building!.status.labor.value).toBe(4); // 5 - 1 架
   });
 
-  it("accelerateSolution 应加速制造站方案（不扣源石碎片——无人机为客户端本地资源）", async () => {
+  it("accelerateOrder 无人机不足时不应结算订单", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    mockPlayer._playerdata.building!.status.labor.value = 0;
+    await manager.accelerateOrder({ slotId: "slot_6", orderId: 28207 } as any);
+    // 订单保留、无收益、无人机不变
+    expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.stock).toHaveLength(2);
+    expect(mockPlayer._playerdata.status!.gold).toBe(1000);
+    expect(mockPlayer._playerdata.building!.status.labor.value).toBe(0);
+  });
+
+  it("accelerateSolution 应加速制造站方案（消耗无人机、不扣源石碎片）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    // 修复（2026-09-09）：加速消耗无人机（1 架 = 3 分钟）；给足余额
+    mockPlayer._playerdata.building!.status.labor.value = 200;
     // 给 mock 加一个开工的制造站
     (mockPlayer._playerdata.building!.rooms as any).MANUFACTURE["slot_25"] = {
       state: 1,
@@ -837,6 +870,28 @@ describe("BuildingManager 贸易站", () => {
     expect(room.remainSolutionCnt).toBe(0);
     // 修复：cost 为客户端无人机数，服务端不扣源石碎片（原实现 1000 → 855）
     expect(mockPlayer._playerdata.status!.diamondShard).toBe(1000);
+    // 修复（2026-09-09）：消耗 145 架无人机
+    expect(mockPlayer._playerdata.building!.status.labor.value).toBe(55); // 200 - 145
+  });
+
+  it("accelerateSolution 无人机不足时不应加速（方案保留）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    (mockPlayer._playerdata.building!.rooms as any).MANUFACTURE["slot_25"] = {
+      state: 1,
+      formulaId: "4",
+      remainSolutionCnt: 5,
+      outputSolutionCnt: 0,
+      processPoint: 0,
+      lastUpdateTime: 0,
+      completeWorkTime: 0,
+      capacity: 1,
+    };
+    mockPlayer._playerdata.building!.status.labor.value = 10; // < 145
+    await manager.accelerateSolution({ slotId: "slot_25", cost: 145 } as any);
+    const room = (mockPlayer._playerdata.building!.rooms as any).MANUFACTURE["slot_25"];
+    expect(room.outputSolutionCnt).toBe(0);
+    expect(room.remainSolutionCnt).toBe(5);
+    expect(mockPlayer._playerdata.building!.status.labor.value).toBe(10);
   });
 
   it("accelerateSolution 无可加速方案（未开工）不应报错且不改状态", async () => {
@@ -1174,7 +1229,28 @@ describe("BuildingManager 线索系统", () => {
     vi.spyOn(Date, "now").mockReturnValue(1234567890000);
   });
 
+  /**
+   * 会客室进驻 1 名干员。
+   * B11（PRTS《罗德岛基建/会客室》）：「仅在有干员进驻时，每日 4:00 可发放 1 份
+   * 会客室线索」——未进驻不发放，故 getDailyClue 基线用例需先派驻。
+   */
+  function stationMeetingChar() {
+    const b = mockPlayer._playerdata.building! as any;
+    b.roomSlots.meeting_01 = {
+      level: 1, state: 2, roomId: "MEETING", charInstIds: [9001], completeConstructTime: -1,
+    };
+    b.chars["9001"] = {
+      charId: "char_meet", ap: 8640000, lastApAddTime: 0,
+      roomSlotId: "meeting_01", index: 0, changeScale: 0, bubble: {},
+    };
+    (mockPlayer._playerdata as any).troop = {
+      chars: { "9001": { charId: "char_meet", level: 10, evolvePhase: 0 } },
+      charGroup: {},
+    };
+  }
+
   it("getDailyClue 应获得一条每日线索", async () => {
+    stationMeetingChar();
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.getDailyClue({} as any);
     const room = mockPlayer._playerdata.building!.rooms.MEETING.room_001;
@@ -1183,6 +1259,7 @@ describe("BuildingManager 线索系统", () => {
   });
 
   it("getDailyClue 应生成阵营线索（type ∈ 7 阵营、id {uid}#{n}#{ts}）", async () => {
+    stationMeetingChar();
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.getDailyClue({} as any);
     const clue = mockPlayer._playerdata.building!.rooms.MEETING.room_001.dailyReward;
@@ -1193,7 +1270,42 @@ describe("BuildingManager 线索系统", () => {
     expect(clue.id).toMatch(/^\d+#\d+#\d+$/);
   });
 
+  // B11（PRTS《罗德岛基建/会客室》）：「仅在有干员进驻时，每日 4:00 可发放 1 份
+  // 会客室线索」——原实现无进驻校验，空会客室照常发放。
+  it("getDailyClue 未进驻干员不发放", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.getDailyClue({} as any);
+    const room = mockPlayer._playerdata.building!.rooms.MEETING.room_001 as any;
+    expect(room.ownStock).toHaveLength(0);
+    expect(room.dailyReward ?? null).toBeNull();
+    expect((mockPlayer._playerdata.status as any).socialPoint ?? 0).toBe(0);
+  });
+
+  // B11（PRTS《罗德岛基建/会客室》）：「最多存储 10 份，达到上限时无法继续入库」；
+  // 每日发放的线索不适用干员搜集的「滞留」规则，满库即不入库（dailyReward 不置位 →
+  // 腾空后当日仍可领取，避免永久损失）。
+  it("getDailyClue 自有库满（10）不入库，腾空后可再领", async () => {
+    stationMeetingChar();
+    (mockPlayer._playerdata.building!.rooms.MEETING.room_001 as any).ownStock = Array.from(
+      { length: 10 },
+      (_, i) => ({
+        id: `1#${i}#0`, type: "RHINE", number: 1, uid: "1", name: "A", nickNum: "1",
+        chars: [], inUse: 0, ts: 0,
+      }),
+    );
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.getDailyClue({} as any);
+    expect((mockPlayer._playerdata.building!.rooms.MEETING.room_001 as any).ownStock).toHaveLength(10);
+    expect((mockPlayer._playerdata.building!.rooms.MEETING.room_001 as any).dailyReward ?? null).toBeNull();
+    // 腾出 1 个空位 → 当日仍可领取
+    (mockPlayer._playerdata.building!.rooms.MEETING.room_001 as any).ownStock.pop();
+    await manager.getDailyClue({} as any);
+    expect((mockPlayer._playerdata.building!.rooms.MEETING.room_001 as any).ownStock).toHaveLength(10);
+    expect((mockPlayer._playerdata.building!.rooms.MEETING.room_001 as any).dailyReward).not.toBeNull();
+  });
+
   it("getDailyClue 应在线索写入过期时间戳 ts（修复前 ownStock 无 ts → 永不销毁）", async () => {
+    stationMeetingChar();
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.getDailyClue({} as any);
     const clue = mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock[0];
@@ -1202,6 +1314,7 @@ describe("BuildingManager 线索系统", () => {
   });
 
   it("getDailyClue 重复调用不应重复发线索", async () => {
+    stationMeetingChar();
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.getDailyClue({} as any);
     await manager.getDailyClue({} as any);
@@ -1209,6 +1322,7 @@ describe("BuildingManager 线索系统", () => {
   });
 
   it("dailyRefresh 应重置每日线索（dailyReward=null——修复后每日可再领）", async () => {
+    stationMeetingChar();
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.getDailyClue({} as any);
     expect(mockPlayer._playerdata.building!.rooms.MEETING.room_001.dailyReward).not.toBeNull();
@@ -1805,6 +1919,22 @@ describe("BuildingManager 房间建造与升级（Excel 驱动）", () => {
     expect(room.state).toBe(1);
   });
 
+  // Round 23 / B4：制造站单次排产份数上限（building_data.manufactInputCapacity = 99）
+  it("changeManufactureSolution：份数超过 99 时按 manufactInputCapacity 钳制", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    (mockPlayer._playerdata.building!.rooms.MANUFACTURE as any)["slot_m1"] = {
+      buff: {}, state: 0, formulaId: "", remainSolutionCnt: 0,
+      outputSolutionCnt: 0, processPoint: 0, capacity: 54, lastUpdateTime: 0,
+    };
+    await manager.changeManufactureSolution({ roomSlotId: "slot_m1", targetFormulaId: "1", solutionCount: 999999 } as any);
+    const room = (mockPlayer._playerdata.building!.rooms.MANUFACTURE as any)["slot_m1"];
+    expect(room.remainSolutionCnt).toBe(99);
+    // 小数份数取整（mock 的 update 会整体替换 building 子树，需重新取引用）
+    await manager.changeManufactureSolution({ roomSlotId: "slot_m1", targetFormulaId: "1", solutionCount: 12.7 } as any);
+    const room2 = (mockPlayer._playerdata.building!.rooms.MANUFACTURE as any)["slot_m1"];
+    expect(room2.remainSolutionCnt).toBe(12);
+  });
+
   it("贸易站订单补充：stock 为空时 sync 补 2 单（delivery 3003 → gain 金币）", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     (mockPlayer._playerdata.building!.rooms.TRADING as any)["slot_t1"] = {
@@ -1973,6 +2103,105 @@ describe("训练室专精结算 / 批量换班（修复）", () => {
   });
 });
 
+describe("快速换班预设队列选择规则（B10：排除训练位/涣散 + 按心情比例）", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  const MAX_AP = 8640000;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {
+          slot_5: { level: 3, state: 2, roomId: "MANUFACTURE", charInstIds: [-1, -1, -1], completeConstructTime: -1 },
+        },
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, TRADING: {}, CORRIDOR: {}, WORKSHOP: {},
+          DORMITORY: {}, MEETING: {}, HIRE: {},
+          TRAINING: {},
+          MANUFACTURE: { slot_5: { presetQueue: [] } },
+          PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { inUse: false, selected: "bgm_default", state: {} },
+      },
+      event: { building: 0 },
+    } as any);
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi.fn().mockImplementation(async (recipe: any) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
+  });
+
+  /** 写入干员心情与房间预设队列 */
+  function setup(aps: Record<number, number>, queue: number[][], training?: number) {
+    const chars: any = {};
+    for (const [id, ap] of Object.entries(aps)) {
+      chars[id] = { charId: `char_${id}`, ap, changeScale: 0 };
+    }
+    Object.assign(mockPlayer._playerdata.building!.chars, chars);
+    (mockPlayer._playerdata.building!.rooms.MANUFACTURE as any).slot_5.presetQueue = queue;
+    if (training) {
+      (mockPlayer._playerdata.building!.rooms.TRAINING as any).slot_13 = {
+        state: 1,
+        trainee: { charInstId: training, state: 1, targetSkill: 0 },
+        trainer: { charInstId: -1, state: 0 },
+      };
+    }
+  }
+
+  it("按心情比例而非人数：2 人满心情组胜过 3 人低心情组", () => {
+    setup(
+      { 1: MAX_AP, 2: MAX_AP, 3: 1000, 4: 1000, 5: 1000 },
+      [[3, 4, 5], [1, 2]],
+    );
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const picked = manager._pickHighestApPreset(mockPlayer._playerdata as any, "slot_5");
+    expect(picked).toEqual([1, 2]);
+  });
+
+  it("排除训练位干员：含专精训练中干员的组跳过", () => {
+    setup(
+      { 1: MAX_AP, 2: MAX_AP, 3: 1000 },
+      [[1, 2], [3]],
+      /* training */ 1,
+    );
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const picked = manager._pickHighestApPreset(mockPlayer._playerdata as any, "slot_5");
+    expect(picked).toEqual([3]);
+  });
+
+  it("排除涣散干员（心情 0）：含涣散干员的组跳过", () => {
+    setup({ 1: MAX_AP, 2: 0, 3: 1000 }, [[1, 2], [3]]);
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const picked = manager._pickHighestApPreset(mockPlayer._playerdata as any, "slot_5");
+    expect(picked).toEqual([3]);
+  });
+
+  it("平手时取队列序号靠前的一组", () => {
+    setup({ 1: MAX_AP, 2: MAX_AP }, [[1], [2]]);
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const picked = manager._pickHighestApPreset(mockPlayer._playerdata as any, "slot_5");
+    expect(picked).toEqual([1]);
+  });
+
+  it("全部组都不可用（含训练位/涣散）时返回 null", () => {
+    setup({ 1: 0, 2: 0 }, [[1], [2]]);
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    expect(manager._pickHighestApPreset(mockPlayer._playerdata as any, "slot_5")).toBeNull();
+  });
+});
+
 describe("batchChangeWorkChar / batchRestChar pushMessage（对齐官服抓包 buildingBatchChangeWorkChar / buildingBatchRestChar）", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
@@ -2102,31 +2331,54 @@ describe("BuildingManager 信用获取规则（PRTS）", () => {
     vi.spyOn(Date, "now").mockReturnValue(1234567890000);
   });
 
-  it("宿舍氛围每日结算信用：Cd=10+⌊Ad/125⌋、每间 50 上限，getMeetingroomReward 手动领取", async () => {
+  /** 会客室进驻 1 名干员（B11：未进驻干员不发放每日线索） */
+  function stationMeetingChar() {
+    const b = mockPlayer._playerdata.building! as any;
+    b.roomSlots.meeting_01 = {
+      level: 1, state: 2, roomId: "MEETING", charInstIds: [9001], completeConstructTime: -1,
+    };
+    b.chars["9001"] = {
+      charId: "char_meet", ap: 8640000, lastApAddTime: 0,
+      roomSlotId: "meeting_01", index: 0, changeScale: 0, bubble: {},
+    };
+    (mockPlayer._playerdata as any).troop = {
+      chars: { "9001": { charId: "char_meet", level: 10, evolvePhase: 0 } },
+      charGroup: {},
+    };
+  }
+
+  it("宿舍氛围每日结算信用：Cd=10+⌊Ad/125⌋、每间 50 上限，写入昨日奖励（信用交易所领取）", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.dailyRefresh();
+    // 修复（2026-09-09，审计 §5.4-12）：宿舍氛围信用属 PRTS「每日结算的信用」——
+    // 次日于**信用交易所**手动领取（social.yesterdayReward.comfortAmount），
+    // 不再写入会客室 socialReward.daily（官服存档 MEETING.daily = 0 而 comfortAmount = 200）。
     // 两间宿舍：5000→50、1000→18，合计 68（<200 不上限）
-    expect((mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.socialReward.daily).toBe(68);
-    // 手动领取入账 socialPoint，领取后清零
-    const granted = await manager.getMeetingroomReward();
-    expect(granted.rewards).toEqual([{ id: "SOCIAL_PT", type: "SOCIAL_PT", count: 68 }]);
-    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(68);
-    // 领取后清零（update 深拷贝替换 room，须重读）
     expect((mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.socialReward.daily).toBe(0);
+    // building 侧不再触碰 social 容器（写入由 SocialManager.dailyRefresh 负责）
+    expect((mockPlayer._playerdata as any).social).toBeUndefined();
+    // 会客室再无待领信用 → getMeetingroomReward 空发放
+    const granted = await manager.getMeetingroomReward();
+    expect(granted.rewards).toEqual([]);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(0);
   });
 
-  it("宿舍氛围每日结算信用全天上限 200（5 间满氛围宿舍封顶）", async () => {
+  it("dormComfortCredit 全天上限 200（5 间满氛围宿舍封顶），由 social 侧写入昨日奖励", async () => {
     (mockPlayer._playerdata.building!.rooms.DORMITORY as any) = {
       slot_1: { comfort: 5000 }, slot_2: { comfort: 5000 }, slot_3: { comfort: 5000 },
       slot_4: { comfort: 5000 }, slot_5: { comfort: 5000 },
     };
+    // 纯计算入口（building/public.ts 门面 → SocialManager.dailyRefresh 调用）
+    const { settleDormComfortCredit } = await import("@game/modules/building/public");
+    expect(settleDormComfortCredit(mockPlayer._playerdata as any)).toBe(200);
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.dailyRefresh();
-    // 5×50=250，但全天上限 200
-    expect((mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.socialReward.daily).toBe(200);
+    // 会客室容器不再承接宿舍氛围信用
+    expect((mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.socialReward.daily).toBe(0);
   });
 
   it("getDailyClue 生成线索即时 +20 信用", async () => {
+    stationMeetingChar();
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.getDailyClue({} as any);
     expect((mockPlayer._playerdata.status as any).socialPoint).toBe(20);
@@ -2178,5 +2430,26 @@ describe("BuildingManager 信用获取规则（PRTS）", () => {
     st.visitCreditCount = 10;
     await manager.visitBuilding({ friendId: "4" } as any);
     expect((mockPlayer._playerdata.status as any).socialPoint).toBe(60);
+  });
+
+  // ===== Round 24 / B6：线索信用补齐 =====
+
+
+  it("visitBuilding：同一好友每日只计 1 次（原实现可反复访问同一好友刷满 10 次）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.visitBuilding({ friendId: "2" } as any);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(30);
+    // 同日重复访问同一好友不再发放
+    await manager.visitBuilding({ friendId: "2" } as any);
+    await manager.visitBuilding({ friendId: "2" } as any);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(30);
+    // 换好友仍可计次
+    await manager.visitBuilding({ friendId: "3" } as any);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(60);
+    // 次日重置后可再次计次
+    const st = mockPlayer._playerdata.status as any;
+    st.visitCreditDay = -1;
+    await manager.visitBuilding({ friendId: "2" } as any);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(90);
   });
 });

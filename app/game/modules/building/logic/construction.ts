@@ -5,13 +5,14 @@
  * 类侧保留同名薄委派（见 logic.ts）。
  */
 import type { BuildingManager } from "../logic";
+import excel from "@excel/excel";
 import { now } from "@utils/time";
 import config from "@core/config/index";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "../../../kernel/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "../../../kernel/playerdata";
 import { getSpecCond, SPEC_ASSIST_BASE_BONUS } from "../mastery";
-import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst, getRoomUnlockCondId, canRoomLevelDown, getRoomBasicSpeedBuff } from "@excel/building_excel";
 import {
   CharBuffSource,
   roomSpeedBonus,
@@ -50,9 +51,13 @@ export function _roomCapacity(mgr: BuildingManager, draft: Draft<PlayerDataModel
     const chars = mgr._roomCharSources(draft, slot);
     // targets 过滤：buff.targets 非空时仅对配方类型（F_GOLD/F_EXP/…）生效
     const targets = formula?.formulaType ? [formula.formulaType] : [];
+    // 修复（2026-09-09，B2）：补「每名在岗干员 +1%」基础效率（manufactData.basicSpeedBuff）——
+    // 原实现只叠加技能与中枢全局加成，该字段全仓未被读 → 产出与倒计时低 1~3%
+    const stationed = (slot?.charInstIds ?? []).filter((i) => i > 0).length;
     const bonus =
       roomSpeedBonus(chars, "MANUFACTURE", targets, mgr._specialCtx(draft)) +
-      (mgr._controlGlobalFor(draft).MANUFACTURE ?? 0);
+      (mgr._controlGlobalFor(draft).MANUFACTURE ?? 0) +
+      getRoomBasicSpeedBuff("MANUFACTURE") * stationed;
     if (room) {
       room.capacity = base;
       const roomBuff = (room.buff as any) ?? {};
@@ -81,6 +86,8 @@ export async function buildRoom(mgr: BuildingManager, args: { roomSlotId: string
       // 建造 = 1 级相位 buildCost（材料/金币/劳动力）
       const phase = getRoomPhase(roomId, 1);
       if (!phase) return; // 房间类型未知——容错跳过
+      // 修复（2026-09-09，B8）：建造前置校验（unlockCondId → roomUnlockConds，如制造站需发电站 Lv1）
+      if (!mgr._roomUnlockSatisfied(draft, getRoomUnlockCondId(roomId, 1))) return;
       // 修复：资源足额校验——不足时拒绝建造（避免负库存/负金币）
       if (!mgr._canAfford(draft, phase.buildCost)) return;
       // 电力校验：新房间耗电（或换建时替换原房间耗电）后余额不得为负——
@@ -166,7 +173,47 @@ export function _unlockCtx(mgr: BuildingManager, draft: Draft<PlayerDataModel>) 
     return { maxLevelReached, roomCountByType, stageState };
 }
 
-  /** 记录房间类型曾达最高等级（建造/升级时取 max，降级不回退） */
+  /**
+ * 房间解锁条件判定（`roomUnlockConds[condId].number[*] = { type, level, count }`）
+ *
+ * 官方：每个房间相位带 `unlockCondId`；条件要求「指定类型房间达到指定等级、且数量 ≥ count」，
+ * `type === "FUNCTIONAL"` 表示「功能房间（不含电梯/走廊）达到指定等级的数量」。
+ * 无配置/空条件视为满足（数据版本缺表时不阻塞）。
+ * @param mgr - 基建管理器
+ * @param draft - 可写草稿
+ * @param condId - 条件 id（可为 undefined）
+ * @returns 是否满足
+ */
+export function _roomUnlockSatisfied(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
+    condId: string | undefined,) : boolean {
+    if (!condId) return true;
+    const cond = ((excel.BuildingData as any)?.roomUnlockConds ?? {})[condId];
+    const numbers = Object.values(cond?.number ?? {}) as any[];
+    if (!numbers.length) return true;
+    const slots = Object.values(draft.building.roomSlots ?? {}) as any[];
+    const maxLevelByType: Record<string, number> = {};
+    for (const slot of slots) {
+      if (!slot?.roomId) continue;
+      maxLevelByType[slot.roomId] = Math.max(maxLevelByType[slot.roomId] ?? 0, slot.level ?? 1);
+    }
+    for (const n of numbers) {
+      const type = String(n?.type ?? "");
+      const needLevel = Number(n?.level ?? 0);
+      const needCount = Number(n?.count ?? 0);
+      if (type === "FUNCTIONAL") {
+        const count = slots.filter(
+          (s) => s?.roomId && s.roomId !== "CORRIDOR" && s.roomId !== "ELEVATOR" &&
+            (s.level ?? 1) >= needLevel,
+        ).length;
+        if (count < needCount) return false;
+        continue;
+      }
+      if ((maxLevelByType[type] ?? 0) < needLevel) return false;
+    }
+    return true;
+}
+
+/** 记录房间类型曾达最高等级（建造/升级时取 max，降级不回退） */
 export function _touchMaxLevel(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
     roomId: string,
     level: number,) : void {
@@ -228,6 +275,10 @@ export async function upgradeRoom(mgr: BuildingManager, args: { roomSlotId: stri
       if (target <= (slot.level ?? 1)) return; // 无升级空间
       const phase = getRoomPhase(slot.roomId, target);
       if (!phase) return; // 相位不存在——容错跳过
+      // 修复（2026-09-09，B8）：升级前置校验——官方每级相位带 unlockCondId
+      //（如制造站 Lv2/Lv3 需中枢 Lv3/Lv4、贸易站 Lv2 需中枢 Lv3），原实现只看材料/劳动力/电力，
+      // 可绕过中枢等级门槛直接升满
+      if (!mgr._roomUnlockSatisfied(draft, getRoomUnlockCondId(slot.roomId, target))) return;
       // 修复：升级前资源足额校验——不足时拒绝（避免负库存）
       if (!mgr._canAfford(draft, phase.buildCost)) return;
       // 电力校验：升级后耗电增量不得使余额为负（如发电站升级供给更多电力）
@@ -273,10 +324,18 @@ export async function degradeRoom(mgr: BuildingManager, args: { roomSlotId: stri
     const { roomSlotId } = args;
     return await mgr._player.update(async (draft) => {
       const slot = draft.building.roomSlots[roomSlotId];
-      if (slot && slot.level > 1) {
-        slot.level -= 1;
-        slot.state = 2;
-      }
+      if (!slot?.roomId || (slot.level ?? 1) <= 1) return;
+      // 修复（2026-09-09，B8）：① 不可降级房间（rooms[roomId].canLevelDown === false：
+      // 控制中枢/加工站/办公室/训练室/会客室）原实现只判 level > 1，可把中枢降级；
+      // ② 发电站降级减少供电，须保证电力余额不为负（否则其他房间全部失电）
+      if (!canRoomLevelDown(slot.roomId)) return;
+      const oldElec = getRoomElectricity(slot.roomId, slot.level ?? 1);
+      const newElec = getRoomElectricity(slot.roomId, Math.max(1, (slot.level ?? 1) - 1));
+      // 仅当降级会**减少供电**（发电站：electricity 为正值）时才要求电力余额不为负；
+      // 耗电房间降级只会省电（newElec > oldElec），不应被已有的负余额卡住
+      if (newElec < oldElec && mgr._powerBalance(draft) - oldElec + newElec < 0) return;
+      slot.level -= 1;
+      slot.state = 2;
     });
 }
 
@@ -312,6 +371,14 @@ export function _applyItemDelta(mgr: BuildingManager, draft: Draft<PlayerDataMod
     itemId: string,
     delta: number,) : void {
     draft.inventory[itemId] = (draft.inventory[itemId] || 0) + delta;
+    // 修复（2026-09-09，B12）：**产出**（正增量）登记到待派发队列，由各入口在
+    // update 完成后经 _flushGainEvents 补发 items:get 同口径的追踪事件
+    // （TotalSimpleTokenCount / GotItemBeforeTime / ActivityCoinGain）——
+    // 原实现完全绕过事件通道，制造/加工/订单产出不推进勋章与任务。
+    // 扣料（负增量）不登记。
+    if (delta > 0 && itemId) {
+      mgr._pendingGainEvents.push({ id: itemId, count: delta });
+    }
 }
 
   /**
@@ -359,44 +426,36 @@ export async function upgradeSpecialization(mgr: BuildingManager, args: {
     reduceTimeBd?: any;
   }) {
     const { charInstId, targetSkill } = args;
-    // 专精时间强制为 0：调用即立即完成，任务事件照常发出（复用结算逻辑）
-    if (config.developer?.specializationTimeZero) {
-      let settledLevel = 0;
-      await mgr._player.update(async (draft) => {
-        const char = draft.troop.chars[String(charInstId)];
-        if (char && char.skills && char.skills[targetSkill]) {
-          char.skills[targetSkill].specializeLevel += 1;
-          settledLevel = char.skills[targetSkill].specializeLevel;
-          char.skills[targetSkill].state = 0;
-          char.skills[targetSkill].completeUpgradeTime = -1;
-        }
-        // 复位训练室 trainee（官方线格式恒为对象：state=WAITING、targetSkill=-1）
-        const rooms = Object.values(draft.building.rooms.TRAINING);
-        const room =
-          rooms.find((r) => r.trainee?.charInstId === charInstId) ?? rooms[0];
-        if (room?.trainee) {
-          room.trainee.state = 3; // WAITING
-          room.trainee.targetSkill = -1;
-          if (room.trainer) room.trainer.state = 3; // WAITING
-          room.lastUpdateTime = now();
-        }
-      });
-      if (settledLevel > 0) {
-        await mgr._trigger.emit("UpgradeSpecialization", [
-          { targetLevel: settledLevel },
-        ]);
-      }
-      return;
-    }
-    return await mgr._player.update(async (draft) => {
+    // 专精时间强制为 0：门控与扣费照常执行，仅跳过训练等待直接结算
+    const instant = Boolean(config.developer?.specializationTimeZero);
+    let settledLevel = 0;
+    await mgr._player.update(async (draft) => {
       const char = draft.troop.chars[String(charInstId)];
       if (!(char && char.skills && char.skills[targetSkill])) return;
       const skill = char.skills[targetSkill];
+      // 修复（2026-09-09）：即时完成分支此前**完全跳过门控与扣费**（直接 specializeLevel += 1），
+      // 而 data/config.json 默认值即 specializationTimeZero=true → 调用 /building/upgradeSpecialization
+      // 可白嫖专精、无视精二/技能 7 级要求，且 specializeLevel 能无限增长超过专三。
+      // 门控与扣费现为两分支共用，即时完成只影响「是否等待 lvlUpTime」。
+      if (skill.unlock !== 1) return; // 技能未解锁
       const targetLevel = (skill.specializeLevel ?? 0) + 1;
       // 官方门控：精英2 + 技能 7 级 + 专精≤3（训练室等级上限/槽位占用在下方校验）
       if (phaseRank(char.evolvePhase) < 2) return;
       if ((char.mainSkillLvl ?? 0) < 7) return;
       if (targetLevel > 3) return;
+      if (instant && skill.state === 1 && (skill.completeUpgradeTime ?? -1) > 0) {
+        // 该档材料已在训练发起时扣除（配置由「等待」切到「即时」的存档）——直接结算，不重复扣费
+        skill.specializeLevel = targetLevel;
+        skill.state = 0;
+        skill.completeUpgradeTime = -1;
+        settledLevel = targetLevel;
+        resetTraineeWaiting(mgr, draft, charInstId);
+        return;
+      }
+      const preCond = getSpecCond(char.charId, targetSkill, targetLevel);
+      if (!preCond) return; // 该档位无专精配置
+      // 档位自带的精英化前置（levelUpCostCond[].unlockCond.phase）
+      if (phaseRank(char.evolvePhase) < preCond.phaseNeed) return;
       // 训练室定位：优先该干员已在训练的房间，其次首个空训练槽（按槽位遍历以取房间等级）
       const roomEntries = Object.entries(draft.building.rooms.TRAINING);
       const entry =
@@ -422,9 +481,18 @@ export async function upgradeSpecialization(mgr: BuildingManager, args: {
       const trainLevel = draft.building.roomSlots[trainSlotId]?.level ?? 3;
       if (targetLevel > trainLevel) return;
       // 消耗训练材料（足额校验后扣——官方专精需材料，2026-08-25 对齐）
-      const cond = getSpecCond(char.charId, targetSkill, targetLevel);
-      if (!cond || !mgr._canAffordCosts(draft, cond.costs)) return;
+      const cond = preCond;
+      if (!mgr._canAffordCosts(draft, cond.costs)) return;
       mgr._applyCosts(draft, cond.costs);
+      if (instant) {
+        // 立即完成：技能直接到目标档，训练室 trainee 复位 WAITING
+        skill.specializeLevel = targetLevel;
+        skill.state = 0;
+        skill.completeUpgradeTime = -1;
+        settledLevel = targetLevel;
+        resetTraineeWaiting(mgr, draft, charInstId);
+        return;
+      }
       skill.state = 1; // 专精中
       skill.completeUpgradeTime = now() + cond.lvlUpTime;
       if (room.trainee?.charInstId !== charInstId) {
@@ -448,6 +516,38 @@ export async function upgradeSpecialization(mgr: BuildingManager, args: {
       room.trainer.state = 1; // TRAINING
       room.lastUpdateTime = now();
     });
+    // 任务事件（即时完成分支同样发出）
+    if (settledLevel > 0) {
+      await mgr._trigger.emit("UpgradeSpecialization", [
+        { targetLevel: settledLevel },
+      ]);
+      // 修复（2026-09-09，审计 §5.3）：CharSkillSpecCount（技能精熟奖章 I–IX）无同名事件
+      // 派发 → 9 枚恒不可得；与 UpgradeSpecialization 同点派发（载荷同形）
+      await mgr._trigger.emit("CharSkillSpecCount", [
+        { targetLevel: settledLevel },
+      ]);
+    }
+}
+
+  /**
+   * 复位训练室 trainee/trainer 为 WAITING
+   *
+   * 官方线格式 trainee 恒为对象（state=3 WAITING、targetSkill=-1）；置 null 会让客户端读
+   * trainee.charInstId 崩溃 → 存档破坏，故只在对象上改字段。
+   * @param mgr - 基建管理器（与同文件其它导出函数签名一致）
+   * @param draft - 当前草稿
+   * @param charInstId - 待复位的干员
+   */
+export function resetTraineeWaiting(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
+    charInstId: number,) : void {
+    const rooms = Object.values(draft.building.rooms.TRAINING) as any[];
+    const room =
+      rooms.find((r) => r?.trainee?.charInstId === charInstId) ?? rooms[0];
+    if (!room?.trainee) return;
+    room.trainee.state = 3; // WAITING
+    room.trainee.targetSkill = -1;
+    if (room.trainer) room.trainer.state = 3; // WAITING
+    room.lastUpdateTime = now();
 }
 
   /**
@@ -484,6 +584,8 @@ export async function completeUpgradeSpecialization(mgr: BuildingManager, args: 
       }
       const char = draft.troop.chars[String(charInstId)];
       let settled = false;
+      // 修复（2026-09-09）：结算此前无上限校验，可把 specializeLevel 抬到 3 以上（超专三）
+      if ((char?.skills?.[targetSkill]?.specializeLevel ?? 0) >= 3) return;
       if (char && char.skills && char.skills[targetSkill]) {
         char.skills[targetSkill].specializeLevel += 1;
         settledLevel = char.skills[targetSkill].specializeLevel;
@@ -507,6 +609,10 @@ export async function completeUpgradeSpecialization(mgr: BuildingManager, args: 
     // char.ts 的"Duplicated"直改路径会发，本路径（真实训练室结算）补齐
     if (settledLevel > 0) {
       await mgr._trigger.emit("UpgradeSpecialization", [
+        { targetLevel: settledLevel },
+      ]);
+      // 修复（2026-09-09，审计 §5.3）：训练室结算路径同样计数技能精熟奖章（CharSkillSpecCount）
+      await mgr._trigger.emit("CharSkillSpecCount", [
         { targetLevel: settledLevel },
       ]);
     }

@@ -271,13 +271,14 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     await manager.sync();
     const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
     // 官方约定：room.capacity 为基础（3 级 54），buff.speed = 加成系数
-    // 0.15[char_001] + 0.25[char_003 F_GOLD] + 0.02[控制中枢]
+    // 0.15[char_001] + 0.25[char_003 F_GOLD] + 0.02[控制中枢] + 0.02[2 名在岗干员 × 1%
+    // （manufactData.basicSpeedBuff，Round 21/B2 修复后计入）
     expect(room.capacity).toBe(54);
-    expect(room.buff.speed).toBeCloseTo(0.42);
-    // 1 点/秒速率（2026-08-26 dc-fix）→ 1 小时 × 1.42 = 5112 processPoint → 1 批（costPoint 4320）
+    expect(room.buff.speed).toBeCloseTo(0.44);
+    // 1 点/秒速率（2026-08-26 dc-fix）→ 1 小时 × 1.44 = 5184 processPoint → 1 批（costPoint 4320）
     expect(room.outputSolutionCnt).toBe(1);
     expect(room.remainSolutionCnt).toBe(73 - 1);
-    expect(room.processPoint).toBe(5112 - 4320);
+    expect(room.processPoint).toBe(5184 - 4320);
   });
 
   it("sync：工作干员心情档位 = 基础消耗 - 技能附加（vdown），换班后立即重算", async () => {
@@ -338,8 +339,9 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     await manager.sync();
     const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
     // 进驻干员 buff targets 均不含 F_ASC → 不贡献；控制中枢 control_prod_spd 无 targets → 全局生效
+    // 另计 2 名在岗干员的基础效率 2%（manufactData.basicSpeedBuff）
     expect(room.capacity).toBe(54);
-    expect(room.buff.speed).toBeCloseTo(0.02);
+    expect(room.buff.speed).toBeCloseTo(0.04);
   });
 
   it("sync：计划耗尽（remain=0）后不再产出——修复制造站赤金无上限累积", async () => {

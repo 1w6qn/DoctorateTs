@@ -11,6 +11,7 @@ import { logger } from "@utils/logger";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "../../../kernel/playerdata";
 import { accountManager } from "../../account/AccountManager";
+import { getMessageLeaveBoardConst } from "@excel/building_excel";
 
   /**
    * 切换基建背景音乐
@@ -523,12 +524,22 @@ export async function visitBuilding(mgr: BuildingManager, args: any) {
       await mgr._player.update(async (draft) => {
         const st = draft.status as any;
         const dayKey = Math.floor(now() / 86400);
-        const used =
-          st.visitCreditDay === dayKey ? (st.visitCreditCount ?? 0) : 0;
-        if (used >= 10) return;
-        draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 30;
+        const sameDay = st.visitCreditDay === dayKey;
+        const used = sameDay ? (st.visitCreditCount ?? 0) : 0;
+        // 修复（2026-09-09，B6）：补「同一好友每日只计 1 次」——原实现只限每日 10 次，
+        // 反复访问同一好友即可连刷 10×30；官服为「每场限 1 次」。
+        // 已计次的好友列表按自然日重置（服务端扩展字段，客户端忽略）。
+        const credited: string[] = sameDay && Array.isArray(st.visitCreditIds)
+          ? st.visitCreditIds.map(String)
+          : [];
+        const key = String(friendId);
+        if (used >= 10 || credited.includes(key)) return;
+        // 访客信用数值取 clue_data.messageLeaveBoardConstData.visitorBonus（实测 30）
+        const bonus = getMessageLeaveBoardConst().visitorBonus ?? 30;
+        draft.status.socialPoint = (draft.status.socialPoint ?? 0) + bonus;
         st.visitCreditDay = dayKey;
         st.visitCreditCount = used + 1;
+        st.visitCreditIds = [...credited, key];
       });
     }
     return args;

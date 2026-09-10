@@ -275,8 +275,14 @@ describe("2222 存档基建时间戳更新修复", () => {
   it("贸易站：next.processPoint 随时间推进并生成订单（lastUpdateTime 同步更新）", async () => {
     await manager.sync();
     const room = mockPlayer._playerdata.building.rooms.TRADING.slot_24;
-    // 1 天 × 1.07 = 92448 点 ≥ maxPoint 8640 → 生成 10 笔订单（stockLimit 上限）
-    expect(room.next.order).toBe(45093 + 10);
+    // 1 天 × 1.07 ≈ 92448 点 → 按订单整周期逐笔生成（受 stockLimit=10 上限封顶）。
+    // Round 25/B9：单笔周期改为按赤金数取档（2/3/4 金 = 8640/12600/16560），
+    // 故一天内生成的笔数随抽取结果浮动（Lv3 期望周期 ≈12204s → 约 6~10 笔），
+    // 不再恒为 10 笔；此处断言区间与上限，并校验周期被写回。
+    const produced = room.next.order - 45093;
+    expect(produced).toBeGreaterThanOrEqual(1);
+    expect(produced).toBeLessThanOrEqual(10);
+    expect([8640, 12600, 16560]).toContain(room.next.maxPoint);
     expect(room.next.speed).toBeCloseTo(1.0);
   });
 });

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 /**
  * 基建配方解锁 + 专精系统（批次②：2026-08-25 全量对齐）
@@ -347,3 +347,134 @@ describe("BuildingManager 专精系统（材料/时长/门控/训练锁）", () 
     expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(1);
   });
 });
+
+describe("训练室专精：即时完成分支（specializationTimeZero=true，data/config.json 默认）", () => {
+  // 修复回归：该分支此前跳过全部门控与扣费（直接 specializeLevel += 1），
+  // 默认配置下可白嫖专精、无视精二/技能 7 级、且能无限超过专三。
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    config.developer!.specializationTimeZero = true;
+  });
+
+  afterEach(() => {
+    config.developer!.specializationTimeZero = false;
+  });
+
+  /** 满足专精门控的干员：精英2 + 技能 7 级 + 技能已解锁 */
+  function specChar(extra: any = {}) {
+    return {
+      charId: "char_spec", level: 80, evolvePhase: 2, mainSkillLvl: 7,
+      skills: [{ skillId: "sk1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 }],
+      ...extra,
+    };
+  }
+
+  it("门控：非精英2 时拒绝（不扣材料、不涨专精）", async () => {
+    const { manager, mockPlayer } = setup({
+      troop: { chars: { "501": specChar({ evolvePhase: 1 }) }, charGroup: {} },
+    });
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(0);
+    expect(mockPlayer._playerdata.inventory!["3303"]).toBe(5);
+  });
+
+  it("门控：技能 7 级以下时拒绝", async () => {
+    const { manager, mockPlayer } = setup({
+      troop: { chars: { "501": specChar({ mainSkillLvl: 6 }) }, charGroup: {} },
+    });
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(0);
+    expect(mockPlayer._playerdata.inventory!["3303"]).toBe(5);
+  });
+
+  it("门控：技能未解锁（unlock=0）时拒绝", async () => {
+    const { manager, mockPlayer } = setup({
+      troop: {
+        chars: { "501": specChar({ skills: [{ skillId: "sk1", unlock: 0, state: 0, specializeLevel: 0, completeUpgradeTime: -1 }] }) },
+        charGroup: {},
+      },
+    });
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(0);
+  });
+
+  it("门控：材料不足时拒绝", async () => {
+    const { manager, mockPlayer } = setup({
+      troop: { chars: { "501": specChar() }, charGroup: {} },
+      inventory: { "3112": 10, "3303": 4 }, // M1 需 5 个 3303
+    });
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(0);
+    expect(mockPlayer._playerdata.inventory!["3303"]).toBe(4);
+  });
+
+  it("正常路径：扣材料 + 立即到 M1（不等待）+ 发 UpgradeSpecialization + trainee 复位", async () => {
+    const { manager, mockPlayer, mockTrigger } = setup({
+      troop: { chars: { "501": specChar() }, charGroup: {} },
+    });
+    const emitSpy = vi.spyOn(mockTrigger, "emit");
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    const skill = mockPlayer._playerdata.troop.chars["501"].skills[0];
+    expect(skill.specializeLevel).toBe(1); // 即时完成，不是 state=1 等待
+    expect(skill.state).toBe(0);
+    expect(skill.completeUpgradeTime).toBe(-1);
+    expect(mockPlayer._playerdata.inventory!["3303"]).toBe(0); // 扣满 5
+    const trainee = (mockPlayer._playerdata.building as any).rooms.TRAINING.slot_13.trainee;
+    expect(trainee.state).toBe(3); // WAITING
+    expect(trainee.targetSkill).toBe(-1);
+    expect(emitSpy).toHaveBeenCalledWith("UpgradeSpecialization", [{ targetLevel: 1 }]);
+  });
+
+  it("逐级消耗：M1→M2→M3 各扣对应材料，超过 M3 拒绝（不会无限增长）", async () => {
+    const { manager, mockPlayer } = setup({
+      troop: { chars: { "501": specChar() }, charGroup: {} },
+      inventory: { "3303": 21 }, // 5 + 6 + 10
+    });
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    const skill = mockPlayer._playerdata.troop.chars["501"].skills[0];
+    expect(skill.specializeLevel).toBe(3);
+    expect(mockPlayer._playerdata.inventory!["3303"]).toBe(0);
+    // 第四次：已达专三上限，拒绝且不再扣材料
+    const { manager: m2, mockPlayer: p2 } = setup({
+      troop: { chars: { "501": specChar({ skills: [{ skillId: "sk1", unlock: 1, state: 0, specializeLevel: 3, completeUpgradeTime: -1 }] }) }, charGroup: {} },
+    });
+    await m2.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    expect(p2._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(3);
+    expect(p2._playerdata.inventory!["3303"]).toBe(5);
+  });
+
+  it("训练中（state=1）的存档切到即时配置：直接结算且不重复扣材料", async () => {
+    const { manager, mockPlayer } = setup({
+      troop: {
+        chars: {
+          "501": specChar({
+            skills: [{ skillId: "sk1", unlock: 1, state: 1, specializeLevel: 0, completeUpgradeTime: timeMock.now + 28800 }],
+          }),
+        },
+        charGroup: {},
+      },
+      inventory: { "3303": 0 }, // 材料已在训练发起时扣光
+    });
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    const skill = mockPlayer._playerdata.troop.chars["501"].skills[0];
+    expect(skill.specializeLevel).toBe(1);
+    expect(skill.state).toBe(0);
+    expect(mockPlayer._playerdata.inventory!["3303"]).toBe(0); // 未再扣（仍是 0，不会变负）
+  });
+
+  it("结算上限：已 M3 时 completeUpgradeSpecialization 不再 +1", async () => {
+    const { manager, mockPlayer } = setup({
+      troop: {
+        chars: { "501": specChar({ skills: [{ skillId: "sk1", unlock: 1, state: 0, specializeLevel: 3, completeUpgradeTime: -1 }] }) },
+        charGroup: {},
+      },
+    });
+    const rooms: any = (mockPlayer._playerdata.building as any).rooms.TRAINING;
+    rooms.slot_13.trainee = { charInstId: 501, state: 2, targetSkill: 0, processPoint: 28800, speed: 1 };
+    await manager.completeUpgradeSpecialization({} as any);
+    expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(3);
+  });
+});
+

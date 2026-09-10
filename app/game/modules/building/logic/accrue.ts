@@ -17,7 +17,7 @@ import { headcountMoodRelief, isDispersedAp, warmupHoursOf, MAX_AP } from "../mo
 import { getSpecCond, SPEC_ASSIST_BASE_BONUS } from "../mastery";
 import { contactSpeedFactor, settleContactProgress } from "../hire-contacts";
 import { rarityToIndex } from "@utils/rarity";
-import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst, getClueConstant } from "@excel/building_excel";
 import {
   CharBuffSource,
   roomSpeedBonus,
@@ -35,11 +35,21 @@ import {
 import { random } from "../../../kernel/util/random";
 
   /**
-   * 干员进驻建档回调（building:char:init）：初始化基建在编状态
-   * @param char - 新入编干员
+   * 干员进驻建档回调（`char:init` 事件）：初始化基建在编状态
+   *
+   * 修复（2026-09-09，审计 §6.3-27）：订阅原先挂在 "building:char:init" 上——该事件全仓无
+   * emit 方，真正派发的是干员模块的 "char:init"（onCharGet 获取新干员时）→ 本函数从未执行，
+   * 新获得干员在 `building.chars` 无建档（官方存档每个在编干员均有该条目：charId/ap/
+   * lastApAddTime/roomSlotId/index/changeScale/bubble/workTime/privateRooms）。
+   *
+   * 幂等：已有建档（迁移档/重复派发）直接返回，不覆盖心情 AP 与私人宿舍归属。
+   * @param char - 新获得干员（`char:init` 载荷）
    */
 export async function _onCharInit(mgr: BuildingManager, char: PlayerCharacter) : Promise<void> {
+    // 幂等守卫：已有建档不覆盖（char:init 可能对同一 instId 重复派发/迁移档已建档）
+    if (mgr._player._playerdata.building?.chars?.[char.instId]) return;
     await mgr._player.update(async (draft) => {
+      if (draft.building.chars[char.instId]) return;
       draft.building.chars[char.instId] = {
         charId: char.charId,
         lastApAddTime: now(),
@@ -103,10 +113,13 @@ export async function dailyRefresh(mgr: BuildingManager) {
         mgr._rolloverWeekSp(room as any, ts);
         // 留言板社交点累积（模拟好友访问留言板）→ 计入本周 thisWeek
         mgr._accumulateMessageLeaveSp(room as any, friendCount);
-        // 修复：宿舍氛围每日结算信用（Cd=10+⌊Ad/125⌋，每间 50 上限、全天 200，
-        // 次日于信用交易所手动领取）取代原"模拟好友访问"被动信用（creditPassiveLimit）
+        // 修复（2026-09-09，审计 §5.4-12）：宿舍氛围每日结算信用（Cd=10+⌊Ad/125⌋，
+        // 每间 50 上限、全天 200）**不再**写入会客室 socialReward.daily——PRTS「信用」页
+        // 把它归入「每日结算的信用」（次日于**信用交易所**手动领取），官服存档实测
+        // MEETING.socialReward.daily = 0 而 social.yesterdayReward.comfortAmount = 200。
+        // 现由 SocialManager.dailyRefresh 写入 yesterdayReward.comfortAmount；会客室容器
+        // 只保留 search（访问/情报分享）与 legacy 的 daily。
         room.socialReward = room.socialReward ?? { daily: 0, search: 0 };
-        room.socialReward.daily = mgr._settleDormCredit(draft);
         // 线索接收信用每日计次重置（接收好友线索 15/10/5，第 4 张起不获信用）
         (room as any).clueReceiveCount = 0;
       }
@@ -150,6 +163,29 @@ export function _rolloverWeekSp(mgr: BuildingManager, room: any, ts: number) : v
 }
 
   /**
+   * 发电站在岗干员的无人机充能加成（Σ roomSpeedBonus(POWER)，对应官方 labor.buffSpeed）
+   * @param draft - mutative 可写草稿
+   * @returns 充能速度加成（0.6 = +60%）
+   */
+function _powerLaborSpeed(
+  mgr: BuildingManager,
+  draft: Draft<PlayerDataModel>,
+): number {
+  let bonus = 0;
+  for (const [slotId, room] of Object.entries(
+    draft.building.rooms.POWER ?? {},
+  )) {
+    // 仅在运行的发电站计入（state=1；缺省视为运行）
+    if (room && (room as { state?: number }).state !== 0) {
+      const slot = draft.building.roomSlots[slotId];
+      const chars = mgr._roomCharSources(draft, slot);
+      bonus += roomSpeedBonus(chars, "POWER", [], mgr._specialCtx(draft));
+    }
+  }
+  return bonus;
+}
+
+  /**
    * 按 laborRecoverTime（秒/点）自动恢复劳动力（_advanceBuilding 统一 deltaTime 推进调用）
    * 例：laborRecoverTime=360 → 6 分钟恢复 1 点，封顶 maxValue
    * @param draft - mutative 可写草稿
@@ -157,7 +193,13 @@ export function _rolloverWeekSp(mgr: BuildingManager, room: any, ts: number) : v
    */
 export function _recoverLabor(mgr: BuildingManager, draft: Draft<PlayerDataModel>, ts: number) : void {
     const labor = draft.building.status.labor;
-    const rate = getBuildingConstant<number>("laborRecoverTime") ?? 360;
+    const baseRate = getBuildingConstant<number>("laborRecoverTime") ?? 360;
+    // 修复（2026-09-09）：充能速率须计入发电站在岗干员加成——prts《发电站》：
+    // 每名在岗干员充能速度 +5%，实际加成为所有发电站之和（真存档 labor.buffSpeed=0.6）。
+    // 原实现固定 360s/架且从不写 buffSpeed → 发电站干员（伊芙利特/澄闪/THRM-EX）完全无效。
+    const buffSpeed = _powerLaborSpeed(mgr, draft);
+    (labor as { buffSpeed?: number }).buffSpeed = buffSpeed;
+    const rate = baseRate / (1 + Math.max(0, buffSpeed));
     const elapsed = ts - (labor.lastUpdateTime || ts);
     if (elapsed <= 0 || rate <= 0) return;
     const gain = Math.floor(elapsed / rate);
@@ -190,22 +232,31 @@ export function _meetingCreditPerVisit(mgr: BuildingManager, draft: Draft<Player
 }
 
   /**
-   * 宿舍氛围每日结算信用（PRTS：Cd = 10 + ⌊Ad/125⌋，每间 ≤50，全天 ≤200，
-   * 次日于信用交易所手动领取）
+   * 宿舍氛围每日结算信用（PRTS：Cd = 10 + ⌊Ad/125⌋，每间 ≤50，全天 ≤200）
    *
-   * 宿舍氛围值 Ad 取该间宿舍的 comfort 字段（如真实存档 comfort=5000 → 50，正好封顶）。
-   * 结果写入会客室 socialReward.daily，经 getMeetingroomReward 领取入账——即"今日结算、
-   * 次日（每日刷新后）手动领取"。
+   * **归属修正（2026-09-09，审计 §5.4-12）**：PRTS「信用」页把「根据宿舍氛围获取信用」
+   * 列在**每日结算的信用**之下——「以上结算获得的信用将于次日发放至信用交易所，需要
+   * 手动领取」，即写入 social.yesterdayReward.comfortAmount 并由 social/receiveSocialPoint
+   * 领取。原实现写入**会客室** socialReward.daily、经 getMeetingroomReward 领取：官服存档
+   * 实测 MEETING.socialReward.daily = 0 而 social.yesterdayReward.comfortAmount = 200，
+   * 两者分属不同容器 → 归属错误。
+   *
+   * 宿舍氛围值 Ad 取该间宿舍的 comfort 字段（真实存档 comfort=5000 → 50，正好封顶）。
    * @param draft - mutative 草稿
    * @returns 当日宿舍结算信用总量（≤200）
    */
-export function _settleDormCredit(mgr: BuildingManager, draft: Draft<PlayerDataModel>) : number {
+export function dormComfortCredit(draft: Draft<PlayerDataModel>) : number {
     let total = 0;
-    for (const room of Object.values(draft.building.rooms.DORMITORY ?? {})) {
+    for (const room of Object.values(draft.building?.rooms?.DORMITORY ?? {})) {
       const comfort = (room as any)?.comfort ?? 0;
       total += Math.min(10 + Math.floor(comfort / 125), 50);
     }
     return Math.min(total, 200);
+}
+
+  /** 委派至 {@link dormComfortCredit}（保留既有 BuildingManager 门面签名） */
+export function _settleDormCredit(mgr: BuildingManager, draft: Draft<PlayerDataModel>) : number {
+    return dormComfortCredit(draft);
 }
 
   /**
@@ -450,6 +501,10 @@ export function _accrueMeeting(mgr: BuildingManager, draft: Draft<PlayerDataMode
       const slot = draft.building.roomSlots[slotId];
       const base = getMeetingPhase(slot?.level ?? 1)?.gatheringSpeed;
       if (typeof base !== "number" || base <= 0) continue;
+      // 未进驻干员不搜集线索——PRTS《罗德岛基建/会客室》：「进驻干员后，干员将自动
+      // 开始线索收集」（同「仅在有干员进驻时，每日 4:00 可发放 1 份会客室线索」）。
+      // 修复（2026-09-09，B11）：原实现不校验进驻——空会客室照常按 107% 产出线索。
+      if (mgr._roomCharSources(draft, slot ?? null).length === 0) continue;
       // 官方线索速度全公式（2026-08-25 对齐，会客室页）：等级基础效率（107/109/111%）+
       // 全宿舍氛围档 + Σ进驻干员（稀有度/精英阶段/非涣散）+ meet_* 技能
       const meetBonus = roomSpeedBonus(
@@ -488,16 +543,28 @@ export function _accrueMeeting(mgr: BuildingManager, draft: Draft<PlayerDataMode
       const elapsed = ts - (room.lastUpdateTime || ts);
       if (elapsed <= 0) continue;
       room.lastUpdateTime = ts;
-      // 官方：自有库满（≥10）停工——滞留线索，进度不再累积（时间戳照常推进）
-      if ((room.ownStock?.length ?? 0) >= OWN_CLUE_LIMIT) continue;
+      const threshold = CLUE_BASE_SECONDS * base;
+      // 满库滞留（B11 修复 2026-09-09）：PRTS《罗德岛基建/会客室》——
+      // 「最多存储 10 份，达到上限时无法继续入库。※对于干员搜集，在满上限的情况下
+      //   依然可以搜集，但在完成第 11 份时将会停止工作并滞留线索。」
+      // 原实现满库即 continue：满库期间进度被整体丢弃，第 11 份永不完成，
+      // 客户端也看不到「满库滞留」态。现语义：满库仍继续累积；达阈值即把进度
+      // **停在阈值**（= 第 11 份已完成、滞留待入库）并停工；自有库腾出空位后，
+      // 下一轮结算把滞留线索入库并自然恢复累积。
+      if ((room.ownStock?.length ?? 0) >= OWN_CLUE_LIMIT) {
+        if ((room.processPoint ?? 0) >= threshold) {
+          room.processPoint = threshold;
+          continue; // 已滞留：停工待入库，进度不再累积（时间戳照常推进）
+        }
+      }
       room.processPoint = (room.processPoint ?? 0) + elapsed * room.speed;
       // 达到 20h 基准阈值 → 真实产出线索（阵营加权含晓歌/U-Official 技能），
-      // 支持长离线多份；满库即停（官方自有库上限 10）
-      const threshold = CLUE_BASE_SECONDS * base;
-      while (
-        room.processPoint >= threshold &&
-        (room.ownStock?.length ?? 0) < OWN_CLUE_LIMIT
-      ) {
+      // 支持长离线多份；满库时第 11 份转为「滞留」不再入库（进度停在阈值）
+      while (room.processPoint >= threshold) {
+        if ((room.ownStock?.length ?? 0) >= OWN_CLUE_LIMIT) {
+          room.processPoint = threshold; // 滞留：停工于阈值
+          break;
+        }
         room.processPoint -= threshold;
         const clue: PlayerBuildingMeetingClue = {
           id: `${draft.status.uid}#${Math.floor(random() * 9000 + 1000)}#${ts}`,
@@ -511,6 +578,12 @@ export function _accrueMeeting(mgr: BuildingManager, draft: Draft<PlayerDataMode
           ts: now() + getClueExpiredDays() * 86400,
         };
         room.ownStock.push(clue);
+        // 修复（2026-09-09，B6）：定时产出线索同样发信用——原实现只在 getDailyClue 发，
+        // 而实际产出走本路径（_accrueMeeting）→ 会客室挂机产出的线索零信用。
+        // 数值取 clue_data.outputBasicBonus（实测 20，与 getDailyClue 同口径）。
+        draft.status.socialPoint =
+          (draft.status.socialPoint ?? 0) +
+          (getClueConstant<number>("outputBasicBonus") ?? 20);
         draft.pushFlags.hasClues = 1;
       }
     }
@@ -545,16 +618,21 @@ export function _accrueHire(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
       // 官方联络模型（2026-08-25 对齐，办公室页）：每 12h × 速度系数获得 1 次人脉库存，
       // 上限相位 refreshTimes（3），满则暂停累积（达上限干员暂停工作）；
       // 无人进驻不恢复（官方：无人进驻时刷新次数不恢复）。
-      // refreshStock/contactSec 为服务端扩展字段（旧存档惰性初始化），
-      // 供公开招募标签刷新（gacha/refreshTags）消耗。
+      // 修复（2026-09-09）：人脉库存改用官服字段 refreshCount（types-playerdata.ts:2604，
+      // 真存档 HIRE 房 refreshCount=2）——原实现读写服务端自建 refreshStock，官服迁移存档
+      // 该字段不存在 → 判定为 0，公开招募标签刷新被拒、充能后客户端数字不动。
+      // contactSec 仍为服务端扩展字段（进度累计），refreshStock 保留为旧存档回退值。
       if (chars.length === 0) continue;
       const cap = phase?.refreshTimes ?? 3;
-      if ((room.refreshStock ?? 0) >= cap) continue;
+      const stock = (room.refreshCount ?? room.refreshStock ?? 0) as number;
+      if (stock >= cap) continue;
       room.contactSec =
         (room.contactSec ?? 0) + elapsed * contactSpeedFactor(base, bonus);
       const { gained, remainder } = settleContactProgress(room.contactSec);
       if (gained > 0) {
-        room.refreshStock = Math.min((room.refreshStock ?? 0) + gained, cap);
+        const next = Math.min(stock + gained, cap);
+        room.refreshCount = next;
+        room.refreshStock = next;
         room.contactSec = remainder;
       }
     }
@@ -581,7 +659,7 @@ export function _touchActiveRooms(mgr: BuildingManager, draft: Draft<PlayerDataM
 }
 
 export async function sync(mgr: BuildingManager) {
-    return await mgr._player.update(async (draft) => {
+    const synced = await mgr._player.update(async (draft) => {
       const ts = now();
       // 浮点秒（毫秒精度）：任意两次 sync（≥1ms 间隔）lastApAddTime 必变 →
       // chars 增量恒在（同秒紧邻调用也能正常推进，不会出现空 delta 回归）。
@@ -610,6 +688,10 @@ export async function sync(mgr: BuildingManager) {
       );
       return ts;
     });
+    // 产出的追踪事件补发（B12：制造/贸易/加工产出经 _applyItemDelta 直写库存，
+    // 绕过 items:get → 勋章与任务不推进）——必须在 update 之外派发
+    await mgr._flushGainEvents();
+    return synced;
 }
 
   /**

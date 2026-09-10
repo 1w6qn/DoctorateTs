@@ -26,6 +26,7 @@ const ORDER_CONFIG = readJsonSync<{
   distAlpha: GoldDistEntry[];
   distBeta: GoldDistEntry[];
   distAlphaAlpha: GoldDistEntry[];
+  goldOrderTime: Record<string, number>;
 }>(`${__dirname}/../../../../data/building/trade-order-dist.json`);
 
 /** 订单交付数分布条目（权重百分比） */
@@ -77,6 +78,25 @@ export function goldOrderDistribution(
   const lv = Math.min(Math.max(roomLevel ?? 1, 1), 3);
   return GOLD_ORDER_DISTRIBUTION[lv];
 }
+
+/**
+ * 贵金属订单整周期时长（秒）——按交付赤金数（`building_data` 无此表，见 data/building/trade-order-dist.json）
+ *
+ * 官服存档实证：同为 **Lv3** 的三个贸易站，`next.maxPoint` 分别为 12600（3:30:00）与 8640（2:24:00）——
+ * 说明订单时长随**订单规模（赤金数）**变化，而非随站级固定（审计 §5.4-B9 中「Lv1/Lv2/Lv3 = 2:24/3:30/4:36」
+ * 的表述与实际数据不符，实为 2/3/4 赤金三档）。官方三档：2 赤金 2:24、3 赤金 3:30、4 赤金 4:36。
+ * 修复前 `_genTradingOrder` 从不改写 `next.maxPoint` → 订单时长恒为迁移时的旧值。
+ * @param count - 交付赤金数
+ * @returns 整周期秒数（缺表/未知档回退 3 赤金档 12600）
+ */
+export function goldOrderSeconds(count: number): number {
+  const table = ORDER_CONFIG.goldOrderTime ?? {};
+  const v = table[String(count)];
+  return typeof v === "number" && v > 0 ? v : 12600;
+}
+
+/** 最短的贵金属订单整周期（2 赤金 = 2:24），静态补单节流的默认间隔 */
+export const GOLD_ORDER_MIN_SECONDS = 8640;
 
 /**
  * 按权重抽取赤金交付数。

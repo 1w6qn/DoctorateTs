@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * - hire-contacts.ts 纯函数：联络速度系数（12h/次、进度 +5%）结算
  * - clue-speed.ts 纯函数：氛围档 / 干员加成（稀有度/精英/非涣散）/ 总倍率
  * - _accrueHire：人脉库存充能（12h/次、上限 3、无人不恢复）
- * - _accrueMeeting：20h 阈值真实产线索、自有库满（10）停工
+ * - _accrueMeeting：20h 阈值真实产线索、未进驻干员不搜索、自有库满（10）仍搜集到第 11 份后滞留
  * - recruit.refreshTags：消耗人脉库存（库存 0 拒绝；无人力办公室免消耗兜底）
  */
 
@@ -217,31 +217,98 @@ describe("BuildingManager 会客室线索产出（_accrueMeeting）", () => {
     vi.restoreAllMocks();
   });
 
+  /**
+   * 会客室进驻 1 名干员。
+   * B11（PRTS《罗德岛基建/会客室》）：「进驻干员后，干员将自动开始线索收集」——
+   * 未进驻不搜集。1★ 精0 非涣散 → 仅非涣散 +5%（mult = 相位 1.07 + 0.05 = 1.12 → speed 112）。
+   */
+  function stationMeetingChar(draft: any) {
+    draft.building.roomSlots.slot_36.charInstIds = [2];
+    draft.building.chars["2"] = {
+      charId: "char_meet", ap: 8640000, lastApAddTime: 1000,
+      roomSlotId: "slot_36", index: 0, changeScale: 100, bubble: {},
+    };
+    draft.troop.chars["2"] = { charId: "char_meet", level: 10, evolvePhase: 0 };
+  }
+
   it("进度达 20h 基准阈值后 真实产出线索（长离线多份，余量保留）", () => {
     const { manager, mockPlayer } = setup();
     const draft = draftOf(mockPlayer);
-    // 无进驻干员：mult = 相位 1.07 → speed 107；20h 实际时长 × 2.5 份进度
+    stationMeetingChar(draft);
+    // 进驻 1 名 1★精0非涣散干员：mult = 相位 1.07 + 非涣散 0.05 = 1.12 → speed 112
     (manager as any)._accrueMeeting(draft, 1000);
     (manager as any)._accrueMeeting(draft, 1000 + 72000 * 2.5);
     const room = draft.building.rooms.MEETING.slot_36;
     expect(room.ownStock).toHaveLength(2);
     expect(draft.pushFlags.hasClues).toBe(1);
-    // 余量 = 2.5 份进度×7.2M - 2×7.2M ≈ 0.5 份（速度 107 时 elapsed×107 精确）
-    expect(room.processPoint).toBe(72000 * 2.5 * 107 - 2 * 7200000);
+    // 余量 = 2.5 份进度×7.2M - 2×7.2M ≈ 0.5 份（速度 112 时 elapsed×112 精确）
+    expect(room.processPoint).toBe(72000 * 2.5 * 112 - 2 * 7200000);
   });
 
-  it("自有库满（10）停工：进度不再累积", () => {
+  // B11（PRTS 会客室页）：「进驻干员后，干员将自动开始线索收集」——空房间不产出
+  it("未进驻干员不搜集线索", () => {
     const { manager, mockPlayer } = setup();
     const draft = draftOf(mockPlayer);
+    (manager as any)._accrueMeeting(draft, 1000);
+    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 3);
+    const room = draft.building.rooms.MEETING.slot_36;
+    expect(room.ownStock).toHaveLength(0);
+    expect(room.processPoint).toBe(0);
+  });
+
+  // Round 24 / B6：定时产出线索的信用（原实现只在 getDailyClue 发，本路径零信用）
+  it("线索产出同时发放信用（clue_data.outputBasicBonus = 20/张）", () => {
+    const { manager, mockPlayer } = setup();
+    const draft = draftOf(mockPlayer);
+    stationMeetingChar(draft);
+    (manager as any)._accrueMeeting(draft, 1000);
+    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 2.5);
+    expect(draft.building.rooms.MEETING.slot_36.ownStock).toHaveLength(2);
+    // 2 张线索 × 20 = 40 信用
+    expect(draft.status.socialPoint).toBe(40);
+  });
+
+  /** 自有库塞满 10 份（手工构造，不含信用） */
+  function fillOwnStock(draft: any) {
     draft.building.rooms.MEETING.slot_36.ownStock = Array.from({ length: 10 }, (_, i) => ({
       id: `1#${i}#0`, type: "RHINE", number: 1, uid: "1", name: "A", nickNum: "1",
       chars: [], inUse: 0, ts: 0,
     }));
+  }
+
+  // B11 修复（2026-09-09）：PRTS「最多存储 10 份，达到上限时无法继续入库。※对于干员
+  // 搜集，在满上限的情况下依然可以搜集，但在完成第 11 份时将会停止工作并滞留线索。」
+  // 原实现满库即停工（进度被整体丢弃、第 11 份永不完成）→ 现改为停在阈值处滞留。
+  it("自有库满（10）仍可搜集：完成第 11 份后停工并滞留线索", () => {
+    const { manager, mockPlayer } = setup();
+    const draft = draftOf(mockPlayer);
+    fillOwnStock(draft);
+    stationMeetingChar(draft);
     (manager as any)._accrueMeeting(draft, 1000);
     (manager as any)._accrueMeeting(draft, 1000 + 72000 * 3);
     const room = draft.building.rooms.MEETING.slot_36;
-    expect(room.ownStock).toHaveLength(10); // 不新增
-    expect(room.processPoint).toBe(0); // 不累积
+    expect(room.ownStock).toHaveLength(10); // 满库不入库
+    expect(room.processPoint).toBe(7200000); // 停在阈值 = 第 11 份已完成、滞留待入库
+    expect(draft.status.socialPoint ?? 0).toBe(0); // 未入库不发信用
+    // 继续离线：已滞留 → 停工，进度不再累积（时间戳照常推进）
+    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 6);
+    expect(room.processPoint).toBe(7200000);
+    expect(room.ownStock).toHaveLength(10);
+  });
+
+  it("自有库腾出空位后 滞留线索入库并恢复累积", () => {
+    const { manager, mockPlayer } = setup();
+    const draft = draftOf(mockPlayer);
+    fillOwnStock(draft);
+    stationMeetingChar(draft);
+    (manager as any)._accrueMeeting(draft, 1000);
+    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 3);
+    const room = draft.building.rooms.MEETING.slot_36;
+    room.ownStock.pop(); // 传递/回收 1 份 → 腾出空位
+    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 3 + 100);
+    expect(room.ownStock).toHaveLength(10); // 滞留线索入库
+    expect(room.processPoint).toBe(100 * 112); // 阈值已扣除，仅余 100s 新进度
+    expect(draft.status.socialPoint).toBe(20); // 入库时发信用（20/张）
   });
 });
 

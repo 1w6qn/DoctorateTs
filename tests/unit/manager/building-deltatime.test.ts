@@ -106,6 +106,7 @@ import {
   buffValueForTarget,
 } from "@game/modules/building/buff";
 import { BuildingManager } from "@game/modules/building/logic";
+import { goldOrderSeconds } from "@game/modules/building/trade-orders";
 
 /** 构造带指定 building 的 mock 玩家（update 深拷贝 → recipe → 回写） */
 function makePlayer(building: any, extra: any = {}) {
@@ -332,18 +333,21 @@ describe("BuildingManager 统一 deltaTime 推进（_advanceBuilding 注入 ts�
 
   it("会客室按 deltaTime 推进线索搜集进度（processPoint += elapsed × 有效速度）", () => {
     const { manager, mockPlayer } = setup();
+    // B11（PRTS 会客室页）：「进驻干员后，干员将自动开始线索收集」——未进驻不搜集，
+    // 故基线用例派驻 1 名 1★精0非涣散干员（非涣散 +5%）
     mockPlayer._playerdata.building.roomSlots.slot_36 = {
-      level: 1, state: 2, roomId: "MEETING", charInstIds: [], completeConstructTime: -1,
+      level: 1, state: 2, roomId: "MEETING", charInstIds: [501], completeConstructTime: -1,
     };
+    mockPlayer._playerdata.troop.chars["501"] = { charId: "char_meet", level: 1, evolvePhase: 0 };
     mockPlayer._playerdata.building.rooms.MEETING.slot_36 = {
       state: 1, speed: 100, processPoint: 0, lastUpdateTime: LAST, completeWorkTime: -1,
     };
     const draft = draftOf(mockPlayer);
     (manager as any)._advanceBuilding(draft, at(3600));
     const room = draft.building.rooms.MEETING.slot_36;
-    // 官方全公式（2026-08-25）：Lv1 效率 107% → speed = 100 × 1.07 = 107 → 3600 × 107
-    expect(room.speed).toBe(107);
-    expect(room.processPoint).toBe(3600 * 107);
+    // 官方全公式（2026-08-25）：Lv1 效率 107% + 非涣散 5% → speed = 100 × 1.12 = 112
+    expect(room.speed).toBe(112);
+    expect(room.processPoint).toBe(3600 * 112);
     // 时间戳推进到当前
     expect(room.lastUpdateTime).toBe(at(3600));
   });
@@ -388,18 +392,45 @@ describe("BuildingManager 贸易站订单时间模型（_accrueTrading）", () =
     const { manager, mockPlayer } = setup();
     mockPlayer._playerdata.building.rooms.TRADING.slot_6 = {
       state: 1, stock: [], stockLimit: 5, strategy: "O_GOLD", lastUpdateTime: LAST,
-      next: { order: -1, processPoint: 0, speed: 1, maxPoint: 3000 },
+      // Round 25/B9：订单时长改用官服档位（Lv1 站 → 2 赤金 8640s = 2:24）；
+      // 生成订单后 maxPoint 会按实际赤金数改写，故此处与 8640 对齐
+      next: { order: -1, processPoint: 0, speed: 1, maxPoint: 8640 },
     };
     const draft = draftOf(mockPlayer);
-    (manager as any)._advanceBuilding(draft, at(3000)); // 3000s × 1 = 3000 → 满阈值 → 1 单
+    (manager as any)._advanceBuilding(draft, at(8640)); // 8640s × 1 = 8640 → 满阈值 → 1 单
     let room = draft.building.rooms.TRADING.slot_6;
     expect(room.stock).toHaveLength(1);
     expect(room.next.order).toBe(0);
     expect(room.next.processPoint).toBe(0);
-    (manager as any)._advanceBuilding(draft, at(6000)); // 又 3000s → 第 2 单
+    (manager as any)._advanceBuilding(draft, at(17280)); // 又 8640s → 第 2 单
     room = draft.building.rooms.TRADING.slot_6;
     expect(room.stock).toHaveLength(2);
     expect(room.stock[1].instId).toBe(1);
+  });
+
+  // Round 25 / B9：订单整周期按赤金数取档（官服存档实证：同为 Lv3 的两站 maxPoint = 12600 / 8640）
+  it("goldOrderSeconds：2/3/4 赤金 = 8640/12600/16560（2:24 / 3:30 / 4:36）", () => {
+    expect(goldOrderSeconds(2)).toBe(8640);
+    expect(goldOrderSeconds(3)).toBe(12600);
+    expect(goldOrderSeconds(4)).toBe(16560);
+    expect(goldOrderSeconds(9)).toBe(12600); // 未知档回退 3 赤金档
+  });
+
+  it("生成订单后按赤金数改写 next.maxPoint 并记录 _lastOrderSpanSec", () => {
+    const { manager, mockPlayer } = setup();
+    mockPlayer._playerdata.building.rooms.TRADING.slot_6 = {
+      state: 1, stock: [], stockLimit: 5, strategy: "O_GOLD", lastUpdateTime: LAST,
+      next: { order: -1, processPoint: 0, speed: 1, maxPoint: 8640 },
+    };
+    const draft = draftOf(mockPlayer);
+    (manager as any)._advanceBuilding(draft, at(8640));
+    const room = draft.building.rooms.TRADING.slot_6;
+    const gold = room.stock[0].delivery[0].count;
+    expect(gold).toBe(2); // Lv1 站基础分布 100% 2 赤金
+    expect(room.next.maxPoint).toBe(goldOrderSeconds(gold));
+    expect(room._lastOrderSpanSec).toBe(goldOrderSeconds(gold));
+    // 收益仍为 交付赤金 × 汇率（500/赤金）
+    expect(room.stock[0].gain).toEqual({ id: "4001", type: "GOLD", count: gold * 500 });
   });
 
   it("订单效率受进驻干员 trade buff + 控制中枢全局加成（有效速度回写）", () => {
@@ -475,12 +506,17 @@ describe("BuildingManager 贸易站订单时间模型（_accrueTrading）", () =
     expect(room.stock).toHaveLength(5);
     // 模拟 deliveryBatchOrder 交付：清空全部库存
     room.stock = [];
-    // 紧接着 sync（间隔 < _TRADE_FILL_INTERVAL=3600）→ 不得立即补满（防反复领取刷单）
+    // 紧接着 sync（间隔 < 该房间上一笔订单整周期）→ 不得立即补满（防反复领取刷单）。
+    // Round 25/B9：节流间隔由固定 3600s 改为订单实际时长（2 赤金 = 8640s），
+    // 与官服订单周期一致（原 3600s 会使旧存档补单快 2.4~4.6 倍）。
     (manager as any)._advanceBuilding(draft, at(100));
     room = draft.building.rooms.TRADING.slot_6;
     expect(room.stock).toHaveLength(0);
-    // 超过补单节流后再次 sync → 只补 1 单（随时间逐笔）
-    (manager as any)._advanceBuilding(draft, at(3700));
+    (manager as any)._advanceBuilding(draft, at(4000));
+    room = draft.building.rooms.TRADING.slot_6;
+    expect(room.stock).toHaveLength(0); // 仍未到订单整周期
+    // 超过订单整周期后再次 sync → 只补 1 单（随时间逐笔）
+    (manager as any)._advanceBuilding(draft, at(9000));
     room = draft.building.rooms.TRADING.slot_6;
     expect(room.stock).toHaveLength(1);
   });

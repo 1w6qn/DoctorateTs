@@ -81,6 +81,97 @@ export function getRoomMaxLevel(roomId: string | undefined | null): number {
   return excel.BuildingData?.rooms?.[roomId ?? ""]?.phases?.length ?? 0;
 }
 
+/**
+ * 房间相位解锁条件 id（`rooms[roomId].phases[level-1].unlockCondId`，如 MANUFACTURE#2）
+ *
+ * 官方：每个房间等级都有解锁条件，指向 `roomUnlockConds[condId].number[*]`
+ * （`{ type, level, count }` —— 需要指定类型房间达到指定等级、数量 ≥ count；
+ * type = FUNCTIONAL 时为「功能房间数」）。修复前全模块无该字段引用，升级可绕过中枢等级门槛。
+ * @param roomId - 房间类型
+ * @param level - 目标等级（1 起）
+ * @returns 条件 id；无配置返回 undefined
+ */
+export function getRoomUnlockCondId(
+  roomId: string | undefined | null,
+  level: number,
+): string | undefined {
+  const phase = getRoomPhase(roomId ?? "", level);
+  return (phase as any)?.unlockCondId as string | undefined;
+}
+
+/**
+ * 房间是否允许降级（`rooms[roomId].canLevelDown`；未知房间按 true）
+ *
+ * 官方数据中 CONTROL / WORKSHOP / HIRE / TRAINING / MEETING 为 false（不可降级）。
+ * @param roomId - 房间类型
+ * @returns 是否可降级
+ */
+export function canRoomLevelDown(roomId: string | undefined | null): boolean {
+  const v = (excel.BuildingData?.rooms as any)?.[roomId ?? ""]?.canLevelDown;
+  return v === undefined ? true : Boolean(v);
+}
+
+/**
+ * 线索/信用常量（`clue_data.json`）
+ *
+ * 实测：`outputBasicBonus 20`（每产出 1 张线索的信用）/ `outputOperatorsBonus 20` /
+ * `transferBonus 20`（转赠线索）/ `recycleBonus 5`（回收自有线索）/ `expiredBonus 25` /
+ * `receiveTimeBonus [{1:15},{2:10},{3:5}]`（接收好友线索第 1/2/3 张）/ `initiatorBonus 210`（自己开启线索交流）/
+ * `participantsBonus 30`（参与他人交流）/ `messageLeaveBoardConstData.visitorBonus 30`（访客信用）等。
+ * @param key - clue_data 顶层键
+ * @returns 常量值；缺表返回 undefined
+ */
+export function getClueConstant<T = number>(key: string): T | undefined {
+  return (excel as any).ClueData?.[key] as T | undefined;
+}
+
+/**
+ * 接收好友线索的第 n 张信用（clue_data.receiveTimeBonus：第 1/2/3 张 = 15/10/5，第 4 张起 0）
+ * @param index - 本日已接收张数（0 起）
+ * @returns 信用值
+ */
+export function getClueReceiveBonus(index: number): number {
+  const table = getClueConstant<any[]>("receiveTimeBonus") ?? [];
+  const row = Array.isArray(table)
+    ? table.find((r) => Number(r?.receiveTimes) === index + 1)
+    : undefined;
+  // 缺表/越界回退官方默认（第 1/2/3 张 = 15/10/5，第 4 张起 0）
+  return Number(row?.receiveBonus ?? [15, 10, 5][index] ?? 0);
+}
+
+/**
+ * 制造站单次排产份数上限（`building_data.manufactInputCapacity`，实测 99）
+ *
+ * 官服语义：选定制造方案时按份数一次性划拨原料，份数上限即该常量；
+ * 官服存档佐证——制造站 `remainSolutionCnt + outputSolutionCnt = 99`。
+ * @returns 上限（缺表回退 99）
+ */
+export function getManufactureInputCapacity(): number {
+  const v = getBuildingConstant<number>("manufactInputCapacity");
+  return typeof v === "number" && v > 0 ? v : 99;
+}
+
+/**
+ * 房间基础效率加成（每名在岗干员）——manufactData / tradingData / meetingData.basicSpeedBuff
+ *
+ * 官方：制造站与贸易站每进驻 1 名干员提供 +1% 基础效率（会客室为 +5%）。
+ * 修复前该字段仅出现在生成类型里、运行期从未被读。
+ * @param roomType - 房间类型（MANUFACTURE / TRADING / MEETING / HIRE）
+ * @returns 每名在岗干员的加成（无配置返回 0）
+ */
+export function getRoomBasicSpeedBuff(roomType: string): number {
+  const bd = excel.BuildingData as any;
+  const map: Record<string, any> = {
+    MANUFACTURE: bd?.manufactData,
+    TRADING: bd?.tradingData,
+    MEETING: bd?.meetingData,
+    HIRE: bd?.hireData,
+    CONTROL: bd?.controlData,
+  };
+  const v = map[roomType]?.basicSpeedBuff;
+  return typeof v === "number" ? v : 0;
+}
+
 /** 加工配方类型（formulaType，如 F_BUILDING/F_EVOLVE）——勋章 BuildingWorkshopSynthesisGroupByID 按组过滤 */
 export function getWorkshopFormulaType(
   formulaId: string | number | undefined | null,

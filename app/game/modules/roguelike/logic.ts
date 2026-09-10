@@ -91,6 +91,67 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     return rlv2.current as unknown as PlayerRoguelikeV2.CurrentData;
   }
 
+  /**
+   * 局外进度统计 → 勋章事件（Rlv2CollectRelic / Rlv2UnlockBand / Rlv2EndingCollect / Rlv2BpLevel）
+   *
+   * 官服勋章 unlockParam = [主题, 目标数]：
+   * - Rlv2CollectRelic「XX主题中的拟造物质编目已持有 N 个收藏品」← outer[theme].collect.relic
+   *   中 state ≥ 2（已获得，见 relic.ts 写入）的条目数；
+   * - Rlv2UnlockBand「在 XX主题中解锁 N 个分队」← outer[theme].collect.band 中 state ≥ 1
+   *   （已解锁可开局选择，见 events.ts）的条目数；
+   * - Rlv2EndingCollect「达成 N 种结局」← outer[theme].collect.endBook 的条目数
+   *   （结算成功达成结局时写入，见 settle.ts）；
+   * - Rlv2BpLevel「源流堆栈中解锁至 N 级」← outer[theme].bp.point（源流样本）按官方
+   *   奖励轨道 details[theme].milestones 中各档 tokenNum 换算出的当前等级
+   *   （rogue_6：bp_level_65 → tokenNum 19000 = 满级档）。
+   *
+   * 载荷是**当前累计值**而非增量，模板侧取 max —— 幂等：重复派发、读档补发、
+   * 结算/获得收藏品/首次进主题等多个触发点先后触发都不会多计。
+   *
+   * @param theme - 肉鸽主题 id（rogue_1 … rogue_6）
+   */
+  async emitOuterProgressionMedals(theme: string): Promise<void> {
+    const outer = (this.outer as any)?.[theme];
+    if (!outer || !theme) return;
+    const relicCount = Object.values<any>(outer.collect?.relic ?? {}).filter(
+      (v) => Number(v?.state ?? 0) >= 2,
+    ).length;
+    const bandCount = Object.values<any>(outer.collect?.band ?? {}).filter(
+      (v) => Number(v?.state ?? 0) >= 1,
+    ).length;
+    // 「达成 N 种结局」← 结局图鉴 collect.endBook 的条目数（结算成功且达成结局时写入）
+    const endingCount = Object.keys(outer.collect?.endBook ?? {}).length;
+    // 源流堆栈等级：按官方奖励轨道（milestones 各档 tokenNum 门槛）由累计源流样本换算
+    const level = this.resolveBpLevel(theme, Number(outer.bp?.point ?? 0));
+    await this._trigger.emit("Rlv2CollectRelic", [{ theme, count: relicCount }]);
+    await this._trigger.emit("Rlv2UnlockBand", [{ theme, count: bandCount }]);
+    await this._trigger.emit("Rlv2EndingCollect", [{ theme, count: endingCount }]);
+    await this._trigger.emit("Rlv2BpLevel", [{ theme, level }]);
+  }
+
+  /**
+   * 源流样本累计 → 源流堆栈（BP）等级
+   *
+   * 官服奖励轨道 details[theme].milestones 为 65 档（id 形如 bp_level_1..65），
+   * 每档给出累计门槛 tokenNum 与下一档 nextTokenNum（末档为 -1）；等级 =
+   * 满足 tokenNum ≤ point 的最高档 level。
+   *
+   * @param theme - 肉鸽主题 id
+   * @param point - outer[theme].bp.point（源流样本累计）
+   * @returns 当前 BP 等级（无该主题/无轨道时返回 0）
+   */
+  resolveBpLevel(theme: string, point: number): number {
+    const list: any[] =
+      (excel.RoguelikeTopicTable as any)?.details?.[theme]?.milestones ?? [];
+    let level = 0;
+    for (const m of list) {
+      const need = Number(m?.tokenNum ?? 0);
+      const lv = Number(m?.level ?? 0);
+      if (Number.isFinite(need) && point >= need && lv > level) level = lv;
+    }
+    return level;
+  }
+
   troop: RoguelikeTroopManager;
 
   _troop: TroopManager;
@@ -1083,10 +1144,19 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
   nodeTypeCounts() : Map<number, number> {
     return nodeTypeCounts(this);
   }
-  /** 委派至 {@link emitSpecialOperatorSettle}（event.ts） */
+  /**
+   * 委派至 {@link emitSpecialOperatorSettle}（event.ts）
+   * @param snapshot 结算前本局运行态快照（结算 update 会清空运行态，须由调用方下传）
+   */
   async emitSpecialOperatorSettle(theme: string,
-    ending: string,) : Promise<void> {
-    return emitSpecialOperatorSettle(this, theme, ending);
+    ending: string,
+    snapshot?: {
+      charIds: string[];
+      nodeCounts: Map<number, number>;
+      bandId: string;
+      mode: string;
+    },) : Promise<void> {
+    return emitSpecialOperatorSettle(this, theme, ending, snapshot);
   }
   /** 委派至 {@link selectChoice}（event.ts） */
   async selectChoice(args: { choice: string }) : Promise<void> {

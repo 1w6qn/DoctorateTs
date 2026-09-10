@@ -89,6 +89,8 @@ export class RoguelikeRelicManager {
         });
       }
     }
+    // 勋章（2026-09-09）：编目收藏数变化 → Rlv2CollectRelic（载荷为当前累计数，模板取 max）
+    await this._player.emitOuterProgressionMedals(theme);
   }
 
   toJSON(): { [key: string]: PlayerRoguelikeV2.CurrentData.Relic } {

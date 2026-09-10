@@ -464,7 +464,11 @@ export namespace PlayerRoguelikeV2 {
             bgm: { [key: string]: number }
             pic: { [key: string]: number }
             chat: { [key: string]: number }
-            endbook: { [key: string]: Collection.ItemUnlockInfo }
+            /**
+       * 结局图鉴（官方 CS 字段名 endBook，见 types-playerdata
+       * PlayerRoguelikeV2_OuterData_Collection；此处原写作 endbook，与官服 JSON 键不一致）
+       */
+      endBook: { [key: string]: Collection.ItemUnlockInfo }
             buff: { [key: string]: Collection.ItemUnlockInfo }
             totem: TotemCollection
             chaos: { [key: string]: Collection.ItemUnlockInfo }

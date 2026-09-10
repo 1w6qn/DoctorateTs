@@ -390,6 +390,9 @@ export class RoguelikeRecruitManager {
     await this._trigger.emit("Rlv2RecruitSpecificChar", [
       { theme: soTheme, charId: soCharId },
     ]);
+    // 勋章：Rlv2Recruit（「招募或应急雇佣干员 N 次」，unlockParam = [主题, 目标次数]）。
+    // 本点位为「招募券确认招募」——应急雇佣（若走其它路径）未单列，先按招募次数计。
+    await this._trigger.emit("Rlv2Recruit", [{ theme: soTheme }]);
     if ((this.tickets[id].result!.upgradePhase ?? 0) >= 1) {
       await this._trigger.emit("Rlv2UpgradeSpecificChar", [
         { theme: soTheme, charId: soCharId },

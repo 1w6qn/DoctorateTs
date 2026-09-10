@@ -168,6 +168,9 @@ export class RoguelikeInventoryManager
             bp.point = maxNum;
           }
         });
+        // 勋章（2026-09-09）：源流样本累计 → 源流堆栈等级（Rlv2BpLevel
+        // 「源流堆栈中解锁至 N 级」，按 milestones 门槛换算；载荷为当前等级，模板取 max/覆盖）
+        await this._player.emitOuterProgressionMedals(theme);
       },
       GROW_POINT: (item: RoguelikeItemBundle) => {
         const theme = this._player.current.game!.theme;

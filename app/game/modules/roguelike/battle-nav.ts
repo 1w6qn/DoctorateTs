@@ -127,6 +127,11 @@ export async function moveTo(mgr: RoguelikeV2Manager, args: { to: RoguelikeNodeP
     await mgr._trigger.emit("Rlv2PassNodeSpec", [
       { ...rlv2Ctx, nodeType: next.type },
     ]);
+    // 勋章：Rlv2PassNode（「通过 N 个节点」，unlockParam = [主题, 目标节点数]）
+    // 与 Rlv2PassNodeSpec（特勤干员任务）同点触发，载荷带 theme 供主题门控。
+    await mgr._trigger.emit("Rlv2PassNode", [
+      { theme: rlv2Game.theme, nodeType: next.type },
+    ]);
     if (rlv2Game.theme === "rogue_5") {
       await mgr._trigger.emit("Rlv2SpZoneSteps", [
         { ...rlv2Ctx, cost: 1 },

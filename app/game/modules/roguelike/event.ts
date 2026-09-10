@@ -292,6 +292,10 @@ export async function emitSpecialOperatorZone(mgr: RoguelikeV2Manager, zone: num
         zoneId: `zone_${zone}`,
       },
     ]);
+    // 勋章：Rlv2PassZone（「通过 XX 区域 N 次」，unlockParam = [主题, zoneId, 目标次数]）
+    await mgr._trigger.emit("Rlv2PassZone", [
+      { theme: game.theme, zoneId: `zone_${zone}` },
+    ]);
 }
 
 export function nodeTypeCounts(mgr: RoguelikeV2Manager) : Map<number, number> {
@@ -306,23 +310,41 @@ export function nodeTypeCounts(mgr: RoguelikeV2Manager) : Map<number, number> {
     return counts;
 }
 
+/**
+ * 特勤干员任务结算事件
+ *
+ * 修复（2026-09-09）：本局运行态（trace/map/入队干员）会被结算 update 清空，故
+ * 由调用方在结算**前**取快照并下传（snapshot），不再现场读 mgr 的运行态——
+ * 原实现把 emit 放在 update 之后，charIds/spBattleCount/eliteCount 恒为空/0。
+ *
+ * @param mgr - 肉鸽管理器
+ * @param theme - 主题 id
+ * @param ending - 达成的结局 id
+ * @param snapshot - 结算前快照（charIds/nodeCounts/bandId/mode）；缺省时回退现场读取（兼容旧调用）
+ */
 export async function emitSpecialOperatorSettle(mgr: RoguelikeV2Manager, theme: string,
-    ending: string,) : Promise<void> {
+    ending: string,
+    snapshot?: {
+      charIds: string[];
+      nodeCounts: Map<number, number>;
+      bandId: string;
+      mode: string;
+    },) : Promise<void> {
     const game = mgr.current.game;
     if (!game) return;
-    const mode = game.mode;
+    const mode = snapshot?.mode ?? game.mode;
     // 特勤干员任务均针对「常规行动」（NORMAL 模式）——MONTH_TEAM 等特殊模式不计入
     if (mode !== "NORMAL") return;
     const grade = game.modeGrade ?? 0;
-    const bandId = mgr._bandId || "";
-    const charIds = Object.keys(mgr.troop.chars || {});
+    const bandId = snapshot?.bandId ?? mgr._bandId ?? "";
+    const charIds = snapshot?.charIds ?? Object.keys(mgr.troop.chars || {});
     const rec = (mgr.outer?.[theme]?.record as any) || {};
     const bandGrade: Record<string, Record<string, number>> =
       rec.bandGrade || {};
     const bandCnt: Record<string, Record<string, number>> = rec.bandCnt || {};
 
     // 本局节点通过：祸乱（BATTLE/BATTLE_HARD 近似作战/紧急作战）与紧急作战数
-    const nodeCounts = mgr.nodeTypeCounts();
+    const nodeCounts = snapshot?.nodeCounts ?? mgr.nodeTypeCounts();
     const spBattleCount = (nodeCounts.get(1) ?? 0) + (nodeCounts.get(2) ?? 0);
     const eliteCount = nodeCounts.get(2) ?? 0;
     // 岁兽残识：所有入队干员即伺烛客（秉烛）

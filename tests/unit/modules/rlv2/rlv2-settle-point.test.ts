@@ -113,6 +113,63 @@ describe("rlv2 结算探索分数与魂灵书签", () => {
     expect(buff.pointOwned).toBe(196); // 1:1 书签
   });
 
+  // Round 33：官方 outer[theme].record.history[] 与 collect.endBook 此前**从不写入**
+  // —— 结局类勋章（Rlv2EndingCollect「达成 N 种结局」）无数据可依。
+  // Round 35：Rlv2FinishBattleWithSpecChar「携带指定干员战斗胜利 N 次」——载荷须带
+  // 本局参战干员与作战胜利数（nodeTypeCounts 的普通(1)+紧急(2)作战数）。
+  it("结算派发 Rlv2FinishBattleWithSpecChar（含本局参战干员与作战胜利数）", async () => {
+    const player = makePlayer();
+    setupSettleScene(player);
+    const emit = vi.spyOn(player._trigger as any, "emit");
+    await (player.rlv2 as any).gameSettle();
+    const call = emit.mock.calls.find(
+      (c: any[]) => c[0] === "Rlv2FinishBattleWithSpecChar",
+    )!;
+    expect(call).toBeTruthy();
+    const payload = call[1][0];
+    expect(payload.theme).toBe("rogue_4");
+    expect(payload.mode).toBe("NORMAL");
+    expect(Array.isArray(payload.charIds)).toBe(true);
+    // 现场：zone2 的 3 个普通作战(type 1) + 1 个紧急作战(type 2) = 4
+    expect(payload.battleWinCount).toBe(4);
+  });
+
+  // Round 35 回归守卫：结算 update 会清空本局运行态（trace/map/troop），
+  // 特勤干员任务事件必须使用**结算前快照**，否则 charIds/作战数恒为空/0。
+  it("特勤干员结算事件携带结算前快照（入队干员与作战数不为空）", async () => {
+    const player = makePlayer();
+    setupSettleScene(player);
+    (player.rlv2 as any)._status.runResult = "success";
+    (player.rlv2 as any).troop.chars = { c1: { charId: "char_512_aprot" } };
+    const emit = vi.spyOn(player._trigger as any, "emit");
+    await (player.rlv2 as any).gameSettle();
+    const elite = emit.mock.calls.find(
+      (c: any[]) => c[0] === "Rlv2EliteBattleWithChar",
+    )!;
+    expect(elite).toBeTruthy();
+    expect(elite[1][0].charIds).toEqual(["c1"]);
+    expect(elite[1][0].eliteCount).toBe(1); // 现场 zone2 的 1 个紧急作战(type 2)
+    const sp = emit.mock.calls.find(
+      (c: any[]) => c[0] === "Rlv2EndingWithCharPassSpBattle",
+    )!;
+    expect(sp[1][0].spBattleCount).toBe(4); // 3 普通 + 1 紧急
+    expect(sp[1][0].charIds).toEqual(["c1"]);
+  });
+
+  it("结算写入对局历史与结局图鉴（结局类勋章数据源）", async () => {
+    const player = makePlayer();
+    setupSettleScene(player);
+    (player.rlv2 as any)._status.runResult = "success";
+    await (player.rlv2 as any).gameSettle();
+    const outer = (player._playerdata.rlv2.outer as any).rogue_4;
+    expect(outer.record.history).toHaveLength(1);
+    expect(outer.record.history[0]).toMatchObject({ ending: "normal", result: 1 });
+    expect(outer.record.history[0].endTs).toBeGreaterThan(0);
+    expect(outer.collect.endBook).toEqual({
+      normal: { state: 2, progress: null },
+    });
+  });
+
   it("难度倍率生效：modeGrade 5 → scoreFactor 1.25 → floor(196×1.25)=245", async () => {
     const player = makePlayer();
     setupSettleScene(player, { modeGrade: 5 });

@@ -403,6 +403,16 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
     mgr.clearPending();
     const theme = mgr.current.game!.theme;
     const ending = mgr._status.toEnding || "";
+    // 本局运行态快照（2026-09-09 修复）：结算 update 会清空本局运行态（trace / map /
+    // 入队干员），而勋章与特勤干员任务的事件载荷需要「本局」数据 —— 原实现把 emit 放在
+    // update 之后，读到的 nodeTypeCounts() 与 troop.chars 全为空（胜利/作战/干员数恒 0）。
+    // 故在结算前取快照并显式下传给各 emitter。
+    const runSnapshot = {
+      charIds: Object.keys((mgr.troop as any)?.chars ?? {}),
+      nodeCounts: mgr.nodeTypeCounts(),
+      bandId: mgr._bandId || "",
+      mode: mgr.current.game?.mode || "NORMAL",
+    };
     // 修复：原实现 toEnding 恒为 "roX_ending_1/2"（非 "normal"）且 chgEnding 仅持有
     // 结局变更藏品时为 true → 通关结算恒显示失败；改按本局结果标记判定
     const success =
@@ -474,6 +484,32 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
           collect.modeGrade[mode][next] = { state: 2, progress: null };
         }
       }
+      // 结局图鉴 + 对局历史（2026-09-09 修复）：官方 outer[theme].record.history[] 与
+      // collect.endBook 此前**从不写入**——结局类勋章（Rlv2EndingCollect「达成 N 种结局」）
+      // 因此无数据可依。history 形状对齐 types-playerdata
+      // PlayerRoguelikeV2_OuterData_Record_History；仅保留最近 100 局避免无限增长。
+      if (!Array.isArray(rec.history)) rec.history = [];
+      rec.history.push({
+        seed: mgr.gameSeed(),
+        bandId: mgr._bandId ?? "",
+        mode,
+        modeGrade: grade,
+        ending: success === 1 ? ending || "" : "",
+        failEnding: success === 1 ? "" : ending || "",
+        result: success,
+        endTs: now(),
+      });
+      if (rec.history.length > 100) {
+        rec.history.splice(0, rec.history.length - 100);
+      }
+      // 结局图鉴（collect.endBook）：达成过的结局去重记录 —— Rlv2EndingCollect 计数来源
+      // （collect 可能尚未初始化——旧存档/测试现场只有 buff 时先补建）
+      if (success === 1 && ending) {
+        if (!outerTheme.collect) (outerTheme as any).collect = {} as any;
+        const collectRef = outerTheme.collect as any;
+        const endBook = (collectRef.endBook ?? (collectRef.endBook = {})) as any;
+        endBook[ending] = { state: 2, progress: null };
+      }
       // 黑流树海襁褓类藏品（LEGACY 型：局内获得 → 下一局增益）持久化到 record.legacy
       const legacy = Object.values(mgr.inventory?.relic || {})
         .map((r) => (r as any).id)
@@ -513,9 +549,40 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
       }
     });
 
+    // 勋章（2026-09-09）：结算后局外收藏/分队统计变化 → Rlv2CollectRelic / Rlv2UnlockBand
+    // （载荷为当前累计值而非增量，模板取 max —— 幂等）
+    await mgr.emitOuterProgressionMedals(theme);
+
+    // 勋章（2026-09-09）：Rlv2FinishBattleWithSpecChar「携带指定干员战斗胜利 N 次」。
+    // 官服 getMethod 为「常规行动**或**讲述者列表下」——两种模式都计入，故不放在仅
+    // NORMAL 生效的 emitSpecialOperatorSettle 内。载荷：本局参战干员 + 本局作战胜利数
+    // （nodeTypeCounts 的普通作战(1)与紧急作战(2)之和，与特勤干员任务同口径）。
+    {
+      const winCount =
+        (runSnapshot.nodeCounts.get(1) ?? 0) + (runSnapshot.nodeCounts.get(2) ?? 0);
+      await mgr._trigger.emit("Rlv2FinishBattleWithSpecChar", [
+        {
+          theme,
+          mode: runSnapshot.mode,
+          charIds: runSnapshot.charIds,
+          battleWinCount: winCount,
+        },
+      ]);
+    }
+
     // 特勤干员任务：结算事件（仅成功达成结局时推进——giveup/失败不产生分队×结局记录）
     if (success === 1) {
-      await mgr.emitSpecialOperatorSettle(theme, ending);
+      // 分支修复（2026-09-09）：下传结算前快照 —— 原实现让 emitter 自己读
+      // mgr.nodeTypeCounts()/mgr.troop.chars，而结算 update 已清空本局运行态，
+      // 导致 charIds/spBattleCount/eliteCount 恒为空/0（特勤干员任务与相关勋章永不推进）。
+      await mgr.emitSpecialOperatorSettle(theme, ending, runSnapshot);
+      // 修复（2026-09-09，S2）：补发「完成并结算集成战略」任务事件——原实现全仓无
+      // emit 站点，soWeekTask_3（Rlv2SettleGame，指定主题）与 soWeekTask_3_rogue6
+      // （Rlv2SettleGameTimes，任意主题）永久无法完成。
+      await mgr._trigger.emit("Rlv2SettleGame", [
+        { data: (mgr as any)._player._playerdata.rlv2 },
+      ]);
+      await mgr._trigger.emit("Rlv2SettleGameTimes", []);
     }
 
     await mgr._trigger.emit("rlv2:event:create", [

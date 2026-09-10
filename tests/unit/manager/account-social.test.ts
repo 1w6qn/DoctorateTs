@@ -3,13 +3,13 @@ import { AccountManager } from "@game/modules/account/AccountManager";
 import { closeDatabase, openDatabase } from "@core/db/database";
 import { FriendRepository } from "@core/db/friend-repo";
 
-describe("AccountManager 社交方法（SQLite 版）", () => {
+describe("AccountManager 社交方法（SQLite 后端）", () => {
   let manager: AccountManager;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
     // 用内存库构造 manager
-    const db = openDatabase(":memory:");
+    const db = await openDatabase(":memory:");
     manager = new AccountManager();
     (manager as any)._friendRepo = new FriendRepository(db);
     (manager as any).configs = {
@@ -30,8 +30,8 @@ describe("AccountManager 社交方法（SQLite 版）", () => {
     vi.spyOn(manager._trigger, "emit").mockResolvedValue(undefined as any);
   });
 
-  afterEach(() => {
-    closeDatabase();
+  afterEach(async () => {
+    await closeDatabase();
   });
 
   it("addFriend + getSocial 应返回好友列表", async () => {

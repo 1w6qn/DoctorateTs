@@ -45,6 +45,7 @@
     "generate:playerdata": "tsx scripts/generate-types.ts --playerdata",
     "generate:excel": "tsx scripts/generate-types.ts --excel",
     "migrate:official": "tsx scripts/migrate-official.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts",
     "decompile": "bash scripts/decompile-client.sh",
     "pack:mod": "tsx scripts/pack-mod.ts",
     "inject:lua": "tsx scripts/inject-lua-inplace.ts",
@@ -59,9 +60,14 @@
     "watch:lua": "tsx scripts/watch-lua-plugins.ts",
     "watch": "node scripts/watchdog.mjs"
   },
+  "optionalDependencies": {
+    "mysql2": "^3.11.3",
+    "pg": "^8.13.1"
+  },
   "devDependencies": {
     "@eslint/js": "^9.10.0",
     "@types/axios": "^0.14.0",
+    "@types/body-parser": "^1.19.6",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.0",
     "@types/morgan": "^1.9.9",

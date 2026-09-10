@@ -244,6 +244,39 @@ interface UserConfig {
       apiKey?: string;
     };
   };
+  /**
+   * 主数据库后端配置（**可选**——缺省 sqlite，行为与历史版本完全一致）
+   *
+   * 三选一：`sqlite`（缺省，Node 内置 `node:sqlite`，零依赖单文件）/
+   * `mysql` / `postgresql`（网络型后端，需安装可选驱动 mysql2 / pg）。
+   *
+   * 结构与 app/core/db/config.ts 的 `DatabaseConfigBlock` 字段一致；
+   * 亦可由环境变量覆盖（DB_TYPE / DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME），
+   * 环境变量优先于本块。切换后端**不会自动搬迁既有数据**——新库为空表，
+   * 用户账号会从 users.json 种子重建，好友/回放/存档需另行迁移。
+   */
+  database?: {
+    /** 后端类型（缺省 "sqlite"；亦接受 "postgres"/"pg"/"mariadb" 等别名） */
+    type?: import("../db/types").DatabaseBackend;
+    /** SQLite 数据库文件路径（type="sqlite" 时生效，缺省 ./data/user/social.db） */
+    file?: string;
+    /** 主机（type="mysql"|"postgresql" 时生效，缺省 127.0.0.1） */
+    host?: string;
+    /** 端口（缺省 mysql 3306 / postgresql 5432） */
+    port?: number;
+    /** 用户名（缺省 mysql root / postgresql postgres） */
+    user?: string;
+    /** 密码（缺省空串） */
+    password?: string;
+    /** 库名（缺省 "arknights"；须预先创建，本层只建表不建库） */
+    database?: string;
+    /** 连接池最大连接数（缺省 10） */
+    connectionLimit?: number;
+    /** SSL 配置（透传驱动） */
+    ssl?: boolean | Record<string, unknown>;
+    /** 连接字符集（仅 mysql；缺省 utf8mb4——中文/emoji 兼容） */
+    charset?: string;
+  };
 }
 
 /** 应用配置实例 */

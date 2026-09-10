@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Arknights (明日方舟) private-server backend: Express 5 + TypeScript, JSON-file storage, mutative state. Requires **Node 24** (uses built-in `node:sqlite` and `fetch`).
+Arknights (明日方舟) private-server backend: Express 5 + TypeScript, JSON-file storage, mutative state. Requires **Node 24** (uses built-in `node:sqlite` and `fetch`). Main data layer supports **SQLite (default) / MySQL / PostgreSQL** — see `app/core/db/`.
 
 ## Commands
 
@@ -23,6 +23,8 @@ pnpm run admin -- users list                       # CLI admin (no server needed
 pnpm run admin -- capture records --json           # 统一抓包存储（capture sessions/records/show/stats/export/clear）
 pnpm run admin -- logs server --last 50 --json     # 统一日志（logs server|watchdog|audit）
 pnpm run migrate:official -- --accounts <file>     # import official-server account data
+pnpm run db:migrate -- --dry-run                   # 主数据层跨后端搬迁（SQLite ⇄ MySQL/PG），先看各表行数
+pnpm run db:migrate                                # 按 config.database 复制到目标后端（目标非空时拒绝，--force 覆盖）
 pnpm run hook              # frida-compile for hook/main.ts (excluded from tsc)
 pnpm run ts                # scripts/proxy-harness.ts = 官服代理抓包 harness（记录写入统一抓包存储 tmp/capture/，支持 --session <名称>）, NOT the vitest suite
 pnpm run generate:mapviz   # scripts/generate-mapviz-data.ts → data/mapviz/game-data.js（Dashboard 地图 Tab 数据源）
@@ -46,6 +48,7 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 - **目录三层**：`app/core/`（基础设施内核：config/db/logs/utils/auth，被依赖方，禁止 import game/ops）、`app/game/`（业务）、`app/ops/`（运营设施：admin/capture/proxy/updater/plugin/assets，可依赖 core 与 game 模块的 public.ts）。
 - **game 侧特性切片**：`game/kernel/`（PlayerDataManager 组合根、PlayerStatus、player-composition、events 事件契约+总线、http 路由契约基建、inventory-pipeline、共享 util）、`game/excel/`（游戏数据 + 生成类型）、`game/modules/<mod>/`（一业务模块一目录，自含 routes.ts 薄路由 + manager/业务 + rules/types + public.ts 对外出口）、`game/modules/activities/<family>/`（活动族自含 router.ts+logic.ts，共享逻辑在 `activities/shared/`）。
 - **模块示例**：autochess（卫戍协议自走棋，`modules/autochess/`，路由挂 `/activity` 前缀、客户端调用 `/activity/autochessSeason/*`）、user（玩家资料端点：buyAp/useItem/主线线索/语音档案/长期签到/CG 持久化，`modules/user/`）；全量模块清单与成熟度结论见 `docs/module-audit-2026-08-29.md`。
+- **主数据层（`app/core/db/`）**：好友/账号配置/回放/结算/玩家存档统一走 `SqlDatabase` 抽象（`prepare`/`exec`/`transaction`，**全异步**）。仓储只写 `?` 占位符与公共 SQL，方言差异（`INSERT OR REPLACE` vs `ON DUPLICATE KEY UPDATE` vs `ON CONFLICT`、`?→$n`）收敛在 `dialect.ts`，表结构声明在 `schema.ts` 的 `TABLES`（新增表/列只改这里）。**新增仓储方法必须异步**；测试用 `await openDatabase(":memory:")` 并 `await closeDatabase()`。后端由 `config.database` 或 `DB_*` 环境变量选择，缺省 SQLite 保持历史行为；`mysql2`/`pg` 是 optionalDependencies，**禁止顶层 import**（用 `drivers/load.ts` 动态加载）。抓包索引与资源注册表仍是本地 SQLite，不参与切换。
 - **落位规则（唯一）**：新功能 = 找到业务模块包，没有就在 `modules/` 建包。不设 domain/service/manager 目录。模块间只允许 import 对方 `public.ts` 或走事件总线；守卫见 `tests/unit/architecture/module-boundary.test.ts`。
 - **Flow**: `game/routes.ts` 聚合注册（懒加载）→ `modules/<mod>/routes.ts`（薄壳 + validateBody）→ 模块内 manager（经 `kernel/PlayerDataManager` 组合，`httpContext` key `playerData`）。事件驱动：managers 在构造器 `this._trigger.on(...)` 订阅，事件契约在 `game/kernel/events/`。
 - **State changes**: all through `player.update(recipe)` (mutative two-phase in `kernel/PlayerStatus`) which records patches. mutative `enableAutoFreeze` is off — managers mutate arrays directly; do not re-enable freezing.
@@ -74,5 +77,5 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 
 - Routes after `/campaignV2` in `app/game/app.ts` 404 on the real server (pre-existing issue).
 - Non-practice battle HTTP chain is incomplete (battleStart lacks battleId) — settlement covered by unit tests instead.
-- Social/friend data AND user account configs (UserConfig) live in SQLite `data/user/social.db` (runtime-generated, gitignored); `users.json` is now a first-run migration seed only.
+- Social/friend data, user account configs (UserConfig), battle replays/infos and player saves live in the main data layer (`app/core/db/`). Default backend is SQLite `data/user/social.db` (runtime-generated, gitignored); MySQL/PostgreSQL are opt-in via `config.database` + `pnpm run db:migrate`. `users.json` is a first-run migration seed only.
 - Docs of record: `design-spec.md` (architecture + mission/medal/battle/building/migration internals), `api.md` (protocol), `docs/module-audit-2026-08-29.md` (模块成熟度审计，含抓包/反编译/excel 证据), `docs/prts-wiki-实现评估-2026-09-09.md` (prts.wiki 对照的耦合量化 + 「与实际效果不符」实现清单 + P0/P1/P2 修复清单，含复核记录与可复跑脚本), `.trae/specs/` (feature specs, local).

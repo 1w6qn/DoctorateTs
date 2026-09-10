@@ -48,7 +48,7 @@ export interface ApiFixture {
  * 启动一套真实游戏 API 集成测试环境
  *
  * 初始化顺序（有依赖，必须保持）：
- * 1. openDatabase(":memory:")——建立全局内存 SQLite 连接（绝不读写真实 social.db/存档文件）
+ * 1. await openDatabase(":memory:")——建立全局内存 SQLite 连接（绝不读写真实库文件）
  * 2. excel.init()——真实加载 data/excel/*.json 数据表（含 gacha 抽卡配置）
  * 3. accountManager.init()——复用内存库加载/迁移用户配置（只读真实 users.json 种子）
  * 4. 组装 Express 应用并挂载 auth + 各游戏路由（认证→路由→统一错误处理）
@@ -56,7 +56,7 @@ export interface ApiFixture {
  * @returns 可直接用于发请求的集成夹具
  */
 export async function startApiFixture(): Promise<ApiFixture> {
-  openDatabase(":memory:");
+  await openDatabase(":memory:");
   await excel.init();
   await accountManager.init();
 
@@ -112,7 +112,7 @@ export async function startApiFixture(): Promise<ApiFixture> {
     getPlayerData: (uid) => accountManager.data[uid],
     close: async () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
-      closeDatabase();
+      await closeDatabase();
     },
   };
 }

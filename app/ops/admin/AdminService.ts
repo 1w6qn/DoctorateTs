@@ -2334,7 +2334,7 @@ export class AdminService {
     // 修复：迁移账号必须同步进内存 configs——否则下次 saveUserConfig → upsertAll
     // 会删除不在 configs 的 uid（registerImportedUser 只写 SQLite/users，不更新 configs）
     // → 迁移账号在下一次任何保存时从 users 表消失（账号丢失/重复注册）
-    const migrated = loadUsers();
+    const migrated = await loadUsers();
     for (const r of results) {
       if (r.uid) {
         if (migrated[r.uid]) {

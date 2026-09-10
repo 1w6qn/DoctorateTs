@@ -2,7 +2,7 @@
  * 迁移账号注册与存档写入
  *
  * 将转换后的私服存档写入 data/user/databases/{newUid}.json，
- * 并在 SQLite（users 表）中注册账号（auth.phone 用官服手机号、auth.hgId 保留官服 uid）。
+ * 并在主数据库（users 表）中注册账号（auth.phone 用官服手机号、auth.hgId 保留官服 uid）。
  * 新 uid 从现有账号最大值递增。
  */
 import { writeFile as writeFileAsync } from "fs/promises";
@@ -12,9 +12,9 @@ import { UserRepository } from "@core/db/user-repo";
 
 const DATA_USER_DIR = path.join(__dirname, "../data/user");
 
-/** 读取现有用户（SQLite——users.json 已迁移为种子） */
-export function loadUsers(): { [key: string]: any } {
-  return new UserRepository(openDatabase()).getAll();
+/** 读取现有用户（主数据库——users.json 已迁移为种子） */
+export async function loadUsers(): Promise<{ [key: string]: any }> {
+  return new UserRepository(await openDatabase()).getAll();
 }
 
 /** 计算下一个新 uid（现有数字最大 +1，最小 2） */
@@ -60,7 +60,7 @@ export async function registerImportedUser(opts: {
   officialUid: string;
   convertedData: { [key: string]: any };
 }): Promise<{ uid: string; nickName: string }> {
-  const users = loadUsers();
+  const users = await loadUsers();
   const newUid = nextUid(users);
   const entry = buildUserEntry(newUid, opts);
 
@@ -74,7 +74,7 @@ export async function registerImportedUser(opts: {
   // 2. 注册账号（SQLite——users.json 已迁移为种子，不再写文件）
   // entry 为动态构造的 UserConfig（buildUserEntry 返回宽松类型，此处断言 UserConfig）
   users[newUid] = entry as any;
-  new UserRepository(openDatabase()).upsert(newUid, entry as any);
+  await new UserRepository(await openDatabase()).upsert(newUid, entry as any);
 
   return {
     uid: newUid,

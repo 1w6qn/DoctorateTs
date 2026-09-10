@@ -34,9 +34,9 @@ export class SocialService {
     visited: string[];
   }> {
     return {
-      friends: this._manager._friendRepo.getFriendList(uid),
-      friendRequests: this._manager._friendRepo.getFriendRequests(uid),
-      visited: this._manager._friendRepo.getVisited(uid),
+      friends: await this._manager._friendRepo.getFriendList(uid),
+      friendRequests: await this._manager._friendRepo.getFriendRequests(uid),
+      visited: await this._manager._friendRepo.getVisited(uid),
     };
   }
 
@@ -62,7 +62,7 @@ export class SocialService {
       ),
     );
     const friends = new Set(
-      this._manager._friendRepo.getFriendList(uid).map((f) => f.uid),
+      (await this._manager._friendRepo.getFriendList(uid)).map((f) => f.uid),
     );
     const applied: string[] = [];
     const seen = new Set<string>();
@@ -74,7 +74,7 @@ export class SocialService {
       seen.add(id);
       applied.push(id);
     }
-    this._manager._friendRepo.setStarList(uid, applied);
+    await this._manager._friendRepo.setStarList(uid, applied);
     await this._manager._trigger.emit("save", []);
     return applied;
   }
@@ -84,19 +84,19 @@ export class SocialService {
    * @param uid - 账号 uid
    */
   async getStarFriendList(uid: string): Promise<string[]> {
-    return this._manager._friendRepo.getStarList(uid);
+    return await this._manager._friendRepo.getStarList(uid);
   }
 
   /** 删除好友（双向删除） */
   async deleteFriend(uid: string, friendUid: string): Promise<void> {
-    this._manager._friendRepo.deleteFriend(uid, friendUid);
-    this._manager._friendRepo.deleteFriend(friendUid, uid);
+    await this._manager._friendRepo.deleteFriend(uid, friendUid);
+    await this._manager._friendRepo.deleteFriend(friendUid, uid);
     await this._manager._trigger.emit("save", []);
   }
 
   /** 添加好友（单向；双向关系由调用方决定） */
   async addFriend(uid: string, friendUid: string): Promise<void> {
-    this._manager._friendRepo.addFriend(uid, friendUid);
+    await this._manager._friendRepo.addFriend(uid, friendUid);
     await this._manager._trigger.emit("save", []);
   }
 
@@ -113,25 +113,25 @@ export class SocialService {
     if (from === to) {
       throw new BadRequestError("不能向自己发送好友请求");
     }
-    if (this._manager._friendRepo.hasFriend(from, to)) {
+    if (await this._manager._friendRepo.hasFriend(from, to)) {
       throw new BadRequestError("对方已是你的好友");
     }
-    if (this._manager._friendRepo.hasFriendRequest(to, from)) {
+    if (await this._manager._friendRepo.hasFriendRequest(to, from)) {
       throw new BadRequestError("好友请求已发送，请勿重复发送");
     }
     const cd = Number(
       (excel.GameDataConst as unknown as { requestSameFriendCd?: number })
         ?.requestSameFriendCd ?? 14400,
     );
-    const lastTs = this._manager._friendRepo.getLastRequestTs(from, to);
+    const lastTs = await this._manager._friendRepo.getLastRequestTs(from, to);
     if (cd > 0 && lastTs > 0 && now() - lastTs < cd) {
       const leftMin = Math.ceil((cd - (now() - lastTs)) / 60);
       throw new BadRequestError(
         `申请过于频繁，请 ${leftMin} 分钟后再试（冷却 ${cd}s）`,
       );
     }
-    this._manager._friendRepo.sendFriendRequest(from, to);
-    this._manager._friendRepo.touchRequestLog(from, to);
+    await this._manager._friendRepo.sendFriendRequest(from, to);
+    await this._manager._friendRepo.touchRequestLog(from, to);
     const friendData = await this._manager.getPlayerData(to);
     await friendData.update(async (draft) => {
       draft.pushFlags.hasFriendRequest = 1;
@@ -141,7 +141,7 @@ export class SocialService {
 
   /** 删除好友请求 */
   async deleteFriendRequest(uid: string, friendId: string): Promise<void> {
-    this._manager._friendRepo.deleteFriendRequest(uid, friendId);
+    await this._manager._friendRepo.deleteFriendRequest(uid, friendId);
     await this._manager._trigger.emit("save", []);
   }
 
@@ -151,13 +151,13 @@ export class SocialService {
     friendId: string,
     alias: string,
   ): Promise<void> {
-    this._manager._friendRepo.setFriendAlias(uid, friendId, alias);
+    await this._manager._friendRepo.setFriendAlias(uid, friendId, alias);
     await this._manager._trigger.emit("save", []);
   }
 
   /** 获取好友请求列表 */
   async getFriendRequests(uid: string): Promise<string[]> {
-    return this._manager._friendRepo.getFriendRequests(uid);
+    return await this._manager._friendRepo.getFriendRequests(uid);
   }
 
   /** 搜索玩家（uid/昵称/昵称#数字） */

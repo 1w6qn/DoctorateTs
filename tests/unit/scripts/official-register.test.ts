@@ -13,19 +13,19 @@ import { registerImportedUser } from "../../../scripts/official-register";
 describe("registerImportedUser", () => {
   let repo: UserRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     // 单例连接指向内存库（registerImportedUser 内部 openDatabase() 复用）
-    openDatabase(":memory:");
-    repo = new UserRepository(openDatabase());
+    const db = await openDatabase(":memory:");
+    repo = new UserRepository(db);
   });
 
-  afterEach(() => {
-    closeDatabase();
+  afterEach(async () => {
+    await closeDatabase();
   });
 
   it("应生成新 uid 并注册账号（写 SQLite users 表）", async () => {
-    repo.upsert("1", { uid: "1", password: "p" } as any);
+    await repo.upsert("1", { uid: "1", password: "p" } as any);
     const result = await registerImportedUser({
       phone: "13800000000",
       officialUid: "10001",
@@ -39,14 +39,14 @@ describe("registerImportedUser", () => {
     expect(saveCall).toBeDefined();
     expect(JSON.parse(saveCall![1]).status.uid).toBe("2");
     // SQLite 注册（社交字段不入库——social.db 为唯一事实源 R3）
-    const users = repo.getAll();
+    const users = await repo.getAll();
     expect(users["2"].auth.phone).toBe("13800000000");
     expect(users["2"].auth.hgId).toBe("10001");
     expect((users["2"] as any).social).toBeUndefined();
   });
 
-  it("连续注册应递增 uid（基于 SQLite 现有账号）", async () => {
-    repo.upsert("1", { uid: "1", password: "p" } as any);
+  it("连续注册应递增 uid（基于库内现有账号）", async () => {
+    await repo.upsert("1", { uid: "1", password: "p" } as any);
     await registerImportedUser({
       phone: "13800000000",
       officialUid: "10001",

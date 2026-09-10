@@ -140,29 +140,31 @@ export class AccountManager implements BattleInfoStore {
    */
   async init() {
     logger.info("AccountManager", "loading users...");
-    // 打开好友关系数据库（social.db 首次运行自动创建）
-    this._friendRepo = new FriendRepository(openDatabase());
-    this._userRepo = new UserRepository(openDatabase());
-    this._replayRepo = new ReplayRepository(openDatabase());
+    // 打开主数据库（默认 SQLite 文件；可配置为 MySQL / PostgreSQL——见 config.database）
+    // 建连是异步的（网络型后端），首次运行自动建库表
+    const db = await openDatabase();
+    this._friendRepo = new FriendRepository(db);
+    this._userRepo = new UserRepository(db);
+    this._replayRepo = new ReplayRepository(db);
     this._battleStore = new BattleStore(this._replayRepo);
-    this._playerDataRepo = new PlayerDataRepository(openDatabase());
-    // 用户配置：SQLite 唯一事实源；首次（表空）从 users.json 种子迁移
-    this.configs = this._userRepo.getAll();
+    this._playerDataRepo = new PlayerDataRepository(db);
+    // 用户配置：数据库唯一事实源；首次（表空）从 users.json 种子迁移
+    this.configs = await this._userRepo.getAll();
     if (Object.keys(this.configs).length === 0) {
-      await migrateUsersFromJsonFile(openDatabase(), this._userRepo);
-      this.configs = this._userRepo.getAll();
+      await migrateUsersFromJsonFile(this._userRepo);
+      this.configs = await this._userRepo.getAll();
     }
     this._trigger.on("save", async () => {
       await this.saveUserConfig();
     });
     // 社交数据迁移：social.db 首次创建时从 users.json 导入，之后 SQLite 为唯一事实源
-    migrateFromUserConfigs(openDatabase(), this.configs);
+    await migrateFromUserConfigs(db, this.configs);
     // 回放迁移：旧 configs 内嵌回放 → replays 表（一次性；此后 users 表/内存均不再保留回放）
     for (const [uid, conf] of Object.entries(this.configs)) {
       const replays = (conf as any).battle?.replays;
       if (replays && Object.keys(replays).length > 0) {
         for (const [stageId, replay] of Object.entries<string>(replays)) {
-          this._replayRepo.upsert(uid, stageId, replay);
+          await this._replayRepo.upsert(uid, stageId, replay);
         }
         delete (conf as any).battle.replays;
       }
@@ -170,7 +172,7 @@ export class AccountManager implements BattleInfoStore {
       const infos = (conf as any).battle?.infos;
       if (infos && Object.keys(infos).length > 0) {
         for (const [battleId, info] of Object.entries<BattleInfo>(infos)) {
-          this._replayRepo.upsertInfo(uid, battleId, info);
+          await this._replayRepo.upsertInfo(uid, battleId, info);
         }
         delete (conf as any).battle.infos;
       }
@@ -193,7 +195,7 @@ export class AccountManager implements BattleInfoStore {
    * @returns 战斗回放数据字符串
    */
   async getBattleReplay(uid: string, stageId: string): Promise<string> {
-    return this._battleStore?.getReplay(uid, stageId) ?? "";
+    return (await this._battleStore?.getReplay(uid, stageId)) ?? "";
   }
 
   /**
@@ -207,7 +209,7 @@ export class AccountManager implements BattleInfoStore {
     stageId: string,
     replay: string,
   ): Promise<void> {
-    this._battleStore?.saveReplay(uid, stageId, replay);
+    await this._battleStore?.saveReplay(uid, stageId, replay);
   }
 
   /**
@@ -251,7 +253,7 @@ export class AccountManager implements BattleInfoStore {
    * @returns 战斗信息（不存在返回 undefined，调用方 `!` 或 `?.` 自行处理）
    */
   async getBattleInfo(uid: string, battleId: string): Promise<BattleInfo> {
-    return this._battleStore?.getInfo(uid, battleId) as BattleInfo;
+    return (await this._battleStore?.getInfo(uid, battleId)) as BattleInfo;
   }
 
   /**
@@ -259,17 +261,17 @@ export class AccountManager implements BattleInfoStore {
    * @param record - 战斗结束记录（含 battleId/uid）
    */
   async saveBattleRecord(record: BattleRecord): Promise<void> {
-    this._battleStore?.saveRecord(record);
+    await this._battleStore?.saveRecord(record);
   }
 
   /** 读取战斗结束记录（无则 undefined） */
   async getBattleRecord(uid: string, battleId: string): Promise<BattleRecord | undefined> {
-    return this._battleStore?.getRecord(uid, battleId);
+    return await this._battleStore?.getRecord(uid, battleId);
   }
 
   /** 读取最近 N 条战斗结束记录（按创建时间倒序） */
   async listBattleRecords(uid: string, limit = 50): Promise<BattleRecord[]> {
-    return this._battleStore?.listRecords(uid, limit) ?? [];
+    return (await this._battleStore?.listRecords(uid, limit)) ?? [];
   }
 
   /**
@@ -283,7 +285,7 @@ export class AccountManager implements BattleInfoStore {
     battleId: string,
     info: BattleInfo,
   ): Promise<void> {
-    this._battleStore?.saveInfo(uid, battleId, info);
+    await this._battleStore?.saveInfo(uid, battleId, info);
   }
 
   /**
@@ -310,7 +312,7 @@ export class AccountManager implements BattleInfoStore {
   async readPlayerData(uid: string): Promise<PlayerDataModel | null> {
     if (this.data[uid]) return this.data[uid]._playerdata;
     if (this._playerDataRepo) {
-      const raw = this._playerDataRepo.get(uid);
+      const raw = await this._playerDataRepo.get(uid);
       if (raw !== null) return reorderRootKeys(JSON.parse(raw));
     }
     const filePath = `./data/user/databases/${uid}.json`;
@@ -404,8 +406,8 @@ export class AccountManager implements BattleInfoStore {
     if (playerData) {
       data = playerData;
     } else if (this._playerDataRepo) {
-      // 方案 A+C：优先 SQLite player_data（gzip BLOB）
-      const raw = this._playerDataRepo.get(uid);
+      // 方案 A+C：优先存档表（gzip 二进制文档）
+      const raw = await this._playerDataRepo.get(uid);
       if (raw !== null) {
         data = reorderRootKeys(JSON.parse(raw));
       } else {
@@ -415,7 +417,7 @@ export class AccountManager implements BattleInfoStore {
           data = reorderRootKeys(
             JSON.parse(fs.readFileSync(filePath, "utf-8")),
           );
-          this._playerDataRepo.upsert(uid, JSON.stringify(data));
+          await this._playerDataRepo.upsert(uid, JSON.stringify(data));
           // 迁移完成删除旧文件（1.json 保留——新用户模板；后续 registerUser 也走 SQLite 优先）
           if (uid !== "1") {
             fs.rmSync(filePath, { force: true });
@@ -488,7 +490,7 @@ export class AccountManager implements BattleInfoStore {
   private async _loadTemplate(): Promise<any> {
     // 方案 A+C：优先 SQLite player_data 表 uid=1 模板行
     if (this._playerDataRepo) {
-      const raw = this._playerDataRepo.get("1");
+      const raw = await this._playerDataRepo.get("1");
       if (raw !== null) return JSON.parse(raw);
     }
     // 回退 JSON 文件模板（迁移过渡/无 repo 防御路径）
@@ -516,7 +518,7 @@ export class AccountManager implements BattleInfoStore {
    */
   private async _writePlayerData(uid: string, data: any): Promise<void> {
     if (this._playerDataRepo) {
-      this._playerDataRepo.upsert(uid, JSON.stringify(data));
+      await this._playerDataRepo.upsert(uid, JSON.stringify(data));
     } else {
       const finalPath = `./data/user/databases/${uid}.json`;
       const tmpPath = `${finalPath}.tmp`;
@@ -925,9 +927,9 @@ export class AccountManager implements BattleInfoStore {
     delete this.configs[uid];
     delete this.data[uid];
     this._secretIndex = null;
-    this._friendRepo?.deleteUser(uid);
-    this._replayRepo?.deleteUser(uid);
-    this._playerDataRepo?.delete(uid); // 方案 A+C：SQLite 存档行
+    await this._friendRepo?.deleteUser(uid);
+    await this._replayRepo?.deleteUser(uid);
+    await this._playerDataRepo?.delete(uid); // 方案 A+C：存档表行
     await rm(`./data/user/databases/${uid}.json`, { force: true });
     await this.saveUserConfig();
   }

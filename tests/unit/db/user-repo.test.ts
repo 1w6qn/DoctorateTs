@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { openDatabase, SCHEMA_SQL } from "@core/db/database";
+import { openDatabase, SCHEMA_SQL, closeDatabase } from "@core/db/database";
+import type { SqlDatabase } from "@core/db/types";
 import { UserRepository, migrateUsersFromJsonFile } from "@core/db/user-repo";
-import { DatabaseSync } from "node:sqlite";
 
 const fileMock = vi.hoisted(() => ({ readJson: vi.fn() }));
 vi.mock("@utils/file", async (importOriginal) => {
@@ -11,19 +11,19 @@ vi.mock("@utils/file", async (importOriginal) => {
 
 describe("UserRepository", () => {
   let repo: UserRepository;
-  let db: DatabaseSync;
+  let db: SqlDatabase;
 
-  beforeEach(() => {
-    db = openDatabase(":memory:");
-    db.exec(SCHEMA_SQL);
+  beforeEach(async () => {
+    db = await openDatabase(":memory:");
+    await db.exec(SCHEMA_SQL);
     repo = new UserRepository(db);
   });
 
-  afterEach(() => {
-    db.close();
+  afterEach(async () => {
+    await closeDatabase();
   });
 
-  it("upsert 后 getAll 应回读完整 UserConfig（JSON 往返）", () => {
+  it("upsert 后 getAll 应回读完整 UserConfig（JSON 往返）", async () => {
     const conf = {
       uid: "1",
       password: "p",
@@ -42,30 +42,30 @@ describe("UserRepository", () => {
       gacha: { NORMAL: { beforeNonHitCnt: 4 } },
       rlv2: {},
     } as any;
-    repo.upsert("1", conf);
-    const persisted = repo.getAll()["1"];
-    // 社交字段不入库（social.db 为唯一事实源——R3）
+    await repo.upsert("1", conf);
+    const persisted = (await repo.getAll())["1"];
+    // 社交字段不入库（社交表为唯一事实源——R3）
     const { social: _social, ...expected } = conf;
     expect(persisted).toEqual(expected);
     expect((persisted as any).social).toBeUndefined();
-    expect(repo.count()).toBe(1);
+    await expect(repo.count()).resolves.toBe(1);
   });
 
-  it("upsertAll 默认剔除 social（社交单事实源）", () => {
-    repo.upsertAll({
+  it("upsertAll 默认剔除 social（社交单事实源）", async () => {
+    await repo.upsertAll({
       "1": {
         uid: "1",
         password: "p",
         social: { friends: [{ uid: "2", alias: "" }], friendRequests: [], visited: [] },
       } as any,
     });
-    const persisted = repo.getAll()["1"] as any;
+    const persisted = (await repo.getAll())["1"] as any;
     expect(persisted.social).toBeUndefined();
     expect(persisted.uid).toBe("1");
   });
 
-  it("upsertAll keepSocial=true 保留 social（首次种子迁移 → social.db 的桥）", () => {
-    repo.upsertAll(
+  it("upsertAll keepSocial=true 保留 social（首次种子迁移 → 社交表的桥）", async () => {
+    await repo.upsertAll(
       {
         "1": {
           uid: "1",
@@ -74,7 +74,7 @@ describe("UserRepository", () => {
       },
       true,
     );
-    const persisted = repo.getAll()["1"] as any;
+    const persisted = (await repo.getAll())["1"] as any;
     expect(persisted.social).toEqual({
       friends: [{ uid: "2", alias: "" }],
       friendRequests: [],
@@ -82,37 +82,36 @@ describe("UserRepository", () => {
     });
   });
 
-  it("upsertAll 应事务全量覆盖（旧 uid 不残留）", () => {
-    repo.upsertAll({ "1": { uid: "1" } as any, "2": { uid: "2" } as any });
-    expect(repo.count()).toBe(2);
-    repo.upsertAll({ "1": { uid: "1", password: "new" } as any });
-    expect(repo.count()).toBe(1);
-    expect(repo.getAll()["1"].password).toBe("new");
+  it("upsertAll 应事务全量覆盖（旧 uid 不残留）", async () => {
+    await repo.upsertAll({ "1": { uid: "1" } as any, "2": { uid: "2" } as any });
+    await expect(repo.count()).resolves.toBe(2);
+    await repo.upsertAll({ "1": { uid: "1", password: "new" } as any });
+    await expect(repo.count()).resolves.toBe(1);
+    expect((await repo.getAll())["1"].password).toBe("new");
   });
 
-  it("get 不存在返回 undefined", () => {
-    expect(repo.get("999")).toBeUndefined();
+  it("get 不存在返回 undefined", async () => {
+    await expect(repo.get("999")).resolves.toBeUndefined();
   });
 
-  it("get 存在返回对应 UserConfig", () => {
-    repo.upsert("7", { uid: "7", password: "x" } as any);
-    expect(repo.get("7")?.password).toBe("x");
+  it("get 存在返回对应 UserConfig", async () => {
+    await repo.upsert("7", { uid: "7", password: "x" } as any);
+    expect((await repo.get("7"))?.password).toBe("x");
   });
 });
 
 describe("migrateUsersFromJsonFile", () => {
-  let db: DatabaseSync;
   let repo: UserRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     fileMock.readJson.mockReset();
-    db = openDatabase(":memory:");
-    db.exec(SCHEMA_SQL);
+    const db = await openDatabase(":memory:");
+    await db.exec(SCHEMA_SQL);
     repo = new UserRepository(db);
   });
 
-  afterEach(() => {
-    db.close();
+  afterEach(async () => {
+    await closeDatabase();
   });
 
   it("users 表空时应从 users.json 导入", async () => {
@@ -120,23 +119,23 @@ describe("migrateUsersFromJsonFile", () => {
       "1": { uid: "1", password: "p1" },
       "2": { uid: "2", password: "p2" },
     });
-    const n = await migrateUsersFromJsonFile(db, repo);
+    const n = await migrateUsersFromJsonFile(repo);
     expect(n).toBe(2);
-    expect(repo.count()).toBe(2);
-    expect(repo.getAll()["2"].password).toBe("p2");
+    await expect(repo.count()).resolves.toBe(2);
+    expect((await repo.getAll())["2"].password).toBe("p2");
   });
 
   it("users 表非空时应跳过（幂等）", async () => {
-    repo.upsert("9", { uid: "9" } as any);
-    const n = await migrateUsersFromJsonFile(db, repo);
+    await repo.upsert("9", { uid: "9" } as any);
+    const n = await migrateUsersFromJsonFile(repo);
     expect(n).toBe(0);
-    expect(repo.getAll()["9"]).toBeDefined();
-    expect(repo.count()).toBe(1);
+    await expect(repo.get("9")).resolves.toBeDefined();
+    await expect(repo.count()).resolves.toBe(1);
   });
 
   it("users.json 不存在时返回 0 不抛错", async () => {
     fileMock.readJson.mockRejectedValue(new Error("ENOENT"));
-    const n = await migrateUsersFromJsonFile(db, repo);
+    const n = await migrateUsersFromJsonFile(repo);
     expect(n).toBe(0);
   });
 });

@@ -81,8 +81,9 @@ export async function runMigration(opts: {
     try {
       const official = await syncPlayerData(phone, pwd);
       const officialUid = String(official.status?.uid ?? "");
+      const existing = await readUsers();
       const newUid = String(
-        Math.max(...Object.keys(readUsers()).map(Number).filter((n) => !Number.isNaN(n)), 0) + 1,
+        Math.max(...Object.keys(existing).map(Number).filter((n) => !Number.isNaN(n)), 0) + 1,
       );
       const converted = convertOfficialData(official, {
         newUid,
@@ -103,9 +104,9 @@ export async function runMigration(opts: {
   return results;
 }
 
-/** 读取现有用户（SQLite——users.json 已迁移为种子） */
-function readUsers(): { [key: string]: any } {
-  return new UserRepository(openDatabase()).getAll();
+/** 读取现有用户（主数据库——users.json 已迁移为种子） */
+async function readUsers(): Promise<{ [key: string]: any }> {
+  return new UserRepository(await openDatabase()).getAll();
 }
 
 /** CLI 入口 */

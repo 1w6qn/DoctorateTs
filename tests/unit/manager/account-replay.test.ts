@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { DatabaseSync } from "node:sqlite";
-import { openDatabase, SCHEMA_SQL } from "@core/db/database";
+import { openDatabase, SCHEMA_SQL, closeDatabase } from "@core/db/database";
+import type { SqlDatabase } from "@core/db/types";
 import { ReplayRepository } from "@core/db/replay-repo";
 import { AccountManager } from "@game/modules/account/AccountManager";
 import { BattleStore } from "@game/modules/battle/BattleStore";
@@ -13,19 +13,19 @@ import { BattleStore } from "@game/modules/battle/BattleStore";
  */
 describe("AccountManager 回放独立存储", () => {
   let manager: AccountManager;
-  let db: DatabaseSync;
+  let db: SqlDatabase;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
-    db = openDatabase(":memory:");
-    db.exec(SCHEMA_SQL);
+    db = await openDatabase(":memory:");
+    await db.exec(SCHEMA_SQL);
     manager = new AccountManager();
     (manager as any)._battleStore = new BattleStore(new ReplayRepository(db));
     (manager as any).configs = { "1": { uid: "1", password: "p" } };
   });
 
-  afterEach(() => {
-    db.close();
+  afterEach(async () => {
+    await closeDatabase();
   });
 
   it("saveBattleReplay 写 replays 表；configs 不再携带回放", async () => {

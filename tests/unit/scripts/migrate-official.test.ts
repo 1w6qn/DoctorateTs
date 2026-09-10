@@ -27,13 +27,23 @@ const templateContent = vi.hoisted(() =>
 );
 const usersContent = vi.hoisted(() => JSON.stringify({ "1": { uid: "1" } }));
 
-vi.mock("fs", () => ({
-  readFileSync: vi.fn((file: any) => {
-    if (String(file).includes("databases")) return templateContent;
-    if (String(file).includes("users.json")) return usersContent;
-    return accountsContent;
-  }),
-}));
+// 部分 mock：只替换 readFileSync，其余走真实实现
+// - data/config.json：@core/config 在模块加载时读取（db 层解析后端配置会引入它），
+//   空对象即「全部走缺省值」；不特判会被下面的兜底当成账号文本而 JSON 解析失败
+// - 不能用「只导出 readFileSync」的整模块替换：@utils/logger 的落盘定时器会用到
+//   fs.existsSync/readdirSync，缺导出会在测试结束后抛 unhandled error
+vi.mock("fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("fs")>();
+  return {
+    ...actual,
+    readFileSync: vi.fn((file: any) => {
+      if (String(file).includes("config.json")) return "{}";
+      if (String(file).includes("databases")) return templateContent;
+      if (String(file).includes("users.json")) return usersContent;
+      return accountsContent;
+    }),
+  };
+});
 vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();
   return { ...actual, writeFile: vi.fn().mockResolvedValue(undefined) };

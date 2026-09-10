@@ -10,7 +10,7 @@
 7. [工具和配置规范](#7-工具和配置规范)
 8. [启动模式与离线支持](#8-启动模式与离线支持)
 9. [管理后台设计规范](#9-管理后台设计规范)
-10. [好友系统与 SQLite 数据层](#10-好友系统与sqlite数据层)
+10. [好友系统与主数据层（多后端）](#10-好友系统与主数据层多后端)
 11. [基建系统逻辑说明](#11-基建系统逻辑说明)
 12. [战斗结算后处理逻辑](#12-战斗结算后处理逻辑)
 13. [勋章系统实现](#13-勋章系统实现)
@@ -460,9 +460,10 @@ get delta() {
 ### 5.3 数据持久化
 
 #### 5.3.1 存储方式
-- 使用 JSON 文件 + SQLite 存储数据
+- 使用 JSON 文件 + 关系型数据库存储数据
 - 玩家数据存储在 `data/user/databases/{uid}.json`
-- 用户配置（账号/密钥/战斗回放/抽卡保底等 UserConfig）存储在 SQLite `users` 表（`data/user/social.db`）——`data/user/users.json` 仅作为首次迁移种子（2026-08 迁移）
+- 用户配置（账号/密钥/抽卡保底等 UserConfig）存储在**主数据层** `users` 表——`data/user/users.json` 仅作为首次迁移种子（2026-08 迁移）
+- 主数据层后端可选：**SQLite（缺省，`data/user/social.db`）/ MySQL / PostgreSQL**，见 §10；战斗回放、结算信息、玩家存档与好友关系同库
 
 #### 5.3.2 保存机制
 - 通过事件触发器（TypedEventEmitter）触发保存
@@ -536,6 +537,27 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
   this._trigger = trigger;
 }
 ```
+
+**端口与组合根（2026-09 落地）**。依赖分三层，落地口径固定：
+
+1. **构造注入（已完成，全量）**：子管理器统一 `(player, trigger)`；`PlayerDataManager(playerdata, battleStore?, deps?)`
+   的 `deps.modules` 可部分覆写子模块。
+2. **组合根工厂**：`kernel/player-composition.ts`（25 子模块）、`modules/roguelike/rlv2-composition.ts`（8）、
+   `rlv2-module-composition.ts`（14 主题模块）。**new 顺序 = 事件订阅顺序 = 派发顺序**，由
+   `tests/unit/architecture/composition-order.test.ts` 锁定，不可「顺手整理」。
+3. **端口注入（新增）**：跨层能力收敛为接口 + 缺省绑定单例，测试注入替身即可，无需 `vi.mock` 模块打桩。
+   - `kernel/excel-port.ts` → `ExcelData`（表 + 门面方法），经 `player.excel` 访问；
+     模块层不得直连 `@excel/excel` 单例，棘轮守卫
+     `tests/unit/architecture/excel-singleton-ratchet.test.ts` + `excel-singleton-baseline.json`（只减不增）。
+     数据目录经 `excel/excel-data-dir.ts` 解析（`setExcelDataDir`/`ARKNIGHTS_EXCEL_DIR`，默认 `./data/excel`），
+     为分服/夹具目录预留。
+   - `kernel/http/auth-strategy.ts` → `AuthAccountPort`（`getUidByToken`/`registerUser`），
+     `RealAccountStrategy(accounts = accountManager)`、`createAuthStrategy(cfg, accounts)`。
+   - 既有端口：`BattleInfoStore`（战斗存储）、`CaptureRecorder`（抓包写入）。
+
+**刻意不做**：不引入 DI 容器（tsx/vitest 走 esbuild，`emitDecoratorMetadata` 不生效，装饰器式自动注入不可行）；
+不把 `PlayerDataManager` 门面接口化（router 层 200+ 处 `_playerdata`/`_trigger` 直接访问是其合法用法，
+接口化的收益已被 `mockPlayerData` 覆盖）。详见 `docs/依赖注入-可行性分析与落地-2026-09-10.md`。
 
 #### 6.2.3 单一职责
 - 每个类只负责一个功能
@@ -813,38 +835,100 @@ logs show [--last N] [--json]
 
 ---
 
-## 10. 好友系统与 SQLite 数据层
+## 10. 好友系统与主数据层（多后端）
 
 ### 10.1 数据存储
-好友关系数据（好友列表、好友申请、访问记录）与**用户账号配置**（UserConfig）存储在 `data/user/social.db`（SQLite），
-使用 Node 24 内置 `node:sqlite`（DatabaseSync），零第三方依赖。
+好友关系数据（好友列表、好友申请、访问记录）、**用户账号配置**（UserConfig）、战斗回放/结算信息与**玩家存档**
+统一存放在**主数据层**，支持三种可选后端：
+
+| 后端 | 驱动 | 说明 |
+|---|---|---|
+| `sqlite`（缺省） | Node 24 内置 `node:sqlite` | 零第三方依赖，单文件 `data/user/social.db`；行为与历史版本完全一致 |
+| `mysql` | `mysql2`（optionalDependencies） | 需 `pnpm add mysql2`（已列入 optionalDependencies）；驱动运行时动态加载 |
+| `postgresql` | `pg`（optionalDependencies） | 需 `pnpm add pg`；同上 |
+
+未安装可选驱动不影响启动——只有显式选用该后端时才会加载并给出带安装指引的错误。
 `data/user/users.json` 中的 `social` 字段仅作为首次迁移来源，迁移后不再作为数据源（重置为空结构）。
-**2026-08 起 users.json 整体退化为首次迁移种子**——`AccountManager.init` 在 SQLite `users` 表为空时导入，之后用户配置以 SQLite 为唯一事实源（`saveUserConfig` 只写库，不再写 users.json）。
-`social.db` 为运行时生成文件，已在 `.gitignore` 中忽略，不加入离线校验清单（REQUIRED_DATA_FILES，users.json 种子文件保留在清单中）。
+**2026-08 起 users.json 整体退化为首次迁移种子**——`AccountManager.init` 在 `users` 表为空时导入，之后用户配置以数据库为唯一事实源（`saveUserConfig` 只写库，不再写 users.json）。
+SQLite 库文件为运行时生成产物，已在 `.gitignore` 中忽略，不加入离线校验清单（REQUIRED_DATA_FILES，users.json 种子文件保留在清单中）。
 
 ### 10.2 表结构
-- `friends(uid, friend_uid, alias, create_ts)`：好友关系，主键 (uid, friend_uid)
+表规格声明在 `app/core/db/schema.ts`（声明式 `TABLES`），由 `buildSchemaSql(backend)` 生成三种后端的 DDL：
+
+- `friends(uid, friend_uid, alias, create_ts, star)`：好友关系，主键 (uid, friend_uid)；`star` 为星标标记（上限 `gamedata_const.maxStarFriendNum`）
 - `friend_requests(from_uid, to_uid, create_ts)`：好友申请，主键 (from_uid, to_uid)
+- `friend_request_log(from_uid, to_uid, last_ts)`：申请冷却基准（`requestSameFriendCd`），申请被处理后**不删除**
 - `visited(uid, visited_uid, ts)`：访问记录，主键 (uid, visited_uid)
-- `users(uid, data, updated_ts)`：用户账号配置，主键 uid；`data` 为 UserConfig JSON 列（uid/password/secret/auth/social/battle/gacha/rlv2 整体序列化）
+- `users(uid, data, updated_ts)`：用户账号配置，主键 uid；`data` 为 UserConfig JSON 列
+- `replays(uid, stage_id, replay, updated_ts)`：战斗回放，主键 (uid, stage_id)
+- `battle_infos(uid, battle_id, info, updated_ts)`：战斗结算信息，主键 (uid, battle_id)
+- `battle_records(battle_id, uid, stage_id, record, created_ts)`：战斗结束记录留存，主键 (battle_id, uid)
+- `player_data(uid, data, updated_ts)`：玩家存档（gzip 二进制文档，替代 `databases/*.json` 全量写）
 
-### 10.3 架构
-- `app/db/database.ts`：连接单例（默认 `data/user/social.db`，测试用 `:memory:`；复用已关闭连接时自动重建）
-- `app/db/schema.ts`：建表 SQL（幂等）
-- `app/db/friend-repo.ts`：`FriendRepository` 仓储（好友 3 表 CRUD）
-- `app/db/user-repo.ts`：`UserRepository` 仓储（users 表 CRUD：getAll/get/upsert/upsertAll——upsertAll 为全量同步语义：DELETE + INSERT 事务）+ `migrateUsersFromJsonFile`（users.json → SQLite 幂等迁移）
-- `app/db/migrate.ts`：`migrateFromUserConfigs` 首次启动从 users.json 导入好友数据并重置 JSON 社交字段
-- `AccountManager._friendRepo`：init() 中惰性初始化（避免模块加载时创建数据库文件），社交方法（getSocial/addFriend/deleteFriend/sendFriendRequest/deleteFriendRequest/setFriendAlias/getFriendRequests）走仓储，签名不变
-- `AccountManager._userRepo`：init() 中初始化——`configs = getAll()`（空则迁移 users.json 种子）；`saveUserConfig` 全量 `upsertAll(configs)`（未 init 时 no-op，测试安全）
-- 官服迁移脚本（`scripts/official-register.ts`/`migrate-official.ts`）注册/读取用户同样走 SQLite（users.json 仅种子）
+**类型映射**（`schema.ts#physicalType`）：`uid`/`text` → SQLite `TEXT` / MySQL `VARCHAR(191)` / PG `TEXT`
+（MySQL 的 TEXT 不能作主键，且 utf8mb4 下索引键长上限 3072 字节，191×4=764 安全）；
+`longtext` → `TEXT`/`LONGTEXT`/`TEXT`；`bigint` → `INTEGER`/`BIGINT`/`BIGINT`
+（毫秒时间戳 1.7e12 超出 INT4 上限，必须 64 位）；`blob` → `BLOB`/`LONGBLOB`/`BYTEA`。
 
-### 10.4 业务规则
+MySQL 的二级索引内联为 `KEY`（MySQL 不支持 `CREATE INDEX IF NOT EXISTS`），SQLite/PG 用独立 `CREATE INDEX IF NOT EXISTS`——
+三种后端的建表脚本因此都保持**幂等**。
+
+### 10.3 架构（`app/core/db/`）
+- `types.ts`：多后端契约——`SqlDatabase`（`prepare`/`exec`/`transaction`/`close`/`isOpen`）、`SqlStatement`（`get`/`all`/`run`）、`DatabaseOptions`。**接口全异步**：`node:sqlite` 是同步 API，mysql2/pg 只能异步，统一以 Promise 暴露后三种驱动行为一致（SQLite 驱动内部同步执行后立即 resolve）
+- `dialect.ts`：方言纯函数——`insertIgnoreSql`（`INSERT OR IGNORE`/`INSERT IGNORE`/`ON CONFLICT DO NOTHING`）、`insertReplaceSql`（`INSERT OR REPLACE`/`ON DUPLICATE KEY UPDATE`/`ON CONFLICT … DO UPDATE`）、`convertPlaceholders`（`?` → `$n`，跳过字符串字面量与注释）、`normalizeParams`、`toCount`
+- `schema.ts`：声明式表规格 + 三种后端 DDL 生成（见 §10.2）
+- `introspect.ts`：跨后端结构探测（`columnExists` / `addColumnIfMissing`）——`CREATE TABLE IF NOT EXISTS` 不会给既有表补列，加列须先探测
+- `drivers/sqlite.ts` / `drivers/mysql.ts` / `drivers/postgres.ts`：三个 `SqlDatabase` 实现（MySQL/PG 为连接池 + 独占连接事务，驱动经 `drivers/load.ts` 动态加载）
+- `database.ts`：单例入口——`openDatabase()`（建连 + 建表 + 结构迁移，复用前用 `isOpen()` 剔除已关闭连接）、`getDatabase()`、`closeDatabase()`、`createDatabase()`（不走单例，供跨后端搬迁同时持有两个连接）
+- `config.ts`：连接配置解析（入参 > 环境变量 > `config.json`）与日志描述（不含密码）
+- `friend-repo.ts` / `user-repo.ts` / `replay-repo.ts` / `player-data-repo.ts`：仓储层，只写 `?` 占位符与公共 SQL，不出现方言分支
+- `migrate.ts`：`migrateFromUserConfigs` 首次启动从 users.json 导入好友数据并重置 JSON 社交字段
+- `AccountManager`：init() 中 `openDatabase()` 建连一次后注入全部仓储（避免模块加载时创建数据库文件）；社交方法（getSocial/addFriend/deleteFriend/sendFriendRequest/deleteFriendRequest/setFriendAlias/getFriendRequests）委托 `SocialService`，战斗数据委托 `BattleStore`，公共签名不变
+- `AccountManager._userRepo`：`configs = await getAll()`（空则迁移 users.json 种子）；`saveUserConfig` 全量 `upsertAll(configs)`（未 init 时 no-op，测试安全）
+- 官服迁移脚本（`scripts/official-register.ts`/`migrate-official.ts`）注册/读取用户同样走主数据层（users.json 仅种子）
+- 抓包索引（`app/ops/capture/capture-db.ts`）与资源注册表（`app/ops/assets/asset-registry/asset-db.ts`）**仍为本地 SQLite**——它们是本机缓存/索引而非业务数据，不参与后端切换
+
+### 10.4 后端切换与配置
+配置入口 `data/config.json` 的 `database` 块（缺省不存在 = sqlite 默认，零迁移成本）：
+
+```jsonc
+{
+  "database": {
+    "type": "mysql",            // sqlite（缺省）| mysql | postgresql
+    "host": "127.0.0.1",
+    "port": 3306,               // 缺省 mysql 3306 / postgresql 5432
+    "user": "root",
+    "password": "***",
+    "database": "arknights",    // 库须预先创建（本层只建表不建库）
+    "connectionLimit": 10,      // 连接池上限，缺省 10
+    "charset": "utf8mb4",       // 仅 mysql
+    "ssl": false
+  }
+}
+```
+
+优先级：`openDatabase(options)` 显式入参 > 环境变量（`DB_TYPE`/`DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME`，容器化部署用）> `config.json` 的 `database` 块 > 缺省 SQLite。
+
+**数据搬迁**：切换后端不会自动搬运数据（新库为空表）。用 `pnpm run db:migrate` 整表复制：
+
+```bash
+pnpm run db:migrate -- --dry-run     # 先看各表行数
+pnpm run db:migrate                 # 源 ./data/user/social.db → 配置的后端
+pnpm run db:migrate -- --force      # 目标非空时覆盖（默认拒绝执行）
+```
+
+逐表按主键覆盖写（可重复执行，不产生重复行），每 200 行一个事务；`--from-file` 可指定旧库路径。
+
+### 10.5 业务规则
 - 双向好友：同意申请（processFriendRequest action=1）时双方互加；删除好友（deleteFriend）时双方互删
 - 请求校验（sendFriendRequest）：不能向自己发送；对方已是好友拒绝；重复申请拒绝
 - 申请接受后同步删除申请记录，并清除接收方 pushFlags.hasFriendRequest
 
-### 10.5 已知约束
+### 10.6 已知约束
 - 游戏中间件（app/game/app.ts）将所有 secret 强制映射为 uid=1（单机私服设计），多玩家交互逻辑由单测与独立进程集成脚本覆盖
+- MySQL / PostgreSQL 的**端到端链路需真实服务端**才能验证；CI 中可离线验证的部分（SQL 方言生成、占位符改写、DDL、参数归一化、可选驱动缺失时的错误文案、跨后端复制语义）由 `tests/unit/db/dialect.test.ts` 与 `tests/unit/scripts/db-migrate.test.ts` 覆盖
+- 切换后端后 `users` 表会从 users.json 种子重建账号配置，但玩家存档/回放无种子来源——务必先执行 `pnpm run db:migrate`
+- 单例 `openDatabase()` 一次只持有一个后端连接；需要同时连接两个库的场景用 `createDatabase()`
 
 ---
 

@@ -1,20 +1,30 @@
 /**
- * 玩家存档仓储（方案 A+C）：SQLite player_data 表（gzip BLOB 文档存储）。
+ * 玩家存档仓储：player_data 表（gzip 二进制文档存储）。
+ *
  * 替代 data/user/databases/*.json 全量文件写——事务原子 + 体积 -88%（1.5MB → ~150KB）。
  * 存档为 JSON 文档（Immer delta / save-health 兼容），仅存储后端变化。
+ *
+ * 后端无关：二进制列在 SQLite 为 BLOB、MySQL 为 LONGBLOB、PostgreSQL 为 BYTEA，
+ * 驱动层统一以 `Uint8Array`/`Buffer` 往返，仓储层不做方言分支。
  */
-import { DatabaseSync } from "node:sqlite";
+import { insertReplaceSql } from "./dialect";
+import type { SqlDatabase } from "./types";
 import { gzipSync, gunzipSync } from "zlib";
 
 export class PlayerDataRepository {
-  constructor(private db: DatabaseSync) {}
+  /** @param db - 后端无关的数据库句柄 */
+  constructor(private _db: SqlDatabase) {}
 
-  /** 读存档（gzip BLOB → JSON 字符串），无记录返回 null */
-  get(uid: string): string | null {
-    const row = this.db
+  /**
+   * 读存档（二进制 → JSON 字符串）
+   * @param uid - 账号 uid
+   * @returns JSON 字符串；无记录或数据损坏返回 null
+   */
+  async get(uid: string): Promise<string | null> {
+    const row = await this._db
       .prepare("SELECT data FROM player_data WHERE uid = ?")
-      .get(uid) as { data: Uint8Array } | undefined;
-    if (!row) return null;
+      .get<{ data: Uint8Array }>(uid);
+    if (!row?.data) return null;
     try {
       return gunzipSync(Buffer.from(row.data)).toString("utf-8");
     } catch {
@@ -22,27 +32,43 @@ export class PlayerDataRepository {
     }
   }
 
-  /** 写存档（JSON 字符串 → gzip BLOB upsert，事务原子） */
-  upsert(uid: string, json: string): void {
-    // level=1：gzip 快速档——落盘 CPU 从 ~15ms 降到 ~6ms（BLOB 154KB→187KB，
+  /**
+   * 写存档（JSON 字符串 → gzip 二进制覆盖写，事务原子）
+   * @param uid - 账号 uid
+   * @param json - 存档 JSON 字符串
+   */
+  async upsert(uid: string, json: string): Promise<void> {
+    // level=1：gzip 快速档——落盘 CPU 从 ~15ms 降到 ~6ms（二进制 154KB→187KB，
     // 事件循环时间是私服更稀缺的资源；存档体积差异可忽略）
     const blob = gzipSync(json, { level: 1 });
-    this.db
+    await this._db
       .prepare(
-        "INSERT OR REPLACE INTO player_data (uid, data, updated_ts) VALUES (?, ?, ?)",
+        insertReplaceSql(
+          this._db.backend,
+          "player_data",
+          ["uid", "data", "updated_ts"],
+          ["uid"],
+        ),
       )
       .run(uid, blob, Date.now());
   }
 
-  delete(uid: string): void {
-    this.db.prepare("DELETE FROM player_data WHERE uid = ?").run(uid);
+  /**
+   * 删除存档
+   * @param uid - 账号 uid
+   */
+  async delete(uid: string): Promise<void> {
+    await this._db.prepare("DELETE FROM player_data WHERE uid = ?").run(uid);
   }
 
-  exists(uid: string): boolean {
-    return (
-      (this.db
-        .prepare("SELECT 1 FROM player_data WHERE uid = ?")
-        .get(uid) as { 1: number } | undefined) !== undefined
-    );
+  /**
+   * 存档是否存在
+   * @param uid - 账号 uid
+   */
+  async exists(uid: string): Promise<boolean> {
+    const row = await this._db
+      .prepare("SELECT 1 FROM player_data WHERE uid = ?")
+      .get(uid);
+    return row !== undefined;
   }
 }

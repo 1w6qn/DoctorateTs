@@ -72,6 +72,20 @@ interface StatView {
   enemyKills: number;
   /** 是否存在 enemyStats 击杀数据（区分「本场 0 击杀」与「无击杀数据」） */
   killHasData: boolean;
+  /** 是否存在 charStats 部署/阵亡/撤退计数（区分「本场 0 阵亡」与「无该统计」） */
+  hasCounterData: boolean;
+}
+
+/** 战斗推进上下文（编队构成 + 关卡/星级） */
+interface EquipBattleCtx {
+  /** 非助战在场（编入）干员 charId */
+  onFieldCharIds: Set<string>;
+  /** 全部编队成员 charId（含助战，供编成限制判定） */
+  squadCharIds: string[];
+  /** 结算关卡 id */
+  stageId: string;
+  /** 通关星级（3 = 三星） */
+  completeState: number;
 }
 
 /** 单次战斗推进结果 */
@@ -199,6 +213,7 @@ export class EquipmentMissionManager {
       withdraw: new Map(),
       enemyKills: 0,
       killHasData: false,
+      hasCounterData: false,
     };
     const stats: BattleStats | undefined = battleData.battleData?.stats;
     if (!stats) return sv;
@@ -230,6 +245,7 @@ export class EquipmentMissionManager {
       if (!key?.charId) continue;
       const v = Number(item.Value) || 0;
       const cid = key.charId;
+      sv.hasCounterData = true;
       if (key.counterType === "SPAWN") {
         sv.deploy.set(cid, (sv.deploy.get(cid) ?? 0) + v);
       } else if (key.counterType === "DEAD") {
@@ -265,6 +281,7 @@ export class EquipmentMissionManager {
     paramList: string[],
     charId: string,
     sv: StatView,
+    ctx: EquipBattleCtx,
   ): Advance {
     const p = paramList ?? [];
     switch (template) {
@@ -277,14 +294,16 @@ export class EquipmentMissionManager {
         const ids = [charId, ...this._tokenIds(p)];
         return this._sumAdvance(sv, ids, (id) => sv.charDamage.get(id), p);
       }
-      // ===== 按元素/类型伤害（param 含元素类型索引，如妮芙 5）=====
+      // ===== 按元素伤害（param[1]=阈值, param[2]=元素索引，如妮芙 60000/5）=====
+      // 修复（2026-09-09）：原读 outputDamageByTypeTotal（按伤害类型）——官服任务描述为「元素伤害」，
+      // 应对应 outputElementDamageTotal（sv.charElementDamage；该字段此前已被提取却从未被读）。
       case "EquipmentDamageTypeTotal": {
-        const typeIdx = this._firstNumber(p.slice(2)) ?? 0;
-        return this._arraySumAdvance(sv, [charId], (id) => sv.charDamageByType.get(id), typeIdx, p);
+        const typeIdx = Number(p[2]) || 0;
+        return this._arraySumAdvance(sv, [charId], (id) => sv.charElementDamage.get(id), typeIdx, p);
       }
-      // ===== 元素爆发次数（param[2]=元素类型索引）=====
+      // ===== 元素爆发次数（param[1]=阈值, param[2]=元素类型索引）=====
       case "EquipmentElementBurst": {
-        const typeIdx = this._firstNumber(p.slice(2)) ?? 0;
+        const typeIdx = Number(p[2]) || 0;
         return this._arraySumAdvance(sv, [charId], (id) => sv.charElementBurst.get(id), typeIdx, p);
       }
       // ===== 累计技能施放（param[1]=skill id）=====
@@ -312,15 +331,18 @@ export class EquipmentMissionManager {
         const ids = [charId];
         return this._thresholdFight(sv, ids, (id) => sv.charDamage.get(id), threshold);
       }
+      // 修复（2026-09-09）：param 形如 ["3","main_14-06","char_4146_nymph","5000","5"] ——
+      // 阈值 = param[3]、元素索引 = param[4]。原实现用 `_firstNumber(p.slice(3))` 取「首个数值」
+      // 把阈值 5000 当成数组下标 → 恒 undefined → 兜底 hit:true（一次三星通关即完成）。
       case "EquipmentDamageTypeStage": {
-        const typeIdx = this._firstNumber(p.slice(3)) ?? 0;
-        const threshold = this._firstNumber(p.slice(2)) ?? 0;
+        const typeIdx = Number(p[4]) || 0;
+        const threshold = Number(p[3]) || 0;
         const ids = [charId];
-        return this._arrayThresholdFight(sv, ids, (id) => sv.charDamageByType.get(id), typeIdx, threshold);
+        return this._arrayThresholdFight(sv, ids, (id) => sv.charElementDamage.get(id), typeIdx, threshold);
       }
       case "EquipmentElementBurstStage": {
-        const typeIdx = this._firstNumber(p.slice(3)) ?? 0;
-        const threshold = this._firstNumber(p.slice(2)) ?? 0;
+        const typeIdx = Number(p[4]) || 0;
+        const threshold = Number(p[3]) || 0;
         const ids = [charId];
         return this._arrayThresholdFight(sv, ids, (id) => sv.charElementBurst.get(id), typeIdx, threshold);
       }
@@ -339,14 +361,24 @@ export class EquipmentMissionManager {
         const threshold = this._firstNumber(p.slice(1)) ?? 0;
         return this._thresholdFight(sv, tokens, (id) => sv.deploy.get(id), threshold);
       }
+      // 修复（2026-09-09）：条件为「整场战斗仅部署过<干员>与至多 param[3] 位其他干员」，
+      // 原实现误用「该干员自身部署次数 ≥ param[3]」代替（语义替换 → 提前完成）。
       case "EquipmentStageDeployCntAndSpec": {
-        const threshold = this._firstNumber(p.slice(2)) ?? 0;
-        const tokens = [charId];
-        return this._thresholdFight(sv, tokens, (id) => sv.deploy.get(id), threshold);
+        if (sv.deploy.size === 0) return { hit: true };
+        const maxOthers = Number(p[p.length - 1]) || 0;
+        const deployers = [...sv.deploy.keys()].filter(
+          (id) => id !== charId && !id.startsWith("token_") && (sv.deploy.get(id) ?? 0) > 0,
+        );
+        return { hit: deployers.length <= maxOthers };
       }
+      // 修复（2026-09-09）：条件为「部署至少 param[1] 次 **且** 歼灭至少 param[4] 名敌人」，
+      // 原实现只判部署次数、丢弃 param[4]（击杀阈值）。
       case "EquipmentDeployCharAndKillCnt": {
-        const threshold = this._firstNumber(p.slice(1)) ?? 0;
-        return this._thresholdFight(sv, [charId], (id) => sv.deploy.get(id), threshold);
+        const deployNeed = Number(p[1]) || 0;
+        const killNeed = Number(p[4]) || 0;
+        const deployed = sv.deploy.get(charId) ?? 0;
+        const killOk = sv.killHasData ? sv.enemyKills >= killNeed : true;
+        return { hit: deployed >= deployNeed && killOk };
       }
       // ===== 无撤退不撤退（DO EARW裁判）=====
       case "EquipmentDeployOneNoEvac": {
@@ -363,15 +395,30 @@ export class EquipmentMissionManager {
         return this._killsAccumulate(sv, killTarget);
       }
       // ===== 一次性关卡 + 击杀/事件（特定单位击杀，不可逐干员统计 → 已达基就完成）=====
-      case "EquipmentEventStageKill":
-      case "EquipmentEventStageMore":
-      case "EquipmentSquadNoAnyDead":
+      // 修复（2026-09-09）：这 7 类模板此前一律 `hit: true`（随便编队三星通关即解锁，
+      // 涉及 173 条任务：SquadPro 32 / SquadProEx 86 / SquadNum 47 / SquadNoAnyDead 27 /
+      // SquadPos 6 / SquadStar 2 / SkillCastStage 78）。现有统计足以真实判定：
+      //  - SquadPro / SquadPos / SquadStar / SquadNum / SquadProEx：读编队构成（ctx.squadCharIds）
+      //  - SquadNoAnyDead：读 charStats DEAD 计数
+      //  - SkillCastStage：param[2]=技能 id、param[3]=次数阈值，读 skillTrigStats
+      case "EquipmentSquadNoAnyDead": {
+        if (!sv.hasCounterData) return { hit: true };
+        const anyDead = ctx.squadCharIds.some((id) => (sv.dead.get(id) ?? 0) > 0);
+        return { hit: !anyDead };
+      }
       case "EquipmentSquadNum":
       case "EquipmentSquadPos":
       case "EquipmentSquadPro":
       case "EquipmentSquadProEx":
       case "EquipmentSquadStar":
-      case "EquipmentSkillCastStage":
+        return { hit: this._squadRuleHit(template, p, charId, ctx) };
+      case "EquipmentSkillCastStage": {
+        const skillId = p[2] ?? "";
+        const threshold = Number(p[3]) || 0;
+        return this._skillThresholdFight(sv, [charId], [skillId], threshold);
+      }
+      case "EquipmentEventStageKill":
+      case "EquipmentEventStageMore":
       case "EquipmentEventBattleMore":
       case "EquipmentDeployCharOrder":
         return { hit: true };
@@ -381,12 +428,67 @@ export class EquipmentMissionManager {
         return this._killsThreshold(sv, minKills);
       }
       // ===== 场次型（无统计/队伍限制，按有效战斗计数）=====
+      // 场次型编成限制（非助战该干员上场完成 N 场；其他成员仅可编入指定职业/星级）
       case "EquipmentSquadProStage":
       case "EquipmentSquadStarStage":
-        return { hit: true };
+        return { hit: this._squadRuleHit(template, p, charId, ctx) };
       default:
         return { hit: true };
     }
+  }
+
+  /**
+   * 编成限制判定（EquipmentSquadPro / SquadPos / SquadStar / SquadNum / SquadProEx 共用）
+   *
+   * paramList 末位参数格式（实测 data/excel/uniequip_table.json）：
+   * - `SquadPro` / `SquadPos` / `SquadStar`：`"<其他成员上限>,<约束>"`
+   *   （约束为职业如 PIONEER、站位如 MELEE/RANGED，或星级如 3）
+   * - `SquadNum`：`"<其他成员上限>"`
+   * - `SquadProEx`：`"A;B"` —— 其他成员不得属于这些职业
+   * 「其他成员」= 编队中除该任务干员以外的全部成员（含助战，对齐任务描述「包含助战」）。
+   * @param template - 模板名
+   * @param p - paramList
+   * @param charId - 任务所属干员
+   * @param ctx - 战斗上下文（含编队构成）
+   * @returns 是否满足编成限制
+   */
+  private _squadRuleHit(
+    template: string,
+    p: string[],
+    charId: string,
+    ctx: EquipBattleCtx,
+  ): boolean {
+    const spec = String(p[p.length - 1] ?? "");
+    const others = ctx.squadCharIds.filter((id) => id !== charId);
+    if (template === "EquipmentSquadProEx") {
+      const banned = new Set(spec.split(";").map((s) => s.trim()).filter(Boolean));
+      if (!banned.size) return true;
+      return !others.some((id) =>
+        banned.has(String((excel.charData(id) as any)?.profession ?? "")),
+      );
+    }
+    if (template === "EquipmentSquadNum") {
+      const max = Number(spec);
+      return Number.isFinite(max) ? others.length <= max : true;
+    }
+    const [maxRaw, rawConstraint] = spec.split(",");
+    const max = Number(maxRaw);
+    if (Number.isFinite(max) && others.length > max) return false;
+    const constraint = String(rawConstraint ?? "").trim();
+    if (!constraint) return true;
+    for (const id of others) {
+      const info = excel.charData(id) as any;
+      if (!info) return false;
+      if (constraint === "MELEE" || constraint === "RANGED") {
+        if (String(info.position ?? "") !== constraint) return false;
+      } else if (/^\d+$/.test(constraint)) {
+        const star = Number(/TIER_(\d)/.exec(String(info.rarity ?? ""))?.[1] ?? 0);
+        if (star !== Number(constraint)) return false;
+      } else if (String(info.profession ?? "") !== constraint) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -556,7 +658,7 @@ export class EquipmentMissionManager {
           target: this._targetFor(u.template, p),
         });
         if (!baseHit) continue;
-        const adv = this._advanceBattle(u.template, p, u.charId, sv);
+        const adv = this._advanceBattle(u.template, p, u.charId, sv, ctx);
         const before = entry.value;
         if (adv.killAdd != null) {
           // 击杀累计：原样累加本场击杀（可为 0，避免 0 击杀也被 max(1) 顶上）
@@ -593,11 +695,7 @@ export class EquipmentMissionManager {
   private _buildCtx(
     battleInfo: BattleInfo,
     battleData: BattleData,
-  ): {
-    onFieldCharIds: Set<string>;
-    stageId: string;
-    completeState: number;
-  } | undefined {
+  ): EquipBattleCtx | undefined {
     if (battleInfo.isPractice) return undefined;
     const slots = battleInfo.squad?.slots;
     if (!slots?.length) return undefined;
@@ -605,17 +703,24 @@ export class EquipmentMissionManager {
       (battleInfo.assistFriend?.assistChar ?? []).map((c) => c.charId),
     );
     const onFieldCharIds = new Set<string>();
+    // 修复（2026-09-09）：编成限制类任务（SquadPro/Pos/Star/Num/ProEx）需要完整编队构成——
+    // 原 ctx 只保留「非助战在场干员」，无从判定「其他成员仅可编入 X」。
+    const squadCharIds: string[] = [];
     const chars = this._player._playerdata.troop.chars;
     for (const slot of slots) {
       if (!slot) continue;
       const char = chars[slot.charInstId];
       if (!char || !char.charId) continue;
+      squadCharIds.push(char.charId);
       if (assistChars.has(char.charId)) continue;
       onFieldCharIds.add(char.charId);
     }
+    // 助战干员（好友方）不在 troop.chars 内，单独并入编队构成（任务描述「包含助战」）
+    for (const id of assistChars) squadCharIds.push(id);
     if (onFieldCharIds.size === 0) return undefined;
     return {
       onFieldCharIds,
+      squadCharIds,
       stageId: battleInfo.stageId,
       completeState: battleData.completeState ?? 0,
     };
@@ -669,7 +774,13 @@ export class EquipmentMissionManager {
   }
 }
 
-/** 场次型模板（param[0]=需完成的战斗场次；无关卡约束，通关即计入，统计可算时以统计阈值判定） */
+/**
+ * 场次型模板（param[0]=需完成的战斗场次；无关卡约束，通关即计入，统计可算时以统计阈值判定）
+ *
+ * 修复（2026-09-09）：`EquipmentStageDeployCntAndSpec` 原被误列入本集合——其实例 param 为
+ * `["3","main_03-04","char_2023_ling","4"]`（param[0]=星级、param[1]=关卡），属一次性模板，
+ * 归入场次型后既丢关卡约束（_requiredStage 对 FIELD 恒 undefined）又把星级 3 当成战斗场次目标。
+ */
 const FIELD_TMPLS: ReadonlySet<string> = new Set([
   "EquipmentBattleCharDamage",
   "EquipmentBattleCharKilled",
@@ -680,7 +791,6 @@ const FIELD_TMPLS: ReadonlySet<string> = new Set([
   "EquipmentSkillCastBattle",
   "EquipmentSquadProStage",
   "EquipmentSquadStarStage",
-  "EquipmentStageDeployCntAndSpec",
 ]);
 
 /** 累计型模板（目标为累计统计量；有统计时真实累加，无统计时一场达标兜底） */

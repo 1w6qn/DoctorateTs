@@ -16,6 +16,18 @@ vi.mock("@excel/excel", () => ({
     charData(charId: string) { return this.CharacterTable?.[charId]; },
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
 
+    // 编成限制类任务需要职业/站位/星级（CharacterTable）
+    CharacterTable: {
+      char_248_mgllan: { profession: "SUPPORT", position: "RANGED", rarity: "TIER_6" },
+      char_336_folivo: { profession: "SUPPORT", position: "RANGED", rarity: "TIER_5" },
+      char_128_plosis: { profession: "MEDIC", position: "RANGED", rarity: "TIER_5" },
+      char_130_doberm: { profession: "WARRIOR", position: "MELEE", rarity: "TIER_4" },
+      char_123_fang: { profession: "PIONEER", position: "MELEE", rarity: "TIER_2" },
+      char_2023_ling: { profession: "SUPPORT", position: "RANGED", rarity: "TIER_6" },
+      char_455_nothin: { profession: "SPECIAL", position: "MELEE", rarity: "TIER_5" },
+      char_4146_nymph: { profession: "CASTER", position: "RANGED", rarity: "TIER_6" },
+      char_179_cgbird: { profession: "MEDIC", position: "RANGED", rarity: "TIER_6" },
+    },
     UniequipTable: {
       equipDict: {
         uniequip_002_mgllan: {
@@ -41,6 +53,46 @@ vi.mock("@excel/excel", () => ({
             "uniequip_002_kirara_kill",
             "uniequip_002_kirara_battlekill",
           ],
+        },
+        uniequip_002_nothin: {
+          uniEquipId: "uniequip_002_nothin",
+          charId: "char_455_nothin",
+          missionList: ["uniequip_002_nothin_deploykill"],
+        },
+        uniequip_002_ling: {
+          uniEquipId: "uniequip_002_ling",
+          charId: "char_2023_ling",
+          missionList: ["uniequip_002_ling_spec"],
+        },
+        uniequip_002_cgbird: {
+          uniEquipId: "uniequip_002_cgbird",
+          charId: "char_179_cgbird",
+          missionList: ["uniequip_002_cgbird_cast"],
+        },
+        uniequip_002_nymph: {
+          uniEquipId: "uniequip_002_nymph",
+          charId: "char_4146_nymph",
+          missionList: ["uniequip_002_nymph_elem"],
+        },
+        uniequip_002_doberm: {
+          uniEquipId: "uniequip_002_doberm",
+          charId: "char_130_doberm",
+          missionList: ["uniequip_002_doberm_star"],
+        },
+        uniequip_002_plosis: {
+          uniEquipId: "uniequip_002_plosis",
+          charId: "char_128_plosis",
+          missionList: ["uniequip_002_plosis_ex"],
+        },
+        uniequip_002_folivo: {
+          uniEquipId: "uniequip_002_folivo",
+          charId: "char_336_folivo",
+          missionList: ["uniequip_002_folivo_num", "uniequip_002_folivo_pos"],
+        },
+        uniequip_002_fang: {
+          uniEquipId: "uniequip_002_fang",
+          charId: "char_123_fang",
+          missionList: ["uniequip_002_fang_nodead"],
         },
       },
       missionList: {
@@ -89,6 +141,43 @@ vi.mock("@excel/excel", () => ({
           template: "EquipmentBattleCharKilled",
           paramList: ["5", "char_478_kirara", "3"],
         },
+        // 编成限制家族（真实 paramList 形状取自 data/excel/uniequip_table.json）
+        uniequip_002_doberm_star: {
+          template: "EquipmentSquadStar",
+          paramList: ["3", "main_01-12", "char_130_doberm", "13,3"],
+        },
+        uniequip_002_plosis_ex: {
+          template: "EquipmentSquadProEx",
+          paramList: ["3", "main_04-09", "char_128_plosis", "MEDIC;TANK"],
+        },
+        uniequip_002_folivo_num: {
+          template: "EquipmentSquadNum",
+          paramList: ["3", "main_04-01", "char_336_folivo", "1"],
+        },
+        uniequip_002_folivo_pos: {
+          template: "EquipmentSquadPos",
+          paramList: ["3", "main_02-09", "char_336_folivo", "1,MELEE"],
+        },
+        uniequip_002_fang_nodead: {
+          template: "EquipmentSquadNoAnyDead",
+          paramList: ["3", "main_04-08", "char_123_fang"],
+        },
+        uniequip_002_cgbird_cast: {
+          template: "EquipmentSkillCastStage",
+          paramList: ["3", "main_03-06", "skchr_cgbird_2", "10", "char_179_cgbird"],
+        },
+        uniequip_002_nymph_elem: {
+          template: "EquipmentDamageTypeStage",
+          paramList: ["3", "main_14-06", "char_4146_nymph", "5000", "5"],
+        },
+        uniequip_002_nothin_deploykill: {
+          template: "EquipmentDeployCharAndKillCnt",
+          paramList: ["5", "2", "char_455_nothin", "char_455_nothin", "4"],
+        },
+        uniequip_002_ling_spec: {
+          template: "EquipmentStageDeployCntAndSpec",
+          paramList: ["3", "main_03-04", "char_2023_ling", "4"],
+        },
       },
     },
   },
@@ -105,6 +194,14 @@ function playerData() {
         2: { instId: 2, charId: "char_106_franka" },
         3: { instId: 3, charId: "char_103_angel" },
         4: { instId: 4, charId: "char_478_kirara" },
+        5: { instId: 5, charId: "char_455_nothin" },
+        6: { instId: 6, charId: "char_2023_ling" },
+        7: { instId: 7, charId: "char_179_cgbird" },
+        8: { instId: 8, charId: "char_4146_nymph" },
+        9: { instId: 9, charId: "char_130_doberm" },
+        10: { instId: 10, charId: "char_128_plosis" },
+        11: { instId: 11, charId: "char_336_folivo" },
+        12: { instId: 12, charId: "char_123_fang" },
       },
     },
   } as any);
@@ -365,5 +462,206 @@ describe("EquipmentMissionManager", () => {
       } as any,
     });
     expect(missions()["uniequip_002_kirara_battlekill"]).toEqual({ value: 1, target: 5 });
+  });
+
+  // ===== Round 20：编成限制 / 元素参数下标 / 条件截断（原一律 hit:true）=====
+
+  /** 构造编队：首个为任务干员，其余为其他成员 */
+  function squad(...instIds: number[]) {
+    return { slots: instIds.map((charInstId) => ({ charInstId })) };
+  }
+
+  it("SquadStar（13,3）：其他成员非 3 星 → 不完成；全 3 星 → 完成", async () => {
+    // 杜宾 + 麦哲伦(6★) → 不符合「其他成员仅可编入3星干员」
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_01-12", isPractice: 0, squad: squad(9, 1) } as any,
+      battleData: { completeState: 3 } as any,
+    });
+    expect(missions()["uniequip_002_doberm_star"]).toEqual({ value: 0, target: 1 });
+    // 杜宾 + 芬(2★) → 仍不符（要求 3 星）
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_01-12", isPractice: 0, squad: squad(9, 12) } as any,
+      battleData: { completeState: 3 } as any,
+    });
+    expect(missions()["uniequip_002_doberm_star"]).toEqual({ value: 0, target: 1 });
+  });
+
+  it("SquadProEx（MEDIC;TANK）：其他成员含被禁职业 → 不完成", async () => {
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_04-09", isPractice: 0, squad: squad(10, 7) } as any,
+      battleData: { completeState: 3 } as any,
+    });
+    expect(missions()["uniequip_002_plosis_ex"]).toEqual({ value: 0, target: 1 });
+    // 换成先锋（非医疗/重装）→ 完成
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_04-09", isPractice: 0, squad: squad(10, 12) } as any,
+      battleData: { completeState: 3 } as any,
+    });
+    expect(missions()["uniequip_002_plosis_ex"]).toEqual({ value: 1, target: 1 });
+  });
+
+  it("SquadNum（上限 1）：其他成员人数超限 → 不完成", async () => {
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_04-01", isPractice: 0, squad: squad(11, 12, 9) } as any,
+      battleData: { completeState: 3 } as any,
+    });
+    expect(missions()["uniequip_002_folivo_num"]).toEqual({ value: 0, target: 1 });
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_04-01", isPractice: 0, squad: squad(11, 12) } as any,
+      battleData: { completeState: 3 } as any,
+    });
+    expect(missions()["uniequip_002_folivo_num"]).toEqual({ value: 1, target: 1 });
+  });
+
+  it("SquadPos（1,MELEE）：其他成员为远程位 → 不完成", async () => {
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_02-09", isPractice: 0, squad: squad(11, 1) } as any,
+      battleData: { completeState: 3 } as any,
+    });
+    expect(missions()["uniequip_002_folivo_pos"]).toEqual({ value: 0, target: 1 });
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_02-09", isPractice: 0, squad: squad(11, 9) } as any,
+      battleData: { completeState: 3 } as any,
+    });
+    expect(missions()["uniequip_002_folivo_pos"]).toEqual({ value: 1, target: 1 });
+  });
+
+  it("SquadNoAnyDead：有统计且有人阵亡 → 不完成；无人阵亡 → 完成", async () => {
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_04-08", isPractice: 0, squad: squad(12, 9) } as any,
+      battleData: {
+        completeState: 3,
+        battleData: { stats: { charStats: [{ Key: { charId: "char_130_doberm", counterType: "DEAD" }, Value: 1 }] } },
+      } as any,
+    });
+    expect(missions()["uniequip_002_fang_nodead"]).toEqual({ value: 0, target: 1 });
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_04-08", isPractice: 0, squad: squad(12, 9) } as any,
+      battleData: {
+        completeState: 3,
+        battleData: { stats: { charStats: [{ Key: { charId: "char_130_doberm", counterType: "SPAWN" }, Value: 1 }] } },
+      } as any,
+    });
+    expect(missions()["uniequip_002_fang_nodead"]).toEqual({ value: 1, target: 1 });
+  });
+
+  it("SkillCastStage：按 param[2] 技能 id 与 param[3] 阈值判定（原一律完成）", async () => {
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_03-06", isPractice: 0, squad: squad(7) } as any,
+      battleData: {
+        completeState: 3,
+        battleData: { stats: { skillTrigStats: [{ Key: { charId: "char_179_cgbird", skillId: "skchr_cgbird_2" }, Value: 4 }] } },
+      } as any,
+    });
+    expect(missions()["uniequip_002_cgbird_cast"]).toEqual({ value: 0, target: 1 });
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_03-06", isPractice: 0, squad: squad(7) } as any,
+      battleData: {
+        completeState: 3,
+        battleData: { stats: { skillTrigStats: [{ Key: { charId: "char_179_cgbird", skillId: "skchr_cgbird_2" }, Value: 10 }] } },
+      } as any,
+    });
+    expect(missions()["uniequip_002_cgbird_cast"]).toEqual({ value: 1, target: 1 });
+  });
+
+  it("DamageTypeStage：阈值取 param[3]、元素索引取 param[4]，读 outputElementDamageTotal", async () => {
+    // 索引 5 的元素伤害 6000 ≥ 5000 → 完成（原实现把 5000 当索引 → 恒兜底完成）
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_14-06", isPractice: 0, squad: squad(8) } as any,
+      battleData: {
+        completeState: 3,
+        battleData: {
+          stats: {
+            charAdvancedStats: {
+              char_4146_nymph: { outputElementDamageTotal: [0, 0, 0, 0, 0, 6000] },
+            },
+          },
+        },
+      } as any,
+    });
+    expect(missions()["uniequip_002_nymph_elem"]).toEqual({ value: 1, target: 1 });
+    // 索引 3（非任务索引）有大量伤害也不应误判为完成
+    pd._playerdata.equipment.missions["uniequip_002_nymph_elem"] = { value: 0, target: 1 };
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_14-06", isPractice: 0, squad: squad(8) } as any,
+      battleData: {
+        completeState: 3,
+        battleData: {
+          stats: {
+            charAdvancedStats: {
+              char_4146_nymph: { outputElementDamageTotal: [0, 0, 0, 99999, 0, 1000] },
+            },
+          },
+        },
+      } as any,
+    });
+    expect(missions()["uniequip_002_nymph_elem"]).toEqual({ value: 0, target: 1 });
+  });
+
+  it("DeployCharAndKillCnt：需同时满足部署≥2 与歼灭≥4（原丢弃击杀阈值）", async () => {
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_01-02", isPractice: 0, squad: squad(5) } as any,
+      battleData: {
+        completeState: 3,
+        battleData: {
+          stats: {
+            charStats: [{ Key: { charId: "char_455_nothin", counterType: "SPAWN" }, Value: 2 }],
+            enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 1 }],
+          },
+        },
+      } as any,
+    });
+    expect(missions()["uniequip_002_nothin_deploykill"]).toEqual({ value: 0, target: 5 });
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_01-02", isPractice: 0, squad: squad(5) } as any,
+      battleData: {
+        completeState: 3,
+        battleData: {
+          stats: {
+            charStats: [{ Key: { charId: "char_455_nothin", counterType: "SPAWN" }, Value: 2 }],
+            enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 4 }],
+          },
+        },
+      } as any,
+    });
+    expect(missions()["uniequip_002_nothin_deploykill"]).toEqual({ value: 1, target: 5 });
+  });
+
+  it("StageDeployCntAndSpec：部署过 5 位其他干员（> param[3]=4）→ 不完成", async () => {
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_03-04", isPractice: 0, squad: squad(6) } as any,
+      battleData: {
+        completeState: 3,
+        battleData: {
+          stats: {
+            charStats: [
+              { Key: { charId: "char_2023_ling", counterType: "SPAWN" }, Value: 1 },
+              { Key: { charId: "char_a", counterType: "SPAWN" }, Value: 1 },
+              { Key: { charId: "char_b", counterType: "SPAWN" }, Value: 1 },
+              { Key: { charId: "char_c", counterType: "SPAWN" }, Value: 1 },
+              { Key: { charId: "char_d", counterType: "SPAWN" }, Value: 1 },
+              { Key: { charId: "char_e", counterType: "SPAWN" }, Value: 1 },
+            ],
+          },
+        },
+      } as any,
+    });
+    expect(missions()["uniequip_002_ling_spec"]).toEqual({ value: 0, target: 1 });
+    // 仅令 + 1 位其他干员 → 完成
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_03-04", isPractice: 0, squad: squad(6) } as any,
+      battleData: {
+        completeState: 3,
+        battleData: {
+          stats: {
+            charStats: [
+              { Key: { charId: "char_2023_ling", counterType: "SPAWN" }, Value: 1 },
+              { Key: { charId: "char_a", counterType: "SPAWN" }, Value: 3 },
+            ],
+          },
+        },
+      } as any,
+    });
+    expect(missions()["uniequip_002_ling_spec"]).toEqual({ value: 1, target: 1 });
   });
 });

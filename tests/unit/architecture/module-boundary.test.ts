@@ -126,7 +126,11 @@ export function checkImport(fileRepoRel: string, spec: string): Violation | null
   if (srcMod && fileRepoRel !== AGGREGATION_ROOT) {
     const dstMod = modOf(t);
     if (dstMod && dstMod !== srcMod) {
-      const sharedOk = srcMod.startsWith("activities/") || dstMod === "activities/shared";
+      // 收紧（2026-09-09，对应审计 §6.3-26）：原实现对**任何** activities/* 源文件整体豁免
+      // （srcMod.startsWith("activities/")），使活动族可以任意直连其它模块内部文件而不被
+      // 守卫发现。现仅保留「activities/shared 为活动族共享实现」这一条合理豁免，
+      // 其余跨模块（含跨活动族）一律要求 public.ts 门面。
+      const sharedOk = dstMod === "activities/shared";
       if (!sharedOk && !t.endsWith("public"))
         return { rule: "R3 跨模块仅可 import public.ts", file: fileRepoRel, spec };
     }
@@ -175,5 +179,38 @@ describe("模块边界守卫", () => {
     expect(checkImport("app/game/kernel/model", "@game/modules/gacha/public")).toMatchObject({ rule: /^R2/ });
     expect(checkImport("app/game/modules/gacha/manager", "@game/modules/shop/manager")).toMatchObject({ rule: /^R3/ });
     expect(checkImport("app/game/modules/gacha/manager", "@game/modules/shop/public")).toBeNull();
+    // 收紧后（2026-09-09，审计 §6.3-26）：活动族不再整体豁免 ——
+    // 跨活动族/跨模块的**内部文件**引用须报错，public.ts 门面与 activities/shared 仍放行。
+    expect(
+      checkImport(
+        "app/game/modules/activities/milestone/logic",
+        "../act44side/informant",
+      ),
+    ).toMatchObject({ rule: /^R3/ });
+    expect(
+      checkImport(
+        "app/game/modules/activities/milestone/logic",
+        "../act44side/public",
+      ),
+    ).toBeNull();
+    expect(
+      checkImport(
+        "app/game/modules/activities/bossRush/bossrush",
+        "../../account/AccountManager",
+      ),
+    ).toMatchObject({ rule: /^R3/ });
+    expect(
+      checkImport(
+        "app/game/modules/activities/bossRush/bossrush",
+        "../../account/public",
+      ),
+    ).toBeNull();
+    // activities/shared 为活动族共享实现，仍豁免
+    expect(
+      checkImport(
+        "app/game/modules/activities/milestone/logic",
+        "../shared/shared",
+      ),
+    ).toBeNull();
   });
 });

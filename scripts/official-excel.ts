@@ -187,9 +187,16 @@ async function main() {
   fs.mkdirSync(DATA_EXCEL_DIR, { recursive: true });
 
   // 发现 excel bundle（仅 download/decode 需要；convert 直接用 excel_json）
+  const abInfos: AbInfo[] = hul.abInfos || [];
   const bundleMap = new Map<string, string>(); // base → dat
-  if (doDownload || doDecode) {
-    const abInfos: AbInfo[] = hul.abInfos || [];
+  /**
+   * 扫描 DL_DIR 中**已存在**的 anon bundle，按内部 TextAsset 名匹配 excel 表白名单
+   *
+   * 表名只能从 bundle 本体读出（readTextAssetNameCached），故该函数天然只能发现
+   * 已下载的文件；下载完成后需再次调用以收录新文件。
+   */
+  async function scanBundleMap(): Promise<Map<string, string>> {
+    const map = new Map<string, string>();
     for (const ab of abInfos) {
       if (!ab.name.startsWith("anon/")) continue;
       const dat = path.join(DL_DIR, transName(ab.name));
@@ -197,12 +204,23 @@ async function main() {
       const name = await readTextAssetNameCached(dat);
       if (!name) continue;
       const base = name.replace(/[0-9a-f]{6}$/, "");
-      if (TABLE_WHITELIST.has(base)) bundleMap.set(base, dat);
+      if (TABLE_WHITELIST.has(base)) map.set(base, dat);
     }
     saveNameCache();
-    if (tableArg && bundleMap.has(tableArg)) {
-      for (const k of bundleMap.keys()) {
-        if (k !== tableArg) bundleMap.delete(k);
+    return map;
+  }
+  if (doDownload || doDecode) {
+    for (const [k, v] of await scanBundleMap()) bundleMap.set(k, v);
+    if (tableArg) {
+      if (bundleMap.has(tableArg)) {
+        for (const k of bundleMap.keys()) {
+          if (k !== tableArg) bundleMap.delete(k);
+        }
+      } else {
+        // 修复（2026-09-09）：`--table X` 未命中时原实现静默忽略过滤条件 → 退化为全量解码
+        // （大批量场景直接 OOM）。未命中即无可解码目标，明确退出并提示。
+        console.log(`未找到表 ${tableArg}（不在本批 bundle 中）`);
+        bundleMap.clear();
       }
     }
     console.log(`excel 表: ${bundleMap.size}`);
@@ -211,19 +229,29 @@ async function main() {
   if (doDownload) {
     // S7：下载由串行改为有界并发池——downloadBundle 是网络 IO，逐个等待造成瓶颈；
     // 并发池让多个 bundle 的 HTTP + 落盘重叠。并发数 cap 6（IO 密集，略高于 decode）。
+    //
+    // 修复（2026-09-09）：待下载集合原先取自 bundleMap，而 bundleMap 只收录**已存在**的
+    // bundle（表名必须读出 bundle 本体才知道）→ pending 恒空，管线**永远下载不到新文件**，
+    // 只能消费预置缓存（新 clone / 官方新增表都会静默 0 下载）。现按清单遍历全部 anon 条目，
+    // 下载缺失文件，下载完成后重建 bundleMap 供 decode 使用。
     let n = 0;
-    const pending = [...bundleMap].filter(
-      ([, dat]) => !(fs.existsSync(dat) && fs.statSync(dat).size > 1000),
+    const pending = abInfos.filter(
+      (ab) =>
+        ab.name.startsWith("anon/") &&
+        !((): boolean => {
+          const dat = path.join(DL_DIR, transName(ab.name));
+          return fs.existsSync(dat) && fs.statSync(dat).size > 1000;
+        })(),
     );
+    console.log(`待下载 anon bundle: ${pending.length}/${abInfos.length}`);
     let idx = 0;
     async function downloadWorker(): Promise<void> {
       while (idx < pending.length) {
         const i = idx++;
-        const [base, dat] = pending[i];
-        const ab = abInfos.find((a) => transName(a.name) === path.basename(dat));
-        if (ab && (await downloadBundle(ab, resVersion))) {
+        const ab = pending[i];
+        if (await downloadBundle(ab, resVersion)) {
           n++;
-          console.log(`  已下载 ${base}`);
+          console.log(`  已下载 ${ab.name}`);
         }
       }
     }
@@ -231,6 +259,10 @@ async function main() {
       Array.from({ length: Math.min(6, Math.max(1, os.cpus().length || 4)) }, downloadWorker),
     );
     console.log(`下载完成: ${n}`);
+    // 重建 excel 表映射：新下载的 bundle 需重新识别 TextAsset 名并按白名单收录
+    bundleMap.clear();
+    for (const [k, v] of await scanBundleMap()) bundleMap.set(k, v);
+    console.log(`excel 表: ${bundleMap.size}`);
     // 溯源：官方 excel 数据获取留痕（batch 脚本阻塞写可接受）
     try {
       await assetRegistry.recordEvent({
@@ -252,7 +284,12 @@ async function main() {
     let ok = 0, fail = 0;
     const entries = [...bundleMap.entries()].sort();
     let idx = 0;
-    const decodeConcurrency = Math.min(4, Math.max(1, os.cpus().length || 4));
+    // 并发度可用 EXCEL_DECODE_CONCURRENCY 覆盖（大数据表解码内存峰值高，串行化可显著降低峰值）
+    const decodeConcurrency = Math.max(
+      1,
+      Number(process.env.EXCEL_DECODE_CONCURRENCY) ||
+        Math.min(4, Math.max(1, os.cpus().length || 4)),
+    );
     async function decodeWorker(): Promise<void> {
       while (idx < entries.length) {
         // Node 单线程：idx++ 无竞态，各 worker 顺序取任务

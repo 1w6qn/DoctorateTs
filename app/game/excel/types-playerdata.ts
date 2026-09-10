@@ -54,6 +54,10 @@ export type PlayerActivity_PlayerActAutoChessActivity_AutoChessCharType = "OWN" 
 
 export type PlayerActivity_PlayerAct46SideActivity_MonopolyStageStatus = "LOCK" | "UNLOCK" | "PASS";
 
+export type PlayerActivity_PlayerAct54SideActivity_CardState = "LOCK" | "UNLOCK" | "GAIN";
+
+export type PlayerActivity_PlayerAct54SideActivity_SpreadState = "LOCK" | "GAINABLE" | "UNLOCK" | "COMPLETE";
+
 export type PlayerSixStarTagFinishState = "NONE" | "FINISH_LEVEL1" | "FINISH_LEVEL2";
 
 export type PlayerSixStarMilestoneState = "UNLOCK" | "FINISH" | "CONFIRMED";
@@ -186,7 +190,7 @@ export type BuildingData_RoomType = "NONE" | "CONTROL" | "POWER" | "MANUFACTURE"
 
 export type BuildingData_OrderType = "O_COMPOUND" | "O_GOLD" | "O_DIAMOND";
 
-export type ItemType = "NONE" | "CHAR" | "CARD_EXP" | "MATERIAL" | "GOLD" | "EXP_PLAYER" | "TKT_TRY" | "TKT_RECRUIT" | "TKT_INST_FIN" | "TKT_GACHA" | "ACTIVITY_COIN" | "DIAMOND" | "DIAMOND_SHD" | "HGG_SHD" | "LGG_SHD" | "FURN" | "AP_GAMEPLAY" | "AP_BASE" | "SOCIAL_PT" | "CHAR_SKIN" | "TKT_GACHA_10" | "TKT_GACHA_PRSV" | "AP_ITEM" | "AP_SUPPLY" | "RENAMING_CARD" | "RENAMING_CARD_2" | "ET_STAGE" | "ACTIVITY_ITEM" | "VOUCHER_PICK" | "VOUCHER_CGACHA" | "VOUCHER_MGACHA" | "CRS_SHOP_COIN" | "CRS_RUNE_COIN" | "LMTGS_COIN" | "EPGS_COIN" | "LIMITED_TKT_GACHA_10" | "LIMITED_FREE_GACHA" | "REP_COIN" | "ROGUELIKE" | "LINKAGE_TKT_GACHA_10" | "VOUCHER_ELITE_II_4" | "VOUCHER_ELITE_II_5" | "VOUCHER_ELITE_II_6" | "VOUCHER_SKIN" | "RETRO_COIN" | "PLAYER_AVATAR" | "UNI_COLLECTION" | "VOUCHER_FULL_POTENTIAL" | "RL_COIN" | "RETURN_CREDIT" | "MEDAL" | "CHARM" | "HOME_BACKGROUND" | "EXTERMINATION_AGENT" | "OPTIONAL_VOUCHER_PICK" | "ACT_CART_COMPONENT" | "VOUCHER_LEVELMAX_6" | "VOUCHER_LEVELMAX_5" | "VOUCHER_LEVELMAX_4" | "VOUCHER_SKILL_SPECIALLEVELMAX_6" | "VOUCHER_SKILL_SPECIALLEVELMAX_5" | "VOUCHER_SKILL_SPECIALLEVELMAX_4" | "ACTIVITY_POTENTIAL" | "ITEM_PACK" | "SANDBOX" | "FAVOR_ADD_ITEM" | "CLASSIC_SHD" | "CLASSIC_TKT_GACHA" | "CLASSIC_TKT_GACHA_10" | "LIMITED_BUFF" | "CLASSIC_FES_PICK_TIER_5" | "CLASSIC_FES_PICK_TIER_6" | "RETURN_PROGRESS" | "NEW_PROGRESS" | "MCARD_VOUCHER" | "MATERIAL_ISSUE_VOUCHER" | "CRS_SHOP_COIN_V2" | "HOME_THEME" | "SANDBOX_PERM" | "SANDBOX_TOKEN" | "TEMPLATE_TRAP" | "NAME_CARD_SKIN" | "EMOTICON_SET" | "EXCLUSIVE_TKT_GACHA" | "EXCLUSIVE_TKT_GACHA_10" | "SO_CHAR_EXP" | "GIFTPACKAGE_TKT" | "VOUCHER_SKIN_V2" | "RANDOM_VOUCHER_SKIN" | "ACT1VHALFIDLE_ITEM" | "PLOT_ITEM" | "MAGAZINE_LEAF" | "STICKER" | "ARKHUB";
+export type ItemType = "NONE" | "CHAR" | "CARD_EXP" | "MATERIAL" | "GOLD" | "EXP_PLAYER" | "TKT_TRY" | "TKT_RECRUIT" | "TKT_INST_FIN" | "TKT_GACHA" | "ACTIVITY_COIN" | "DIAMOND" | "DIAMOND_SHD" | "HGG_SHD" | "LGG_SHD" | "FURN" | "AP_GAMEPLAY" | "AP_BASE" | "SOCIAL_PT" | "CHAR_SKIN" | "TKT_GACHA_10" | "TKT_GACHA_PRSV" | "AP_ITEM" | "AP_SUPPLY" | "RENAMING_CARD" | "RENAMING_CARD_2" | "ET_STAGE" | "ACTIVITY_ITEM" | "VOUCHER_PICK" | "VOUCHER_CGACHA" | "VOUCHER_MGACHA" | "CRS_SHOP_COIN" | "CRS_RUNE_COIN" | "LMTGS_COIN" | "EPGS_COIN" | "LIMITED_TKT_GACHA_10" | "LIMITED_FREE_GACHA" | "REP_COIN" | "ROGUELIKE" | "LINKAGE_TKT_GACHA_10" | "VOUCHER_ELITE_II_4" | "VOUCHER_ELITE_II_5" | "VOUCHER_ELITE_II_6" | "VOUCHER_SKIN" | "RETRO_COIN" | "PLAYER_AVATAR" | "UNI_COLLECTION" | "VOUCHER_FULL_POTENTIAL" | "RL_COIN" | "RETURN_CREDIT" | "MEDAL" | "CHARM" | "HOME_BACKGROUND" | "EXTERMINATION_AGENT" | "OPTIONAL_VOUCHER_PICK" | "ACT_CART_COMPONENT" | "VOUCHER_LEVELMAX_6" | "VOUCHER_LEVELMAX_5" | "VOUCHER_LEVELMAX_4" | "VOUCHER_SKILL_SPECIALLEVELMAX_6" | "VOUCHER_SKILL_SPECIALLEVELMAX_5" | "VOUCHER_SKILL_SPECIALLEVELMAX_4" | "ACTIVITY_POTENTIAL" | "ITEM_PACK" | "SANDBOX" | "FAVOR_ADD_ITEM" | "CLASSIC_SHD" | "CLASSIC_TKT_GACHA" | "CLASSIC_TKT_GACHA_10" | "LIMITED_BUFF" | "CLASSIC_FES_PICK_TIER_5" | "CLASSIC_FES_PICK_TIER_6" | "RETURN_PROGRESS" | "NEW_PROGRESS" | "MCARD_VOUCHER" | "MATERIAL_ISSUE_VOUCHER" | "CRS_SHOP_COIN_V2" | "HOME_THEME" | "SANDBOX_PERM" | "SANDBOX_TOKEN" | "TEMPLATE_TRAP" | "NAME_CARD_SKIN" | "EMOTICON_SET" | "EXCLUSIVE_TKT_GACHA" | "EXCLUSIVE_TKT_GACHA_10" | "SO_CHAR_EXP" | "GIFTPACKAGE_TKT" | "VOUCHER_SKIN_V2" | "RANDOM_VOUCHER_SKIN" | "ACT1VHALFIDLE_ITEM" | "PLOT_ITEM" | "MAGAZINE_LEAF" | "STICKER" | "ARKHUB" | "LINKAGE_TKT_GACHA";
 
 export type RoguelikeNodeLine_HiddenType = "SHOW" | "HIDE" | "APPEAR";
 
@@ -1842,6 +1846,16 @@ export interface PlayerActivity_PlayerActFootballActivity_MilestoneInfo {
     got: string[];
 }
 
+export interface PlayerActivity_PlayerActVasebreakerActivity {
+    milestone: PlayerActivity_PlayerActVasebreakerActivity_MilestoneInfo;
+    stickers: { [key: string]: number };
+}
+
+export interface PlayerActivity_PlayerActVasebreakerActivity_MilestoneInfo {
+    point: number;
+    got: string[];
+}
+
 export interface PlayerActivity_PlayerActArkhubActivity {
     coin: number;
     secretary: string;
@@ -1861,6 +1875,25 @@ export interface PlayerActivity_PlayerAct53SideActivity {
     actCoin: number;
     campaignCnt: number;
     favorList: string[];
+}
+
+export interface PlayerActivity_PlayerAct54SideActivity {
+    cardMap: { [key: string]: number };
+    spreads: { [key: string]: PlayerActivity_PlayerAct54SideActivity_CardSpreadInfo };
+    coin: number;
+    favorList: string[];
+    outerOpen: number;
+    rewardState: number;
+}
+
+export interface PlayerActivity_PlayerAct54SideActivity_CardInSpread {
+    id: string;
+    isUpright: number;
+}
+
+export interface PlayerActivity_PlayerAct54SideActivity_CardSpreadInfo {
+    state: number;
+    cards: PlayerActivity_PlayerAct54SideActivity_CardInSpread[];
 }
 
 export interface PlayerTemplateTrap {
@@ -5709,6 +5742,11 @@ export interface PlayerArkOdcTopic_Position {
     z: number;
 }
 
+export interface PlayerReslock {
+    inventory: { [key: string]: number };
+    consumable: { [key: string]: { [key: number]: PlayerConsumableItem } };
+}
+
 export interface PlayerDataModel {
     ACTIVITY_FIELD: string;
     SANDBOX_PERM_FIELD: string;
@@ -5770,6 +5808,7 @@ export interface PlayerDataModel {
     charRotation: PlayerCharRotation;
     gallery: PlayerGallery;
     arkodc: PlayerArkOdc;
+    reslock: PlayerReslock;
     mainline: PlayerMainlineRecord;
     limitedBuff: PlayerLimitedDropBuff;
     performanceStory: PlayerPerformanceStory;

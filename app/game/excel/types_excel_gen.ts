@@ -204,7 +204,7 @@ export type FireworkData_FireworkDirectionType = "TWO_DIR" | "FOUR_DIR";
 
 export type FireworkData_FireworkType = "RED" | "BLUE" | "YELLOW" | "GREEN";
 
-export type ActivityType = "DEFAULT" | "MISSION_ONLY" | "CHECKIN_ONLY" | "CHECKIN_ALL_PLAYER" | "TYPE_ACT3D0" | "TYPE_ACT4D0" | "TYPE_ACT5D0" | "TYPE_ACT5D1" | "COLLECTION" | "AVG_ONLY" | "TYPE_ACT9D0" | "TYPE_ACT12SIDE" | "TYPE_ACT13SIDE" | "TYPE_ACT17SIDE" | "LOGIN_ONLY" | "MINISTORY" | "ROGUELIKE" | "PRAY_ONLY" | "MULTIPLAY" | "MULTIPLAY_VERIFY2" | "TYPE_ACT17D7" | "GRID_GACHA" | "GRID_GACHA_V2" | "INTERLOCK" | "APRIL_FOOL" | "BOSS_RUSH" | "TYPE_ACT20SIDE" | "FLOAT_PARADE" | "TYPE_ACT21SIDE" | "MAIN_BUFF" | "TYPE_ACT24SIDE" | "FLIP_ONLY" | "TYPE_ACT25SIDE" | "CHECKIN_VS" | "SWITCH_ONLY" | "TYPE_ACT27SIDE" | "UNIQUE_ONLY" | "MAINLINE_BP" | "TYPE_ACT42D0" | "TYPE_ACT29SIDE" | "BLESS_ONLY" | "CHECKIN_ACCESS" | "YEAR_5_GENERAL" | "TYPE_ACT35SIDE" | "VEC_BREAK" | "TYPE_ACT36SIDE" | "TYPE_ACT38SIDE" | "AUTOCHESS_VERIFY1" | "CHECKIN_VIDEO" | "ARCADE" | "MULTIPLAY_V3" | "TYPE_MAINSS" | "ENEMY_DUEL" | "VEC_BREAK_V2" | "TYPE_ACT42SIDE" | "TYPE_ACT44SIDE" | "HALFIDLE_VERIFY1" | "TYPE_ACT45SIDE" | "TEAM_QUEST" | "RECRUIT_ONLY" | "TYPE_ACT46SIDE" | "AUTOCHESS_SEASON" | "ARK_HUB" | "ACT_FOOTBALL" | "TYPE_ACT53SIDE" | "ENUM";
+export type ActivityType = "DEFAULT" | "MISSION_ONLY" | "CHECKIN_ONLY" | "CHECKIN_ALL_PLAYER" | "TYPE_ACT3D0" | "TYPE_ACT4D0" | "TYPE_ACT5D0" | "TYPE_ACT5D1" | "COLLECTION" | "AVG_ONLY" | "TYPE_ACT9D0" | "TYPE_ACT12SIDE" | "TYPE_ACT13SIDE" | "TYPE_ACT17SIDE" | "LOGIN_ONLY" | "MINISTORY" | "ROGUELIKE" | "PRAY_ONLY" | "MULTIPLAY" | "MULTIPLAY_VERIFY2" | "TYPE_ACT17D7" | "GRID_GACHA" | "GRID_GACHA_V2" | "INTERLOCK" | "APRIL_FOOL" | "BOSS_RUSH" | "TYPE_ACT20SIDE" | "FLOAT_PARADE" | "TYPE_ACT21SIDE" | "MAIN_BUFF" | "TYPE_ACT24SIDE" | "FLIP_ONLY" | "TYPE_ACT25SIDE" | "CHECKIN_VS" | "SWITCH_ONLY" | "TYPE_ACT27SIDE" | "UNIQUE_ONLY" | "MAINLINE_BP" | "TYPE_ACT42D0" | "TYPE_ACT29SIDE" | "BLESS_ONLY" | "CHECKIN_ACCESS" | "YEAR_5_GENERAL" | "TYPE_ACT35SIDE" | "VEC_BREAK" | "TYPE_ACT36SIDE" | "TYPE_ACT38SIDE" | "AUTOCHESS_VERIFY1" | "CHECKIN_VIDEO" | "ARCADE" | "MULTIPLAY_V3" | "TYPE_MAINSS" | "ENEMY_DUEL" | "VEC_BREAK_V2" | "TYPE_ACT42SIDE" | "TYPE_ACT44SIDE" | "HALFIDLE_VERIFY1" | "TYPE_ACT45SIDE" | "TEAM_QUEST" | "RECRUIT_ONLY" | "TYPE_ACT46SIDE" | "AUTOCHESS_SEASON" | "ARK_HUB" | "ACT_FOOTBALL" | "TYPE_ACT53SIDE" | "TYPE_ACT54SIDE" | "ACT_DP" | "ENUM";
 
 export type ActivityDisplayType = "NONE" | "SIDESTORY" | "BRANCHLINE" | "MINISTORY";
 
@@ -306,7 +306,7 @@ export type MailArchiveItemType = "NORMAL" | "BIRTHDAY" | "OPEN_SERVER";
 
 export type EmojiSceneType = "NONE" | "ACTMULTIV3_ROOM" | "ACTMULTIV3_PICK" | "ACTMULTIV3_BATTLE" | "ENEMYDUEL_BATTLE" | "AUTOCHESS_ROOM" | "AUTOCHESS_BATTLE" | "BUILDING_ACTION" | "ARKHUB_ROOM";
 
-export type UIGuideTarget = "NONE" | "BUILDING_CONTROL" | "BUILDING_DORM" | "BUILDING_HIRE" | "BUILDING_MANUFACT" | "BUILDING_MEETING" | "BUILDING_TRADING" | "CHAR_INFO" | "FRIEND" | "RECRUIT" | "SHOP" | "SQUAD_NORMAL" | "SQUAD_BATTLE" | "STAGE_MAINLINE" | "BUILDING_POWER" | "MISSION" | "CHAR_SKILL_SELECT" | "BUILDING_WORKSHOP" | "STAGE_CAMPAIGN" | "CHAR_EVOLVE" | "HANDBOOK" | "BUILDING_FURN_SHOP" | "BUILDING_TRAINING" | "STAGE_ACTIVITY" | "CRISIS_STAGE" | "ROGUELIKE_CHARSELECT" | "ROGUELIKE_BP" | "CLIMB_TOWER_ENTRY" | "CLIMB_TOWER_LAYER" | "ROGUELIKE_DUNGEON" | "RL03_TOTEM" | "GROCERY" | "TUNING" | "CRISIS_V2" | "MISSION_ARCHIVE" | "FIFTH_ANNIV_EXPLORE" | "CARVING" | "VEC_BREAK" | "FIREWORK" | "BUILDING_STATION_MANAGE" | "ACT_MULTI_V3" | "ENEMY_DUEL" | "VEC_BREAK_V2" | "GUN_TASK" | "SPECIAL_OPERATOR" | "INFORMANT" | "ACT1VHALFIDLE" | "MONOPOLY" | "AUTO_CHESS" | "ART_GALLERY" | "ART_MAGAZINE" | "ACT_FOOTBALL" | "PIXEL_MAP" | "ARK_HUB" | "ARK_ODC";
+export type UIGuideTarget = "NONE" | "BUILDING_CONTROL" | "BUILDING_DORM" | "BUILDING_HIRE" | "BUILDING_MANUFACT" | "BUILDING_MEETING" | "BUILDING_TRADING" | "CHAR_INFO" | "FRIEND" | "RECRUIT" | "SHOP" | "SQUAD_NORMAL" | "SQUAD_BATTLE" | "STAGE_MAINLINE" | "BUILDING_POWER" | "MISSION" | "CHAR_SKILL_SELECT" | "BUILDING_WORKSHOP" | "STAGE_CAMPAIGN" | "CHAR_EVOLVE" | "HANDBOOK" | "BUILDING_FURN_SHOP" | "BUILDING_TRAINING" | "STAGE_ACTIVITY" | "CRISIS_STAGE" | "ROGUELIKE_CHARSELECT" | "ROGUELIKE_BP" | "CLIMB_TOWER_ENTRY" | "CLIMB_TOWER_LAYER" | "ROGUELIKE_DUNGEON" | "RL03_TOTEM" | "GROCERY" | "TUNING" | "CRISIS_V2" | "MISSION_ARCHIVE" | "FIFTH_ANNIV_EXPLORE" | "CARVING" | "VEC_BREAK" | "FIREWORK" | "BUILDING_STATION_MANAGE" | "ACT_MULTI_V3" | "ENEMY_DUEL" | "VEC_BREAK_V2" | "GUN_TASK" | "SPECIAL_OPERATOR" | "INFORMANT" | "ACT1VHALFIDLE" | "MONOPOLY" | "AUTO_CHESS" | "ART_GALLERY" | "ART_MAGAZINE" | "ACT_FOOTBALL" | "PIXEL_MAP" | "ARK_HUB" | "ARK_ODC" | "ACT54SIDE_CARD" | "ACT_VASEBREAKER";
 
 export type KeyCodeType = "KEYBOARD" | "MOUSE";
 
@@ -336,13 +336,15 @@ export type HandbookDisplayCondition_DisplayType = "DISPLAY_IF_CHAREXIST" | "INV
 
 export type HotUpdateMetaPicData_PicType = "NONE" | "SKIN";
 
-export type ItemType = "NONE" | "CHAR" | "CARD_EXP" | "MATERIAL" | "GOLD" | "EXP_PLAYER" | "TKT_TRY" | "TKT_RECRUIT" | "TKT_INST_FIN" | "TKT_GACHA" | "ACTIVITY_COIN" | "DIAMOND" | "DIAMOND_SHD" | "HGG_SHD" | "LGG_SHD" | "FURN" | "AP_GAMEPLAY" | "AP_BASE" | "SOCIAL_PT" | "CHAR_SKIN" | "TKT_GACHA_10" | "TKT_GACHA_PRSV" | "AP_ITEM" | "AP_SUPPLY" | "RENAMING_CARD" | "RENAMING_CARD_2" | "ET_STAGE" | "ACTIVITY_ITEM" | "VOUCHER_PICK" | "VOUCHER_CGACHA" | "VOUCHER_MGACHA" | "CRS_SHOP_COIN" | "CRS_RUNE_COIN" | "LMTGS_COIN" | "EPGS_COIN" | "LIMITED_TKT_GACHA_10" | "LIMITED_FREE_GACHA" | "REP_COIN" | "ROGUELIKE" | "LINKAGE_TKT_GACHA_10" | "VOUCHER_ELITE_II_4" | "VOUCHER_ELITE_II_5" | "VOUCHER_ELITE_II_6" | "VOUCHER_SKIN" | "RETRO_COIN" | "PLAYER_AVATAR" | "UNI_COLLECTION" | "VOUCHER_FULL_POTENTIAL" | "RL_COIN" | "RETURN_CREDIT" | "MEDAL" | "CHARM" | "HOME_BACKGROUND" | "EXTERMINATION_AGENT" | "OPTIONAL_VOUCHER_PICK" | "ACT_CART_COMPONENT" | "VOUCHER_LEVELMAX_6" | "VOUCHER_LEVELMAX_5" | "VOUCHER_LEVELMAX_4" | "VOUCHER_SKILL_SPECIALLEVELMAX_6" | "VOUCHER_SKILL_SPECIALLEVELMAX_5" | "VOUCHER_SKILL_SPECIALLEVELMAX_4" | "ACTIVITY_POTENTIAL" | "ITEM_PACK" | "SANDBOX" | "FAVOR_ADD_ITEM" | "CLASSIC_SHD" | "CLASSIC_TKT_GACHA" | "CLASSIC_TKT_GACHA_10" | "LIMITED_BUFF" | "CLASSIC_FES_PICK_TIER_5" | "CLASSIC_FES_PICK_TIER_6" | "RETURN_PROGRESS" | "NEW_PROGRESS" | "MCARD_VOUCHER" | "MATERIAL_ISSUE_VOUCHER" | "CRS_SHOP_COIN_V2" | "HOME_THEME" | "SANDBOX_PERM" | "SANDBOX_TOKEN" | "TEMPLATE_TRAP" | "NAME_CARD_SKIN" | "EMOTICON_SET" | "EXCLUSIVE_TKT_GACHA" | "EXCLUSIVE_TKT_GACHA_10" | "SO_CHAR_EXP" | "GIFTPACKAGE_TKT" | "VOUCHER_SKIN_V2" | "RANDOM_VOUCHER_SKIN" | "ACT1VHALFIDLE_ITEM" | "PLOT_ITEM" | "MAGAZINE_LEAF" | "STICKER" | "ARKHUB";
+export type ItemType = "NONE" | "CHAR" | "CARD_EXP" | "MATERIAL" | "GOLD" | "EXP_PLAYER" | "TKT_TRY" | "TKT_RECRUIT" | "TKT_INST_FIN" | "TKT_GACHA" | "ACTIVITY_COIN" | "DIAMOND" | "DIAMOND_SHD" | "HGG_SHD" | "LGG_SHD" | "FURN" | "AP_GAMEPLAY" | "AP_BASE" | "SOCIAL_PT" | "CHAR_SKIN" | "TKT_GACHA_10" | "TKT_GACHA_PRSV" | "AP_ITEM" | "AP_SUPPLY" | "RENAMING_CARD" | "RENAMING_CARD_2" | "ET_STAGE" | "ACTIVITY_ITEM" | "VOUCHER_PICK" | "VOUCHER_CGACHA" | "VOUCHER_MGACHA" | "CRS_SHOP_COIN" | "CRS_RUNE_COIN" | "LMTGS_COIN" | "EPGS_COIN" | "LIMITED_TKT_GACHA_10" | "LIMITED_FREE_GACHA" | "REP_COIN" | "ROGUELIKE" | "LINKAGE_TKT_GACHA_10" | "VOUCHER_ELITE_II_4" | "VOUCHER_ELITE_II_5" | "VOUCHER_ELITE_II_6" | "VOUCHER_SKIN" | "RETRO_COIN" | "PLAYER_AVATAR" | "UNI_COLLECTION" | "VOUCHER_FULL_POTENTIAL" | "RL_COIN" | "RETURN_CREDIT" | "MEDAL" | "CHARM" | "HOME_BACKGROUND" | "EXTERMINATION_AGENT" | "OPTIONAL_VOUCHER_PICK" | "ACT_CART_COMPONENT" | "VOUCHER_LEVELMAX_6" | "VOUCHER_LEVELMAX_5" | "VOUCHER_LEVELMAX_4" | "VOUCHER_SKILL_SPECIALLEVELMAX_6" | "VOUCHER_SKILL_SPECIALLEVELMAX_5" | "VOUCHER_SKILL_SPECIALLEVELMAX_4" | "ACTIVITY_POTENTIAL" | "ITEM_PACK" | "SANDBOX" | "FAVOR_ADD_ITEM" | "CLASSIC_SHD" | "CLASSIC_TKT_GACHA" | "CLASSIC_TKT_GACHA_10" | "LIMITED_BUFF" | "CLASSIC_FES_PICK_TIER_5" | "CLASSIC_FES_PICK_TIER_6" | "RETURN_PROGRESS" | "NEW_PROGRESS" | "MCARD_VOUCHER" | "MATERIAL_ISSUE_VOUCHER" | "CRS_SHOP_COIN_V2" | "HOME_THEME" | "SANDBOX_PERM" | "SANDBOX_TOKEN" | "TEMPLATE_TRAP" | "NAME_CARD_SKIN" | "EMOTICON_SET" | "EXCLUSIVE_TKT_GACHA" | "EXCLUSIVE_TKT_GACHA_10" | "SO_CHAR_EXP" | "GIFTPACKAGE_TKT" | "VOUCHER_SKIN_V2" | "RANDOM_VOUCHER_SKIN" | "ACT1VHALFIDLE_ITEM" | "PLOT_ITEM" | "MAGAZINE_LEAF" | "STICKER" | "ARKHUB" | "LINKAGE_TKT_GACHA";
 
 export type ItemRarity = "TIER_1" | "TIER_2" | "TIER_3" | "TIER_4" | "TIER_5" | "TIER_6" | "E_NUM";
 
 export type OccPer = "ALWAYS" | "ALMOST" | "USUAL" | "OFTEN" | "SOMETIMES" | "NEVER" | "DEFINITELY_BUFF";
 
-export type ItemClassifyType = "NONE" | "CONSUME" | "NORMAL" | "MATERIAL";
+export type ItemClassifyType = "NONE" | "CONSUME" | "NORMAL" | "MATERIAL" | "MEMENTO";
+
+export type ItemReslockStatus = "NOT_SUPPORT_RESLOCK" | "MAT_GACHA_RESLOCK_BLACKLIST" | "CHAR_POTENTIAL_BLACKLIST" | "COMMON_BLACKLIST" | "CAN_RESLOCK";
 
 export type ItemDropShopType = "HGGSHD_SHOP" | "LGGSHD_SHOP" | "XSHD_SHOP" | "EPGS_SHOP" | "REP_SHOP" | "CLASSIC_SHOP";
 
@@ -3177,6 +3179,61 @@ export interface Act53SideData_Act53SideConstData {
     coinItemId: string;
 }
 
+export interface Act54SideData {
+    cards: { [key: string]: Act54SideData_Act54SideCardData };
+    spreads: { [key: string]: Act54SideData_Act54SideSpreadData };
+    specialZoneStageInfos: Act54SideData_Act54SideSpecialZoneStageInfo[];
+    zoneAdditionDataMap: { [key: string]: Act54SideData_Act54SideZoneAdditionData };
+    constData: Act54SideData_Act54SideConstData;
+}
+
+export interface Act54SideData_Act54SideCardData {
+    cardId: string;
+    sortId: number;
+    name: string;
+    charName: string;
+    descUpright: string;
+    descReverse: string;
+    unlockStageId: string;
+}
+
+export interface Act54SideData_Act54SideSpreadItemInfo {
+    sortId: number;
+    name: string;
+    nameEnglish: string;
+}
+
+export interface Act54SideData_Act54SideSpreadData {
+    spreadId: string;
+    sortId: number;
+    availTimesDivination: number;
+    unlockStageId: string;
+    unlockSpreadId: string;
+    spreadsToUnlock: string[];
+    name: string;
+    nameEnglish: string;
+    spreadInfoList: Act54SideData_Act54SideSpreadItemInfo[];
+    rewards: ItemBundle[];
+}
+
+export interface Act54SideData_Act54SideSpecialZoneStageInfo {
+    stageId: string;
+    sortId: number;
+    hasUrgentStage: boolean;
+}
+
+export interface Act54SideData_Act54SideZoneAdditionData {
+    zoneId: string;
+    unlockText: string;
+}
+
+export interface Act54SideData_Act54SideConstData {
+    divinationUnlockStageId: string;
+    finalReward: ItemBundle;
+    activityItemId: string;
+    divinationEnterDelay: number;
+}
+
 export interface Act5D0Data {
     mileStoneInfo: MileStoneInfo[];
     mileStoneTokenId: string;
@@ -5515,6 +5572,70 @@ export interface ActRecruitOnlyData_RecruitOnlyItemData {
     endTimeDesc: string;
     desc1: string;
     desc2: string;
+}
+
+export interface ActVasebreakerData {
+    zoneAdditionDataMap: { [key: string]: ActVasebreakerData_ActVasebreakerZoneAdditionData };
+    stageAdditionDataMap: { [key: string]: ActVasebreakerData_ActVasebreakerStageAdditionData };
+    stageUnlockToastMap: { [key: string]: ActVasebreakerData_ActVasebreakerStageUnlockToastData };
+    stageDropDataMap: { [key: string]: ActVasebreakerData_ActVasebreakerStageDropData };
+    milestoneList: ActVasebreakerData_ActVasebreakerMilestoneItemData[];
+    stickerList: ActVasebreakerData_ActVasebreakerStickerData[];
+    constData: ActVasebreakerData_ActVasebreakerConstData;
+}
+
+export interface ActVasebreakerData_ActVasebreakerZoneAdditionData {
+    zoneId: string;
+    unlockText: string;
+}
+
+export interface ActVasebreakerData_ActVasebreakerStageAdditionData {
+    stageId: string;
+    firstCost: number;
+    formationMostNum: number;
+    formationLeastNum: number;
+}
+
+export interface ActVasebreakerData_ActVasebreakerStageUnlockToastData {
+    stageId: string;
+    unlockToast: string;
+}
+
+export interface ActVasebreakerData_ActVasebreakerStageDropData {
+    stageId: string;
+    itemType: ItemType;
+    itemId: string;
+    retryCount: number;
+    firstCount: number;
+    completeCount: number;
+    onceCompleteCount: number;
+    isDisplay: boolean;
+}
+
+export interface ActVasebreakerData_ActVasebreakerMilestoneItemData {
+    milestoneId: string;
+    orderId: number;
+    tokenNum: number;
+    reward: ItemBundle;
+    availTime: number;
+}
+
+export interface ActVasebreakerData_ActVasebreakerStickerData {
+    stickerId: string;
+    stickerIcon: string;
+    template: string;
+    stickerName: string;
+    param: string[];
+}
+
+export interface ActVasebreakerData_ActVasebreakerConstData {
+    milestonePointId: string;
+    milestoneTrackId: string;
+    levelEntranceText: string;
+    rewardFurnitureId: string;
+    rewardFurnitureText: string;
+    rewardAvatarId: string;
+    rewardAvatarText: string;
 }
 
 export interface ActVecBreakV2Data {
@@ -8802,7 +8923,7 @@ export interface GachaData {
     carousel: GachaData_CarouselData[];
     freeGacha: GachaData_FreeLimitGachaData[];
     limitTenGachaItem: GachaData_LimitTenGachaTkt[];
-    linkageTenGachaItem: GachaData_LinkageTenGachaTkt[];
+    linkageGachaItem: GachaData_LinkageGachaTkt[];
     normalGachaItem: GachaData_NormalGachaTkt[];
     fesGachaPoolRelateItem: { [key: string]: GachaData_FesGachaPoolRelateItem };
     dicRecruit6StarHint: { [key: string]: string };
@@ -8839,10 +8960,11 @@ export interface GachaData_FesGachaPoolRelateItem {
     rarityRank6ItemId: string;
 }
 
-export interface GachaData_LinkageTenGachaTkt {
+export interface GachaData_LinkageGachaTkt {
     itemId: string;
     endTime: number;
     gachaPoolId: string;
+    isTen: boolean;
 }
 
 export interface GachaData_NormalGachaTkt {
@@ -9174,6 +9296,8 @@ export interface ItemData {
     usage: string;
     obtainApproach: string;
     hideInItemGet: boolean;
+    reslockStatus: ItemReslockStatus;
+    canReslock: boolean;
     classifyType: ItemClassifyType;
     itemType: ItemType;
     stageDropList: ItemData_StageDropInfo[];
@@ -9566,6 +9690,7 @@ export interface CrossAppShareMissionConst {
 }
 
 export interface TemplateMissionStyleData {
+    isMissionBgCustomType: boolean;
     bigRewardType: TemplateMissionBigRewardType;
     bigRewardParamList: string[];
     isMissionListCommonType: boolean;

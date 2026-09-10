@@ -90,6 +90,9 @@ router.post("/getSortListInfo", validateBody(getSortListInfoSchema), async (req,
   const result = await player.social.getSortListInfo(body);
   res.send({
     result,
+    // 修复（Round 48，审计 §5.4-10）：补 starFriendList（CS GetSortListInfoResponse 字段，
+    // 原实现省略 → 客户端好友列表无法标星）
+    starFriendList: await player.social.getStarFriendList(),
     ...player.delta,
   } satisfies GetSortListInfoResponse);
 });
@@ -148,13 +151,18 @@ router.post("/setCardShowMedal", validateBody(setCardShowMedalSchema), async (re
   await player.social.setCardShowMedal(body);
   res.send(player.delta satisfies SetCardShowMedalResponse);
 });
-router.post("/setStarFriendList", validateBody(setStarFriendListSchema), async (req, res) => {
+  router.post("/setStarFriendList", validateBody(setStarFriendListSchema), async (req, res) => {
   const player = getPlayer();
-  req.body as SetStarFriendListRequest;
-  // 参考 OBS bp_social.setStarFriendList：空实现返回固定结构
+  const body = req.body as SetStarFriendListRequest;
+  // 修复（2026-09-09，审计 §5.4-10）：原实现为空桩（恒 result 0 + 空 newIdList，
+  // 无任何存储）→ 星标好友功能完全不可用。现落库（social.db friends.star）并返回
+  // 实际生效列表（仅好友、去重、上限 gamedata_const.maxStarFriendNum = 5）。
+  const newIdList = await player.social.setStarFriendList({
+    idList: body?.idList,
+  });
   res.send({
     result: 0,
-    newIdList: [],
+    newIdList,
     ...player.delta,
   } satisfies SetStarFriendListResponse);
 });

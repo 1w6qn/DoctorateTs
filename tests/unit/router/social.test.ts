@@ -36,6 +36,9 @@ describe("social 路由", () => {
         setFriendAlias: vi.fn().mockResolvedValue(undefined),
         receiveSocialPoint: vi.fn().mockResolvedValue(undefined),
         setCardShowMedal: vi.fn().mockResolvedValue(undefined),
+        // Round 48：星标好友（原空桩 → 真实实现）与响应携带 starFriendList
+        setStarFriendList: vi.fn().mockResolvedValue(["2"]),
+        getStarFriendList: vi.fn().mockResolvedValue(["2"]),
       },
     };
     (vi.mocked(httpContext.get) as any).mockReturnValue(mockPlayer);
@@ -74,11 +77,13 @@ describe("social 路由", () => {
     expect(res.send).toHaveBeenCalledWith({ modified: {} });
   });
 
-  it("setStarFriendList 应返回 newIdList 与 delta（OBS 空实现）", async () => {
+  // Round 48（审计 §5.4-10）：星标好友由空桩改为真实实现（落库并返回实际生效列表）
+  it("setStarFriendList 应委托 social.setStarFriendList 并返回生效列表", async () => {
     const res = mockRes();
     await call({ method: "POST", url: "/setStarFriendList", body: { idList: ["2"] } }, res);
+    expect(mockPlayer.social.setStarFriendList).toHaveBeenCalledWith({ idList: ["2"] });
     expect(res.send).toHaveBeenCalledWith(
-      expect.objectContaining({ result: 0, newIdList: [], modified: {} }),
+      expect.objectContaining({ result: 0, newIdList: ["2"], modified: {} }),
     );
   });
 });

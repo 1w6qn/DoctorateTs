@@ -79,4 +79,38 @@ describe("AccountManager 社交方法（SQLite 版）", () => {
     expect((await manager.getSocial("1")).friends).toEqual([]);
     expect((await manager.getSocial("2")).friends).toEqual([]);
   });
+
+  // Round 48（审计 §5.4-10）：星标好友（原为空桩）与申请冷却（原缺失）
+  it("setStarFriendList：仅好友、去重、按 maxStarFriendNum 截断（默认 5）", async () => {
+    for (const fid of ["2", "3", "4", "5", "6", "7"]) {
+      await manager.addFriend("1", fid);
+    }
+    const applied = await manager.setStarFriendList("1", [
+      "2",
+      "3",
+      "2", // 重复
+      "99", // 非好友 → 剔除
+      "4",
+      "5",
+      "6",
+      "7", // 超出上限（第 6 个）→ 截断
+    ]);
+    expect(applied).toEqual(["2", "3", "4", "5", "6"]);
+    expect(await manager.getStarFriendList("1")).toEqual(["2", "3", "4", "5", "6"]);
+  });
+
+  it("setStarFriendList 覆盖式：再次提交只保留新列表", async () => {
+    await manager.addFriend("1", "2");
+    await manager.addFriend("1", "3");
+    await manager.setStarFriendList("1", ["2", "3"]);
+    await manager.setStarFriendList("1", ["3"]);
+    expect(await manager.getStarFriendList("1")).toEqual(["3"]);
+  });
+
+  it("sendFriendRequest：同一好友在 requestSameFriendCd 冷却期内重复申请应抛错", async () => {
+    await manager.sendFriendRequest("2", "1");
+    // 申请被处理/撤回（行已删除，但冷却记录保留）
+    await manager.deleteFriendRequest("1", "2");
+    await expect(manager.sendFriendRequest("2", "1")).rejects.toThrow(/申请过于频繁/);
+  });
 });

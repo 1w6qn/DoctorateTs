@@ -137,13 +137,48 @@ describe("SocialManager 其他方法", () => {
     expect(result.friendAlias).toContain("阿米娅");
   });
 
-  it("receiveSocialPoint 应发放昨日信用点并关闭领取", async () => {
+  it("receiveSocialPoint 应发放昨日信用点、清零金额并关闭领取（幂等）", async () => {
     const emitSpy = vi.spyOn(pd._trigger, "emit");
-    await social.receiveSocialPoint();
+    const point = await social.receiveSocialPoint();
+    expect(point).toBe(15);
     expect(emitSpy).toHaveBeenCalledWith("items:get", [
       [{ id: "", type: "SOCIAL_PT", count: 15 }],
     ]);
+    // 任务模板按「获得的信用」计量
+    expect(emitSpy).toHaveBeenCalledWith("ReceiveSocialPoint", [
+      { socialPoint: 15 },
+    ]);
     expect(pd._playerdata.social!.yesterdayReward.canReceive).toBe(0);
+    // 修复（2026-09-09，审计 §5.4-12）：领取后金额归零重新累积（原实现只关开关 → 金额永久残留）
+    expect(pd._playerdata.social!.yesterdayReward.assistAmount).toBe(0);
+    expect(pd._playerdata.social!.yesterdayReward.comfortAmount).toBe(0);
+    // 幂等：再次领取不发第二次（canReceive 已关）
+    emitSpy.mockClear();
+    expect(await social.receiveSocialPoint()).toBe(0);
+    expect(emitSpy).not.toHaveBeenCalledWith("items:get", expect.anything());
+  });
+
+  it("dailyRefresh 应结算宿舍氛围信用到昨日奖励并开启领取", async () => {
+    (pd._playerdata as any).building = {
+      rooms: { DORMITORY: { slot_1: { comfort: 5000 }, slot_2: { comfort: 1000 } } },
+    };
+    (pd._playerdata as any).status.socialPoint = 10;
+    await social.dailyRefresh();
+    // 5000→50、1000→18，合计 68；canReceive 置 1（次日可领）
+    expect(pd._playerdata.social!.yesterdayReward.comfortAmount).toBe(68);
+    expect(pd._playerdata.social!.yesterdayReward.canReceive).toBe(1);
+    // 未超上限不动
+    expect((pd._playerdata as any).status.socialPoint).toBe(10);
+  });
+
+  it("dailyRefresh 按 creditLimit(300) 清空超出上限的信用", async () => {
+    // PRTS 采购中心：「信用上限为 300…每日凌晨 4:00，计数器会自动将超出上限的部分
+    // 清空（即最多保留 300 点信用到下一日）」；本地常量 data/excel/gamedata_const.json
+    // → creditLimit = 300
+    const limit = 300;
+    (pd._playerdata as any).status.socialPoint = limit + 500;
+    await social.dailyRefresh();
+    expect((pd._playerdata as any).status.socialPoint).toBe(limit);
   });
 
   it("deleteFriend 应委托 accountManager 删除好友", async () => {

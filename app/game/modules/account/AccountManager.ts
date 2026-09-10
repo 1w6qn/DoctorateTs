@@ -668,12 +668,30 @@ export class AccountManager implements BattleInfoStore {
   }
 
   /**
-   * 发送好友请求（带校验：不能给自己发、已是好友拒绝、重复申请拒绝）
+   * 发送好友请求（带校验：不能给自己发、已是好友拒绝、重复申请拒绝、冷却期拒绝）
    * @param from - 发送请求的用户ID
    * @param to - 接收请求的用户ID
    */
   async sendFriendRequest(from: string, to: string): Promise<void> {
     await this._socialService.sendFriendRequest(from, to);
+  }
+
+  /**
+   * 设置星标好友列表（覆盖式；仅好友 + 上限 maxStarFriendNum 截断）
+   * @param uid - 用户ID
+   * @param idList - 星标好友 id 列表
+   * @returns 实际生效的星标好友列表
+   */
+  async setStarFriendList(uid: string, idList: string[]): Promise<string[]> {
+    return await this._socialService.setStarFriendList(uid, idList);
+  }
+
+  /**
+   * 获取星标好友列表
+   * @param uid - 用户ID
+   */
+  async getStarFriendList(uid: string): Promise<string[]> {
+    return await this._socialService.getStarFriendList(uid);
   }
 
   /**

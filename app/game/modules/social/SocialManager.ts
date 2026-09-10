@@ -1,4 +1,5 @@
-import { PlayerFriendAssist } from "../../kernel/playerdata";
+import { PlayerFriendAssist, PlayerSocialReward } from "../../kernel/playerdata";
+import { settleDormComfortCredit } from "../building/public";
 import { accountManager } from "../account/AccountManager";
 import { pickKeys, pickLoose } from "@utils/object";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
@@ -23,6 +24,60 @@ export class SocialManager {
     this._player = player;
     this._uid = player._playerdata.status.uid;
     this._trigger = _trigger;
+    // 每日 04:00 结算「每日结算的信用」（PRTS 信用页）：宿舍氛围信用 + 领取开关开启。
+    // 修复（2026-09-09，审计 §5.4-12）：此前 yesterdayReward 全字段无任何写入方 →
+    // 信用交易所「昨日奖励」永不出现、social/receiveSocialPoint 恒为空操作。
+    this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
+  }
+
+  /**
+   * 每日结算的信用（PRTS「信用」页「每日结算的信用」段）
+   *
+   * - 宿舍氛围信用：Cd = 10 + ⌊Ad/125⌋，每间 ≤50、全天 ≤200 → `comfortAmount`
+   * - 支援单位信用（使用 30/日上限 1 次、被使用 20/日）由 battle 结算时累积 → `assistAmount`
+   * - 结算结果**次日**于信用交易所手动领取（`canReceive = 1` → `receiveSocialPoint`）
+   * - 同时执行信用持有上限清理：`gamedata_const.creditLimit`（实测 300），
+   *   「每日凌晨 4:00，计数器会自动将超出上限的部分清空」（PRTS 采购中心）
+   *
+   * 官服存档实测：`yesterdayReward = {canReceive: 0, assistAmount: 50, comfortAmount: 200,
+   * first: 0}`（50 = 使用支援 30 + 被使用 20；200 = 4 间满氛围宿舍 × 50）。
+   */
+  async dailyRefresh(): Promise<void> {
+    await this._player.update(async (draft) => {
+      const reward = this._rewardBucket(draft);
+      reward.comfortAmount = settleDormComfortCredit(draft);
+      reward.canReceive = 1;
+      // 数据缺失时兜底官方实测值（data/excel/gamedata_const.json → creditLimit = 300）
+      const limit = excel.GameDataConst?.creditLimit ?? 300;
+      const point = draft.status.socialPoint ?? 0;
+      if (point > limit) draft.status.socialPoint = limit;
+    });
+  }
+
+  /**
+   * 取（缺省则初始化）昨日奖励容器 `social.yesterdayReward`
+   *
+   * 官服存档必有该字段；新号/迁移档缺失时按 CS 形状补零值，避免读 undefined 崩溃。
+   */
+  private _rewardBucket(draft: any): PlayerSocialReward {
+    draft.social ??= {};
+    draft.social.yesterdayReward ??= {
+      canReceive: 0,
+      first: 0,
+      assistAmount: 0,
+      comfortAmount: 0,
+    };
+    return draft.social.yesterdayReward as PlayerSocialReward;
+  }
+
+  /**
+   * 星标好友列表（供 getSortListInfo 响应携带 starFriendList）
+   *
+   * 修复（2026-09-09，审计 §5.4-10）：CS GetSortListInfoResponse 含 starFriendList，
+   * 原实现省略 → 客户端好友列表无法渲染星标。
+   */
+  async getStarFriendList(): Promise<string[]> {
+    return await accountManager.getStarFriendList(this._uid);
   }
 
   async getSortListInfo(args: {
@@ -80,6 +135,17 @@ export class SocialManager {
     await accountManager.deleteFriend(this._uid, args.id);
   }
 
+  /**
+   * 设置星标好友（覆盖式）——委托 accountManager（社交数据以 social.db 为唯一事实源）
+   *
+   * 修复（2026-09-09，审计 §5.4-10）：原路由为空桩，无任何存储。
+   * @param args.idList - 客户端提交的星标好友 id 列表
+   * @returns 实际生效的星标好友列表（仅好友、去重、上限 maxStarFriendNum）
+   */
+  async setStarFriendList(args: { idList?: string[] }): Promise<string[]> {
+    return await accountManager.setStarFriendList(this._uid, args?.idList ?? []);
+  }
+
   async sendFriendRequest(args: {
     friendId: string;
     afterBattle: number;
@@ -109,18 +175,34 @@ export class SocialManager {
     };
   }
 
-  async receiveSocialPoint() {
+  /**
+   * 领取「昨日奖励」（信用交易所，PRTS：每日结算的信用「次日…需要手动领取」）
+   *
+   * 修复（2026-09-09，审计 §5.4-12）：
+   * 1. 原实现把 `items:get` 写在 `player.update` 配方内（嵌套 update）——本次改为两阶段：
+   *    先在同一配方内把待领额清零（幂等，重复请求不会重复发放），再在配方外发放；
+   * 2. 领取后金额归零，重新开始累积当日信用（原实现只清 canReceive，金额永久残留）；
+   * 3. 发放同时 emit `ReceiveSocialPoint`（任务模板按「获得的信用」计量，原实现只有
+   *    助战分支 emit 且是立即入账口径）。
+   * @returns 实际发放的信用点数（未到领取时间返回 0）
+   */
+  async receiveSocialPoint(): Promise<number> {
+    let point = 0;
     await this._player.update(async (draft) => {
-      if (draft.social.yesterdayReward.canReceive) {
-        const point =
-          draft.social.yesterdayReward.assistAmount +
-          draft.social.yesterdayReward.comfortAmount;
-        await this._trigger.emit("items:get", [
-          [{ id: "", type: "SOCIAL_PT", count: point }],
-        ]);
-        draft.social.yesterdayReward.canReceive = 0;
-      }
+      const reward = this._rewardBucket(draft);
+      if (!reward.canReceive) return;
+      point = (reward.assistAmount ?? 0) + (reward.comfortAmount ?? 0);
+      reward.assistAmount = 0;
+      reward.comfortAmount = 0;
+      reward.canReceive = 0;
     });
+    if (point > 0) {
+      await this._trigger.emit("items:get", [
+        [{ id: "", type: "SOCIAL_PT", count: point }],
+      ]);
+      await this._trigger.emit("ReceiveSocialPoint", [{ socialPoint: point }]);
+    }
+    return point;
   }
 
   async setCardShowMedal(args: {

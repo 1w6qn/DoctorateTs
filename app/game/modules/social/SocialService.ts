@@ -21,6 +21,8 @@ interface SocialAccountAccess {
   getPlayerData(uid: string): Promise<PlayerDataManager>;
 }
 import { BadRequestError } from "../../kernel/http/errors";
+import excel from "@excel/excel";
+import { now } from "@utils/time";
 
 export class SocialService {
   constructor(private _manager: SocialAccountAccess) {}
@@ -38,6 +40,53 @@ export class SocialService {
     };
   }
 
+  /**
+   * 设置星标好友列表（覆盖式）
+   *
+   * 修复（2026-09-09，审计 §5.4-10）：原实现为**空桩**（路由直接返回 result 0 + 空
+   * newIdList，无任何存储）→ 星标好友功能完全不可用。现按官方语义实现：
+   * ① 仅接受**已是好友**的 id（无效 id 静默剔除，不报错）；② 去重并按数量上限
+   * @@gamedata_const.maxStarFriendNum@@（实测 5）截断；③ 覆盖式落库并返回最终列表，
+   * 客户端以 newIdList 渲染（超出上限的部分被丢弃）。
+   *
+   * @param uid - 账号 uid
+   * @param idList - 客户端提交的星标好友 id 列表（顺序即优先级）
+   * @returns 实际生效的星标好友列表
+   */
+  async setStarFriendList(uid: string, idList: string[]): Promise<string[]> {
+    const cap = Math.max(
+      0,
+      Number(
+        (excel.GameDataConst as unknown as { maxStarFriendNum?: number })
+          ?.maxStarFriendNum ?? 5,
+      ),
+    );
+    const friends = new Set(
+      this._manager._friendRepo.getFriendList(uid).map((f) => f.uid),
+    );
+    const applied: string[] = [];
+    const seen = new Set<string>();
+    for (const id of idList ?? []) {
+      if (typeof id !== "string" || !id) continue;
+      if (!friends.has(id)) continue; // 非好友：剔除
+      if (seen.has(id)) continue; // 去重
+      if (applied.length >= cap) break; // 上限截断
+      seen.add(id);
+      applied.push(id);
+    }
+    this._manager._friendRepo.setStarList(uid, applied);
+    await this._manager._trigger.emit("save", []);
+    return applied;
+  }
+
+  /**
+   * 获取星标好友列表（供好友排序/列表响应携带 starFriendList）
+   * @param uid - 账号 uid
+   */
+  async getStarFriendList(uid: string): Promise<string[]> {
+    return this._manager._friendRepo.getStarList(uid);
+  }
+
   /** 删除好友（双向删除） */
   async deleteFriend(uid: string, friendUid: string): Promise<void> {
     this._manager._friendRepo.deleteFriend(uid, friendUid);
@@ -51,7 +100,15 @@ export class SocialService {
     await this._manager._trigger.emit("save", []);
   }
 
-  /** 发送好友请求（带校验：不能给自己发、已是好友拒绝、重复申请拒绝） */
+  /**
+   * 发送好友请求（校验：不能给自己发、已是好友拒绝、重复申请拒绝、**冷却期**拒绝）
+   *
+   * 修复（2026-09-09，审计 §5.4-10）：新增 requestSameFriendCd 冷却——官方常量
+   * @@gamedata_const.requestSameFriendCd@@（实测 14400s = 4 小时）限制「对同一好友
+   * 重复申请」，原实现只挡了「存在未处理申请」的情形：申请被拒/撤回后即可立刻再发，
+   * 可无限骚扰。冷却基准存 friend_request_log（与 friend_requests 行解耦，被处理
+   * 或撤回后仍保留）。
+   */
   async sendFriendRequest(from: string, to: string): Promise<void> {
     if (from === to) {
       throw new BadRequestError("不能向自己发送好友请求");
@@ -62,7 +119,19 @@ export class SocialService {
     if (this._manager._friendRepo.hasFriendRequest(to, from)) {
       throw new BadRequestError("好友请求已发送，请勿重复发送");
     }
+    const cd = Number(
+      (excel.GameDataConst as unknown as { requestSameFriendCd?: number })
+        ?.requestSameFriendCd ?? 14400,
+    );
+    const lastTs = this._manager._friendRepo.getLastRequestTs(from, to);
+    if (cd > 0 && lastTs > 0 && now() - lastTs < cd) {
+      const leftMin = Math.ceil((cd - (now() - lastTs)) / 60);
+      throw new BadRequestError(
+        `申请过于频繁，请 ${leftMin} 分钟后再试（冷却 ${cd}s）`,
+      );
+    }
     this._manager._friendRepo.sendFriendRequest(from, to);
+    this._manager._friendRepo.touchRequestLog(from, to);
     const friendData = await this._manager.getPlayerData(to);
     await friendData.update(async (draft) => {
       draft.pushFlags.hasFriendRequest = 1;

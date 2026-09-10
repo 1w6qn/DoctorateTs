@@ -90,6 +90,26 @@ const SCALAR: Record<string, string> = {
 
 const clzKey = (full: string) => "clz_" + full.replace(/\./g, "_");
 
+/**
+ * 线上（fbs）类型覆盖表
+ *
+ * C# 运行时模型与线上 fbs 并非一一对应：
+ * - 反作弊混淆包装（`CodeStage.AntiCheat.ObscuredTypes.*`）在线上就是普通标量
+ *   （旧 schema 里 AttributesData.MaxHp 等写作 `enum`，即 i32）
+ * - `Torappu.Blackboard` 运行时是包装类，线上是 `DataPair` 的**向量**
+ */
+const WIRE_OVERRIDE: Record<string, string> = {
+  "CodeStage.AntiCheat.ObscuredTypes.ObscuredInt": "enum",
+  "CodeStage.AntiCheat.ObscuredTypes.ObscuredShort": "enum",
+  "CodeStage.AntiCheat.ObscuredTypes.ObscuredSByte": "enum",
+  "CodeStage.AntiCheat.ObscuredTypes.ObscuredLong": "long",
+  "CodeStage.AntiCheat.ObscuredTypes.ObscuredFloat": "float",
+  "CodeStage.AntiCheat.ObscuredTypes.ObscuredDouble": "double",
+  "CodeStage.AntiCheat.ObscuredTypes.ObscuredBool": "bool",
+  "CodeStage.AntiCheat.ObscuredTypes.ObscuredString": "string",
+  "Torappu.Blackboard": "vec:clz_Torappu_Blackboard_DataPair",
+};
+
 function main() {
   const csFile = resolveCsFile();
   const { classes, enums } = parseCs(csFile);
@@ -129,6 +149,7 @@ function main() {
    */
   function mapType(csType: string, ctx: Set<string>): string {
     const t = csType.trim();
+    if (WIRE_OVERRIDE[t]) return WIRE_OVERRIDE[t];
     if (SCALAR[t]) return SCALAR[t];
     // 定长数组与泛型集合在 FBO 中同为「向量」
     const arrM = /^(.+)\[\]$/.exec(t);
@@ -152,6 +173,7 @@ function main() {
   }
   function mapElem(csType: string, ctx: Set<string>): string {
     const t = csType.trim();
+    if (WIRE_OVERRIDE[t]) return WIRE_OVERRIDE[t];
     // 嵌套字典（作为值出现）→ list_dict__K__V
     const dictInner = t.startsWith("System.Collections.Generic.Dictionary<") ? genericInner(t) : null;
     if (dictInner) {

@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS friends (
   friend_uid TEXT NOT NULL,
   alias      TEXT NOT NULL DEFAULT '',
   create_ts  INTEGER NOT NULL,
+  -- 星标好友标记（0/1）：上限 gamedata_const.maxStarFriendNum（实测 5）
+  star       INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (uid, friend_uid)
 );
 CREATE INDEX IF NOT EXISTS idx_friends_friend ON friends(friend_uid);
@@ -23,6 +25,16 @@ CREATE TABLE IF NOT EXISTS friend_requests (
   PRIMARY KEY (from_uid, to_uid)
 );
 CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_uid);
+
+-- 好友申请冷却（gamedata_const.requestSameFriendCd，实测 14400s = 4h）：
+-- 记录 (from,to) 最近一次申请时间；申请被处理/撤回后本表**不删除**，
+-- 故「同一好友 4 小时内不可重复申请」可跨申请生命周期生效。
+CREATE TABLE IF NOT EXISTS friend_request_log (
+  from_uid  TEXT NOT NULL,
+  to_uid    TEXT NOT NULL,
+  last_ts   INTEGER NOT NULL,
+  PRIMARY KEY (from_uid, to_uid)
+);
 
 CREATE TABLE IF NOT EXISTS visited (
   uid         TEXT NOT NULL,

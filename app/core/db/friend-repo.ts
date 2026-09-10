@@ -102,6 +102,67 @@ export class FriendRepository {
     return rows.map((r) => r.visited_uid);
   }
 
+  /**
+   * 获取星标好友 id 列表（按建立时间升序，与好友列表同序）
+   * @param uid - 账号 uid
+   */
+  getStarList(uid: string): string[] {
+    const rows = this.db
+      .prepare(
+        "SELECT friend_uid FROM friends WHERE uid = ? AND star = 1 ORDER BY create_ts ASC",
+      )
+      .all(uid) as { friend_uid: string }[];
+    return rows.map((r) => r.friend_uid);
+  }
+
+  /**
+   * 覆盖式设置星标好友列表（事务：先全部清零再置位，保证与入参一致）
+   *
+   * 入参应已由调用方完成「仅好友 + 上限截断」校验；此处只落库。
+   * @param uid - 账号 uid
+   * @param friendUids - 星标好友 id 列表（最终结果）
+   */
+  setStarList(uid: string, friendUids: string[]): void {
+    this.db.exec("BEGIN");
+    try {
+      this.db
+        .prepare("UPDATE friends SET star = 0 WHERE uid = ?")
+        .run(uid);
+      const stmt = this.db.prepare(
+        "UPDATE friends SET star = 1 WHERE uid = ? AND friend_uid = ?",
+      );
+      for (const fid of friendUids) stmt.run(uid, fid);
+      this.db.exec("COMMIT");
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+  }
+
+  /**
+   * 读取某对账号的最近一次好友申请时间（0 = 无记录）
+   *
+   * 用于 gamedata_const.requestSameFriendCd（实测 14400s = 4h）冷却判定——
+   * 记录在申请被处理/撤回后**不删除**。
+   */
+  getLastRequestTs(fromUid: string, toUid: string): number {
+    const row = this.db
+      .prepare(
+        "SELECT last_ts FROM friend_request_log WHERE from_uid = ? AND to_uid = ?",
+      )
+      .get(fromUid, toUid) as { last_ts?: number } | undefined;
+    return Number(row?.last_ts ?? 0);
+  }
+
+  /** 记录一次好友申请时间（冷却基准；与 friend_requests 行解耦） */
+  touchRequestLog(fromUid: string, toUid: string): void {
+    this.db
+      .prepare(
+        "INSERT OR REPLACE INTO friend_request_log (from_uid, to_uid, last_ts) VALUES (?, ?, ?)",
+      )
+      .run(fromUid, toUid, now());
+  }
+
   /** 删除账号的社交数据（B-2：好友双向关系 + 申请 + 访问记录） */
   deleteUser(uid: string): void {
     this.db
@@ -112,6 +173,11 @@ export class FriendRepository {
       .run(uid, uid);
     this.db
       .prepare("DELETE FROM visited WHERE uid = ? OR visited_uid = ?")
+      .run(uid, uid);
+    this.db
+      .prepare(
+        "DELETE FROM friend_request_log WHERE from_uid = ? OR to_uid = ?",
+      )
       .run(uid, uid);
   }
 }

@@ -34,8 +34,28 @@ export function openDatabase(path: string = DEFAULT_DB_PATH): DatabaseSync {
   // WAL 模式：回放/结算/社交高频写时不阻塞读（内存库自动回退 memory 模式，无副作用）
   db.exec("PRAGMA journal_mode = WAL");
   db.exec(SCHEMA_SQL);
+  migrateFriendsStarColumn(db);
   _db = db;
   return db;
+}
+
+/**
+ * 迁移：为既有 friends 表补 star 列（星标好友）
+ *
+ * CREATE TABLE IF NOT EXISTS 不会给已存在的表加列，故对旧库显式 ALTER（幂等：
+ * 先查 PRAGMA table_info，已有列则跳过）。
+ * @param db - 已打开且执行过 SCHEMA_SQL 的连接
+ */
+function migrateFriendsStarColumn(db: DatabaseSync): void {
+  try {
+    const cols = db.prepare("PRAGMA table_info(friends)").all() as {
+      name?: string;
+    }[];
+    if (cols.some((c) => c.name === "star")) return;
+    db.exec("ALTER TABLE friends ADD COLUMN star INTEGER NOT NULL DEFAULT 0");
+  } catch {
+    // 表不存在等异常场景交由后续查询报错；迁移本身不阻断启动
+  }
 }
 
 /** 获取当前连接（未初始化时抛错） */

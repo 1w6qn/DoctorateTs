@@ -20,6 +20,20 @@ vi.mock("@excel/excel", () => ({
         { gachaPoolId: "p_classic_1", gachaRuleType: "CLASSIC" },
         { gachaPoolId: "p_fesclassic_1", gachaRuleType: "FESCLASSIC" },
       ],
+      // 新手池（新人特惠寻访）：gachaTimes = 21 次上限（官服数据实测
+      // data/excel/gacha_table.json → newbeeGachaPoolClient[].gachaTimes）
+      newbeeGachaPoolClient: [
+        {
+          gachaPoolId: "BOOT_0_1_1",
+          gachaIndex: 0,
+          gachaPoolName:
+            "全部寻访必定获得至少1名5★以上干员和至少1名6★干员！",
+          gachaPoolDetail: "",
+          gachaPrice: 380,
+          gachaTimes: 21,
+          gachaOffset: "0.35",
+        },
+      ],
     },
     GachaDetailTable: {
       details: {
@@ -30,6 +44,16 @@ vi.mock("@excel/excel", () => ({
               { rarityRank: 5, totalPercent: 2, charIdList: ["char_001"] },
               { rarityRank: 4, totalPercent: 50, charIdList: ["char_002"] },
               { rarityRank: 3, totalPercent: 48, charIdList: ["char_003"] },
+            ],
+          },
+        },
+        BOOT_0_1_1: {
+          upCharInfo: { perCharList: [] },
+          availCharInfo: {
+            perAvailList: [
+              { rarityRank: 5, totalPercent: 2, charIdList: ["char_b6"] },
+              { rarityRank: 4, totalPercent: 8, charIdList: ["char_b5"] },
+              { rarityRank: 3, totalPercent: 90, charIdList: ["char_b3"] },
             ],
           },
         },
@@ -98,7 +122,10 @@ describe("GachaManager 抽卡扣费 costs 构造", () => {
       gacha: {
         normal: {},
         single: {},
+        newbee: undefined,
       } as any,
+      // 新手池（BOOT）单抽 380 合成玉 —— 次数门槛用例需余额充足
+      status: { diamondShard: 100000, androidDiamond: 0 } as any,
     });
     mockPlayer._trigger = mockTrigger;
     // 统一物品管道（建议 4）：扣费走管道 use()，与 items:use 直发等价
@@ -218,6 +245,87 @@ describe("GachaManager 抽卡扣费 costs 构造", () => {
     expect(emitSpy).toHaveBeenCalledWith("items:use", [
       [{ id: "4003", type: "DIAMOND_SHD", count: 6000 }],
     ]);
+  });
+
+  // Round 43：新手池（BOOT_*）官服规则 —— newbeeGachaPoolClient.gachaTimes = 21 次上限，
+  // 池名即规则原文「全部寻访必定获得至少1名5★以上干员和至少1名6★干员！」
+  // → 第 21 抽（最后一抽）强制六星；次数账本写 gacha.newbee（官方 {openFlag,cnt,poolId}）。
+  it("新手池：第 21 抽强制六星并把池置为关闭", async () => {
+    const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
+    (mockPlayer._playerdata.gacha as any).newbee = {
+      openFlag: 1,
+      cnt: 20,
+      poolId: "BOOT_0_1_1",
+    };
+    const handleSpy = vi
+      .spyOn(controller as any, "_handleGacha")
+      .mockResolvedValue({ charId: "char_b6", rank: 5 });
+    await (controller as any)._pullOnce({
+      poolId: "BOOT_0_1_1",
+      beforeNonHitCnt: 0,
+    });
+    expect(handleSpy).toHaveBeenCalledWith(
+      "BOOT_0_1_1",
+      expect.objectContaining({ forceRank: 5 }),
+    );
+    expect((mockPlayer._playerdata.gacha as any).newbee).toEqual({
+      openFlag: 0,
+      cnt: 21,
+      poolId: "BOOT_0_1_1",
+    });
+  });
+
+  it("新手池：未到第 21 抽不强制六星（正常摇号）", async () => {
+    const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
+    (mockPlayer._playerdata.gacha as any).newbee = {
+      openFlag: 1,
+      cnt: 3,
+      poolId: "BOOT_0_1_1",
+    };
+    const handleSpy = vi
+      .spyOn(controller as any, "_handleGacha")
+      .mockResolvedValue({ charId: "char_b3", rank: 3 });
+    await (controller as any)._pullOnce({
+      poolId: "BOOT_0_1_1",
+      beforeNonHitCnt: 0,
+    });
+    expect(handleSpy).toHaveBeenCalledWith(
+      "BOOT_0_1_1",
+      expect.objectContaining({ forceRank: undefined }),
+    );
+    expect((mockPlayer._playerdata.gacha as any).newbee.cnt).toBe(4);
+  });
+
+  it("新手池：次数用尽（21/21）时单抽被拒绝", async () => {
+    const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
+    (mockPlayer._playerdata.gacha as any).newbee = {
+      openFlag: 0,
+      cnt: 21,
+      poolId: "BOOT_0_1_1",
+    };
+    await expect(
+      controller.advancedGacha({
+        poolId: "BOOT_0_1_1",
+        useTkt: GachaType.Diamond,
+        itemId: "",
+      }),
+    ).rejects.toThrow(/新手寻访次数不足/);
+  });
+
+  it("新手池：剩余不足 10 次时十连被拒绝（15+10>21）", async () => {
+    const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
+    (mockPlayer._playerdata.gacha as any).newbee = {
+      openFlag: 1,
+      cnt: 15,
+      poolId: "BOOT_0_1_1",
+    };
+    await expect(
+      controller.tenAdvancedGacha({
+        poolId: "BOOT_0_1_1",
+        useTkt: GachaType.Diamond,
+        itemList: [],
+      }),
+    ).rejects.toThrow(/新手寻访次数不足/);
   });
 
   it("CombineTenTicket 十连应消耗客户端 itemList 且不叠加其他费用", async () => {
@@ -425,27 +533,43 @@ describe("GachaManager 抽卡扣费 costs 构造", () => {
           p_fesclassic_1: { upChar: { "5": ["char_f5a"] } },
         },
       } as any;
-      // 命中 0.35 默认档（0.1 < 0.35）→ 出自选 char_f5a
+      // 独占语义：FESCLASSIC 静态 UP 为空，自选即该稀有度唯一候选 → 出自选 char_f5a
       const rnd = vi.spyOn(Math, "random").mockReturnValue(0.1);
       const charId = await controller._getRandomChar("p_fesclassic_1", 5, {});
       expect(charId).toBe("char_f5a");
       rnd.mockRestore();
     });
 
-    it("未命中自选概率槽时，从该稀有度候选池排除自选后出（不重复 UP）", async () => {
+    // Round 44（审计 §5.2-10）：自选池语义改为**独占** —— 玩家为该稀有度自选后，
+    // 该稀有度候选即为所选干员（官服「仅会出现所选干员」；FESCLASSIC 详情静态 UP 为空、
+    // 候选全集在 perAvailList，选择是唯一区分手段）。原实现把自选仅当 UP 档
+    // （percent / 0.35），未命中槽位时仍从全池补位 → 歪出未选干员。
+    it("自选后该稀有度候选即为所选（不再从全池补位出未选干员）", async () => {
       const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       mockPlayer._playerdata.gacha = {
         classic: {
           p_classic_1: { upChar: { "5": ["char_c5b"] } },
         },
       } as any;
-      // rr=0.9 未命中 0.5 槽 → 从候选排除 char_c5b 后随机
-      const rnd = vi
-        .spyOn(Math, "random")
-        .mockReturnValueOnce(0.9) // 未命中自选槽
-        .mockReturnValueOnce(0); // randomChoice 恒取候选第一项
+      // rr=0.9：旧实现下「未命中 0.5 槽 → 从候选池排除自选后取 char_c5a」，
+      // 新语义下恒为所选 char_c5b
+      const rnd = vi.spyOn(Math, "random").mockReturnValue(0.9);
       const charId = await controller._getRandomChar("p_classic_1", 5, {});
-      expect(charId).toBe("char_c5a");
+      expect(charId).toBe("char_c5b");
+      rnd.mockRestore();
+    });
+
+    it("自选只覆盖所选稀有度：未自选的稀有度仍走详情表候选", async () => {
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.gacha = {
+        classic: {
+          p_classic_1: { upChar: { "5": ["char_c5b"] } },
+        },
+      } as any;
+      // rank=4（5★）未自选 → 仍从详情候选 char_c4a/b/c 中取
+      const rnd = vi.spyOn(Math, "random").mockReturnValue(0.99);
+      const charId = await controller._getRandomChar("p_classic_1", 4, {});
+      expect(["char_c4a", "char_c4b", "char_c4c"]).toContain(charId);
       rnd.mockRestore();
     });
 

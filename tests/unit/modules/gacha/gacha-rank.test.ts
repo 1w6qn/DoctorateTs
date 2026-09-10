@@ -28,12 +28,25 @@ describe("resolveGachaRank", () => {
   });
 
   it("超过 50 抽后每抽 +2% 修正六星权重", () => {
-    // beforeNonHitCnt=60 → per6 = 0.02 + 10*0.02 = 0.22
-    const r = resolveGachaRank({ ...base, beforeNonHitCnt: 60, rand: () => 0.21 });
-    expect(r).toBe(5); // rand=0.21 < 0.22（修正后命中）
+    // 修复（2026-09-09）后曲线：per6 = 2% + max(0, cnt-49)*2%（第 51 抽=4%、第 99 抽=100%）
+    // beforeNonHitCnt=60（即第 61 抽）→ per6 = 0.02 + 11*0.02 = 0.24
+    const r = resolveGachaRank({ ...base, beforeNonHitCnt: 60, rand: () => 0.23 });
+    expect(r).toBe(5); // rand=0.23 < 0.24（修正后命中）
     // 非六星分支用单权重确定性验证（避免权重随机选中五星的 2% 概率波动）
-    const r2 = resolveGachaRank({ ...base, beforeNonHitCnt: 60, rand: () => 0.23, ranks: [3], weights: [1] });
-    expect(r2).toBe(3); // 0.23 > 0.22 → 非六星，单权重必选 3
+    const r2 = resolveGachaRank({ ...base, beforeNonHitCnt: 60, rand: () => 0.25, ranks: [3], weights: [1] });
+    expect(r2).toBe(3); // 0.25 > 0.24 → 非六星，单权重必选 3
+  });
+
+  it("第 51 抽概率应为 4%、第 50 抽仍为 2%", () => {
+    // 第 50 抽：cnt=49 → 仍为基础 2%
+    const r50 = resolveGachaRank({ ...base, beforeNonHitCnt: 49, rand: () => 0.03, ranks: [3], weights: [1] });
+    expect(r50).toBe(3); // 0.03 > 0.02 → 非六星
+    // 第 51 抽：cnt=50 → 4%
+    const r51 = resolveGachaRank({ ...base, beforeNonHitCnt: 50, rand: () => 0.03 });
+    expect(r51).toBe(5); // 0.03 < 0.04 → 六星
+    // 第 99 抽：cnt=98 → 100% 必得
+    const r99 = resolveGachaRank({ ...base, beforeNonHitCnt: 98, rand: () => 0.999 });
+    expect(r99).toBe(5);
   });
 
   it("rand 高于修正后权重时不中六星，走权重选择", () => {

@@ -62,7 +62,10 @@ export function resolveGachaRank(params: {
     const maxCnt = params.maxCnt ?? 10;
     const rand = params.rand ?? random;
     let per6 = per6Base;
-    per6 += beforeNonHitCnt < 50 ? 0 : (beforeNonHitCnt - 50) * 0.02;
+    // 修复（2026-09-09）：官方曲线为「连续 50 抽未出 6★ 后，第 51 抽起每抽 +2%、第 99 抽
+    // 必得」——即第 k 抽概率 =(k-49)×2%。原实现用 (cnt-50)×2%（cnt=抽前非六星数=k-1）
+    // → 整条曲线晚一抽（第 51 抽仍 2%、第 100 抽才 100%）。
+    per6 += beforeNonHitCnt < 49 ? 0 : (beforeNonHitCnt - 49) * 0.02;
     // 一次性保底点：恰好第 maxCnt 抽强制五星
     const atGuarantee = nextCnt === maxCnt;
     if (rand() <= per6) {

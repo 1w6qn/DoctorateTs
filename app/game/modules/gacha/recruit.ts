@@ -8,6 +8,7 @@ import {
 } from "@utils/random";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
+import { BadRequestError } from "../../kernel/http/errors";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { rarityToIndex } from "@utils/rarity";
 
@@ -43,8 +44,13 @@ export class RecruitManager {
         }
       }
       if (stationedRoom) {
-        if (((stationedRoom as any).refreshStock ?? 0) <= 0) return; // 人脉不足
-        (stationedRoom as any).refreshStock -= 1;
+        // 修复（2026-09-09）：人脉库存读官服字段 refreshCount（原实现读服务端自建
+        // refreshStock，官服迁移存档只有 refreshCount → 恒判 0，标签刷新被拒）
+        const stock = ((stationedRoom as any).refreshCount ??
+          (stationedRoom as any).refreshStock ?? 0) as number;
+        if (stock <= 0) return; // 人脉不足
+        (stationedRoom as any).refreshCount = stock - 1;
+        (stationedRoom as any).refreshStock = stock - 1;
       }
       draft.recruit.normal.slots[slotId].tags =
         await RecruitTools.refreshTagList();
@@ -130,9 +136,26 @@ export class RecruitManager {
     });
   }
 
+  /**
+   * 结算公开招募（出干员）
+   *
+   * 修复（2026-09-09）：原实现**无任何时间校验** —— 开始招募后立即调用本接口即可
+   * 零成本秒出干员，完全绕过「等待 duration」与「消耗 1 张加急许可（7002）加速」
+   * 两条正规路径。现要求招募确已完成（realFinishTs ≤ now；加急后同样满足）。
+   *
+   * @param args.slotId - 招募槽位
+   * @throws BadRequestError 槽位不存在或招募尚未完成
+   */
   async finish(args: { slotId: number }): Promise<GachaResult> {
     return await this._player.update(async (draft) => {
       const { slotId } = args;
+      const slot = draft.recruit.normal.slots[slotId];
+      if (!slot) {
+        throw new BadRequestError(`招募槽位 ${slotId} 不存在`);
+      }
+      if (Number(slot.realFinishTs ?? -1) > now()) {
+        throw new BadRequestError("招募尚未完成（请等待或用加急许可加速）");
+      }
       const { durationInSec, selectTags } =
         this._player._playerdata.recruit.normal.slots[slotId];
       const [char_id, filtered] = await RecruitTools.generateValidTags(
@@ -158,14 +181,35 @@ export class RecruitManager {
     });
   }
 
+  /**
+   * 加急完成公开招募（消耗 1 张加急许可）
+   *
+   * 修复（2026-09-09，两处）：
+   * 1. **扣错物品**：原实现扣 @@{ id: "7001", type: "TKT_INST_FIN" }@@ —— id 是**招聘许可**
+   *    （7001 / TKT_RECRUIT），与 type 不一致；官方加急许可 id = **7002**
+   *    （本地权威数据：@@data/shop/SocialGoodList.json@@ 的信用商店条目
+   *    @@{"id":"7002","count":1,"type":"TKT_INST_FIN"}@@，物品名「加急许可」）。
+   *    扣费按 type 落到 @@status.instantFinishTicket@@ 故数值看似正常，但载荷 id 会让
+   *    按 id 记账的消费方与「物品不足：7001」错误文案错位。
+   * 2. **完成态**：原实现写 @@state = 2@@（进行中），而 @@sync()@@ 的规则是「realFinishTs
+   *    ≤ now → state 3（可领取）」——加急后客户端须再调一次 @@syncNormalGacha@@ 才显示可领取。
+   *    现直接写 3，与 sync 同口径。
+   * 另补防御：非「进行中」（state ≠ 2）或槽位不存在时不消耗加急许可。
+   *
+   * @param args.slotId - 招募槽位
+   * @param args.buy - CS 字段，语义（是否就地购买加急许可）无本地权威数据，暂不读取
+   */
   async boost(args: { slotId: number; buy: number }) {
     await this._player.update(async (draft) => {
       const { slotId } = args;
-      draft.recruit.normal.slots[slotId].state = 2;
-      draft.recruit.normal.slots[args.slotId].realFinishTs = now();
+      const slot = draft.recruit.normal.slots[slotId];
+      // 防御：空槽/已完成槽不消耗加急许可（原实现无条件扣券）
+      if (!slot || slot.state !== 2) return;
+      slot.realFinishTs = now();
+      slot.state = 3; // 立即完成 → 可领取（与 sync() 同口径）
       await this._trigger.emit("BoostNormalGacha", []);
       await this._trigger.emit("items:use", [
-        [{ id: "7001", count: 1, type: "TKT_INST_FIN" }],
+        [{ id: "7002", count: 1, type: "TKT_INST_FIN" }],
       ]);
     });
   }

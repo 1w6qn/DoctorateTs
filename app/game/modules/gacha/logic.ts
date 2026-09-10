@@ -8,7 +8,7 @@
 import { PlayerGacha } from "../../kernel/playerdata";
 import { GachaResult, GachaType, GACHA_RULE_TYPE, resolveGachaRank } from "./gacha";
 import { GachaDetailData, GachaDetailTable, GachaPerChar, ItemType } from "@excel/excel";
-import { GachaPoolClientData } from "@excel/excel";
+import { GachaPoolClientData, NewbeeGachaPoolClientData } from "@excel/excel";
 import excel from "@excel/excel";
 import { accountManager } from "../account/AccountManager";
 import { ItemBundle } from "@excel/excel";
@@ -18,6 +18,12 @@ import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { random } from "../../kernel/util/random";
 import { resolveEffectiveUpPerCharList } from "./gacha-up-list";
+import {
+  LIMIT_FREE_GACHA_THRESHOLD,
+  ensureLimitGacha,
+  refreshLimitFree,
+} from "./limit-gacha";
+import { now } from "@utils/time";
 import { BadRequestError, InternalError } from "../../kernel/http/errors";
 
 /** 寻访域日志（域标签固定为 GachaManager，Dashboard 可按域过滤） */
@@ -37,6 +43,11 @@ export class GachaManager {
    * 优化：439 个卡池的线性 find 在每抽/十连逐抽都会执行，改 Map 后查找 O(1)。
    */
   private _poolMap: Map<string, GachaPoolClientData> | null = null;
+  /**
+   * newbeeGachaPoolClient 的 O(1) 索引（新手池 poolId → 配置），懒构建。
+   * 新手池不在 gachaPoolClient 中，_ruleTypeOf/_newbeeQuota 需要独立索引。
+   */
+  private _newbeeMap: Map<string, NewbeeGachaPoolClientData> | null = null;
 
   /**
    * 构造函数
@@ -71,9 +82,152 @@ export class GachaManager {
    * @returns 归一化后的规则类型（策略表键）
    */
   private _ruleTypeOf(poolId: string): string {
+    // 新手池（BOOT_*）独立于 gachaPoolClient，规则类型来自 newbeeGachaPoolClient
+    // （2026-09-09：原实现只查 gachaPoolClient → BOOT 池恒判 NORMAL，
+    //  gachaTimes=21 次上限与「第 21 抽必得六星」全部无从生效）
+    if (this._newbeeConfig(poolId)) return "NEWBEE";
     const raw = this._getPoolConfig(poolId)?.gachaRuleType;
     // 类型声明为 string，但旧数据/测试池运行时可能为数字 0 → String() 归一化后再判定
     return !raw || String(raw) === "0" ? "NORMAL" : String(raw);
+  }
+
+  /**
+   * 新手池（新人特惠寻访 / BOOT_*）配置
+   *
+   * 数据源：@@excel.GachaTable.newbeeGachaPoolClient@@（字段 gachaPrice/gachaTimes/
+   * gachaOffset）。官服池名即规则原文：「全部寻访必定获得至少 1 名 5★ 以上干员和
+   * 至少 1 名 6★ 干员！」，配合 gachaTimes = 21 → 每池共 21 抽、第 21 抽强制六星。
+   * @param poolId - 卡池 id
+   * @returns 新手池配置；非新手池返回 undefined
+   */
+  private _newbeeConfig(poolId: string): NewbeeGachaPoolClientData | undefined {
+    if (!this._newbeeMap) {
+      this._newbeeMap = new Map(
+        (excel.GachaTable.newbeeGachaPoolClient ?? []).map((g) => [
+          g.gachaPoolId,
+          g,
+        ]),
+      );
+    }
+    return this._newbeeMap.get(poolId);
+  }
+
+  /**
+   * 新手池已用/总次数（gacha.newbee 账本；换池视为重新起算）
+   * @param poolId - 新手池 id
+   * @returns used/limit；非新手池返回 null
+   */
+  private _newbeeQuota(
+    poolId: string,
+  ): { used: number; limit: number } | null {
+    const cfg = this._newbeeConfig(poolId);
+    if (!cfg) return null;
+    const nb = this.gacha.newbee as
+      | { openFlag?: number; cnt?: number; poolId?: string }
+      | undefined;
+    const samePool = !!nb && nb.poolId === poolId;
+    return {
+      used: samePool ? Number(nb!.cnt ?? 0) : 0,
+      limit: Number(cfg.gachaTimes ?? 0),
+    };
+  }
+
+  /**
+   * 新手池次数门槛（消耗前校验）：@@used + pulls > limit@@ 时拒绝
+   * @param poolId - 卡池 id
+   * @param pulls - 本次请求的抽数（单抽 1 / 十连 10）
+   * @throws BadRequestError 超出新手池总次数
+   */
+  private _assertNewbeeQuota(poolId: string, pulls: number): void {
+    const q = this._newbeeQuota(poolId);
+    if (!q || q.limit <= 0) return;
+    if (q.used + pulls > q.limit) {
+      throw new BadRequestError(
+        `新手寻访次数不足（已用 ${q.used}/${q.limit}，本次需 ${pulls} 次）`,
+      );
+    }
+  }
+
+  /**
+   * 保底计数存储键
+   *
+   * 修复（2026-09-09）：原实现一律用 `gachaRuleType` 作键 —— 26 个 LIMITED 池共用同一计数
+   * 且从不重置（换池继承保底），与官方「限定寻访之间不累计、池结束清零」不符。
+   * 现对 LIMITED / LINKAGE 按 **poolId** 隔离（新池天然从 0 起算，等价于池结束清零），
+   * 标准寻访（NORMAL）与中坚寻访（CLASSIC）等仍按规则类型跨池累计（官方同类池共享保底）。
+   * @param poolId - 卡池 id
+   * @returns 保底计数在 UserConfig 中的键
+   */
+  private _pityKey(poolId: string): string {
+    const ruleType = this._ruleTypeOf(poolId);
+    return ruleType === "LIMITED" || ruleType === "LINKAGE" ? poolId : ruleType;
+  }
+
+  /**
+   * 刷新限定池的每日免费寻访次数（非限定池为空操作）
+   * @param poolId - 卡池 id
+   */
+  private async _refreshLimitPool(poolId: string): Promise<void> {
+    if (this._ruleTypeOf(poolId) !== "LIMITED") return;
+    await this._player.update(async (draft) => {
+      refreshLimitFree(draft, poolId, now());
+    });
+  }
+
+  /**
+   * 扣减限定池免费寻访次数
+   * @param poolId - 卡池 id
+   * @param count - 次数
+   */
+  private async _consumeLimitFree(poolId: string, count: number): Promise<void> {
+    await this._player.update(async (draft) => {
+      const rec = ensureLimitGacha(draft, poolId);
+      rec.leastFree = Math.max(0, Number(rec.leastFree ?? 0) - count);
+    });
+  }
+
+  /** 限定池当期 UP 六星列表（详情表 upCharInfo.perCharList[5]，合并玩家自选） */
+  private _upSixStarChars(poolId: string): string[] {
+    const list = this.effectiveUpPerCharList(poolId).find(
+      (c) => c.rarityRank === 5,
+    );
+    return (list?.charIdList ?? []).filter(Boolean) as string[];
+  }
+
+  /**
+   * 领取「限定寻访累计 300 抽赠送的当期 UP 六星」
+   *
+   * 修复（2026-09-09）：`gacha.limit[poolId]` 三个字段此前全仓无写入点 ——
+   * 累计抽数不记录、赠送无法领取（客户端「已抽 N/300」恒为 0）。
+   * 现按官服口径：累计 300 抽后可领 1 次当期 UP 六星，领后 `recruitedFreeChar = true`。
+   * @param args.poolId - 卡池 id
+   * @returns 赠送结果；不可领时返回 null
+   */
+  async claimLimitFreeChar(args: {
+    poolId: string;
+  }): Promise<(GachaResult & { logInfo: { beforeNonHitCnt: number } }) | null> {
+    const { poolId } = args;
+    if (this._ruleTypeOf(poolId) !== "LIMITED") return null;
+    const target = this._upSixStarChars(poolId)[0];
+    if (!target) return null;
+    let claimable = false;
+    await this._player.update(async (draft) => {
+      const rec = ensureLimitGacha(draft, poolId);
+      if (
+        Number(rec.poolCnt ?? 0) >= LIMIT_FREE_GACHA_THRESHOLD &&
+        !rec.recruitedFreeChar
+      ) {
+        rec.recruitedFreeChar = true;
+        claimable = true;
+      }
+    });
+    if (!claimable) return null;
+    const beforeNonHitCnt = await accountManager.getBeforeNonHitCnt(
+      this.uid,
+      this._pityKey(poolId),
+    );
+    // 赠送不入保底计数（非寻访行为），沿用当前计数原样回传
+    return this._resolveGachaResult(target, { from: "LIMITED" }, beforeNonHitCnt);
   }
 
   /**
@@ -149,7 +303,7 @@ export class GachaManager {
    * 校验抽卡消耗是否足够（修复：原实现无余额校验——扣费直接减、可扣成负数，
    * 未知/空 itemId 还会被 _useItem 静默跳过 → 免费抽；不足或不可校验时拒绝）
    */
-  private _verifyCost(costs: ItemBundle[]): boolean {
+  private _verifyCost(costs: ItemBundle[], limitPoolId = ""): boolean {
     const p = this._player._playerdata;
     for (const c of costs) {
       const type =
@@ -188,7 +342,12 @@ export class GachaManager {
           if (p.status.classicTenGachaTicket < c.count) return false;
           break;
         case "LIMITED_FREE_GACHA":
-          break; // 免费抽，无消耗
+          // 修复（2026-09-09）：原实现直接 break（恒放行）→ 免费寻访可无限抽。
+          // 限定池的免费次数账本在 gacha.limit[poolId].leastFree（freeGacha.freeCount 每日刷新）。
+          if ((p.gacha?.limit?.[limitPoolId]?.leastFree ?? 0) < c.count) {
+            return false;
+          }
+          break; // 免费抽，无实际道具消耗（次数在抽后扣减）
         default:
           if ((c as any).instId != null) {
             const entry = p.consumable?.[c.id]?.[(c as any).instId];
@@ -210,6 +369,10 @@ export class GachaManager {
     itemId: string | null;
   }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
     const {poolId,useTkt,itemId}=args
+    // 免费寻访次数按日刷新（限定池），需在余额校验前完成
+    await this._refreshLimitPool(poolId);
+    // 新手池 21 次上限（在余额校验与扣费之前拒绝，Round 43）
+    this._assertNewbeeQuota(poolId, 1);
     const costs: ItemBundle[] = [];
     switch (useTkt) {
       case GachaType.Diamond:
@@ -233,9 +396,12 @@ export class GachaManager {
         break;
     }
     // 修复：先校验余额再抽（原实现先扣费且可扣成负数）
-    if (!this._verifyCost(costs)) {
+    if (!this._verifyCost(costs, poolId)) {
       throw new BadRequestError("资源不足，无法抽卡");
     }
+    // 免费寻访：次数在抽后进行扣减（限定池账本 gacha.limit[poolId].leastFree）
+    const usedFree = costs.some((c) => (c.type || "") === "LIMITED_FREE_GACHA" || c.id === "LIMITED_FREE_GACHA");
+    if (usedFree) await this._consumeLimitFree(poolId, 1);
     // 统一物品管道：单抽消耗（等价 items:use 直发，见建议 4）
     for (const c of costs) this._player.gainItem.add(c);
     await this._player.gainItem.use();
@@ -258,6 +424,9 @@ export class GachaManager {
     itemList: ItemBundle[];
   }): Promise<(GachaResult & { logInfo: { beforeNonHitCnt: number } })[]> {
     const {poolId,useTkt,itemList}=args
+    await this._refreshLimitPool(poolId);
+    // 新手池 21 次上限（十连需整批可容纳；在余额校验与扣费之前拒绝，Round 43）
+    this._assertNewbeeQuota(poolId, 10);
     const costs: ItemBundle[] = [];
     switch (useTkt) {
       case GachaType.Diamond:
@@ -287,7 +456,7 @@ export class GachaManager {
         break;
     }
     // 修复：先校验余额再抽（原实现十连先发干员后扣费且可扣成负数）
-    if (!this._verifyCost(costs)) {
+    if (!this._verifyCost(costs, poolId)) {
       throw new BadRequestError("资源不足，无法抽卡");
     }
     const res: (GachaResult & { logInfo: { beforeNonHitCnt: number } })[] = [];
@@ -295,9 +464,12 @@ export class GachaManager {
     // emit("save") → users 表全量重写，十连 = 10 次 SQLite 写盘；现读一次、循环内存
     // 累积、最后写一次 = 1 次写盘）
     const ruleType = this._ruleTypeOf(poolId);
+    // 修复（2026-09-09）：保底计数按池隔离（LIMITED/LINKAGE），不再跨池继承
+    const pityKey = this._pityKey(poolId);
+    await this._refreshLimitPool(poolId);
     let beforeNonHitCnt = await accountManager.getBeforeNonHitCnt(
       this.uid,
-      ruleType,
+      pityKey,
     );
     for (let i = 0; i < 10; i++) {
       const { charId, beforeNonHitCnt: next, extras } = await this._pullOnce({
@@ -307,7 +479,7 @@ export class GachaManager {
       beforeNonHitCnt = next;
       res.push(await this._resolveGachaResult(charId, extras, beforeNonHitCnt));
     }
-    await accountManager.saveBeforeNonHitCnt(this.uid, ruleType, beforeNonHitCnt);
+    await accountManager.saveBeforeNonHitCnt(this.uid, pityKey, beforeNonHitCnt);
     // 统一物品管道：十连消耗（等价 items:use 直发，见建议 4）
     for (const c of costs) this._player.gainItem.add(c);
     await this._player.gainItem.use();
@@ -330,16 +502,17 @@ export class GachaManager {
     itemId: string | null;
   }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
     const { poolId } = args;
-    const ruleType = this._ruleTypeOf(poolId);
+    const pityKey = this._pityKey(poolId);
+    await this._refreshLimitPool(poolId);
     const beforeNonHitCnt = await accountManager.getBeforeNonHitCnt(
       this.uid,
-      ruleType,
+      pityKey,
     );
     const { charId, beforeNonHitCnt: next, extras } = await this._pullOnce({
       poolId,
       beforeNonHitCnt,
     });
-    await accountManager.saveBeforeNonHitCnt(this.uid, ruleType, next);
+    await accountManager.saveBeforeNonHitCnt(this.uid, pityKey, next);
     return this._resolveGachaResult(charId, extras, next);
   }
 
@@ -372,6 +545,12 @@ export class GachaManager {
           avail: true,
         };
       }
+      // 修复（2026-09-09）：限定池累计抽数从未记录（gacha.limit[poolId].poolCnt 恒缺省）
+      // → 客户端「已抽 N/300」恒为 0、300 抽赠送无从判定
+      if (this._ruleTypeOf(poolId) === "LIMITED") {
+        const rec = ensureLimitGacha(draft, poolId);
+        rec.poolCnt = Number(rec.poolCnt ?? 0) + 1;
+      }
     });
 
     // 修复：池不在 gachaPoolClient 时回退 NORMAL（不 500）
@@ -382,6 +561,44 @@ export class GachaManager {
 
     const funcs: { [key: string]: () => Promise<{ charId: string; rank: number }> } = {
       NORMAL: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
+      // 新手池（BOOT_*，Round 43）：官服 newbeeGachaPoolClient.gachaTimes = 21 次上限，
+      // 池名即规则原文「全部寻访必定获得至少 1 名 5★ 以上干员和至少 1 名 6★ 干员！」
+      // → 第 21 抽（最后一抽）强制六星，保证整池必出 6★。次数账本写 gacha.newbee
+      // （官方结构 {openFlag, cnt, poolId}，此前全仓从未读写）。
+      NEWBEE: async () => {
+        const cfg = this._newbeeConfig(poolId);
+        const limit = Number(cfg?.gachaTimes ?? 0);
+        let must6 = false;
+        await this._player.update(async (draft) => {
+          if (!draft.gacha.newbee) {
+            draft.gacha.newbee = {
+              openFlag: 1,
+              cnt: 0,
+              poolId,
+            } as unknown as typeof draft.gacha.newbee;
+          }
+          const nb = draft.gacha.newbee as unknown as {
+            openFlag: number;
+            cnt: number;
+            poolId: string;
+          };
+          // 换池（BOOT_0_1_1 → _2/_3）视为重新起算
+          if (nb.poolId !== poolId) {
+            nb.poolId = poolId;
+            nb.cnt = 0;
+          }
+          nb.cnt = Number(nb.cnt ?? 0) + 1;
+          nb.openFlag = 1;
+          if (limit > 0 && nb.cnt >= limit) {
+            must6 = true; // 最后一抽必得六星
+            nb.openFlag = 0; // 次数用尽 → 池关闭
+          }
+        });
+        return this._handleGacha(poolId, {
+          beforeNonHitCnt,
+          forceRank: must6 ? 5 : undefined,
+        });
+      },
       // DOUBLE/CLASSIC_DOUBLE/BACKFLOW/SPECIAL：双 up/回归/特殊池——UP 干员由详情
       // upCharInfo 处理，走通用 _handleGacha 即可（修复：原 funcs 缺这些键 → 500）
       DOUBLE: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
@@ -403,23 +620,44 @@ export class GachaManager {
       ATTAIN: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
       CLASSIC: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
       SINGLE: async () => {
+        // 修复（2026-09-09）：定选（SINGLE）保底此前 ① 只在恰好第 150 抽强塞且**从不清零**
+        //（提前抽到 UP 后计数继续累加 → 每个池只会触发一次且时机错位）；
+        // ② 无 300 抽的第二名 UP；③ ensure 命中时 rank 仍为摇出值 → 六星保底计数不清零。
+        // 官服口径：常驻 150 抽必得 UP 之一、300 抽必得另一名，提前抽到 UP 即清零重计。
+        const upFive = (detail.upCharInfo?.perCharList.find((c) => c.rarityRank === 5)
+          ?.charIdList ?? []) as string[];
         let ensure = "";
         await this._player.update(async (draft) => {
           if (!draft.gacha.single[poolId]) {
             draft.gacha.single[poolId] = {
               singleEnsureCnt: 0,
               singleEnsureUse: false,
-              singleEnsureChar: detail.upCharInfo!.perCharList[0].charIdList[0],
+              singleEnsureChar: upFive[0] ?? "",
             };
           }
-          draft.gacha.single[poolId].singleEnsureCnt += 1;
-          if (draft.gacha.single[poolId].singleEnsureCnt == 150) {
-            draft.gacha.single[poolId].singleEnsureUse = true;
-            ensure = draft.gacha.single[poolId].singleEnsureChar;
+          const rec = draft.gacha.single[poolId];
+          rec.singleEnsureCnt = Number(rec.singleEnsureCnt ?? 0) + 1;
+          if (rec.singleEnsureCnt >= 300) {
+            rec.singleEnsureUse = true;
+            ensure = upFive[1] ?? upFive[0] ?? rec.singleEnsureChar;
+          } else if (rec.singleEnsureCnt >= 150) {
+            rec.singleEnsureUse = true;
+            ensure = upFive[0] ?? rec.singleEnsureChar;
           }
         });
 
-        return this._handleGacha(poolId, { beforeNonHitCnt, ensure });
+        const out = await this._handleGacha(poolId, { beforeNonHitCnt, ensure });
+        // 提前抽到 UP 六星 → 保底计数清零（下一次 150/300 重新计）
+        if (upFive.includes(out.charId)) {
+          await this._player.update(async (draft) => {
+            const rec = draft.gacha.single[poolId];
+            if (rec) {
+              rec.singleEnsureCnt = 0;
+              rec.singleEnsureUse = false;
+            }
+          });
+        }
+        return out;
       },
       FESCLASSIC: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
       CLASSIC_ATTAIN: async () =>
@@ -485,9 +723,15 @@ export class GachaManager {
    */
   async _handleGacha(
     poolId: string,
-    args: { beforeNonHitCnt: number; ensure?: string },
+    args: { beforeNonHitCnt: number; ensure?: string; forceRank?: number },
   ): Promise<{ charId: string; rank: number }> {
-    const rank = await this._getRarityRank(poolId, args);
+    // 修复（2026-09-09）：ensure（150/300 抽强塞）目标恒为 UP 六星，此前 rank 仍取摇出的
+    // 稀有度 → 调用方 `rank !== 5` 判定下六星保底计数不清零（歪出无穷叠加）。
+    // forceRank：强制稀有度（新手池第 21 抽「必得六星」用——不指定具体干员，
+    // 仅把稀有度锁到 6★ 后再走该池的 UP/权重抽取）。
+    const rank = args.ensure
+      ? 5
+      : (args.forceRank ?? (await this._getRarityRank(poolId, args)));
     const charId = await this._getRandomChar(poolId, rank, args);
     return { charId, rank };
   }
@@ -548,19 +792,18 @@ export class GachaManager {
     const staticPerChar = detail.upCharInfo!.perCharList.find(
       (c) => c.rarityRank === rank,
     ) as GachaPerChar | undefined;
-    // 自选覆盖：玩家选中该稀有度 UP 时，用它替换静态 UP
+    // 自选池（中坚甄选 FESCLASSIC / 特殊自选 SPECIAL 等，Round 44 修复 §5.2-10）：
+    // 玩家一旦为该稀有度完成自选（choosePoolUp → gacha[gachaType][poolId].upChar），
+    // 该稀有度的候选**即为所选干员**。官服语义是「仅会出现所选干员」——数据侧佐证：
+    // FESCLASSIC 详情 @@upCharInfo.perCharList@@ **为空**、候选全集在
+    // @@availCharInfo.perAvailList@@，玩家选择（官方存档 @@gacha.fesClassic[poolId].upChar
+    // = {"4":[…],"5":[…]}@@）是唯一区分手段。原实现把自选仅当作 UP 档（percent / 0.35），
+    // 其余名额仍从全池取 → 会歪出未选干员。
     const selfUps = this._selfSelectedUpForRank(poolId, rank);
-    const perChar: GachaPerChar | undefined = selfUps.length
-      ? {
-          rarityRank: rank,
-          charIdList: selfUps,
-          // 沿用静态 UP 的整体出率档位（percent*count）；无静态时按 35% 默认档
-          percent: staticPerChar
-            ? staticPerChar.percent * staticPerChar.count
-            : 0.35,
-          count: 1,
-        }
-      : staticPerChar;
+    if (selfUps.length) {
+      return args.ensure || randomChoice(selfUps);
+    }
+    const perChar: GachaPerChar | undefined = staticPerChar;
     const rr = random();
     if (perChar) {
       if (rr < perChar.percent * perChar.count) {

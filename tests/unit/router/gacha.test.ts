@@ -81,12 +81,25 @@ describe("gacha 路由", () => {
     expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ result: 0, modified: {} }));
   });
 
-  it("getFreeChar 应返回 result 0（OBS 为空操作）", async () => {
+  it("getFreeChar：满 300 抽时发放当期 UP 六星并返回 result 0（修复：原为空桩）", async () => {
+    const claimed = vi.fn().mockResolvedValue({ charId: "char_up1" });
     (vi.mocked(httpContext.get) as any).mockReturnValue({
+      gacha: { claimLimitFreeChar: claimed },
       delta: { modified: {} },
     });
     const res = mockRes();
     await call({ method: "POST", url: "/getFreeChar", body: { poolId: "p_single_1" } }, res);
+    expect(claimed).toHaveBeenCalledWith({ poolId: "p_single_1" });
     expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ result: 0, modified: {} }));
+  });
+
+  it("getFreeChar：不可领取时返回 result 1", async () => {
+    (vi.mocked(httpContext.get) as any).mockReturnValue({
+      gacha: { claimLimitFreeChar: vi.fn().mockResolvedValue(null) },
+      delta: { modified: {} },
+    });
+    const res = mockRes();
+    await call({ method: "POST", url: "/getFreeChar", body: { poolId: "p_single_1" } }, res);
+    expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ result: 1 }));
   });
 });

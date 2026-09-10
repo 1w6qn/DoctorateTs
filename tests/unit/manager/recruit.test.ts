@@ -196,6 +196,17 @@ describe("RecruitManager 核心方法", () => {
     expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "7001", count: 1, type: "TKT_RECRUIT" }]]);
   });
 
+  // 修复（2026-09-09）：原实现 finish 无任何时间校验 —— 开始招募后立即结算即可
+  // 零成本秒出干员（绕过等待与加急许可）。
+  it("finish 对未完成的招募应拒绝（防零成本秒出）", async () => {
+    const manager = new RecruitManager(mockPlayer as any, mockTrigger as any);
+    mockPlayer._playerdata.recruit!.normal.slots["0"] = {
+      state: 2, tags: [], selectTags: [{ tagId: 1, pick: 1 }], startTs: 1234567890,
+      durationInSec: 32400, maxFinishTs: 1234600290, realFinishTs: 1234600290,
+    } as any;
+    await expect(manager.finish({ slotId: 0 })).rejects.toThrow(/尚未完成/);
+  });
+
   it("finish 应结算招募并出干员", async () => {
     const { RecruitTools } = await import("@game/modules/gacha/recruit");
     vi.spyOn(RecruitTools, "generateValidTags").mockResolvedValue(["char_001", [1]] as any);
@@ -212,15 +223,35 @@ describe("RecruitManager 核心方法", () => {
     expect(result).toBeDefined();
   });
 
-  it("boost 应立即完成招募", async () => {
+  // 修复（2026-09-09）：① 原实现扣的是 7001（招聘许可）却标 type TKT_INST_FIN ——
+  // 官方加急许可 id = 7002（data/shop/SocialGoodList.json 的信用商店条目实证）；
+  // ② 原实现写 state=2（进行中），sync() 的规则是 realFinishTs ≤ now → state 3（可领取），
+  //    加急后客户端须再 sync 一次才显示可领取，现直接写 3。
+  it("boost 应立即完成招募并消耗加急许可（7002/TKT_INST_FIN）", async () => {
     const manager = new RecruitManager(mockPlayer as any, mockTrigger as any);
     mockPlayer._playerdata.recruit!.normal.slots["0"] = {
       state: 2, tags: [1, 2, 3, 4, 5], selectTags: [], startTs: 100, durationInSec: 32400, maxFinishTs: 9999999999, realFinishTs: 9999999999,
     } as any;
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     await manager.boost({ slotId: 0, buy: 0 });
-    expect(mockPlayer._playerdata.recruit!.normal.slots["0"].realFinishTs).toBe(1234567890);
+    const slot = mockPlayer._playerdata.recruit!.normal.slots["0"];
+    expect(slot.realFinishTs).toBe(1234567890);
+    expect(slot.state).toBe(3); // 立即可领取
     expect(emitSpy).toHaveBeenCalledWith("BoostNormalGacha", []);
+    expect(emitSpy).toHaveBeenCalledWith("items:use", [
+      [{ id: "7002", count: 1, type: "TKT_INST_FIN" }],
+    ]);
+  });
+
+  it("boost 对非进行中槽位不消耗加急许可（防御）", async () => {
+    const manager = new RecruitManager(mockPlayer as any, mockTrigger as any);
+    mockPlayer._playerdata.recruit!.normal.slots["1"] = {
+      state: 1, tags: [], selectTags: [], startTs: -1, durationInSec: -1, maxFinishTs: -1, realFinishTs: -1,
+    } as any;
+    const emitSpy = vi.spyOn(mockTrigger, "emit");
+    await manager.boost({ slotId: 1, buy: 0 });
+    expect(emitSpy).not.toHaveBeenCalledWith("items:use", expect.anything());
+    expect(mockPlayer._playerdata.recruit!.normal.slots["1"].state).toBe(1);
   });
 });
 

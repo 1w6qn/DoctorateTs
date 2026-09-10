@@ -249,7 +249,11 @@ router.post("/choosePoolUp", validateBody(choosePoolUpSchema), async (req, res) 
 router.post("/getFreeChar", validateBody(getFreeCharSchema), async (req, res) => {
   const player = getPlayer();
   const body = req.body as GetFreeCharRequest;
-  // 参考 OBS bp_gacha.gacha_getFreeChar（空操作），仅返回 result
+  // 修复（2026-09-09）：原实现为空桩（恒 result 0、不发干员）—— 限定寻访累计 300 抽的
+  // 当期 UP 六星赠送永远拿不到。现由 GachaManager 按 gacha.limit[poolId].poolCnt 判定并发放。
+  if (!body.poolId) return res.send({ result: 1, ...player.delta });
+  const claimed = await player.gacha.claimLimitFreeChar({ poolId: body.poolId });
+  if (!claimed) return res.send({ result: 1, ...player.delta });
   res.send({ result: 0, ...player.delta } satisfies GetFreeCharResponse);
 });
 

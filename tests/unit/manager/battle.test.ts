@@ -123,22 +123,25 @@ vi.mock("@utils/crypt", () => ({
   }),
 }));
 
-vi.mock("@game/modules/account/AccountManager", () => {
-  const mockAccountConfigs: any = {
+// 账号战斗信息表提升为 hoisted，便于用例间重置「已结算」标记
+// （修复后 battleFinish 幂等：同一 battleId 结算过即拒绝，测试需按用例复位）
+const accountState = vi.hoisted(() => ({
+  configs: {
     "10000": {
       battle: {
         infos: {
-          "1": {
-            stageId: "main_01-07",
-            isPractice: false,
-          },
+          "1": { stageId: "main_01-07", isPractice: false } as any,
         },
         replays: {
           "main_01-07": "replay_data",
         },
       },
     },
-  };
+  } as any,
+}));
+
+vi.mock("@game/modules/account/AccountManager", () => {
+  const mockAccountConfigs: any = accountState.configs;
 
   return {
     accountManager: {
@@ -194,6 +197,16 @@ describe("BattleManager", () => {
 
   beforeEach(async () => {
     vi.restoreAllMocks();
+    // 用例隔离：重置账号战斗信息表（含结算幂等标记 settled）与解密 mock 默认实现——
+    // 部分用例会把 decryptBattleData 永久改写成 start 生成的 battleId，泄漏到后续用例。
+    accountState.configs["10000"].battle.infos = {
+      "1": { stageId: "main_01-07", isPractice: false },
+    };
+    vi.mocked((await import("@utils/crypt")).decryptBattleData).mockResolvedValue({
+      battleId: "1",
+      battleData: { stats: { enemyList: {}, autoReplayCancelled: false } },
+      completeState: 3,
+    } as any);
     mockTrigger = mockTypedEventEmitter();
     mockExcelRef = (vi.mocked(await import("@excel/excel")).default as any);
 
@@ -312,6 +325,145 @@ describe("BattleManager", () => {
       expect(result.battleId).toBeDefined();
       expect(result.result).toBe(0);
       expect(result.apFailReturn).toBeDefined();
+    });
+
+    it("开战应预扣理智（修复：原实现只在 finish 扣，可不结算白嫖）", async () => {
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      mockPlayer._playerdata.status!.ap = 100;
+      const squad = { slots: [{ charInstId: 1001 }, null] };
+      const result = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+      } as any);
+      expect(result.result).toBe(0);
+      // main_01-07 apCost=10
+      expect(mockPlayer._playerdata.status!.ap).toBe(90);
+    });
+
+    it("理智不足时应拒绝开战且不产生会话/战斗信息", async () => {
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      mockPlayer._playerdata.status!.ap = 5; // < apCost 10
+      const squad = { slots: [{ charInstId: 1001 }, null] };
+      const result = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+      } as any);
+      expect(result.result).toBe(1);
+      expect(result.battleId).toBe("");
+      expect(mockPlayer._playerdata.status!.ap).toBe(5); // 未扣
+      const { accountManager } = await import("@game/modules/account/AccountManager");
+      const before = vi.mocked(accountManager.saveBattleInfo).mock.calls.length;
+      // 再试一次：仍拒绝且不新增 saveBattleInfo 调用（不产生战斗信息）
+      await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+      } as any);
+      expect(vi.mocked(accountManager.saveBattleInfo).mock.calls.length).toBe(before);
+      expect(manager.getActiveBattle()).toBeUndefined();
+    });
+
+    it("演习应按 stage.practiceTicketCost 扣券（突袭为 3），不足则拒绝", async () => {
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      (mockExcelRef.StageTable.stages["main_01-07"] as any).practiceTicketCost = 3;
+      mockPlayer._playerdata.status!.practiceTicket = 5;
+      const squad = { slots: [null, null] };
+      const ok = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: true,
+        squad,
+      } as any);
+      expect(ok.result).toBe(0);
+      expect(mockPlayer._playerdata.status!.practiceTicket).toBe(2); // 5 - 3
+      expect(mockPlayer._playerdata.status!.ap).toBe(100); // 演习不扣理智
+
+      mockPlayer._playerdata.status!.practiceTicket = 1; // 不足 3
+      const denied = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: true,
+        squad,
+      } as any);
+      expect(denied.result).toBe(1);
+      expect(mockPlayer._playerdata.status!.practiceTicket).toBe(1);
+    });
+
+    // Round 45（§5.1-8 后半）：0 理智关（practiceTicketCost 为 0/-1）不应扣演习券 ——
+    // 官方数据实测：3522 关中 practiceTicketCost ∈ {0,-1} 的 1057 关 apCost 全部为 0，
+    // 原实现 Math.max(1, cost) 会白扣 1 张。
+    it("演习：practiceTicketCost=0 的关卡不扣券（原实现白扣 1 张）", async () => {
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      (mockExcelRef.StageTable.stages["main_01-07"] as any).practiceTicketCost = 0;
+      mockPlayer._playerdata.status!.practiceTicket = 5;
+      const ok = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: true,
+        squad: { slots: [null, null] },
+      } as any);
+      expect(ok.result).toBe(0);
+      expect(mockPlayer._playerdata.status!.practiceTicket).toBe(5); // 不扣
+    });
+
+    it("演习：practiceTicketCost=-1（不可演习型 0 理智关）同样不扣券且不因余额为 0 被拒", async () => {
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      (mockExcelRef.StageTable.stages["main_01-07"] as any).practiceTicketCost = -1;
+      mockPlayer._playerdata.status!.practiceTicket = 0;
+      const ok = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: true,
+        squad: { slots: [null, null] },
+      } as any);
+      expect(ok.result).toBe(0);
+      expect(mockPlayer._playerdata.status!.practiceTicket).toBe(0);
+    });
+
+    it("开局条件（stageStartConds）不满足应拒绝开战", async () => {
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      (mockExcelRef.StageTable as any).stageStartConds = {
+        "main_01-07": {
+          requireChars: [{ charId: "char_002_amiya", evolvePhase: "PHASE_2" }],
+        },
+      };
+      const squad = { slots: [{ charInstId: 1001 }, null] }; // 非阿米娅
+      const denied = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+      } as any);
+      expect(denied.result).toBe(1);
+
+      // 编入精英 2 的阿米娅后放行
+      mockPlayer._playerdata.troop!.chars[2001] = {
+        charId: "char_002_amiya",
+        level: 80,
+        evolvePhase: 2,
+      } as any;
+      const allowed = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad: { slots: [{ charInstId: 2001 }, null] },
+      } as any);
+      expect(allowed.result).toBe(0);
+      delete (mockExcelRef.StageTable as any).stageStartConds;
     });
 
     it("当使用练习券时应该设置 isApProtect 为 0", async () => {
@@ -706,6 +858,8 @@ describe("BattleManager", () => {
 
   describe("finish 后处理", () => {
     beforeEach(() => {
+      // 复位结算幂等标记（同 battleId 在本组用例间复用）
+      delete accountState.configs["10000"].battle.infos["1"].settled;
       mockExcelRef.StageTable.stages["main_01-07"].stageDropInfo.displayDetailRewards =
         [];
       delete mockExcelRef.StageTable.stages["main_01-08"];
@@ -733,6 +887,33 @@ describe("BattleManager", () => {
       expect(result.furnitureRewards).toBeDefined();
       expect(result.firstRewards).toBeDefined();
       expect(result.unlockStages).toBeDefined();
+      expect(
+        mockPlayer._playerdata.dungeon!.stages["main_01-07"].completeTimes
+      ).toBe(1);
+    });
+
+    it("同一 battleId 重复结算应被拒绝（幂等，修复前可重放刷奖励）", async () => {
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const first = await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+      expect(first.result).toBe(0);
+      expect(
+        mockPlayer._playerdata.dungeon!.stages["main_01-07"].completeTimes
+      ).toBe(1);
+
+      const second = await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+      expect(second.result).toBe(1);
+      expect(second.rewards).toEqual([]);
+      // 通关次数不再累加（原实现可无限重复结算）
       expect(
         mockPlayer._playerdata.dungeon!.stages["main_01-07"].completeTimes
       ).toBe(1);
@@ -865,9 +1046,168 @@ describe("BattleManager", () => {
         battleData: { isCheat: "0", completeTime: 100 },
       } as any);
 
+      // 修复（2026-09-09）：信赖按关卡数据发放（completeFavor=apCost=10），不再恒 +1
       expect(
         (mockPlayer._playerdata.troop!.chars as any)["1001"].favorPoint
-      ).toBe(1);
+      ).toBe(10);
+    });
+
+    it("信赖应按 passFavor/completeFavor 发放（2 星用 passFavor）", async () => {
+      (mockPlayer._playerdata.troop!.chars as any)["1001"].favorPoint = 0;
+      (mockExcelRef.StageTable.stages["main_01-07"] as any).passFavor = 9;
+      (mockExcelRef.StageTable.stages["main_01-07"] as any).completeFavor = 10;
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      const squad = { slots: [{ charInstId: 1001 }, null] };
+      const started = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+      } as any);
+      const crypt = await import("@utils/crypt");
+      vi.mocked(crypt.decryptBattleData).mockResolvedValue({
+        battleId: started.battleId,
+        battleData: { stats: { enemyList: {}, autoReplayCancelled: false } },
+        completeState: 2, // 二星 → passFavor
+      } as any);
+      await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+      expect(
+        (mockPlayer._playerdata.troop!.chars as any)["1001"].favorPoint
+      ).toBe(9);
+    });
+
+    it("0 理智关卡不应发放信赖（passFavor=0）", async () => {
+      (mockPlayer._playerdata.troop!.chars as any)["1001"].favorPoint = 0;
+      (mockExcelRef.StageTable.stages["main_01-07"] as any).passFavor = 0;
+      (mockExcelRef.StageTable.stages["main_01-07"] as any).completeFavor = 0;
+      (mockExcelRef.StageTable.stages["main_01-07"] as any).apCost = 0;
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      const squad = { slots: [{ charInstId: 1001 }, null] };
+      const started = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+      } as any);
+      const crypt = await import("@utils/crypt");
+      vi.mocked(crypt.decryptBattleData).mockResolvedValue({
+        battleId: started.battleId,
+        battleData: { stats: { enemyList: {}, autoReplayCancelled: false } },
+        completeState: 3,
+      } as any);
+      await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+      expect(
+        (mockPlayer._playerdata.troop!.chars as any)["1001"].favorPoint
+      ).toBe(0);
+    });
+  });
+
+  describe("代理指挥任务事件（StageWithReplay / TakeOverReplay）", () => {
+    async function finishWithReplay(opts: {
+      isReplay?: number;
+      autoReplayCancelled?: boolean;
+    }) {
+      const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+      const squad = { slots: [{ charInstId: 1001 }, null] };
+      const started = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+        isReplay: opts.isReplay ?? 0,
+      } as any);
+      const crypt = await import("@utils/crypt");
+      vi.mocked(crypt.decryptBattleData).mockResolvedValue({
+        battleId: started.battleId,
+        battleData: {
+          stats: {
+            enemyList: {},
+            autoReplayCancelled: !!opts.autoReplayCancelled,
+          },
+        },
+        completeState: 3,
+      } as any);
+      await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+      return manager;
+    }
+
+    it("代理开局通关应 emit StageWithReplay", async () => {
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await finishWithReplay({ isReplay: 1 });
+      expect(emitSpy).toHaveBeenCalledWith("StageWithReplay", [{ isReplay: 1 }]);
+    });
+
+    it("非代理开局不应 emit StageWithReplay", async () => {
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await finishWithReplay({ isReplay: 0 });
+      expect(emitSpy).not.toHaveBeenCalledWith("StageWithReplay", expect.anything());
+    });
+
+    it("战斗内接管代理应 emit TakeOverReplay", async () => {
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await finishWithReplay({ isReplay: 1, autoReplayCancelled: true });
+      const call = emitSpy.mock.calls.find((c: any[]) => c[0] === "TakeOverReplay");
+      expect(call).toBeTruthy();
+      expect((call as any[])[1][0].battleData.stats.autoReplayCancelled).toBe(true);
+    });
+  });
+
+  describe("助战信用（每日结算，次日信用交易所领取）", () => {
+    /** 与既有 harness 同款：start（带助战）→ finish 完整结算 */
+    async function finishWithAssist() {
+      const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+      const squad = { slots: [{ charInstId: 1001 }, null] };
+      const started = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+        assistFriend: {
+          uid: "2",
+          nickName: "好友",
+          assistChar: [{ charId: "char_002", level: 50 }],
+          assistSlotIndex: 0,
+        },
+      } as any);
+      const crypt = await import("@utils/crypt");
+      vi.mocked(crypt.decryptBattleData).mockResolvedValue({
+        battleId: started.battleId,
+        battleData: { stats: { enemyList: {}, autoReplayCancelled: false } },
+        completeState: 3,
+      } as any);
+      await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+      return manager;
+    }
+
+    it("使用助战通关应累积 30 信用到昨日奖励（不再立即入账 socialPoint）", async () => {
+      const before = (mockPlayer._playerdata as any).status?.socialPoint ?? 0;
+      await finishWithAssist();
+      // 修复（2026-09-09，审计 §5.4-12）：PRTS「每日结算的信用」——使用支援单位 +30，
+      // 次日于信用交易所手动领取；原实现直接 status.socialPoint += 30（与官方口径不符）
+      expect(
+        (mockPlayer._playerdata as any).social.yesterdayReward.assistAmount,
+      ).toBe(30);
+      // 未立即入账
+      expect((mockPlayer._playerdata as any).status.socialPoint ?? 0).toBe(before);
+      // 当日重复通关不再重复累积
+      await finishWithAssist();
+      expect(
+        (mockPlayer._playerdata as any).social.yesterdayReward.assistAmount,
+      ).toBe(30);
     });
   });
 

@@ -9,6 +9,10 @@ import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { ItemBundle, ItemType } from "@excel/excel";
 import { DisplayDetailRewards } from "@excel/excel";
 import { syncAct44SideEntry } from "../activities/act44side/informant";
+import {
+  accrueCampaignKills,
+  refreshCampaignMissions,
+} from "../campaignV2/public";
 import { randomChoice, randomChoices, generateBattleId } from "@utils/random";
 import { rarityToIndex } from "@utils/rarity";
 import { pickKeys } from "@utils/object";
@@ -171,6 +175,48 @@ export class BattleManager {
     return session && session.status === "in_progress" ? session : undefined;
   }
 
+  /**
+   * 校验关卡开局条件（StageTable.stageStartConds）
+   *
+   * 修复（2026-09-09）：原实现完全忽略开局条件（battle.ts 旧注释 `//todo: amiya guard`），
+   * 8-16/14-19 等要求「阿米娅精英 2」的关卡可被任意编队直接开战。
+   * @param stageId - 关卡 id
+   * @param squad - 客户端编队（charInstId 列表）
+   * @returns 不满足时返回原因文案，满足/无条件返回 null
+   */
+  private _checkStageStartConds(
+    stageId: string,
+    squad: { slots: ({ charInstId: number } | null)[] } | undefined,
+  ): string | null {
+    const cond = (excel.StageTable as {
+      stageStartConds?: Record<
+        string,
+        {
+          requireChars?: { charId: string; evolvePhase?: string }[];
+        }
+      >;
+    }).stageStartConds?.[stageId];
+    if (!cond?.requireChars?.length) return null;
+    const phaseNum = (p: unknown): number => {
+      const m = /PHASE_(\d+)/.exec(String(p ?? ""));
+      return m ? Number(m[1]) : Number(p ?? 0) || 0;
+    };
+    const chars = (squad?.slots ?? [])
+      .filter((s): s is { charInstId: number } => !!s)
+      .map((s) => this._player._playerdata.troop.chars[s.charInstId])
+      .filter(Boolean) as { charId: string; evolvePhase?: number }[];
+    for (const req of cond.requireChars) {
+      const need = phaseNum(req.evolvePhase);
+      const ok = chars.some(
+        (c) => c.charId === req.charId && (c.evolvePhase ?? 0) >= need,
+      );
+      if (!ok) {
+        return `${stageId} 需要 ${req.charId} 达到 ${req.evolvePhase ?? "PHASE_0"}`;
+      }
+    }
+    return null;
+  }
+
   async start(args: CommonStartBattleRequest) {
     const { stageId, usePracticeTicket, squad } = args;
     // 唯一 battleId：crypto.randomUUID（v4）随机生成，避免多场战斗互相覆盖 battleInfo/replay，
@@ -214,6 +260,69 @@ export class BattleManager {
       );
     }
     let isApProtect = 0;
+    // —— 战斗开始即扣费（官方语义）——
+    // 修复（2026-09-09）：理智原实现只在 battleFinish 扣 → 起战后不结算即可白嫖开局、
+    // 理智不足也能开战、放弃/断线零成本。现改为 start 扣、失败时由 finish 返还。
+    const liveStageState =
+      this._player._playerdata.dungeon?.stages?.[stageId];
+    const noCostFirst = liveStageState?.noCostCnt === 1;
+    const apProtected =
+      noCostFirst || inApProtectPeriod || apCost === 0 || !!usePracticeTicket;
+    // 修复（2026-09-09）：演习券按 stage.practiceTicketCost **原值**扣减 ——
+    // 原实现 Math.max(1, cost) 把 0/-1（= 0 理智的教学与剧情关）一律按 1 张收费。
+    // 实测 3522 关中 practiceTicketCost ∈ {0, -1} 的 1057 关 apCost **全部为 0**，
+    // 官服这些关卡无演习消耗（普通关 1 张、突袭/磨炼 3 张）。
+    const practiceCost = Math.max(
+      0,
+      Number((stage as { practiceTicketCost?: number }).practiceTicketCost ?? 1),
+    );
+    const liveStatus = this._player._playerdata.status;
+    if (usePracticeTicket) {
+      if (practiceCost > 0 && (liveStatus.practiceTicket ?? 0) < practiceCost) {
+        logger.warn(
+          "battle",
+          `演习券不足（需 ${practiceCost}，持有 ${liveStatus.practiceTicket}），拒绝开战 ${stageId}`,
+        );
+        this._sessions.delete(this._player.uid);
+        return {
+          result: 1,
+          battleId: "",
+          apFailReturn: 0,
+          isApProtect: 0,
+          inApProtectPeriod: false,
+          notifyPowerScoreNotEnoughIfFailed: false,
+        };
+      }
+    } else if (!apProtected && (liveStatus.ap ?? 0) < apCost) {
+      logger.warn(
+        "battle",
+        `理智不足（需 ${apCost}，持有 ${liveStatus.ap}），拒绝开战 ${stageId}`,
+      );
+      this._sessions.delete(this._player.uid);
+      return {
+        result: 1,
+        battleId: "",
+        apFailReturn: 0,
+        isApProtect: 0,
+        inApProtectPeriod: false,
+        notifyPowerScoreNotEnoughIfFailed: false,
+      };
+    }
+    // 开局条件（StageTable.stageStartConds，如 8-16/14-19 需阿米娅精英 2）
+    const startCondReason = this._checkStageStartConds(stageId, squad);
+    if (startCondReason) {
+      logger.warn("battle", `开局条件不满足（${startCondReason}），拒绝开战 ${stageId}`);
+      this._sessions.delete(this._player.uid);
+      return {
+        result: 1,
+        battleId: "",
+        apFailReturn: 0,
+        isApProtect: 0,
+        inApProtectPeriod: false,
+        notifyPowerScoreNotEnoughIfFailed: false,
+      };
+    }
+    const apCharged = apProtected ? 0 : apCost;
     await this._player.update(async (draft) => {
       // 修复：新关卡（不在存档模板/后加活动关卡）在下方创建之前读取会 500——
       // 用可选链，创建块再按 guide 规则计算 noCostCnt
@@ -239,8 +348,13 @@ export class BattleManager {
         apFailReturn = 0;
       }
       if (usePracticeTicket) {
-        draft.status.practiceTicket -= 1;
+        // 修复（2026-09-09）：按 stage.practiceTicketCost 扣减（突袭为 3），原实现恒扣 1；
+        // 0 理智关（cost 0/-1）不扣（原实现 Math.max(1,·) 会白扣 1 张）
+        if (practiceCost > 0) draft.status.practiceTicket -= practiceCost;
         draft.dungeon.stages[stageId].practiceTimes += 1;
+      } else if (apCharged > 0) {
+        // 修复（2026-09-09）：开战即扣理智（原实现只在 finish 扣）
+        draft.status.ap = Math.max(0, (draft.status.ap ?? 0) - apCharged);
       }
       // Check user powerScore
       squad.slots.forEach((char) => {
@@ -273,6 +387,10 @@ export class BattleManager {
         stageId,
         isPractice: usePracticeTicket,
         squad,
+        // 本场已预扣的理智（finish 失败返还以此为上限，避免多退）
+        apCharged,
+        // 代理指挥（自动作战）开局标记，供 finish 补发 StageWithReplay 任务事件
+        isReplay: (args as { isReplay?: number }).isReplay ?? 0,
         // 助战好友信息（assistFriend 为 null 时不保存）
         ...(args.assistFriend ? { assistFriend: args.assistFriend } : {}),
       });
@@ -376,6 +494,43 @@ export class BattleManager {
     const unlockStages: string[] = [];
     const unlockStagesObject: unknown[] = [];
     const firstRewards: ItemBundle[] = [];
+    // 修复（2026-09-09）：结算幂等——同一 battleId 只能结算一次（原实现可重放刷奖励）
+    if (battleInfo?.settled === 1) {
+      logger.warn(
+        "battle",
+        `battleFinish 重复结算被拒（battleId=${battleData.battleId}）`,
+      );
+      return {
+        result: 1,
+        apFailReturn: 0,
+        expScale: 0,
+        goldScale: 0,
+        rewards: [],
+        firstRewards: [],
+        unlockStages: [],
+        unusualRewards: [],
+        additionalRewards: [],
+        furnitureRewards: [],
+        alert: [],
+        suggestFriend: false,
+        pryResult: [],
+      };
+    }
+    /**
+     * 标记本场战斗已结算（一次性幂等标记，落库 battle_infos）
+     * 修复（2026-09-09）：结算后写 settled=1，重放同一 battleFinish 不再发奖。
+     */
+    const markSettled = async () => {
+      try {
+        await accountManager.saveBattleInfo(
+          this._player.uid,
+          battleData.battleId,
+          { ...battleInfo, settled: 1 },
+        );
+      } catch (e) {
+        logger.warn("battle", `结算标记写入失败: ${(e as Error).message}`);
+      }
+    };
     const { stageId, isPractice } = battleInfo;
     const stage = resolveStage(stageId);
     // 修复：未知关卡（battleStart 已容错，battleInfo 里的 stageId 同样可能不在表内）——
@@ -420,13 +575,10 @@ export class BattleManager {
     // 修复：演习（isPractice）不扣理智、不发基础奖励——原实现把 AP/EXP/GOLD 发放
     // 放在 isPractice 早退之前，演习既扣 AP 又发经验/金币
     if (!isPractice) {
+      // 修复（2026-09-09）：理智扣除已移至 battleStart（此处不再重复扣），
+      // 失败返还仍由 _settleStageState 按 apCharged 上限发放。
       await this._trigger.emit("items:get", [
         [
-          {
-            type: "AP_GAMEPLAY" as ItemType,
-            id: "",
-            count: -apCost,
-          },
           {
             type: "EXP_PLAYER" as ItemType,
             id: "",
@@ -514,8 +666,11 @@ export class BattleManager {
       await this._emitBattleWinEvents(battleData, battleInfo, apCost, stageId);
     }
     if (isPractice) {
+      await markSettled();
       return { result: 0 };
     }
+    // 修复（2026-09-09）：结算成功即打上一次性标记（重放同 battleId 直接拒绝）
+    await markSettled();
     return {
       result: 0,
       apFailReturn,
@@ -593,6 +748,10 @@ export class BattleManager {
       } else {
         ctx.apFailReturn = excel.StageTable.stages[stageId].apFailReturn;
       }
+      // 修复（2026-09-09）：理智已由 battleStart 预扣——返还不得超过实扣额
+      // （演习/免体力/apProtect 期间 apCharged=0 → 不返还）
+      const charged = (battleInfo as { apCharged?: number }).apCharged ?? 0;
+      ctx.apFailReturn = Math.max(0, Math.min(ctx.apFailReturn, charged));
       await this._trigger.emit("items:get", [
         [
           {
@@ -670,12 +829,26 @@ export class BattleManager {
       // 胜利时累加通关次数（非练习）
       if ([2, 3].includes(battleData.completeState)) {
         draft.dungeon.stages[stageId].completeTimes += 1;
-        // 出战后干员信赖结算（参战编队干员各 +1 favorPoint）
-        if (battleInfo.squad) {
+        // 出战后干员信赖结算（参战编队干员各 +passFavor/completeFavor）
+        // 修复（2026-09-09）：原实现每名出战干员固定 +1，而官服按关卡数据发放——
+        // `passFavor`＝通关信赖、`completeFavor`＝完整通关（三星）信赖，两者恒等于消耗
+        // 理智（如 4-4=18、CE-5=30），0 理智关卡为 0（剿灭 camp_XX 亦为 0）。
+        // 旧行为使信赖积累慢约 18 倍，模组 Lv2/Lv3 的 2732/10070 信赖门槛实际不可达。
+        const stageConf = stage as {
+          passFavor?: number;
+          completeFavor?: number;
+        };
+        const favorGain = Math.max(
+          0,
+          battleData.completeState === 3
+            ? (stageConf.completeFavor ?? apCost)
+            : (stageConf.passFavor ?? apCost),
+        );
+        if (battleInfo.squad && favorGain > 0) {
           for (const char of battleInfo.squad.slots) {
             if (char && draft.troop.chars[char.charInstId]) {
               const target = draft.troop.chars[char.charInstId];
-              target.favorPoint = (target.favorPoint || 0) + 1;
+              target.favorPoint = (target.favorPoint || 0) + favorGain;
               // 修复：勋章 CharFavorCount 事件从未 emit → 干员信赖勋章永不推进
               await this._trigger.emit("CharFavorCount", [
                 { favorPoint: target.favorPoint },
@@ -754,14 +927,38 @@ export class BattleManager {
     await this._trigger.emit("CompleteStageSimpleAtMostId", [{ ...battleData, stageId }]);
     await this._trigger.emit("CompleteStageWithRelic", [{ ...battleData, stageId }]);
     await this._trigger.emit("CompleteStageWithTechTree", [{ ...battleData, stageId }]);
-    // act53side 通关累计勋章（PassStageWithSimpleCountMore，medal_activity_53side_06）
-    await this._trigger.emit("PassStageWithSimpleCountMore", [
-      {
-        stageId,
-        completeState: battleData.completeState ?? 0,
-        enemyStats: (battleData.battleData?.stats?.enemyStats ?? []) as never,
-      },
+    // 通关统计类勋章统一载荷（修复 2026-09-09，S1）：除 act53side 的 CountMore 外，
+    // 补发 PassStageWithSimpleCountLess / PassStageKilled / PassStageKilledLess /
+    // PassStageKilledTotal / PassStageWithSimpleTokenCountMore / ...Less ——
+    // 这些事件此前从未 emit（部分模板还是「注册天数」占位），共 72 枚勋章永不可得。
+    const stageStatPayload = {
+      stageId,
+      completeState: battleData.completeState ?? 0,
+      enemyStats: (battleData.battleData?.stats?.enemyStats ?? []) as never,
+      extraBattleInfo: (battleData.battleData?.stats?.extraBattleInfo ??
+        {}) as Record<string, unknown>,
+    };
+    await this._trigger.emit("PassStageWithSimpleCountMore", [stageStatPayload]);
+    await this._trigger.emit("PassStageWithSimpleCountLess", [stageStatPayload]);
+    await this._trigger.emit("PassStageKilled", [stageStatPayload]);
+    await this._trigger.emit("PassStageKilledLess", [stageStatPayload]);
+    await this._trigger.emit("PassStageKilledTotal", [stageStatPayload]);
+    await this._trigger.emit("PassStageWithSimpleTokenCountMore", [
+      stageStatPayload,
     ]);
+    await this._trigger.emit("PassStageWithSimpleTokenCountLess", [
+      stageStatPayload,
+    ]);
+    // 修复（2026-09-09，S2）：代理指挥相关任务事件从未 emit ——
+    // - StageWithReplay（guide_16「使用代理指挥完成任意关卡1次」）：本场为代理开局即计 1；
+    // - TakeOverReplay（guide_19「在代理指挥中接管1场战斗」）：战报标记 autoReplayCancelled。
+    // 两者此前永久卡死，并连带卡住 guide_g_2/guide_g_3 的组奖励。
+    if ((battleInfo as { isReplay?: number }).isReplay) {
+      await this._trigger.emit("StageWithReplay", [{ isReplay: 1 }]);
+    }
+    if (battleData.battleData?.stats?.autoReplayCancelled) {
+      await this._trigger.emit("TakeOverReplay", [battleData]);
+    }
     if (stType === "MAIN") {
       await this._trigger.emit("CompleteMainStage", [
         { ...battleData, stageId },
@@ -770,6 +967,52 @@ export class BattleManager {
       await this._trigger.emit("CompleteCampaign", [
         { ...battleData, stageId },
       ]);
+    }
+    // 剿灭作战（CAMPAIGN）经济：每击杀 1 名敌人 +1 合成玉（4003），并记录 maxKills；
+    // 每周上限 campaignTotalFee（官服 1800）、每周一 04:00 重置。
+    // 修复（2026-09-09，S6）：原实现对 CAMPAIGN 只发任务事件，剿灭战斗零产出。
+    if (stType === "CAMPAIGN") {
+      const campaignKills =
+        battleData.battleData?.stats?.checkKilledCnt ?? 0;
+      let campaignGained = 0;
+      await this._player.update(async (draft) => {
+        campaignGained = accrueCampaignKills(
+          draft as never,
+          stageId,
+          campaignKills,
+          now(),
+        ).gained;
+        // 修复（2026-09-09，S6）：委托任务达标状态（campaignsV2.missions 0→1）刷新——
+        // 原实现永不写入，客户端剿灭委托任务列表恒为未完成。
+        refreshCampaignMissions(
+          draft as never,
+          (excel.CampaignTable as { campaignMissions?: Record<string, { id: string; param?: string[]; breakFeeAdd?: number }> })
+            .campaignMissions ?? {},
+          now(),
+        );
+      });
+      // 修复（2026-09-09，S1）：剿灭作战蚀刻章（CampaignsComplete 模板）——原实现该事件
+      // 从未 emit，36 枚剿灭勋章永不可得。载荷为 campaignsV2 存档（模板自行校验
+      // instances[unlockParam[0]].maxKills==400 且无未领突破奖励）。
+      const campaignsSave = (
+        this._player._playerdata as unknown as {
+          campaignsV2?: { instances?: Record<string, unknown> };
+        }
+      ).campaignsV2 ?? {};
+      await this._trigger.emit("CampaignsComplete", [
+        campaignsSave as { instances?: Record<string, { maxKills?: number; rewardStatus?: number[] } | undefined> },
+      ]);
+      if (campaignGained > 0) {
+        await this._trigger.emit("items:get", [
+          [
+            {
+              id: "4003",
+              type: "DIAMOND_SHD" as ItemType,
+              count: campaignGained,
+            },
+          ],
+        ]);
+      }
     }
     await this._trigger.emit("CostAp", [{ ap: apCost }]);
     // 修复：勋章 PassStageSome 事件从未 emit → 通关特定关卡勋章永不推进
@@ -792,8 +1035,13 @@ export class BattleManager {
     await this._trigger.emit("BattleWithEnemyKill", [
       { ...battleData, stageId, killCnt },
     ]);
-    // 修复：助战通关 → 助战任务事件 + 社交点来源（使用助战方 +30/日上限1、
-    // 助战方 +20——原实现社交点无任何获取来源）
+    // 助战通关 → 助战任务事件 + 「每日结算的信用」（PRTS「信用」页：使用/被使用支援单位）。
+    //
+    // 修复（2026-09-09，审计 §5.4-12）：原先直接 `status.socialPoint += 30/20` 立即入账，
+    // 与官方口径不符——PRTS 明确「以上结算获得的信用将于**次日**发放至信用交易所，需要
+    // 手动领取」，官方存档形状为 social.yesterdayReward.{assistAmount, comfortAmount}
+    // （实测 Lv112 存档 assistAmount = 50 = 使用 30 + 被使用 20）。现改为累积进
+    // yesterdayReward.assistAmount，由 SocialManager.receiveSocialPoint 领取。
     const assistUid = battleInfo.assistFriend?.uid;
     if (assistUid) {
       await this._trigger.emit("StageWithAssistChar", [
@@ -802,40 +1050,62 @@ export class BattleManager {
       const usePt = excel.GameDataConst.useAssistSocialPt ?? 30;
       const maxUse = excel.GameDataConst.useAssistSocialPtMaxCount ?? 1;
       const todayKey = Math.floor(now() / 86400);
-      // 使用方社交点：每日上限 maxUse 次（status.assistUsedDay 为私服字段，类型未声明用 any）
+      // 使用方：每日上限 maxUse 次（status.assistUsedDay 为私服字段，类型未声明用 any）
       const st = this._player._playerdata.status as any;
       const usedToday =
         st.assistUsedDay === todayKey ||
         st.assistUsedCount >= maxUse;
       if (!usedToday) {
         await this._player.update(async (draft) => {
-          draft.status.socialPoint = (draft.status.socialPoint ?? 0) + usePt;
+          this._accumulateAssistReward(draft, this._player.uid, usePt);
           const ds = draft.status as any;
           ds.assistUsedDay = todayKey;
           ds.assistUsedCount = (ds.assistUsedCount ?? 0) + 1;
         });
-        await this._trigger.emit("ReceiveSocialPoint", [
-          { socialPoint: usePt },
-        ]);
       }
-      // 助战方社交点（assistBeUsedSocialPt 档位表，取 1 档）
+      // 助战方：assistBeUsedSocialPt 档位表（{"1": 20} = 当日第 1 次被使用给 20，每日 1 次）
       const beUsedPt =
         excel.GameDataConst.assistBeUsedSocialPt?.["1"] ?? 20;
       if (assistUid !== this._player.uid) {
         try {
           const owner = await accountManager.getPlayerData(assistUid);
           await owner.update(async (draft) => {
-            draft.status.socialPoint =
-              (draft.status.socialPoint ?? 0) + beUsedPt;
+            const os = draft.status as any;
+            if (os.assistBeUsedDay === todayKey) return;
+            this._accumulateAssistReward(draft, assistUid, beUsedPt);
+            os.assistBeUsedDay = todayKey;
           });
         } catch (e) {
           logger.warn(
             "battle",
-            `助战方 ${assistUid} 社交点发放失败: ${(e as Error).message}`,
+            `助战方 ${assistUid} 助战信用累积失败: ${(e as Error).message}`,
           );
         }
       }
     }
+  }
+
+  /**
+   * 累积「支援单位」信用到 `social.yesterdayReward.assistAmount`（当日结算、次日领取）
+   *
+   * PRTS「信用」页：每日使用一次任意支援单位 +30（`useAssistSocialPt` /
+   * `useAssistSocialPtMaxCount`），每日被他人使用一次支援单位 +20
+   * （`assistBeUsedSocialPt = {"1": 20}`）。金额累积进昨日奖励容器后由
+   * `social/receiveSocialPoint` 手动领取（不立即入账 `status.socialPoint`）。
+   * @param draft - `player.update` 配方内的可变草稿（可为助战方账号的草稿）
+   * @param _uid - 收款账号（仅用于日志，写入的是传入 draft 对应账号）
+   * @param point - 本次累积的信用点数
+   */
+  private _accumulateAssistReward(draft: any, _uid: string, point: number): void {
+    draft.social ??= {};
+    draft.social.yesterdayReward ??= {
+      canReceive: 0,
+      first: 0,
+      assistAmount: 0,
+      comfortAmount: 0,
+    };
+    draft.social.yesterdayReward.assistAmount =
+      (draft.social.yesterdayReward.assistAmount ?? 0) + point;
   }
 
   /**
@@ -1152,6 +1422,8 @@ export class BattleManager {
       };
 
       const handleOccPercent = (occPercent: number) => {
+        // 修复：NEVER/DEFINITELY_BUFF 档位（≥5）不产出，且不再刷 "Unknown dropType" 警告
+        if (occPercent >= 5) return;
         if (occPercent === 0) {
           if (dropType === 1)
             displayDetailRewards = displayDetailRewards.filter(

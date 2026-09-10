@@ -13,6 +13,29 @@ import type { ItemBundle } from "@excel/excel";
 export interface BattleInfo {
   stageId: string;
   isPractice: number;
+  /**
+   * 本场是否为代理指挥（自动作战）开局（battleStart 请求的 isReplay 字段）
+   *
+   * 修复（2026-09-09）：任务「使用代理指挥完成任意关卡」（guide_16，StageWithReplay 模板）
+   * 依赖该字段，原实现 start 未保存、finish 也未 emit → 任务永久卡死。
+   */
+  isReplay?: number;
+
+  /**
+   * 本场战斗开始时已预扣的理智（0/缺省 = 未扣：演习、免体力、apProtect 期间）
+   *
+   * 修复（2026-09-09）：理智改由 battleStart 预扣，finish 失败返还以此为上限。
+   */
+  apCharged?: number;
+
+  /**
+   * 是否已完成结算（一次性标记）
+   *
+   * 修复（2026-09-09）：battleFinish 无幂等——battleStart 写入的 battleInfo 结算后仍保留，
+   * 重放同一 battleFinish 请求可反复获得 EXP/龙门币/掉落/通关次数。
+   * 结算成功后置 1，再次结算直接拒绝。
+   */
+  settled?: number;
   /** 出战编队（用于结算信赖等后处理） */
   squad?: { slots: ({ charInstId: number } | null)[] };
   /** 助战好友信息（编队借用好友干员） */

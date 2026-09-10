@@ -9,14 +9,14 @@ import { ItemBundle, ItemType } from "@excel/excel";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import { activityDictKey } from "../shared/unlockActivity";
-import { recordPurchase } from "../../pay/purchase-record";
+import { recordPurchase } from "../../pay/public";
 import {
   informantNextState,
   informantSelectChoice,
   informantStartGame,
   informantUseInsight,
   resolveAct44Data,
-} from "../act44side/informant";
+} from "../act44side/public";
 import {
   ActCheckinvsSignRequest,
   ActCheckinvsSignResponse,
@@ -146,6 +146,98 @@ import { validateBody } from "../../../kernel/http/validate-body";
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
 
 /**
+ * 活动里程碑配置（跨活动类型统一形状）
+ */
+export interface MilestoneConfigEntry {
+  /** 里程碑 id（点数型 mileStoneId / 代币型 milestoneId） */
+  id: string;
+  /** 达标阈值（点数型 needPointCnt / 代币型 tokenNum） */
+  need: number;
+  /** 奖励物品（rewardItem / reward） */
+  reward?: ItemBundle;
+}
+
+/**
+ * 从 excel ActivityTable 查某活动的里程碑配置
+ *
+ * 修复（2026-09-09）：活动里程碑「领取」原实现只写领取标记、**零发放**——BOSS_RUSH 分支与
+ * 通用分支都不查配置表（只有 act44side 分支发了奖）。此处按活动 id 在 activity 字典
+ *（键为首字母小写，如 bossRush/enemyDuel/typeAct44Side）中定位详情，
+ * 兼容点数型 `mileStoneList`（needPointCnt + rewardItem）与代币型 `milestoneList`（tokenNum + reward）。
+ * @param activityId - 活动 id（如 act6bossrush / act44side）
+ * @returns 里程碑配置列表（无配置返回空数组）
+ */
+export function resolveMilestoneList(activityId: string): MilestoneConfigEntry[] {
+  const dict = (excel.ActivityTable as { activity?: Record<string, Record<string, unknown>> })
+    ?.activity ?? {};
+  for (const typeKey of Object.keys(dict)) {
+    const detail = dict[typeKey]?.[activityId] as
+      | { mileStoneList?: unknown[]; milestoneList?: unknown[] }
+      | undefined;
+    if (!detail) continue;
+    const list = (detail.mileStoneList ?? detail.milestoneList) as
+      | Record<string, unknown>[]
+      | undefined;
+    if (!Array.isArray(list)) continue;
+    return list.map((m) => ({
+      id: String(m?.mileStoneId ?? m?.milestoneId ?? ""),
+      need: Number(m?.needPointCnt ?? m?.tokenNum ?? 0),
+      reward: (m?.rewardItem ?? m?.reward) as ItemBundle | undefined,
+    }));
+  }
+  return [];
+}
+
+/**
+ * 里程碑配置查询 + act44side 版本偏移兜底
+ *
+ * live 客户端发 `act44sre` 而 excel 键为 `act44side`，精确匹配失败时回退旧解析器。
+ * @param activityId - 活动 id
+ * @returns 里程碑配置列表
+ */
+function resolveMilestoneConfigs(activityId: string): MilestoneConfigEntry[] {
+  const direct = resolveMilestoneList(activityId);
+  if (direct.length > 0) return direct;
+  const act44 = resolveAct44Data(activityId)?.mileStoneList as
+    | Record<string, unknown>[]
+    | undefined;
+  if (Array.isArray(act44)) {
+    return act44.map((m) => ({
+      id: String(m?.mileStoneId ?? ""),
+      need: Number(m?.needPointCnt ?? 0),
+      reward: m?.rewardItem as ItemBundle | undefined,
+    }));
+  }
+  return [];
+}
+
+/**
+ * 在 activity 存档中定位某活动的里程碑状态
+ *
+ * BOSS_RUSH / ENEMY_DUEL / ACT44SIDE 的玩家结构同形（`{ point, got }`），
+ * 故跨活动类型扫描 `activity[type][activityId].milestone`。
+ * @param draft - mutative 可写草稿
+ * @param activityId - 活动 id
+ * @returns 里程碑状态（无则 undefined）
+ */
+function findMilestoneState(
+  draft: { activity?: Record<string, Record<string, unknown> | undefined> },
+  activityId: string,
+): { point?: number; got?: string[] } | undefined {
+  const act = draft.activity;
+  if (!act || !activityId) return undefined;
+  for (const typeKey of Object.keys(act)) {
+    const entry = act[typeKey]?.[activityId] as
+      | { milestone?: { point?: number; got?: string[] } }
+      | undefined;
+    if (entry?.milestone && typeof entry.milestone === "object") {
+      return entry.milestone;
+    }
+  }
+  return undefined;
+}
+
+/**
  * milestone 活动族业务逻辑（建议 11：族包五件套——router 仅路由注册，业务收敛于 logic）
  *
  * 由 router.ts 内联 handler 提取（实现未改动）：每个活动接口一个具名函数，
@@ -154,96 +246,91 @@ import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
 
 export async function handleRewardMilestone(player: PlayerDataManager, body: RewardMilestoneRequest) {
   const rewards: ItemBundle[] = [];
-   await player.update(async (draft) => {
-    // 尖灭测试（BOSS_RUSH）：领取状态写入 milestone.got（对齐官服快照结构），
-    // 而非下面的通用 MILESTONE_ONLY 标记——客户端从 syncData 读 BOSS_RUSH[actId].milestone.got
-    const bossRush = (draft.activity as any).BOSS_RUSH?.[body.activityId] as
-      | { milestone?: { got?: string[] } }
-      | undefined;
-    if (bossRush?.milestone && body.milestoneId) {
-      if (!bossRush.milestone.got) bossRush.milestone.got = [];
-      if (!bossRush.milestone.got.includes(body.milestoneId)) {
-        bossRush.milestone.got.push(body.milestoneId);
-      }
-      return;
-    }
-    // act44side（「墟」情报屋）：领取状态写 TYPE_ACT44SIDE[actId].milestone.got
-    //（客户端读该字段而非 MILESTONE_ONLY），并按 mileStoneList 配置发放 rewardItem；
-    // point 未达 needPointCnt 时防御性拒绝（正常仅达标项可点）
-    const act44 = (draft.activity as any).TYPE_ACT44SIDE?.[body.activityId] as
-      | { milestone?: { point?: number; got?: string[] } }
-      | undefined;
-    if (act44?.milestone && body.milestoneId) {
-      if (!Array.isArray(act44.milestone.got)) act44.milestone.got = [];
-      if (act44.milestone.got.includes(body.milestoneId)) return;
-      const ms = resolveAct44Data(body.activityId)?.mileStoneList?.find(
-        (m) => m.mileStoneId === body.milestoneId,
+  await player.update(async (draft) => {
+    const milestoneId = body.milestoneId;
+    // 修复（2026-09-09）：里程碑领奖统一走「配置表 + 标准 milestone 状态」路径——
+    // BOSS_RUSH / ENEMY_DUEL / ACT44SIDE 的玩家结构同形（`{ point, got }`）。
+    // 原实现：BOSS_RUSH 分支只写 got、通用分支只写 MILESTONE_ONLY 标记，**两者都不发奖**
+    // → 所有活动里程碑「显示已领取但零收益」。
+    const state = findMilestoneState(
+      draft as { activity?: Record<string, Record<string, unknown> | undefined> },
+      body.activityId,
+    );
+    if (state && milestoneId) {
+      if (!Array.isArray(state.got)) state.got = [];
+      if (state.got.includes(milestoneId)) return; // 已领取
+      const cfg = resolveMilestoneConfigs(body.activityId).find(
+        (m) => m.id === milestoneId,
       );
-      if (!ms || (act44.milestone.point ?? 0) < (ms.needPointCnt ?? 0)) {
+      if (!cfg) {
         logger.warn(
-          "Act44side",
-          `里程碑不可领 milestoneId=${body.milestoneId} point=${act44.milestone.point}`,
+          "milestone",
+          `${body.activityId} 里程碑 ${milestoneId} 无配置，拒绝领取`,
         );
         return;
       }
-      act44.milestone.got.push(body.milestoneId);
-      if (ms.rewardItem) rewards.push(ms.rewardItem);
+      if ((state.point ?? 0) < cfg.need) {
+        logger.warn(
+          "milestone",
+          `${body.activityId} 里程碑 ${milestoneId} 未达标（point=${state.point} < ${cfg.need}）`,
+        );
+        return;
+      }
+      state.got.push(milestoneId);
+      if (cfg.reward) rewards.push(cfg.reward);
       return;
     }
-    // 通用活动：在 activity 数据中以 MILESTONE_ONLY 类型存储里程碑领取状态
-    const milestoneData = (draft.activity as any).MILESTONE_ONLY as
-      | { [key: string]: { [key: string]: number } }
-      | undefined;
-    if (!milestoneData) {
-      (draft.activity as any).MILESTONE_ONLY = {};
-    }
-    const store = (draft.activity as any).MILESTONE_ONLY as {
+    // 兜底：无标准 milestone 结构时沿用 MILESTONE_ONLY 标记（无配置可发，不发奖）
+    const store = ((draft.activity as Record<string, unknown>).MILESTONE_ONLY =
+      (draft.activity as Record<string, unknown>).MILESTONE_ONLY ?? {}) as {
       [key: string]: { [key: string]: number };
     };
-    if (!store[body.activityId]) {
-      store[body.activityId] = {};
-    }
-    // 标记该里程碑为已领取（0 表示已领取，参考游戏协议）
-    if (body.milestoneId) {
-      store[body.activityId][body.milestoneId] = 0;
-    }
+    if (!store[body.activityId]) store[body.activityId] = {};
+    if (milestoneId) store[body.activityId][milestoneId] = 0;
   });
-   // act44side 奖励入账（与既有领奖路由一致：emit items:get 落库存）
+  // 奖励入账（与既有领奖路由一致：emit items:get 落库存）
   if (rewards.length > 0) {
     await player._trigger.emit("items:get", [rewards]);
   }
-   return {
+  return {
     ...player.delta,
     item: rewards,
   } satisfies RewardMilestoneResponse;
 }
 
+
 export async function handleRewardAllMilestone(player: PlayerDataManager, body: RewardAllMilestoneRequest) {
   const rewards: ItemBundle[] = [];
-   await player.update(async (draft) => {
-    // 尖灭测试：批量领取走 milestone.got（无配置表时无法枚举未领里程碑，此处保持已领集合不变）
-    const bossRush = (draft.activity as any).BOSS_RUSH?.[body.activityId] as
-      | { milestone?: { got?: string[] } }
-      | undefined;
-    if (bossRush?.milestone) {
+  await player.update(async (draft) => {
+    // 修复（2026-09-09）：批量领取按配置表枚举「已达标且未领」的里程碑并逐个发奖——
+    // 原实现 BOSS_RUSH 直接 return（空操作）、通用分支只把已有键标 0（不发奖）。
+    const state = findMilestoneState(
+      draft as { activity?: Record<string, Record<string, unknown> | undefined> },
+      body.activityId,
+    );
+    if (state) {
+      if (!Array.isArray(state.got)) state.got = [];
+      for (const cfg of resolveMilestoneConfigs(body.activityId)) {
+        if (!cfg.id || state.got.includes(cfg.id)) continue;
+        if ((state.point ?? 0) < cfg.need) continue;
+        state.got.push(cfg.id);
+        if (cfg.reward) rewards.push(cfg.reward);
+      }
       return;
     }
-    if (!(draft.activity as any).MILESTONE_ONLY) {
-      (draft.activity as any).MILESTONE_ONLY = {};
-    }
-    const store = (draft.activity as any).MILESTONE_ONLY as {
+    const store = ((draft.activity as Record<string, unknown>).MILESTONE_ONLY =
+      (draft.activity as Record<string, unknown>).MILESTONE_ONLY ?? {}) as {
       [key: string]: { [key: string]: number };
     };
-    if (!store[body.activityId]) {
-      store[body.activityId] = {};
-    }
-    // 简化处理：将所有已有里程碑标记为已领取
-    // 实际游戏中需要查询活动配置表判断哪些里程碑已达成但未领取
+    if (!store[body.activityId]) store[body.activityId] = {};
     for (const milestoneId of Object.keys(store[body.activityId])) {
       store[body.activityId][milestoneId] = 0;
     }
   });
-   return {
+  if (rewards.length > 0) {
+    await player._trigger.emit("items:get", [rewards]);
+  }
+  return {
     ...player.delta,
     item: rewards,
   } satisfies RewardAllMilestoneResponse;
@@ -345,7 +432,20 @@ export async function handleAutoConfirmMissions(player: PlayerDataManager, body:
 }
 
 export async function handleExchangeActivityShopItem(player: PlayerDataManager, body: ExchangeActivityShopItemRequest) {
-  const count = body.count || 1;
+  const count = body.count ?? 1;
+  // 修复（2026-09-09）：count 必须为正整数。原实现 `body.count || 1` 直接透传负数 →
+  // recordPurchase 的 `existing.count += count` 会把已购数量**减回去**（负数还会让
+  // 「已购 count」变负），从而绕过活动商店的限购判定再买一轮。
+  if (!Number.isInteger(count) || count <= 0) {
+    logger.warn(
+      "milestone",
+      `exchangeActivityShopItem 非法 count=${body.count}（shop=${body.shopId} good=${body.goodId}），拒绝`,
+    );
+    return {
+      ...player.delta,
+      items: [],
+    } satisfies ExchangeActivityShopItemResponse;
+  }
   let rewardItem: ItemBundle | null = null;
    await player.update(async (draft) => {
     // 初始化模板商店数据（如果不存在）

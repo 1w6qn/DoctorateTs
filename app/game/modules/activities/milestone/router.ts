@@ -10,14 +10,14 @@ import { ItemBundle } from "@excel/excel";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import { activityDictKey } from "../shared/unlockActivity";
-import { recordPurchase } from "../../pay/purchase-record";
+import { recordPurchase } from "../../pay/public";
 import {
   informantNextState,
   informantSelectChoice,
   informantStartGame,
   informantUseInsight,
   resolveAct44Data,
-} from "../act44side/informant";
+} from "../act44side/public";
 import {
   ActCheckinvsSignRequest,
   ActCheckinvsSignResponse,

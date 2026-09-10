@@ -18,7 +18,7 @@ import { TypedEventEmitter } from "../../../kernel/events/runtime";
 import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";
 import { logger } from "@utils/logger";
-import { accountManager } from "../../account/AccountManager";
+import { accountManager } from "../../account/public";
 import { activityDictKey } from "../shared/unlockActivity";
 import type { CommonStartBattleRequest } from "../../../kernel/battle-model";
 import type { PlayerDeltaResponse } from "../../../kernel/http/common";

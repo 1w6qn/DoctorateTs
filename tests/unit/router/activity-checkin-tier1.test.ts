@@ -17,10 +17,17 @@ vi.mock("@excel/excel", () => ({
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
 
     ActivityTable: {
+      // 活动起始时间表（占位；用例内按需注入 startTime 以启用「天数门槛」）
+      basicInfo: {},
       activity: {
         checkinOnly: {
           act60sign: {
             checkInList: {
+              "0": {
+                itemList: [{ id: "4003", count: 100, type: "DIAMOND_SHD" }],
+                order: 1,
+                isDynItem: false,
+              },
               "1": {
                 itemList: [
                   { id: "4003", count: 200, type: "DIAMOND_SHD" },
@@ -85,6 +92,10 @@ vi.mock("@excel/excel", () => ({
         checkinAllPlayer: {
           act1checkin: {
             checkInList: {
+              "0": {
+                itemList: [{ id: "4003", count: 100, type: "DIAMOND_SHD" }],
+                order: 1,
+              },
               "1": {
                 itemList: [
                   { id: "4003", count: 200, type: "DIAMOND_SHD" },
@@ -101,6 +112,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import httpContext from "express-http-context2";
+import excel from "@excel/excel";
 import activityRouter from "@game/modules/activities";
 import { mockPlayerData } from "../../helpers";
 
@@ -114,6 +126,8 @@ describe("第一档：纯领奖类活动真实发奖", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // 活动起始时间表逐用例重置（天数门槛用例会注入 startTime）
+    (excel.ActivityTable as any).basicInfo = {};
     player = mockPlayerData({
       status: { uid: "1" } as any,
       activity: {} as any,
@@ -159,6 +173,60 @@ describe("第一档：纯领奖类活动真实发奖", () => {
     await call("/getActivityCheckInReward", { activityId: "act60sign", index: 1 });
     const sent = res.send.mock.calls[0][0];
     expect(sent.items).toEqual([]);
+  });
+
+  // ===== Round 27：活动签到天数门槛（§5.6-7） =====
+
+  it("getActivityCheckInReward：index 超过已过天数时被拒（原实现可一次领完全部 index）", async () => {
+    const excel = (await import("@excel/excel")).default as any;
+    const today = Math.floor(Date.now() / 1000);
+    excel.ActivityTable.basicInfo = { act60sign: { startTime: today } }; // 活动首日
+    await call("/getActivityCheckInReward", { activityId: "act60sign", index: 1 });
+    expect(res.send.mock.calls[0][0].items).toEqual([]);
+    expect(
+      player._playerdata.activity.CHECKIN_ONLY?.act60sign?.history?.[1],
+    ).toBeUndefined();
+    // 第 0 档（当天）可领
+    await call("/getActivityCheckInReward", { activityId: "act60sign", index: 0 });
+    expect(res.send.mock.calls[1][0].items).toEqual([
+      { id: "4003", count: 100, type: "DIAMOND_SHD" },
+    ]);
+  });
+
+  it("getActivityCheckInReward：同一自然日只能签到一次（读 lastTs）", async () => {
+    const excel = (await import("@excel/excel")).default as any;
+    const today = Math.floor(Date.now() / 1000);
+    excel.ActivityTable.basicInfo = { act60sign: { startTime: today - 5 * 86400 } };
+    await call("/getActivityCheckInReward", { activityId: "act60sign", index: 0 });
+    expect(res.send.mock.calls[0][0].items).toHaveLength(1);
+    // 同日再签另一档 → 被拒（原实现无 lastTs 校验，可连领）
+    await call("/getActivityCheckInReward", { activityId: "act60sign", index: 1 });
+    expect(res.send.mock.calls[1][0].items).toEqual([]);
+    // 昨日签到过 → 今日可再签
+    const act = player._playerdata.activity.CHECKIN_ONLY.act60sign;
+    act.lastTs = Math.floor(Date.now() / 1000) - 86400;
+    await call("/getActivityCheckInReward", { activityId: "act60sign", index: 1 });
+    expect(res.send.mock.calls[2][0].items).toHaveLength(2);
+  });
+
+  it("checkinAllPlayer 签到：同样受天数门槛约束", async () => {
+    const excel = (await import("@excel/excel")).default as any;
+    const today = Math.floor(Date.now() / 1000);
+    excel.ActivityTable.basicInfo = { act1checkin: { startTime: today } }; // 活动首日
+    // 第 2 档（index 1）尚未到 → 拒绝
+    await call("/checkinAllPlayer/getActivityCheckInReward", {
+      activityId: "act1checkin",
+      index: 1,
+    });
+    expect(res.send.mock.calls[0][0].items).toEqual([]);
+    // 第 1 档（index 0）可领
+    await call("/checkinAllPlayer/getActivityCheckInReward", {
+      activityId: "act1checkin",
+      index: 0,
+    });
+    expect(res.send.mock.calls[1][0].items).toEqual([
+      { id: "4003", count: 100, type: "DIAMOND_SHD" },
+    ]);
   });
 
   it("loginOnly/getReward 应发放 itemList 并标记 LOGIN_ONLY reward 已领", async () => {

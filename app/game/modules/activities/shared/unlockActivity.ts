@@ -13,10 +13,10 @@
  * 真实时间模式（timestamp 缺省/-1）不做任何改动，保持现有行为。
  */
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
-import { defaultAct44State } from "../act44side/informant";
+import { defaultAct44State } from "../act44side/public";
 import excel from "@excel/excel";
 import { userTimestamp } from "@utils/time";
-import { syncAct44SideEntry } from "../act44side/informant";
+import { syncAct44SideEntry } from "../act44side/public";
 import { logger } from "@utils/logger";
 import config from "@core/config/index";
 import { scanUnlockChain } from "../../../kernel/util/stage-unlock";

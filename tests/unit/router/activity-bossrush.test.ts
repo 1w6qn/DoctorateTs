@@ -77,7 +77,18 @@ vi.mock("@excel/excel", () => ({
               },
             },
             mileStoneList: [
-              { mileStoneId: "mileStone_1", mileStoneLvl: 1, needPointCnt: 1000 },
+              {
+                mileStoneId: "mileStone_1",
+                mileStoneLvl: 1,
+                needPointCnt: 50,
+                rewardItem: { id: "4001", count: 10000, type: "GOLD" },
+              },
+              {
+                mileStoneId: "mileStone_2",
+                mileStoneLvl: 2,
+                needPointCnt: 9999,
+                rewardItem: { id: "4001", count: 20000, type: "GOLD" },
+              },
             ],
             stageAdditionDataMap: {
               act6bossrush_01: {
@@ -363,7 +374,9 @@ describe("bossRush（尖灭测试）路由", () => {
     );
   });
 
-  it("POST /activity/rewardMilestone 对 BOSS_RUSH 活动应写入 milestone.got 而非 MILESTONE_ONLY", async () => {
+  it("POST /activity/rewardMilestone 对 BOSS_RUSH 活动应写入 milestone.got 并发放奖励", async () => {
+    // 修复（2026-09-09）：里程碑领奖改为查配置表 + 校验 point —— 原实现只写标记、零发放
+    //（mock 的 needPointCnt=50 ≤ 玩家 point=100，故可领并发放 rewardItem）
     await call("/rewardMilestone", {
       activityId: "act1bossrush",
       milestoneId: "mileStone_1",
@@ -372,7 +385,36 @@ describe("bossRush（尖灭测试）路由", () => {
     expect(activity.BOSS_RUSH.act1bossrush.milestone.got).toContain("mileStone_1");
     expect(activity.MILESTONE_ONLY).toBeUndefined();
     expect(res.send).toHaveBeenCalledWith(
-      expect.objectContaining({ item: [], playerDataDelta: {} })
+      expect.objectContaining({
+        item: [{ id: "4001", count: 10000, type: "GOLD" }],
+        playerDataDelta: {},
+      })
+    );
+  });
+
+  it("POST /activity/rewardMilestone 未达标（point < needPointCnt）应拒绝且不写标记", async () => {
+    await call("/rewardMilestone", {
+      activityId: "act1bossrush",
+      milestoneId: "mileStone_2", // needPointCnt=9999 > point=100
+    });
+    const ms: any = player._playerdata.activity.BOSS_RUSH.act1bossrush.milestone;
+    expect(ms.got).not.toContain("mileStone_2");
+    expect(res.send).toHaveBeenCalledWith(
+      expect.objectContaining({ item: [] })
+    );
+  });
+
+  it("POST /activity/rewardAllMilestone 应一次领完所有达标里程碑并发奖", async () => {
+    await call("/rewardAllMilestone", {
+      activityId: "act1bossrush",
+    });
+    const ms: any = player._playerdata.activity.BOSS_RUSH.act1bossrush.milestone;
+    expect(ms.got).toContain("mileStone_1"); // 达标档位已领
+    expect(ms.got).not.toContain("mileStone_2"); // 未达标档位不领
+    expect(res.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        item: [{ id: "4001", count: 10000, type: "GOLD" }],
+      })
     );
   });
 });

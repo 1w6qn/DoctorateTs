@@ -380,6 +380,13 @@ export const activityMiniBattleStartSchema = z.object({});
 /** 活动小游戏战斗结算（ActMiniBattleFinishRequest；未读取 body） */
 export const activityMiniBattleFinishSchema = z.object({});
 
+/** act1vhalfidle 战斗结算（Act1VHalfIdleBattleFinishRequest；读取 activityId + stageId 以登记关卡产出） */
+export const act1vhalfidleBattleFinishSchema = z.object({
+  activityId: z.string().optional(),
+  stageId: z.string().optional(),
+  completeState: z.number().optional(),
+});
+
 /** 抽奖/登录/许愿类 getReward（ActivityGetRewardRequest；未读取 body） */
 export const activityGetRewardSchema = z.object({
   activityId: z.string().optional(),

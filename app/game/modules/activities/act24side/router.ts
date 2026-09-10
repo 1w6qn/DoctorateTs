@@ -6,8 +6,9 @@ import * as ReqSchema from "../shared/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../kernel/http/request-context";
 import { ItemBundle, ItemType } from "@excel/excel";
-import excel from "@excel/excel";
+import excel, { OCC_PERCENT_NUMERIC } from "@excel/excel";
 import { activityDictKey } from "../shared/unlockActivity";
+import { logger } from "@utils/logger";
 import {
   ActCheckinvsSignRequest,
   ActCheckinvsSignResponse,
@@ -134,35 +135,113 @@ import {
 } from "../shared/activity";
 import { validateBody } from "../../../kernel/http/validate-body";
 
+/**
+ * act24side（落叶逐火 / 源石技艺炼金站）活动配置读取
+ *
+ * 修复（2026-09-09）：原实现把炼金素材分值表**硬编码为不存在的 `act50melding_1..6`**
+ *（excel 实际为 `act24side_melding_1..6`，分值 2/3/5/10/20/200）→ 每次炼金 totalScore 恒 0、
+ * `gachaTimes=0`，素材被扣却零产出。
+ */
+interface Act24Config {
+  /** 素材 id → 炼金分值（meldingDict[*].meldingPrice） */
+  meldingPrice: Record<string, number>;
+  /** 炼金箱配置：gachaCost（每次消耗分值）/ gachaTimesLimit（单次上限） */
+  box: Record<string, { gachaCost: number; gachaTimesLimit: number }>;
+  /** 炼金箱奖池（meldingGachaBoxGoodDataMap[boxId]） */
+  goods: Record<string, Act24Good[]>;
+  /** 关卡掉落配置（meldingDropDict[stageId]） */
+  drops: Record<string, { displayDetailRewards?: Act24DropEntry[] }>;
+  /** 用餐配置（mealDataList） */
+  meals: Record<string, { mealCost: number; mealRewardAP: number; mealRewardItemInfo?: ItemBundle }>;
+  /** 用餐每日次数上限（constData.mealDayTimesLimit） */
+  mealDayTimesLimit: number;
+}
+
+/** 炼金箱奖池条目 */
+interface Act24Good {
+  goodId: string;
+  itemId: string;
+  itemType: string;
+  perCount: number;
+  totalCount: number;
+  gachaType?: string;
+}
+
+/** meldingDropDict 掉落条目（原始 excel 形状，occPercent 为字符串） */
+interface Act24DropEntry {
+  id: string;
+  type: string;
+  dropType: string | number;
+  occPercent: string | number;
+}
+
+/** 掉落档位 → 概率（与 battle 掉落同表：0=必掉 / 1=75% / 2=40% / 3=15% / 4=3%） */
+const ACT24_OCC_PROB = [1, 0.75, 0.4, 0.15, 0.03];
+
+/**
+ * 读取 act24side 活动配置（只读）
+ * @param activityId - 活动 id（客户端传 act24side）
+ * @returns 归一化后的配置
+ */
+function act24Config(activityId: string): Act24Config {
+  const dict = (excel.ActivityTable as { activity?: Record<string, Record<string, any>> })
+    ?.activity ?? {};
+  const key = activityDictKey("TYPE_ACT24SIDE") ?? "tYPE_ACT24SIDE";
+  const detail = dict[key]?.[activityId] ?? dict[key]?.["act24side"] ?? {};
+  const meldingPrice: Record<string, number> = {};
+  for (const m of Object.values(detail.meldingDict ?? {}) as any[]) {
+    if (m?.meldingId) meldingPrice[m.meldingId] = Number(m.meldingPrice ?? 0);
+  }
+  const box: Act24Config["box"] = {};
+  for (const b of Object.values(detail.meldingGachaBoxDataList ?? {}) as any[]) {
+    if (b?.gachaBoxId) {
+      box[b.gachaBoxId] = {
+        gachaCost: Number(b.gachaCost ?? 0),
+        gachaTimesLimit: Number(b.gachaTimesLimit ?? 0),
+      };
+    }
+  }
+  return {
+    meldingPrice,
+    box,
+    goods: (detail.meldingGachaBoxGoodDataMap ?? {}) as Record<string, Act24Good[]>,
+    drops: (detail.meldingDropDict ?? {}) as Act24Config["drops"],
+    meals: (detail.mealDataList ?? {}) as Act24Config["meals"],
+    mealDayTimesLimit: Number(detail.constData?.mealDayTimesLimit ?? 1) || 1,
+  };
+}
+
+/**
+ * 掷骰一组 act24side 掉落（occPercent 字符串 → 档位 → 概率）
+ * @param entries - displayDetailRewards
+ * @returns 命中的物品列表
+ */
+function rollAct24Drops(entries: Act24DropEntry[] | undefined): ItemBundle[] {
+  const out: ItemBundle[] = [];
+  for (const e of entries ?? []) {
+    const tier =
+      typeof e.occPercent === "number"
+        ? e.occPercent
+        : (OCC_PERCENT_NUMERIC[e.occPercent] ?? 4);
+    const prob = ACT24_OCC_PROB[tier] ?? 0;
+    if (prob <= 0) continue;
+    if (prob < 1 && Math.random() >= prob) continue;
+    out.push({ id: e.id, type: e.type as ItemType, count: 1 });
+  }
+  return out;
+}
 const router = Router();
 router.post("/act24side/alchemy", validateBody(ReqSchema.act24sideAlchemySchema), async (req, res) => {
   const player = getPlayer();
   const body = req.body as Act24sideAlchemyRequest;
   const { activityId, gachaBox } = body;
   const items = body.items ?? {};
-  const itemsScoreMap: { [key: string]: number } = {
-    act50melding_1: 2,
-    act50melding_2: 3,
-    act50melding_3: 5,
-    act50melding_4: 10,
-    act50melding_5: 20,
-    act50melding_6: 200,
-  };
-  // 修复：excel activity 字典键为首字母小写（tYPE_ACT24SIDE）——原枚举大小写恒 undefined
-  const gachabox = (
-    (excel.ActivityTable as any)?.activity?.[
-      activityDictKey("TYPE_ACT24SIDE") ?? "tYPE_ACT24SIDE"
-    ]?.[activityId]
-      ?.meldingGachaBoxGoodDataMap?.[gachaBox] as
-      | Array<{
-          goodId: string;
-          itemId: string;
-          itemType: string;
-          perCount: number;
-          totalCount: number;
-        }>
-      | undefined
-  );
+  // 修复（2026-09-09）：分值表/消耗/上限/余值全部改为读活动配置——
+  // 原实现硬编码不存在的 `act50melding_*`（恒 0 分）、两箱统一 `/100`（转换箱应为 40）、
+  // 无 10 次上限、余值丢弃、`totalCount=0` 的 UNLIMITED 池被永久排除。
+  const cfg = act24Config(activityId);
+  const boxCfg = cfg.box[gachaBox] ?? { gachaCost: 0, gachaTimesLimit: 0 };
+  const goodList = cfg.goods[gachaBox] ?? [];
   const rewards: ItemBundle[] = [];
   let valid = true;
 
@@ -172,8 +251,11 @@ router.post("/act24side/alchemy", validateBody(ReqSchema.act24sideAlchemySchema)
       | undefined;
     if (!act) return;
     if (!act[activityId]) act[activityId] = {};
-    if (!act[activityId].alchemy) act[activityId].alchemy = { item: {}, gacha: {} };
-    const itemsData = act[activityId].alchemy.item;
+    if (!act[activityId].alchemy) {
+      act[activityId].alchemy = { price: 0, item: {}, gacha: {} };
+    }
+    const alchemy = act[activityId].alchemy;
+    const itemsData = alchemy.item;
     // 校验素材是否足够（不足则整单不消耗）
     for (const [key, count] of Object.entries(items)) {
       if ((itemsData[key] ?? 0) < Number(count)) {
@@ -181,24 +263,34 @@ router.post("/act24side/alchemy", validateBody(ReqSchema.act24sideAlchemySchema)
         return;
       }
     }
-    let totalScore = 0;
+    let addScore = 0;
     for (const [key, count] of Object.entries(items)) {
-      const n = Number(count);
-      itemsData[key] -= n;
-      totalScore += n * (itemsScoreMap[key] ?? 0);
+      addScore += Number(count) * (cfg.meldingPrice[key] ?? 0);
     }
-    const gachaTimes = Math.floor(totalScore / 100);
-    if (gachaTimes <= 0 || !gachabox?.length) return;
-    if (!act[activityId].alchemy.gacha[gachaBox]) {
-      act[activityId].alchemy.gacha[gachaBox] = {};
+    for (const [key, count] of Object.entries(items)) {
+      itemsData[key] -= Number(count);
     }
-    const drawnMap = act[activityId].alchemy.gacha[gachaBox];
-    // 剩余可抽池（totalCount - 已抽）
-    const available: Array<[(typeof gachabox)[number], number]> = [];
-    for (const boxItem of gachabox) {
-      const remaining = boxItem.totalCount - (drawnMap[boxItem.goodId] ?? 0);
-      if (remaining > 0) available.push([boxItem, remaining]);
-    }
+    const cost = boxCfg.gachaCost > 0 ? boxCfg.gachaCost : 1;
+    const limit = boxCfg.gachaTimesLimit > 0 ? boxCfg.gachaTimesLimit : 10;
+    const totalScore = Number(alchemy.price ?? 0) + addScore;
+    const gachaTimes = Math.min(limit, Math.floor(totalScore / cost));
+    // 未达一次炼金阈值的余值留存（官方 price 字段跨次继承）
+    alchemy.price = totalScore - gachaTimes * cost;
+    if (gachaTimes <= 0 || goodList.length === 0) return;
+    if (!alchemy.gacha[gachaBox]) alchemy.gacha[gachaBox] = {};
+    const drawnMap = alchemy.gacha[gachaBox];
+    // 剩余可抽池：LIMITED 按 totalCount-已抽；UNLIMITED / totalCount=0 视为无限
+    const available: Array<{ good: Act24Good; remaining: number }> = goodList
+      .map((good) => {
+        const unlimited =
+          String(good.gachaType ?? "").toUpperCase() === "UNLIMITED" ||
+          !good.totalCount;
+        const remaining = unlimited
+          ? Number.POSITIVE_INFINITY
+          : good.totalCount - (drawnMap[good.goodId] ?? 0);
+        return { good, remaining };
+      })
+      .filter((entry) => entry.remaining > 0);
     const drawResult: {
       [goodId: string]: {
         goodId: string;
@@ -208,27 +300,31 @@ router.post("/act24side/alchemy", validateBody(ReqSchema.act24sideAlchemySchema)
         count: number;
       };
     } = {};
-    for (let i = 0; i < gachaTimes; i++) {
-      if (!available.length) break;
+    for (let i = 0; i < gachaTimes && available.length > 0; i++) {
       const idx = Math.floor(Math.random() * available.length);
-      const [boxItem, remaining] = available[idx];
-      if (!drawResult[boxItem.goodId]) {
-        drawResult[boxItem.goodId] = {
-          goodId: boxItem.goodId,
-          itemId: boxItem.itemId,
-          itemType: boxItem.itemType,
-          perCount: boxItem.perCount,
+      const entry = available[idx];
+      if (!drawResult[entry.good.goodId]) {
+        drawResult[entry.good.goodId] = {
+          goodId: entry.good.goodId,
+          itemId: entry.good.itemId,
+          itemType: entry.good.itemType,
+          perCount: entry.good.perCount,
           count: 0,
         };
       }
-      drawResult[boxItem.goodId].count += 1;
-      available[idx][1] = remaining - 1;
-      if (available[idx][1] <= 0) available.splice(idx, 1);
+      drawResult[entry.good.goodId].count += 1;
+      if (Number.isFinite(entry.remaining)) {
+        entry.remaining -= 1;
+        if (entry.remaining <= 0) available.splice(idx, 1);
+      }
     }
     for (const v of Object.values(drawResult)) {
       drawnMap[v.goodId] = (drawnMap[v.goodId] ?? 0) + v.count;
-      rewards.push({ id: v.itemId, type: v.itemType as ItemType, count: v.perCount * v.count,
-       });
+      rewards.push({
+        id: v.itemId,
+        type: v.itemType as ItemType,
+        count: v.perCount * v.count,
+      });
     }
   });
 
@@ -271,15 +367,47 @@ router.post("/act24side/battleFinish", validateBody(ReqSchema.act24sideBattleFin
   if (body.data == null) {
     return res.send({ result: 1, ...player.delta });
   }
+  // 修复（2026-09-09）：结算前取本场关卡 id（会话在 finish 后结束）与首通状态，
+  // 用于按 meldingDropDict 发放炼金素材（原实现三字段恒空数组 → 打本→素材→炼金主循环断链）。
+  const stageId = player.battle.getActiveBattle()?.stageId ?? "";
+  const prevState =
+    (player._playerdata.dungeon?.stages as Record<string, { state?: number }> | undefined)?.[
+      stageId
+    ]?.state ?? 0;
   const result = await player.battle.finish({
     data: body.data,
     battleData: body.battleData,
   });
+  const cfg = act24Config(body.activityId ?? "act24side");
+  // 常规掉落：按 meldingDropDict[stageId].displayDetailRewards 掷骰（首通为最高档）
+  const meldingRewards = rollAct24Drops(
+    cfg.drops[stageId]?.displayDetailRewards,
+  );
+  const firstMeldingRewards =
+    prevState < 2 && meldingRewards.length > 0 ? [...meldingRewards] : [];
+  const allRewards: ItemBundle[] = [...meldingRewards, ...firstMeldingRewards];
+  // 用餐加成：当日首次通关额外获得 mealRewardItemInfo（meal.chance 标记已用）
+  const mealMeldingRewards: ItemBundle[] = [];
+  await player.update(async (draft) => {
+    const act = (draft.activity as any).TYPE_ACT24SIDE?.[body.activityId ?? "act24side"] as
+      | { meal?: { digested?: number; chance?: number; id?: string } }
+      | undefined;
+    const meal = act?.meal;
+    if (!meal || meal.digested !== 1 || meal.chance === 1) return;
+    const cfgItem = meal.id ? cfg.meals[meal.id]?.mealRewardItemInfo : undefined;
+    if (!cfgItem) return;
+    meal.chance = 1;
+    mealMeldingRewards.push(cfgItem);
+  });
+  allRewards.push(...mealMeldingRewards);
+  if (allRewards.length > 0) {
+    await player._trigger.emit("items:get", [allRewards]);
+  }
   res.send({
     ...result,
-    meldingRewards: [],
-    firstMeldingRewards: [],
-    mealMeldingRewards: [],
+    meldingRewards,
+    firstMeldingRewards,
+    mealMeldingRewards,
     ...player.delta,
   } satisfies Act24sideBattleFinishResponse);
 });
@@ -293,14 +421,39 @@ router.post("/act24side/battleFinish", validateBody(ReqSchema.act24sideBattleFin
 router.post("/act24side/eat", validateBody(ReqSchema.act24sideEatSchema), async (req, res) => {
   const player = getPlayer();
   const body = req.body as Act24sideEatRequest;
+  const activityId = body.activityId ?? "act24side";
+  // 修复（2026-09-09）：用餐真实结算——按 mealDataList 扣龙门币（200）、加理智（20），
+  // 并遵守 constData.mealDayTimesLimit（每日 1 次）；原实现只写 `meal` 状态，不扣币不加理智。
+  const cfg = act24Config(activityId);
+  const mealCfg = cfg.meals[body.meal];
+  const today = new Date().toISOString().slice(0, 10);
+  let apGain = 0;
   await player.update(async (draft) => {
     const act = (draft.activity as any).TYPE_ACT24SIDE as
       | { [key: string]: any }
       | undefined;
     if (!act) return;
-    if (!act[body.activityId]) act[body.activityId] = {};
-    act[body.activityId].meal = { digested: 0, chance: 0, id: body.meal };
+    if (!act[activityId]) act[activityId] = {};
+    const current = act[activityId].meal as
+      | { digested?: number; chance?: number; id?: string; day?: string }
+      | undefined;
+    // 每日限次（mealDayTimesLimit，官服为 1）：当日已用餐则忽略请求
+    if (current?.day === today && cfg.mealDayTimesLimit <= 1) return;
+    const cost = mealCfg?.mealCost ?? 0;
+    if (cost > 0 && (draft.status.gold ?? 0) < cost) {
+      logger.warn("act24side", `龙门币不足（需 ${cost}），拒绝用餐 ${body.meal}`);
+      return;
+    }
+    if (cost > 0) draft.status.gold -= cost;
+    // digested=1：当日首次通关额外掉落待用；chance=0：尚未使用该加成
+    act[activityId].meal = { digested: 1, chance: 0, id: body.meal, day: today };
+    apGain = mealCfg?.mealRewardAP ?? 0;
   });
+  if (apGain > 0) {
+    await player._trigger.emit("items:get", [
+      [{ id: "", type: "AP_GAMEPLAY" as ItemType, count: apGain }],
+    ]);
+  }
   res.send(player.delta satisfies Act24sideEatResponse);
 });
 

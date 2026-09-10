@@ -148,9 +148,15 @@ router.post("/recycleCharms", validateBody(ReqSchema.recycleCharmsSchema), async
         recycleNum += 1;
         // 查找信物配置获取回收价格
         const charmInfo = excel.CharmTable.charmList.find((c) => c.id === charmId);
-        if (charmInfo) {
-          // 回收返还 1 个硬币（简化处理，实际游戏按价格比例返还）
-          draft.inventory["4001"] = (draft.inventory["4001"] || 0) + 1;
+        // 修复（2026-09-09，两处）：
+        // 1. **龙门币写错容器**：id 4001 / itemType GOLD 的龙门币余额在 @@status.gold@@，
+        //    不在 @@inventory@@ —— 原实现写 @@draft.inventory["4001"]@@ 玩家一分钱拿不到，
+        //    存档里反而多出一个幽灵 inventory 键（客户端与后续逻辑读 status.gold）。
+        // 2. **返还额数据驱动**：@@CharmTable.charmList[].price@@（如 level_cost_1 = 15），
+        //    原实现硬编码「1 个硬币」。
+        const refund = Number((charmInfo as any)?.price ?? 0);
+        if (refund > 0) {
+          draft.status.gold = (draft.status.gold ?? 0) + refund;
         }
       }
     }

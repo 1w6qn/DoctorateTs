@@ -7,7 +7,6 @@ import * as ReqSchema from "../shared/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../kernel/http/request-context";
 import { now } from "@utils/time";
-import { VHALFIDLE_POOLS, VHALFIDLE_SPEC_CHAR } from "./vhalfidle";
 import {
   ActCheckinvsSignRequest,
   ActCheckinvsSignResponse,
@@ -141,7 +140,7 @@ router.post("/act1vhalfidle/battleStart", validateBody(ReqSchema.activityMiniBat
   res.send(await handleAct1vhalfidlebattleStart(getPlayer(), req.body as ActivityMiniBattleStartRequest));
 });
 
-router.post("/act1vhalfidle/battleFinish", validateBody(ReqSchema.activityMiniBattleFinishSchema), async (req, res) => {
+router.post("/act1vhalfidle/battleFinish", validateBody(ReqSchema.act1vhalfidleBattleFinishSchema), async (req, res) => {
   res.send(await handleAct1vhalfidlebattleFinish(getPlayer(), req.body as ActivityMiniBattleFinishRequest));
 });
 

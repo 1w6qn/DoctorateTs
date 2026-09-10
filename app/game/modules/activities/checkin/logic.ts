@@ -176,6 +176,39 @@ export async function handleGetOpenServerCheckInReward(player: PlayerDataManager
   } satisfies GetOpenServerCheckInRewardResponse);
 }
 
+/**
+ * 活动签到天数门槛（CHECKIN_ONLY / CHECKIN_ALL_PLAYER 共用）
+ *
+ * 修复（2026-09-09，§5.6-7）：原实现只看 `history[index] === 0`（已领取标记），既不校验
+ * 「index 对应已签天数」也不读 `lastTs` —— 一次请求即可把全部 index 领完。
+ * 官方口径：每日 1 次、index 对应自活动开始已过的天数。
+ * 起始时间取 `ActivityTable.basicInfo[activityId].startTime`（缺失时不设天数门槛，容错放行）。
+ * @param activityId - 活动 id
+ * @param targetIndex - 目标档位
+ * @param lastTs - 该活动上次签到时间戳（秒，0 = 从未签到）
+ * @param nowTs - 当前时间（秒）
+ * @returns 拒绝原因（null = 允许领取）
+ */
+function checkinDayGate(
+  activityId: string,
+  targetIndex: number,
+  lastTs: number,
+  nowTs: number,
+): "index" | "today" | null {
+  if (targetIndex < 0) return "index";
+  const startTs = Number(
+    (excel.ActivityTable as any)?.basicInfo?.[activityId]?.startTime ?? 0,
+  );
+  if (startTs > 0) {
+    const dayIndex = Math.floor((nowTs - startTs) / 86400);
+    if (targetIndex > dayIndex) return "index"; // 尚未签到到该天数
+  }
+  if (lastTs > 0 && Math.floor(lastTs / 86400) >= Math.floor(nowTs / 86400)) {
+    return "today"; // 同一自然日只能签到一次
+  }
+  return null;
+}
+
 export async function handleGetActivityCheckInReward(player: PlayerDataManager, body: GetActivityCheckInRewardRequest) {
   // 缺参校验：activityId/index 为必填，缺失时返回业务错误
   if (body.activityId == null || body.index == null) {
@@ -183,7 +216,9 @@ export async function handleGetActivityCheckInReward(player: PlayerDataManager, 
   }
   const activityId = body.activityId;
   const targetIndex = body.index;
+  const nowTs = now(); // @utils/time.now() 已是秒级时间戳（勿再 /1000）
   let already = false;
+  let blocked = false;
 
   await player.update(async (draft) => {
     if (!draft.activity) {
@@ -198,16 +233,22 @@ export async function handleGetActivityCheckInReward(player: PlayerDataManager, 
         history: [],
       };
     }
+    const data = (draft.activity as any).CHECKIN_ONLY[activityId];
     // 修复：已领取的 index 不再重复发奖（原实现恒置 0 → 可重复刷）
-    if ((draft.activity as any).CHECKIN_ONLY[activityId].history[targetIndex] === 0) {
+    if (data.history[targetIndex] === 0) {
       already = true;
       return;
     }
-    (draft.activity as any).CHECKIN_ONLY[activityId].history[targetIndex] = 0;
-    (draft.activity as any).CHECKIN_ONLY[activityId].lastTs = Math.floor(Date.now() / 1000);
+    // 修复（§5.6-7）：天数门槛 + 每日 1 次
+    if (checkinDayGate(activityId, targetIndex, Number(data.lastTs ?? 0), nowTs)) {
+      blocked = true;
+      return;
+    }
+    data.history[targetIndex] = 0;
+    data.lastTs = nowTs;
   });
 
-  if (already) {
+  if (already || blocked) {
     return ({
       ...player.delta,
       items: [],
@@ -445,7 +486,9 @@ export async function handleCheckinAllPlayerCheckin(
     return ({ result: 1, ...player.delta });
   }
 
+  const nowTs = now(); // @utils/time.now() 已是秒级时间戳（勿再 /1000）
   let already = false;
+  let blocked = false;
   await player.update(async (draft) => {
     if (!draft.activity) {
       (draft as any).activity = {};
@@ -464,11 +507,16 @@ export async function handleCheckinAllPlayerCheckin(
       already = true;
       return;
     }
+    // 修复（§5.6-7）：天数门槛 + 每日 1 次（与 CHECKIN_ONLY 同口径）
+    if (checkinDayGate(activityId, targetIndex, Number(data.lastTs ?? 0), nowTs)) {
+      blocked = true;
+      return;
+    }
     data.history[targetIndex] = 0;
-    data.lastTs = Math.floor(Date.now() / 1000);
+    data.lastTs = nowTs;
   });
 
-  if (already) {
+  if (already || blocked) {
     return ({
       ...player.delta,
       items: [],

@@ -82,6 +82,16 @@ import { readJsonSync } from "@utils/file";
 
 export const rlv2Templates: MissionTemplateGroup = {
 
+  /**
+   * 完成并结算指定主题的集成战略（Rlv2SettleGame）
+   *
+   * 修复（2026-09-09）：原实现 `update: () => {}` 恒不推进，且全仓无 emit 站点
+   * → 任务「完成并结算一次集成战略：岁的界园志异」(soWeekTask_3) 永久卡死。
+   * 现由 settle.ts#gameSettle 成功结算时 emit `Rlv2SettleGame`。
+   * @param param[0] 分支位（恒 "0"）
+   * @param param[1] 目标结算次数
+   * @param param[2] 主题 id（如 rogue_5；缺省不限主题）
+   */
   Rlv2SettleGame: {
     "0": {
       init: (mission) => {
@@ -90,10 +100,29 @@ export const rlv2Templates: MissionTemplateGroup = {
           target: parseInt(mission.param[1]),
         });
       },
-      update: () => {},
+      update: (
+        mission,
+        args: {
+          data?: { current?: { game?: { theme?: string } | null } } | null;
+        },
+      ) => {
+        // 主题取值：整份 rlv2 存档（data.current.game.theme）为发送形态
+        const theme = args?.data?.current?.game?.theme;
+        const want = mission.param[2];
+        if (want && theme !== want) return;
+        mission.progress[0].value += 1;
+      },
     },
   },
 
+  /**
+   * 完成并结算任意主题的集成战略（Rlv2SettleGameTimes）
+   *
+   * 修复（2026-09-09）：同 Rlv2SettleGame——原 update 空实现且无 emit 站点，
+   * 任务 soWeekTask_3_rogue6 永久卡死。
+   * @param param[0] 分支位（恒 "0"）
+   * @param param[1] 目标结算次数
+   */
   Rlv2SettleGameTimes: {
     "0": {
       init: (mission) => {
@@ -102,7 +131,9 @@ export const rlv2Templates: MissionTemplateGroup = {
           target: parseInt(mission.param[1]),
         });
       },
-      update: () => {},
+      update: (mission) => {
+        mission.progress[0].value += 1;
+      },
     },
   },
 

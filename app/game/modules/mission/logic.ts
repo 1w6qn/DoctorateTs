@@ -153,6 +153,100 @@ export class MissionManager {
   }
 
   /**
+   * 取当前生效的特勤干员周任务 id 列表。
+   *
+   * 数据源：@@MissionTable.soCharMissionGroupInfo@@——特勤干员周任务是**独立的**
+   * 周期组容器（不登记在 @@MissionTable.missionGroups@@ 中，全表 209 组仅
+   * GUIDE/SUB/MAIN/DAILY/WEEKLY/RETRO 六类），每组带 startTs/endTs 时间窗：
+   * - @@soWeekTask_g_1@@（soWeekTask_1/2/3，endTs 1783886399 = 2026-07-12）已过期
+   * - @@soWeekTask_g_2@@（soWeekTask_1/2/3_rogue6，startTs 1783886400 起）当前生效
+   * 因此必须按时间窗过滤，过期组不再播种（客户端也随之不再显示）。
+   *
+   * 兜底：数据表缺 soCharMissionGroupInfo（旧版数据/单测 mock）时按 @@type@@ 扫描
+   * @@MissionTable.missions@@。
+   * @returns 生效组内、且确实存在于 MissionTable.missions 的任务 id（保持组内顺序）
+   */
+  private _activeSpecialOperatorWeeklyIds(): string[] {
+    const missions = (excel.MissionTable?.missions ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const groups = (excel.MissionTable as any)?.soCharMissionGroupInfo as
+      | Record<string, { missionIds?: string[]; startTs?: number; endTs?: number }>
+      | undefined;
+    if (groups && typeof groups === "object") {
+      const ts = now();
+      const active = Object.values(groups).filter(
+        (g) =>
+          g &&
+          checkBetween(ts, Number(g.startTs ?? 0), Number(g.endTs ?? 0)),
+      );
+      if (active.length > 0) {
+        return active
+          .flatMap((g) => g.missionIds ?? [])
+          .filter((id) => !!missions[id]);
+      }
+      // 组容器存在但当前无生效组（活动间歇期）→ 不播种任何特勤周任务
+      if (Object.keys(groups).length > 0) return [];
+    }
+    return Object.entries(missions)
+      .filter(
+        ([, m]) =>
+          !!m &&
+          typeof m === "object" &&
+          (m as { type?: string }).type === "SPECIAL_OPERATOR_WEEKLY",
+      )
+      .map(([id]) => id);
+  }
+
+  /**
+   * 播种特勤干员**周任务**（SPECIAL_OPERATOR_WEEKLY）到玩家任务数据（幂等）
+   *
+   * 数据源：@@MissionTable.soCharMissionGroupInfo@@ 当前生效组
+   * （@@soWeekTask_1/2/3(_rogue6)@@：累计消耗 500/1000 理智、结算一次集成战略，
+   * 奖励 @@SO_CHAR_EXP@@ 特勤作战记录 @@so_char_exp_1@@ 6000/6000/8000）。
+   *
+   * 修复（2026-09-09，审计 §5.4-11）：这些任务的 @@missionGroup@@ 指向
+   * @@soWeekTask_g_1/g_2@@，而 @@MissionTable.missionGroups@@ **没有**这两个组，
+   * 故既不会被周期组播种、也不在任何组的 @@missionIds@@ 中 → 全仓无引用、
+   * 特勤干员经验来源缺失。现按 @@soCharMissionGroupInfo@@ 时间窗播种
+   * （与既有 @@seedSpecialOperatorMissions@@ 同口径）。
+   *
+   * **解锁门控**：@@SpecialOperatorTable.constData.weeklyTaskBoardUnlock = "main_03-08"@@
+   * ——未通关该关（completeTimes > 0 或 state ≥ 2）不播种（官服任务板此时未开放）。
+   * 播种条目 state 取 @@_isChainHead@@（@@preMissionIds@@ 为空 → 2 可见可做）。
+   * @param draft - update() 配方的可写草稿（playerData）
+   */
+  private seedSpecialOperatorWeeklyMissions(draft: any): void {
+    if (!this._specialOperatorBoardUnlocked(draft)) return;
+    const group = (draft.mission.missions["SPECIAL_OPERATOR_WEEKLY"] ??= {});
+    for (const id of this._activeSpecialOperatorWeeklyIds()) {
+      // 幂等：已有条目（含已完成进度）保持不变
+      if (!group[id]) {
+        group[id] = {
+          state: this._isChainHead(id) ? 2 : 1,
+          progress: this._seedInitialProgress(id),
+        };
+      }
+    }
+  }
+
+  /**
+   * 特勤干员任务板是否已解锁
+   *
+   * 依据 @@SpecialOperatorTable.constData.weeklyTaskBoardUnlock@@（实测 "main_03-08"）——
+   * 该关通关（completeTimes > 0）或已达成星数（state ≥ 2）视为解锁；常量缺失时不设门槛。
+   */
+  private _specialOperatorBoardUnlocked(draft: any): boolean {
+    const unlockStage = (excel.SpecialOperatorTable as any)?.constData
+      ?.weeklyTaskBoardUnlock as string | undefined;
+    if (!unlockStage) return true;
+    const stage = draft?.dungeon?.stages?.[unlockStage];
+    if (!stage) return false;
+    return Number(stage.completeTimes ?? 0) > 0 || Number(stage.state ?? 0) >= 2;
+  }
+
+  /**
    * 初始化任务系统
    * 遍历所有任务类型，为每个任务创建MissionProgress实例并初始化
    */
@@ -165,6 +259,9 @@ export class MissionManager {
       draft.mission.missions["ACTIVITY"] ??= {};
       // 播种特勤干员（SPECIAL_OPERATOR）任务（幂等：仅补缺失条目，见 seedSpecialOperatorMissions）
       this.seedSpecialOperatorMissions(draft);
+      // 播种特勤干员周任务（SPECIAL_OPERATOR_WEEKLY，审计 §5.4-11：原全仓无引用，
+      // 因 missionGroup 指向 MissionTable 中不存在的组；按 type 播种 + 任务板解锁门控）
+      this.seedSpecialOperatorWeeklyMissions(draft);
     });
     for (const [type, v] of Object.entries(
       this._player._playerdata.mission.missions,
@@ -297,7 +394,10 @@ export class MissionManager {
       // 每日任务不显示；仅靠游戏事件触发 getState() 才偶然提升为 2。
       for (const id of currentIds) {
         daily[id] = {
-          state: DAILY_START_LIST.includes(id) ? 2 : 1,
+          // 修复（2026-09-09）：链头按数据表 preMissionIds 动态判定（原硬编码
+          // DAILY_START_LIST 停留在 daily_6329 一代，当前周期组 daily_g_70/71 命中率 0
+          // → 29 条每日任务全部播种 state=1，客户端列表恒空）
+          state: this._isChainHead(id) ? 2 : 1,
           progress: this._seedInitialProgress(id),
         };
       }
@@ -345,11 +445,45 @@ export class MissionManager {
       });
       for (const id of weeklyIds) {
         weekly[id] = {
-          state: WEEKLY_START_LIST.includes(id) ? 2 : 1,
+          state: this._isChainHead(id) ? 2 : 1,
           progress: this._seedInitialProgress(id),
         };
       }
     });
+    // 特勤干员周任务（SPECIAL_OPERATOR_WEEKLY）：同口径周重置（审计 §5.4-11）——
+    // 这些任务不属于 MissionTable.missionGroups 周期组，原实现从不重置：上周完成态
+    // 永久保留、新账号也不会出现。此处按生效组整体重建（含任务板解锁门控）并重建实例；
+    // 整体重建同时处理了组轮换（g_1 过期 → g_2 生效）与过期组条目的清除。
+    await this._player.update(async (draft) => {
+      // 未解锁：清空该组（避免旧存档残留条目在未通关时仍显示）
+      if (!this._specialOperatorBoardUnlocked(draft)) {
+        draft.mission.missions["SPECIAL_OPERATOR_WEEKLY"] = {};
+        return;
+      }
+      const rebuilt: Record<string, unknown> = {};
+      for (const id of this._activeSpecialOperatorWeeklyIds()) {
+        rebuilt[id] = {
+          state: this._isChainHead(id) ? 2 : 1,
+          progress: this._seedInitialProgress(id),
+        };
+      }
+      draft.mission.missions["SPECIAL_OPERATOR_WEEKLY"] = rebuilt as any;
+    });
+    for (const m of this.missions["SPECIAL_OPERATOR_WEEKLY"] ?? []) {
+      m.unsubscribe();
+    }
+    this.missions["SPECIAL_OPERATOR_WEEKLY"] = [];
+    for (const id of Object.keys(
+      (this._player._playerdata.mission.missions[
+        "SPECIAL_OPERATOR_WEEKLY"
+      ] ?? {}) as Record<string, unknown>,
+    )) {
+      const instance = new MissionProgress(id, "SPECIAL_OPERATOR_WEEKLY", this._player);
+      await instance.init();
+      if (instance.valid) {
+        this.missions["SPECIAL_OPERATOR_WEEKLY"].push(instance);
+      }
+    }
     // 修复：原实现 new 后不 init（progress 空/无监听器）；逐实例 init
     this.missions["WEEKLY"] = [];
     for (const mission of Object.values(excel.MissionTable.missions).filter(
@@ -614,12 +748,58 @@ export class MissionManager {
    * 
    * 任务组是多个相关任务的集合，完成所有任务后可领取组奖励
    */
+  /**
+   * 判定任务是否为链头（无前置任务 → 播种即可见 state=2）
+   *
+   * 修复（2026-09-09）：原实现用硬编码白名单 DAILY_START_LIST / WEEKLY_START_LIST 判定链头，
+   * 白名单停留在 daily_6329 一代；当前生效周期组为 daily_g_70/71（链头 daily_7001…），
+   * 命中率 0 → 29 条每日任务全部播种 state=1（隐藏），客户端任务列表恒空。
+   * 改为按数据表 preMissionIds 动态判定（与 MissionProgress.getState 同规则）。
+   * @param missionId - 任务 id
+   */
+  private _isChainHead(missionId: string): boolean {
+    const info = excel.MissionTable.missions[missionId] as
+      | { preMissionIds?: string[] | null }
+      | undefined;
+    // 数据表缺失时保守视为链头（可见），不回退已过期的白名单
+    return !info || !info.preMissionIds || info.preMissionIds.length === 0;
+  }
+
+  /**
+   * 读取某任务在存档中的状态（跨类型桶查找；找不到返回 0 = 未解锁）
+   * @param missionId - 任务 id
+   */
+  private _savedMissionState(missionId: string): number {
+    const buckets = (this._player._playerdata.mission?.missions ?? {}) as Record<
+      string,
+      Record<string, { state?: number }> | undefined
+    >;
+    for (const bucket of Object.values(buckets)) {
+      const entry = bucket?.[missionId];
+      if (entry) return entry.state ?? 0;
+    }
+    return 0;
+  }
+
   async confirmMissionGroup(args: { missionGroupId: string }) {
     const { missionGroupId } = args;
     const group = excel.MissionTable.missionGroups[missionGroupId];
     if (!group?.rewards) return;
     // 修复：已领取过的任务组不再发放（原实现每次调用都发放组奖励 → 重复刷）
     if (this._player._playerdata.mission.missionGroups[missionGroupId] === 1) {
+      return;
+    }
+    // 修复（2026-09-09）：组奖励须「组内任务全部完成（state=3）」才发放——原实现只查
+    // 「已领取」标记，任意客户端发一次 confirmMissionGroup 即可凭空领到组奖励
+    // （如 guide_g_8 的五星干员 char_102_texas、guide_g_1~4 的十连凭证）。
+    const missionIds = (group as { missionIds?: string[] }).missionIds ?? [];
+    if (missionIds.length === 0) return;
+    const notDone = missionIds.filter((id) => this._savedMissionState(id) < 3);
+    if (notDone.length > 0) {
+      logger.warn(
+        "MissionManager",
+        `任务组 ${missionGroupId} 未全部完成，拒绝发放组奖励（未完成 ${notDone.length}/${missionIds.length}：${notDone.slice(0, 5).join(",")}）`,
+      );
       return;
     }
     await this._trigger.emit("items:get", [group.rewards]);

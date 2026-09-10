@@ -283,7 +283,11 @@ export class MedalProgress implements PlayerPerMedal {
     this._markDirty = _markDirty;
     // 未完成（fts 未设或进度未满）的勋章注册进度监听，使既有存档也能继续追踪
     const target = item.val?.[0]?.[1];
-    if (!this.fts || (target && this._v < target)) {
+    // 目标位缺失/非数值同样要重建进度（修复 2026-09-09）：旧实现把危机合约等模板的
+    // 目标算成 NaN，JSON 落盘为 null —— 此处 target 为 null（falsy）→ 原本连 init()
+    // 都不执行 → 监听器根本不注册，即使模板目标位已修好也依然零进度可累积。
+    const targetMissing = target == null || !Number.isFinite(Number(target));
+    if (!this.fts || targetMissing || (target && this._v < target)) {
       this.init();
     }
     // 持久态绑定：
@@ -311,6 +315,48 @@ export class MedalProgress implements PlayerPerMedal {
       this._item.fts = this.fts;
     }
     this._markDirty?.();
+  }
+
+  /**
+   * 取 unlockParam 的数值目标（按官方参数位取；非数值 → 永不达成）
+   *
+   * 危机合约 / 重构符文系列的 unlockParam[0] 是**赛季 id**（如 rune_season_12_1），
+   * 数值目标排在其后的关卡 / 词条 / 任务列表之后再一位。修复（2026-09-09）：
+   * 原实现这些模板一律 parseInt(this.param[0]) → NaN → init 后
+   * `0 >= NaN` 恒为 false → 监听器虽注册但**永不可能达成**（危机合约批次
+   * 约 100 枚 + 重构符文 16 枚因此全数不可得）。
+   * 返回 Number.MAX_SAFE_INTEGER 而非 0：宁可不可得，也不要把缺参误判成「已达成」
+   * 而错发勋章。
+   *
+   * @param index - unlockParam 下标
+   */
+  _paramNum(index: number): number {
+    const raw = this.param?.[index];
+    const n = parseInt(String(raw ?? ""), 10);
+    if (Number.isFinite(n)) return n;
+    logger.warn(
+      "MedalManager",
+      `${this.id} unlockParam[${index}] 非数值（${String(raw)}）——按不可达成处理`,
+    );
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  /** 取 unlockParam 的分号分隔 id 列表（危机合约节点 / 词条 / 任务清单） */
+  _paramList(index: number): string[] {
+    return String(this.param?.[index] ?? "")
+      .split(";")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+
+  /**
+   * 赛季门控：事件载荷的 seasonId 与本勋章 unlockParam[0] 一致才计入。
+   * 载荷缺 seasonId 时放行（兼容不携带赛季的旧载荷，避免进度倒退）。
+   */
+  _seasonMatch(seasonId?: string): boolean {
+    const want = String(this.param?.[0] ?? "");
+    if (!want || !seasonId) return true;
+    return seasonId === want;
   }
 
   /**
@@ -350,6 +396,19 @@ export class MedalProgress implements PlayerPerMedal {
     (this as any)[template]({}, "init");
 
     const target = this.val[0][1];
+    // 存档侧目标位修复（2026-09-09）：旧实现在危机合约等模板上把目标算成 NaN，
+    // 而 JSON 无法表达 NaN → 落盘为 null → 客户端进度条无目标、且奖励/集齐章的
+    // 完成判定（val[0][1] != null）永假。此处把重算出的目标回写存档数组
+    // （直接改持久态数组 → 显式 markDirty）。
+    const persistedVal = this._item?.val?.[0];
+    if (
+      persistedVal &&
+      target < Number.MAX_SAFE_INTEGER &&
+      (persistedVal[1] == null || !Number.isFinite(Number(persistedVal[1])))
+    ) {
+      persistedVal[1] = target;
+      this._markDirty?.();
+    }
     if (this.val[0][0] >= target) {
       return;
     }
@@ -510,10 +569,18 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标通关数量
    */
   PassTower(args: {}, mode: string = "update") {
+    // 修复（2026-09-09）：数据里 param[0] 是保全派驻关卡 id（tower_n_01…）、param[2] 为
+    // 困难标记（0/1）——原实现 `parseInt(param[0])` 恒 NaN（目标 NaN 永不完成），
+    // 且把「通关数量」当累加值。现改为「通关指定副本即完成」。
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { count: number }) => {
-        this.val[0][0] += args.count;
+      init: () => this.val[0].push(0, 1),
+      update: (args: { stageId?: string; count?: number; isHard?: boolean }) => {
+        const want = this.param[0];
+        if (want && args?.stageId !== want) return;
+        const wantHard = this.param[2];
+        if (wantHard === "1" && !args?.isHard) return;
+        if (wantHard === "0" && args?.isHard) return;
+        this.val[0][0] += args?.count ?? 1;
       },
     };
     funcs[mode](args);
@@ -686,8 +753,11 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标基地等级
    */
   Sbv2UpgradeBase(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
+    // param[1]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -703,8 +773,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标完成任务数
    */
   Sbv2FinishQuest(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam = [主题, 条件 id, …]，官服存档 val 为
+    // [[1,1]]（达成标志），param[1] 是**条件 id 而非数值**——原实现 parseInt(param[0])
+    //（主题 id）→ NaN → 永不可得。故目标恒为 1，条件满足时置 1。
+    const target = 1;
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -720,8 +794,11 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   Sbv2BattleFinishWithChar(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
+    // param[2]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
+    const target = this._paramNum(2);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -737,8 +814,11 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标菜谱数量
    */
   Sbv2UnlockCook(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
+    // param[1]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -754,8 +834,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标建筑放置数
    */
   Sbv2PlaceBuilding(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam = [主题, 条件 id, …]，官服存档 val 为
+    // [[1,1]]（达成标志），param[1] 是**条件 id 而非数值**——原实现 parseInt(param[0])
+    //（主题 id）→ NaN → 永不可得。故目标恒为 1，条件满足时置 1。
+    const target = 1;
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -771,8 +855,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标关卡进度
    */
   Sbv2PassRiftLevel(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam = [主题, 条件 id, …]，官服存档 val 为
+    // [[1,1]]（达成标志），param[1] 是**条件 id 而非数值**——原实现 parseInt(param[0])
+    //（主题 id）→ NaN → 永不可得。故目标恒为 1，条件满足时置 1。
+    const target = 1;
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -788,8 +876,11 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标通关次数
    */
   Sbv2PassRiftCount(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
+    // param[1]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -805,8 +896,11 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标捕获生物数
    */
   Sbv2CatchAnimal(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
+    // param[1]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -822,8 +916,11 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标科技解锁数
    */
   Sbv2UnlockTech(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
+    // param[1]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -839,8 +936,11 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标存活天数
    */
   Sbv2SurviveDays(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
+    // param[2]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
+    const target = this._paramNum(2);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -856,8 +956,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标击杀首领数
    */
   Sbv2KillBoss(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[1]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -872,9 +976,14 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标节点数
    */
   Rlv2PassNode(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam = [主题, 目标节点数]（官服 getMethod
+    // 「在集成战略：XX主题中通过 N 个节点」，官服存档 val[0][1] 反推目标位 = param[1]）。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: () => {
+      init: (args: {}) => this.val[0].push(0, target),
+      // 事件由 roguelike battle-nav 在抵达节点时发射（载荷带 theme）
+      update: (args: { theme?: string }) => {
+        if (!this._seasonMatch(args.theme)) return;
         this.val[0][0] += 1;
       },
     };
@@ -888,10 +997,16 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标等级
    */
   Rlv2BpLevel(args: {}, mode: string = "update") {
+    // unlockParam = [主题, 目标等级]（官服 getMethod「在集成战略：XX主题的源流堆栈中解锁至 N 级」）。
+    // 目标位修复（2026-09-09）：原实现取 parseInt(param[0])（主题 id）→ NaN → 永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { level: number }) => {
-        this.val[0][0] = args.level;
+      init: (args: {}) => this.val[0].push(0, target),
+      // 载荷为当前等级（由 bp.point 按官方 milestones 门槛换算）——等级单调递增，
+      // 覆盖写入即可；补主题门控（args.theme），避免别主题的等级覆盖本章进度。
+      update: (args: { theme?: string; level?: number }) => {
+        if (!this._seasonMatch(args.theme)) return;
+        this.val[0][0] = Math.max(this.val[0][0], args.level ?? 0);
       },
     };
     funcs[mode](args);
@@ -936,9 +1051,14 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标招募次数
    */
   Rlv2Recruit(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam = [主题, 目标招募次数]（官服 getMethod
+    // 「在集成战略：XX主题中招募或应急雇佣干员 N 次」）。原实现取 parseInt(param[0]) → NaN。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: () => {
+      init: (args: {}) => this.val[0].push(0, target),
+      // 事件由 roguelike recruit.ts 在招募确认时发射（载荷带 theme）
+      update: (args: { theme?: string }) => {
+        if (!this._seasonMatch(args.theme)) return;
         this.val[0][0] += 1;
       },
     };
@@ -952,8 +1072,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标奖励获取次数
    */
   Rlv2GetTeamReward(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[1]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: () => {
         this.val[0][0] += 1;
       },
@@ -968,10 +1092,16 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标结局数
    */
   Rlv2EndingCollect(args: {}, mode: string = "update") {
+    // unlockParam = [主题, 目标结局种数]（官服 getMethod「在集成战略：XX主题中达成 N 种结局」）。
+    // 目标位修复（2026-09-09）：原实现取 parseInt(param[0])（主题 id）→ NaN → 永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { ending: string }) => {
-        this.val[0][0] += 1;
+      init: (args: {}) => this.val[0].push(0, target),
+      // 载荷为当前**已达成结局种数**（collect.endBook 条目数，settle 写入）——取 max 幂等；
+      // 原实现逐条 ending 事件 +1，无去重、也无事件派发。
+      update: (args: { theme?: string; count?: number }) => {
+        if (!this._seasonMatch(args.theme)) return;
+        this.val[0][0] = Math.max(this.val[0][0], args.count ?? 0);
       },
     };
     funcs[mode](args);
@@ -985,10 +1115,16 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标收藏数
    */
   Rlv2CollectRelic(args: {}, mode: string = "update") {
+    // unlockParam = [主题, 目标收藏品数]（官服 getMethod「XX主题中的拟造物质编目已持有 N 个收藏品」）。
+    // 目标位修复（2026-09-09）：原实现取 parseInt(param[0])（主题 id）→ NaN → 永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      init: (args: {}) => this.val[0].push(0, target),
+      // 载荷为**当前累计收藏数**（roguelike 局外 collect.relic 已获得条目数，非增量）——
+      // 取 max 保证幂等；原实现为 registerTs 天数占位逻辑。
+      update: (args: { theme?: string; count?: number }) => {
+        if (!this._seasonMatch(args.theme)) return;
+        this.val[0][0] = Math.max(this.val[0][0], args.count ?? 0);
       },
     };
     funcs[mode](args);
@@ -1002,10 +1138,25 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   Rlv2FinishBattleWithSpecChar(args: {}, mode: string = "update") {
+    // unlockParam = [主题, 干员A, 干员A变体, 目标胜利次数]（官服 getMethod「在 XX主题中
+    // 携带干员 YY 战斗胜利 N 次（常规行动或讲述者列表下）」；rogue_1 的两个干员 id 为
+    // 基础/进阶形态，携带任一即算）。目标位修复（2026-09-09）：原实现取 parseInt(param[0])
+    //（主题 id）→ NaN，且 update 为 registerTs 天数占位逻辑。
+    const target = this._paramNum(3);
+    const wantChars = [...this._paramList(1), ...this._paramList(2)];
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      init: (args: {}) => this.val[0].push(0, target),
+      // 载荷由 settle 在结算时发出：本局参战干员 + 本局作战胜利数
+      update: (args: {
+        theme?: string;
+        charIds?: string[];
+        battleWinCount?: number;
+      }) => {
+        if (!this._seasonMatch(args.theme)) return;
+        if (!wantChars.length) return;
+        const carried = (args.charIds ?? []).some((c) => wantChars.includes(c));
+        if (!carried) return;
+        this.val[0][0] += args.battleWinCount ?? 0;
       },
     };
     funcs[mode](args);
@@ -1036,10 +1187,15 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标解锁数
    */
   Rlv2UnlockBand(args: {}, mode: string = "update") {
+    // unlockParam = [主题, 目标分队数]（官服 getMethod「在集成战略：XX主题中解锁 N 个分队」）。
+    // 目标位修复（2026-09-09）：原实现取 parseInt(param[0])（主题 id）→ NaN → 永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      init: (args: {}) => this.val[0].push(0, target),
+      // 载荷为当前**已解锁分队数**（collect.band state ≥ 1，见 events.ts「state 1 = 已解锁」）
+      update: (args: { theme?: string; count?: number }) => {
+        if (!this._seasonMatch(args.theme)) return;
+        this.val[0][0] = Math.max(this.val[0][0], args.count ?? 0);
       },
     };
     funcs[mode](args);
@@ -1232,8 +1388,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标雕刻数
    */
   Act35SideFinishCarving(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[1]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -1305,13 +1465,16 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    * @param param[1] 代币数量上限
    */
-  PassStageWithSimpleTokenCountLess(args: {}, mode: string = "update") {
+  PassStageWithSimpleTokenCountLess(args: any, mode: string = "update") {
+    // 修复（2026-09-09）：数据实参为 [completeState, stageId, token 名, 目标场次]，
+    // 原实现读 args.tokenCount/param[1]（stageId）→ 恒不成立。
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { tokenCount: number }) => {
-        if (args.tokenCount <= parseInt(this.param[1])) {
-          this.val[0][0] += 1;
-        }
+      init: () => this.val[0].push(0, parseInt(this.param[3] ?? "1") || 1),
+      update: (args: any) => {
+        if (args?.stageId !== this.param[1]) return;
+        if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
+        if (this._tokenStatValue(args, this.param[2]) > 0) return;
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
@@ -1323,11 +1486,18 @@ export class MedalProgress implements PlayerPerMedal {
    * 每场累计击杀数 killCnt 累加，达 param[0] 完成。
    * @param param[0] 目标击杀总数
    */
-  PassStageKilledTotal(args: {}, mode: string = "update") {
+  PassStageKilledTotal(args: any, mode: string = "update") {
+    // 修复（2026-09-09）：数据实参为 [completeState, 关卡列表(;), 敌人 id, 目标击杀数]，
+    // 原实现读 args.killCnt/param[0]（completeState）→ 恒错。
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { killCnt: number }) => {
-        this.val[0][0] += args.killCnt;
+      init: () => this.val[0].push(0, parseInt(this.param[3] ?? "1") || 1),
+      update: (args: any) => {
+        const stages = String(this.param[1] ?? "").split(";").filter(Boolean);
+        if (stages.length && !stages.includes(args?.stageId)) return;
+        if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
+        const killed = this._enemyStatValue(args, this.param[2]);
+        if (killed <= 0) return;
+        this.val[0][0] = Math.min(this.val[0][1], this.val[0][0] + killed);
       },
     };
     funcs[mode](args);
@@ -1358,8 +1528,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   ActMultiplayVerify2PassStageWithScore(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[2]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(2);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -1392,29 +1566,93 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标物品数
    */
   GotItemBeforeTime(args: {}, mode: string = "update") {
+    // 修复（2026-09-09）：原实现是「注册后经过天数」的占位（param[0]=1 时次日即自动获得），
+    // 与官方语义「在截止时间前获得指定物品」不符。现按数据实参实现：
+    // param[0]=目标数量、param[1]=物品 id（如时装 char_264_f12yin@marthe#13）、param[2]=截止时间戳（秒）。
+    // 事件由物品管道（InventoryManager items:get）补发。
+    const target = parseInt(this.param[0] ?? "1") || 1;
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      init: () => this.val[0].push(0, target),
+      update: (args: { itemId?: string }) => {
+        const wantItem = this.param[1];
+        if (wantItem && args?.itemId !== wantItem) return;
+        const deadline = Number(this.param[2] ?? 0);
+        if (deadline > 0 && now() > deadline) return;
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
   }
 
   /**
+   * 读取战斗统计中指定敌人/计数器的值（enemyStats）
+   *
+   * 修复（2026-09-09）：PassStage 系列模板共用的统计读取工具——
+   * enemyId 支持分号分隔多 id；counterType 为空时汇总全部计数器。
+   * @param args - 战斗统计载荷（battle 结算发射）
+   * @param enemyId - 敌人 id（可分号分隔）
+   * @param counterType - 计数器类型（如 FALLDOWN）
+   * @returns 命中计数（无记录返回 0）
+   */
+  private _enemyStatValue(
+    args: {
+      enemyStats?: {
+        Key?: { enemyId?: string; counterType?: string };
+        Value?: number;
+      }[];
+    },
+    enemyId?: string,
+    counterType?: string,
+  ): number {
+    const ids = String(enemyId ?? "").split(";").filter(Boolean);
+    let sum = 0;
+    for (const s of args?.enemyStats ?? []) {
+      const id = String(s?.Key?.enemyId ?? "");
+      if (ids.length > 0 && !ids.includes(id)) continue;
+      if (counterType && s?.Key?.counterType !== counterType) continue;
+      sum += Number(s?.Value ?? 0) || 0;
+    }
+    return sum;
+  }
+
+  /**
+   * 读取场外 token 计数（extraBattleInfo）
+   * @param args - 战斗统计载荷
+   * @param token - token 名（可分号分隔多个）
+   * @returns 计数（缺失返回 0；非数值取值按「出现即 1」计）
+   */
+  private _tokenStatValue(
+    args: { extraBattleInfo?: Record<string, unknown> },
+    token?: string,
+  ): number {
+    const names = String(token ?? "").split(";").filter(Boolean);
+    if (names.length === 0) return 0;
+    let sum = 0;
+    const info = args?.extraBattleInfo ?? {};
+    for (const n of names) {
+      const raw = info[n];
+      if (raw === undefined || raw === null) continue;
+      const num = Number(raw);
+      sum += Number.isFinite(num) ? num : 1;
+    }
+    return sum;
+  }
+
+  /**
    * 通关关卡（代币下限）
    *
    * 通关时场内置放/使用代币数不低于 param[1] 即 +1，达 param[0] 完成。
-   * @param param[0] 目标场次
-   * @param param[1] 代币数量下限
+   * （注：数据实参布局为 [completeState, stageId, token, 目标场次]，见下方实现）
    */
-  PassStageWithSimpleTokenCountMore(args: {}, mode: string = "update") {
+  PassStageWithSimpleTokenCountMore(args: any, mode: string = "update") {
+    // 修复（2026-09-09）：同 TokenCountLess——按 [completeState, stageId, token, 目标场次] 解析
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { tokenCount: number }) => {
-        if (args.tokenCount >= parseInt(this.param[1])) {
-          this.val[0][0] += 1;
-        }
+      init: () => this.val[0].push(0, parseInt(this.param[3] ?? "1") || 1),
+      update: (args: any) => {
+        if (args?.stageId !== this.param[1]) return;
+        if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
+        if (this._tokenStatValue(args, this.param[2]) < 1) return;
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
@@ -1427,10 +1665,19 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标总分
    */
   CrisisV2DimScoreTotal(args: {}, mode: string = "update") {
+    // unlockParam: [赛季, 主测试地关卡, 维度表(0;1;..;5), 目标总分]（如
+    // medal_activity_5crisisv2_02 = [..."level_crisis_v2_05-01","0;1;2;3;4;5","300"]）
+    // 官服存档实证：_02/_03/_035（300/600/620 三档）val 均为 [[1,1]] → **目标恒为 1**，
+    // param[3] 为「总分达到 N 分」的门槛；args.score 由 battleFinish 传单局各维之和。
+    const target = 1;
+    const need = this._paramNum(3);
+    const wantMap = String(this.param?.[1] ?? "").replace(/^level_/, "");
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { score: number }) => {
-        this.val[0][0] += args.score;
+      init: (args: {}) => this.val[0].push(0, target),
+      update: (args: { seasonId?: string; mapId?: string; score?: number }) => {
+        if (!this._seasonMatch(args.seasonId)) return;
+        if (wantMap && args.mapId && args.mapId !== wantMap) return;
+        if ((args.score ?? 0) >= need) this.val[0][0] = 1;
       },
     };
     funcs[mode](args);
@@ -1443,10 +1690,24 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标节点数
    */
   CrisisV2NodeSome(args: {}, mode: string = "update") {
+    // unlockParam: [赛季, 节点 id 列表(分号), 目标节点数]（节点 id 形如
+    // "crisis_v2_05-01^pack_1" / "crisis_v2_03-03_b^keypoint_1"）
+    const target = this._paramNum(2);
+    const wantNodes = this._paramList(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: () => {
-        this.val[0][0] += 1;
+      init: (args: {}) => this.val[0].push(0, target),
+      update: (args: { seasonId?: string; nodeIds?: string[] }) => {
+        if (!this._seasonMatch(args.seasonId)) return;
+        if (!wantNodes.length) {
+          this.val[0][0] = Math.max(this.val[0][0], (args.nodeIds ?? []).length);
+          return;
+        }
+        // 事件载荷是**本次战斗后赛季内已完成节点的全集**（非增量）——取交集计数并取 max，
+        // 幂等：重复作战、乱序完成、读档后补发都不会多计。
+        const done = new Set(args.nodeIds ?? []);
+        let hit = 0;
+        for (const id of wantNodes) if (done.has(id)) hit++;
+        this.val[0][0] = Math.max(this.val[0][0], hit);
       },
     };
     funcs[mode](args);
@@ -1460,11 +1721,18 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标得分
    */
   CrisisV2DimScoreSome(args: {}, mode: string = "update") {
+    // unlockParam: [赛季, 地图 id, 维度表, 目标分]（官服文案「任意一项分数历史最高达到N分」）
+    // 官服存档实证：_09 val [[1,1]] → 目标恒为 1，param[3] 为门槛；
+    // args.score 由 battleFinish 传「历史最高维度分」（含既有记录）。
+    const target = 1;
+    const need = this._paramNum(3);
+    const wantMap = String(this.param?.[1] ?? "").replace(/^level_/, "");
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      // 该维度单局峰值得分（battleFinish 发 scoreCurrent 的最大维度分）
-      update: (args: { score?: number }) => {
-        this.val[0][0] = Math.max(this.val[0][0], args.score ?? 0);
+      init: (args: {}) => this.val[0].push(0, target),
+      update: (args: { seasonId?: string; mapId?: string; score?: number }) => {
+        if (!this._seasonMatch(args.seasonId)) return;
+        if (wantMap && args.mapId && args.mapId !== wantMap) return;
+        if ((args.score ?? 0) >= need) this.val[0][0] = 1;
       },
     };
     funcs[mode](args);
@@ -1478,10 +1746,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   CrisisV2UseAssist(args: {}, mode: string = "update") {
+    // unlockParam: [赛季, 目标场次]（官服文案「使用助战并通关任意作战不小于5次」）
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       // 携带助战通关次数（battleFinish 按是否用助战发 used）
-      update: (args: { used?: number }) => {
+      update: (args: { seasonId?: string; used?: number }) => {
+        if (!this._seasonMatch(args.seasonId)) return;
         this.val[0][0] += args.used ?? 0;
       },
     };
@@ -1496,8 +1767,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标进度
    */
   PassStageWithBossRush(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[2]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(2);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -1512,11 +1787,16 @@ export class MedalProgress implements PlayerPerMedal {
    * 注：当前为占位实现（未接入玩法真实状态）。
    * @param param[0] 目标场次
    */
-  PassStageWithSimpleCountLess(args: {}, mode: string = "update") {
+  PassStageWithSimpleCountLess(args: any, mode: string = "update") {
+    // 修复（2026-09-09）：原为「注册后天数」占位实现；数据实参为
+    // [completeState, stageId, 敌人 id, 计数器类型, 目标场次]，语义＝通关且该计数器**未触发**。
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      init: () => this.val[0].push(0, parseInt(this.param[4] ?? "1") || 1),
+      update: (args: any) => {
+        if (args?.stageId !== this.param[1]) return;
+        if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
+        if (this._enemyStatValue(args, this.param[2], this.param[3]) > 0) return;
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
@@ -1600,8 +1880,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标合成数
    */
   Act29SideSyncthesizeMelody(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[1]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -1651,8 +1935,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标挑战数
    */
   Act42D0FinishChallenge(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[1]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -1753,8 +2041,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标关卡数
    */
   PassStoryStageSome(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[1]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -1804,11 +2096,24 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标关卡数
    */
   CrisisStageScoreSome(args: {}, mode: string = "update") {
+    // unlockParam: [赛季, 常驻行动地点（可为分号列表）, 评价档, 所需危机等级]
+    // 官服存档实证（data/user/databases/1.json，导入的官服档）：
+    //   medal_activity_11d5_02 param=[...,"level_rune_04-01","1","8"] → val [[1,1]]（已得）
+    //   medal_activity_10d0_03 param=[...,"1","16"] → val [[0,1]]（未得）
+    // 即**目标恒为 1**（达成标志），param[2] = 达成时写入的进度值（1 = S 评价），
+    // param[3] = 所需危机等级门槛。故进度 = 「该关卡危机等级 ≥ 门槛」→ param[2]。
+    const target = 1;
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      // 达成得分：单局峰值（V1 battleFinish 发 totalRisks，V2 发最高维度分）
-      update: (args: { score?: number }) => {
-        this.val[0][0] = Math.max(this.val[0][0], args.score ?? 0);
+      init: (args: {}) => this.val[0].push(0, target),
+      update: (args: { seasonId?: string; stageId?: string; score?: number }) => {
+        if (!this._seasonMatch(args.seasonId)) return;
+        const stages = this._paramList(1);
+        if (stages.length && args.stageId && !stages.includes(args.stageId)) return;
+        const need = this._paramNum(3);
+        const rated = this._paramNum(2) || 1;
+        if ((args.score ?? 0) >= need) {
+          this.val[0][0] = Math.max(this.val[0][0], rated);
+        }
       },
     };
     funcs[mode](args);
@@ -1822,10 +2127,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标结算数
    */
   CrisisTempClearSome(args: {}, mode: string = "update") {
+    // unlockParam: [赛季, 轮替任务组列表(rg1;..;rg13), 目标天数]
+    const target = this._paramNum(2);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      // 临时派遣结算次数（V1 battleFinish 每局 +1）
-      update: (args: { count?: number }) => {
+      init: (args: {}) => this.val[0].push(0, target),
+      // 完成并领取全部轮替挑战任务的天数（每日 +1）
+      update: (args: { seasonId?: string; count?: number }) => {
+        if (!this._seasonMatch(args.seasonId)) return;
         this.val[0][0] += args.count ?? 1;
       },
     };
@@ -1840,10 +2148,15 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标任务数
    */
   CrisisTaskSome(args: {}, mode: string = "update") {
+    // unlockParam: [赛季, 常驻任务 id 列表(normalTask_1;..), 目标任务数]
+    const target = this._paramNum(2);
+    const wantTasks = this._paramList(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      // 完成任务数（battleFinish/挑战任务确认处 +1）
-      update: (args: { count?: number }) => {
+      init: (args: {}) => this.val[0].push(0, target),
+      // 完成并领取挑战任务数（challengeRewardTask 首次领取 +1）
+      update: (args: { seasonId?: string; taskId?: string; count?: number }) => {
+        if (!this._seasonMatch(args.seasonId)) return;
+        if (args.taskId && wantTasks.length && !wantTasks.includes(args.taskId)) return;
         this.val[0][0] += args.count ?? 1;
       },
     };
@@ -1858,10 +2171,15 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标词条数
    */
   CrisisUnlockPermRuneSome(args: {}, mode: string = "update") {
+    // unlockParam: [赛季, 3 级词条 id 列表, 目标词条数]（官服文案「解锁4个3级合约」）
+    const target = this._paramNum(2);
+    const wantRunes = this._paramList(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      // 解锁永久词条数（unlockRune 处 +1）
-      update: (args: { count?: number }) => {
+      init: (args: {}) => this.val[0].push(0, target),
+      // 解锁永久词条数（unlockRune 首次解锁 +1）
+      update: (args: { seasonId?: string; runeId?: string; count?: number }) => {
+        if (!this._seasonMatch(args.seasonId)) return;
+        if (args.runeId && wantRunes.length && !wantRunes.includes(args.runeId)) return;
         this.val[0][0] += args.count ?? 1;
       },
     };
@@ -1876,10 +2194,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   CrisisUseAssist(args: {}, mode: string = "update") {
+    // unlockParam: [赛季, 目标场次]（官服文案「使用助战并通关任意行动地点不小于5次」）
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       // 携带助战通关次数（battleFinish 按是否用助战发 used）
-      update: (args: { used?: number }) => {
+      update: (args: { seasonId?: string; used?: number }) => {
+        if (!this._seasonMatch(args.seasonId)) return;
         this.val[0][0] += args.used ?? 0;
       },
     };
@@ -1996,8 +2317,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标配件数
    */
   GainCarAccessories(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[1]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -2006,34 +2331,44 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * 通关关卡累计击杀
+   * 通关且击杀指定敌人（PassStageKilled）
    *
-   * 追踪通关关卡时累计击杀指定敌人的进度。目标为 param[0]。
-   * 注：当前为占位实现（未接入玩法真实状态）。
-   * @param param[0] 目标击杀数
+   * 修复（2026-09-09）：原为「注册后天数」占位实现。数据实参为
+   * [completeState, stageId(可分号多个), 敌人 id(;), 需要击杀数（缺省 1）]：
+   * 通关且该敌人击杀数达标即计 1 场，累计 1 场完成。
+   * 事件 PassStageKilled:[{stageId, completeState, enemyStats}] 由 battle 结算发射。
    */
-  PassStageKilled(args: {}, mode: string = "update") {
+  PassStageKilled(args: any, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      init: () => this.val[0].push(0, 1),
+      update: (args: any) => {
+        const stages = String(this.param[1] ?? "").split(";").filter(Boolean);
+        if (stages.length && !stages.includes(args?.stageId)) return;
+        if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
+        const need = parseInt(this.param[3] ?? "1") || 1;
+        if (this._enemyStatValue(args, this.param[2]) < need) return;
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
   }
 
   /**
-   * 通关关卡击杀数上限
+   * 通关且未击杀（击杀数不超阈值）指定敌人（PassStageKilledLess）
    *
-   * 追踪通关时指定击杀数不超过阈值的场次。目标为 param[0]。
-   * 注：当前为占位实现（未接入玩法真实状态）。
-   * @param param[0] 目标场次
+   * 修复（2026-09-09）：原为「注册后天数」占位实现。数据实参为
+   * [completeState, stageId, 敌人 id(;), 允许击杀上限（缺省 0）]：通关且击杀数不超过上限即计 1 场。
    */
-  PassStageKilledLess(args: {}, mode: string = "update") {
+  PassStageKilledLess(args: any, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      init: () => this.val[0].push(0, 1),
+      update: (args: any) => {
+        const stages = String(this.param[1] ?? "").split(";").filter(Boolean);
+        if (stages.length && !stages.includes(args?.stageId)) return;
+        if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
+        const limit = parseInt(this.param[3] ?? "0") || 0;
+        if (this._enemyStatValue(args, this.param[2]) > limit) return;
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
@@ -2149,8 +2484,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标声望等级
    */
   ActivityReachPrestigeLevel(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[1]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -2421,8 +2760,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标物品数
    */
   ActivitySandboxCreateItem(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[1]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
@@ -2489,11 +2832,21 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标关卡数
    */
   CrisisStageScoreBeforeTime(args: {}, mode: string = "update") {
+    // unlockParam: [赛季, 常驻行动地点关卡, 所需危机等级, 截止时间戳]
+    // 官服存档实证：medal_activity_10d0_035 param=[..."level_rune_03-01","18","1591646399"]
+    // → val [[0,1]]；medal_activity_10rune_035 → val [[1,1]]。目标同样恒为 1，
+    // param[2] = 所需危机等级门槛，param[3] = 截止时间（官服：「且在XX行动开始一周内完成」）。
+    const target = 1;
+    const deadline = this._paramNum(3);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      // 限时峰值得分（battleFinish 发 score）
-      update: (args: { score?: number }) => {
-        this.val[0][0] = Math.max(this.val[0][0], args.score ?? 0);
+      init: (args: {}) => this.val[0].push(0, target),
+      update: (args: { seasonId?: string; stageId?: string; score?: number }) => {
+        if (!this._seasonMatch(args.seasonId)) return;
+        const wantStage = String(this.param?.[1] ?? "");
+        if (wantStage && args.stageId && args.stageId !== wantStage) return;
+        // 超过截止时间不再计入 —— 限时勋章错过窗口本就不可得，不做宽容处理
+        if (deadline < Number.MAX_SAFE_INTEGER && now() > deadline) return;
+        if ((args.score ?? 0) >= this._paramNum(2)) this.val[0][0] = 1;
       },
     };
     funcs[mode](args);
@@ -2554,8 +2907,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标拼图数
    */
   Act38SideCompletePuzzle(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[1]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: () => {
         this.val[0][0] += 1;
       },
@@ -2842,8 +3199,12 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标对局数
    */
   ActivityAutoChessPassGame(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam[0] 是主题/活动 id，数值目标在 param[1]
+    //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
+    // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
+    const target = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => this.val[0].push(0, target),
       update: () => {
         this.val[0][0] += 1;
       },
@@ -2916,16 +3277,27 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * 干员精二阶段达成
+   * 特勤干员精英化阶段达成（电弧 / 机械师）
    *
-   * 每次达成指定精二阶段 +1，达 param[0] 完成（未接入玩法真实状态）。
-   * @param param[0] 目标任务次数
+   * 修复（2026-09-09，审计 §5.3）：本模板原先取 `parseInt(param[0])` 作目标，而真实数据
+   * `unlockParam = ["char_4195_radian","2"]` / `["char_4230_mcnist","2"]` —— `param[0]` 是
+   * **干员 id**（parseInt → NaN，目标位落盘为 null → 该章永不可得），`param[1]` 才是要求的
+   * 精英化阶段。现按「指定干员达到指定精英化阶段即获得（目标恒为 1）」实现，并在
+   * `CharManager.evolveChar` / `evolveCharUseItem` 派发 `CharEvolvePhase`。
+   * @param param[0] 目标干员 charId（如 char_4195_radian）
+   * @param param[1] 要求的精英化阶段（如 2 = 精二）
    */
   CharEvolvePhase(args: {}, mode: string = "update") {
+    const targetCharId = String(this.param?.[0] ?? "");
+    const needPhase = this._paramNum(1);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: () => {
-        this.val[0][0] += 1;
+      // 目标恒为 1：该干员达成该阶段即完成（数据表未给出次数目标）
+      init: () => this.val[0].push(0, 1),
+      update: (args: { charId?: string; phase?: number }) => {
+        if (!targetCharId) return;
+        if (args?.charId !== targetCharId) return;
+        if (Number(args?.phase ?? 0) < needPhase) return;
+        this.val[0][0] = 1;
       },
     };
     funcs[mode](args);
@@ -2954,11 +3326,19 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标得分
    */
   RecalRuneStageScoreSome(args: {}, mode: string = "update") {
+    // unlockParam: [赛季, 关卡, 目标评分]（["recalRune_season_2","level_recalrune_02-01","8"]）
+    // 官服存档中无重构符文勋章样本可实证；按同名家族（CrisisStageScoreSome*）的官服
+    // 形状实现——目标恒为 1、param[2] 为门槛（「获得 8 评分」）。解锁时机与
+    // 「峰值 vs 目标」写法一致，仅进度显示为 1/1 而非 8/8。
+    const target = 1;
+    const need = this._paramNum(2);
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      // 重构符文单局得分峰值（recal battleFinish 发 score）
-      update: (args: { score?: number }) => {
-        this.val[0][0] = Math.max(this.val[0][0], args.score ?? 0);
+      init: (args: {}) => this.val[0].push(0, target),
+      update: (args: { seasonId?: string; stageId?: string; score?: number }) => {
+        if (!this._seasonMatch(args.seasonId)) return;
+        const wantStage = String(this.param?.[1] ?? "");
+        if (wantStage && args.stageId && args.stageId !== wantStage) return;
+        if ((args.score ?? 0) >= need) this.val[0][0] = 1;
       },
     };
     funcs[mode](args);
@@ -3003,9 +3383,16 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标区域数
    */
   Rlv2PassZone(args: {}, mode: string = "update") {
+    // 目标位修复（2026-09-09）：unlockParam = [主题, zoneId, 目标次数]（官服 getMethod
+    // 「在集成战略：XX主题中通过 YY 区域 N 次」）。原实现取 parseInt(param[0]) → NaN。
+    const target = this._paramNum(2);
+    const wantZone = String(this.param?.[1] ?? "");
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: () => {
+      init: (args: {}) => this.val[0].push(0, target),
+      // 事件由 roguelike event.ts 在进入新区域时发射
+      update: (args: { theme?: string; zoneId?: string }) => {
+        if (!this._seasonMatch(args.theme)) return;
+        if (wantZone && args.zoneId && args.zoneId !== wantZone) return;
         this.val[0][0] += 1;
       },
     };

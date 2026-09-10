@@ -661,3 +661,186 @@ describe("SPECIAL_OPERATOR 播种与 init", () => {
     expect(mockPlayer._playerdata.mission.missions["SPECIAL_OPERATOR"]["t_evolve_1"].state).toBe(3);
   });
 });
+
+describe("SPECIAL_OPERATOR_WEEKLY 特勤周任务播种与周重置", () => {
+  // 模拟 mission_table.json 实测行：soWeekTask_1/2 属组 g_1、soWeekTask_1_rogue6 属组 g_2
+  const SO_WEEKLY_MISSIONS: Record<string, any> = {
+    soWeekTask_1: {
+      id: "soWeekTask_1",
+      type: "SPECIAL_OPERATOR_WEEKLY",
+      template: "CostAp",
+      templateType: "0",
+      param: ["0", "500"],
+      preMissionIds: null,
+      missionGroup: "soWeekTask_g_1",
+      rewards: [{ type: "SO_CHAR_EXP", id: "so_char_exp_1", count: 6000 }],
+    },
+    soWeekTask_2: {
+      id: "soWeekTask_2",
+      type: "SPECIAL_OPERATOR_WEEKLY",
+      template: "CostAp",
+      templateType: "0",
+      param: ["0", "1000"],
+      preMissionIds: null,
+      missionGroup: "soWeekTask_g_1",
+      rewards: [{ type: "SO_CHAR_EXP", id: "so_char_exp_1", count: 6000 }],
+    },
+    soWeekTask_1_rogue6: {
+      id: "soWeekTask_1_rogue6",
+      type: "SPECIAL_OPERATOR_WEEKLY",
+      template: "CostAp",
+      templateType: "0",
+      param: ["0", "500"],
+      preMissionIds: null,
+      missionGroup: "soWeekTask_g_2",
+      rewards: [{ type: "SO_CHAR_EXP", id: "so_char_exp_1", count: 6000 }],
+    },
+  };
+  // 组时间窗（真实数据 g_1 endTs=1783886399 已过期、g_2 endTs=4102343999 生效；
+  // 此处用与运行日期无关的极值表达同一语义）
+  const EXPIRED_WINDOW = { startTs: 0, endTs: 1 };
+  const ACTIVE_WINDOW = { startTs: 0, endTs: Number.MAX_SAFE_INTEGER };
+
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+  let mockExcelRef: any;
+  let savedConstData: any;
+
+  /** 构造 MissionManager 前的最小玩家数据（mission 三件套 + 关卡通关记录） */
+  function makeMockPlayer() {
+    const player = mockPlayerData({
+      mission: {
+        missions: {
+          DAILY: {},
+          WEEKLY: {},
+          ACTIVITY: {},
+          OPENSERVER: {},
+        },
+        missionRewards: {
+          dailyPoint: 0,
+          weeklyPoint: 0,
+          rewards: { DAILY: {}, WEEKLY: {} },
+        },
+        missionGroups: {},
+      },
+      dungeon: {
+        stages: { "main_03-08": { completeTimes: 1, state: 3 } },
+      } as any,
+    });
+    player._trigger = mockTrigger;
+    player.update = vi
+      .fn()
+      .mockImplementation(async (recipe: (draft: any) => Promise<any> | any) => {
+        const draft = JSON.parse(JSON.stringify(player._playerdata));
+        const result = await recipe(draft);
+        Object.assign(player._playerdata, draft);
+        return result;
+      });
+    return player;
+  }
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockExcelRef = (vi.mocked(await import("@excel/excel")).default as any);
+    savedConstData = mockExcelRef.SpecialOperatorTable.constData;
+    for (const [id, m] of Object.entries(SO_WEEKLY_MISSIONS)) {
+      mockExcelRef.MissionTable.missions[id] = m;
+    }
+    mockExcelRef.MissionTable.soCharMissionGroupInfo = {
+      soWeekTask_g_1: {
+        groupId: "soWeekTask_g_1",
+        missionIds: ["soWeekTask_1", "soWeekTask_2"],
+        ...EXPIRED_WINDOW,
+      },
+      soWeekTask_g_2: {
+        groupId: "soWeekTask_g_2",
+        missionIds: ["soWeekTask_1_rogue6"],
+        ...ACTIVE_WINDOW,
+      },
+    };
+    mockPlayer = makeMockPlayer();
+  });
+
+  afterEach(() => {
+    for (const id of Object.keys(SO_WEEKLY_MISSIONS)) {
+      delete mockExcelRef.MissionTable.missions[id];
+    }
+    delete mockExcelRef.MissionTable.soCharMissionGroupInfo;
+    mockExcelRef.SpecialOperatorTable.constData = savedConstData;
+  });
+
+  it("init 只播种当前生效组（过期组任务不进入存档）", async () => {
+    // 修复（2026-09-09，审计 §5.4-11）：这些任务的 missionGroup 指向
+    // MissionTable.missionGroups 中不存在的 soWeekTask_g_1/g_2（它们登记在
+    // 独立的 soCharMissionGroupInfo 容器，带 startTs/endTs），原实现全仓无引用
+    // → 特勤干员周任务与 SO_CHAR_EXP 奖励完全缺失。
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    await manager.init();
+
+    const group = mockPlayer._playerdata.mission!.missions[
+      "SPECIAL_OPERATOR_WEEKLY"
+    ] as any;
+    expect(group).toBeDefined();
+    // 生效组 g_2 的 soWeekTask_1_rogue6 播种；过期组 g_1 的两条不播种
+    expect(Object.keys(group)).toEqual(["soWeekTask_1_rogue6"]);
+    expect(group["soWeekTask_1_rogue6"].state).toBe(2);
+    // progress 由模板 init 推导（CostAp param[1]=500），非空数组
+    expect(group["soWeekTask_1_rogue6"].progress).toEqual([
+      { value: 0, target: 500 },
+    ]);
+    // 内存实例已构建（含事件监听器）
+    expect(manager.missions["SPECIAL_OPERATOR_WEEKLY"].length).toBe(1);
+  });
+
+  it("任务板未解锁（未通关 weeklyTaskBoardUnlock）时不播种", async () => {
+    mockExcelRef.SpecialOperatorTable.constData = {
+      weeklyTaskBoardUnlock: "main_03-08",
+    };
+    // 该关从未通关：completeTimes=0 且 state<2
+    (mockPlayer._playerdata as any).dungeon.stages["main_03-08"] = {
+      completeTimes: 0,
+      state: 0,
+    };
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    await manager.init();
+    expect(
+      mockPlayer._playerdata.mission!.missions["SPECIAL_OPERATOR_WEEKLY"],
+    ).toBeUndefined();
+
+    // 通关后重新 init 即播种
+    (mockPlayer._playerdata as any).dungeon.stages["main_03-08"].completeTimes = 1;
+    await manager.init();
+    expect(
+      Object.keys(
+        mockPlayer._playerdata.mission!.missions["SPECIAL_OPERATOR_WEEKLY"] ??
+          {},
+      ),
+    ).toEqual(["soWeekTask_1_rogue6"]);
+  });
+
+  it("weeklyRefresh 重置生效组进度并清除过期组残留条目", async () => {
+    // 存档残留：过期组任务（上周完成态）与生效组任务的已完成进度
+    mockPlayer._playerdata.mission!.missions["SPECIAL_OPERATOR_WEEKLY"] = {
+      soWeekTask_1: { state: 3, progress: [{ value: 500, target: 500 }] },
+      soWeekTask_1_rogue6: {
+        state: 3,
+        progress: [{ value: 500, target: 500 }],
+      },
+    } as any;
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    await manager.weeklyRefresh();
+
+    const group = mockPlayer._playerdata.mission!.missions[
+      "SPECIAL_OPERATOR_WEEKLY"
+    ] as any;
+    // 过期组条目被清除（组轮换：g_1 过期 → g_2 生效）
+    expect(group["soWeekTask_1"]).toBeUndefined();
+    // 生效组任务重置为初始态（链头 state=2、进度清零）
+    expect(group["soWeekTask_1_rogue6"]).toEqual({
+      state: 2,
+      progress: [{ value: 0, target: 500 }],
+    });
+    expect(manager.missions["SPECIAL_OPERATOR_WEEKLY"].length).toBe(1);
+  });
+});

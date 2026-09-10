@@ -165,7 +165,7 @@ describe("MissionManager", () => {
 
   describe("weeklyRefresh 播种每周任务", () => {
     it("weeklyRefresh 应播种并重置存档 WEEKLY 任务（链头 state=2、其余 state=1、进度清零）", async () => {
-      // 构造两个 WEEKLY 任务：weekly_701 是 WEEKLY_START_LIST 链头、weekly_test_001 普通
+      // 构造两个 WEEKLY 任务：weekly_701 无前置（链头）、weekly_test_001 有前置（链中）
       mockExcelRef.MissionTable.missions["weekly_701"] = {
         id: "weekly_701", type: "WEEKLY", periodicalPoint: 100,
         template: "CompleteStageAnyType", param: ["0", "1", "2"],
@@ -173,6 +173,8 @@ describe("MissionManager", () => {
       mockExcelRef.MissionTable.missions["weekly_test_001"] = {
         id: "weekly_test_001", type: "WEEKLY", periodicalPoint: 20,
         template: "CompleteStageAnyType", param: ["0", "1", "2"],
+        // 链头判定改为按 preMissionIds 动态判定（修复硬编码白名单失效）
+        preMissionIds: ["weekly_701"],
       };
       // 预置上周完成态 + 已领周奖励（修复前 weeklyRefresh 不清 → 客户端仍显示完成态）
       mockPlayer._playerdata.mission = {
@@ -262,7 +264,7 @@ describe("MissionManager", () => {
         ],
       };
       mockExcelRef.MissionTable.dailyMissionPeriodInfo = [period];
-      // 组内混入真实链头（daily_5801 在 DAILY_START_LIST）与普通链中任务
+      // 组内混入链头（daily_5801 无前置）与链中任务（daily_5802 有前置）
       mockExcelRef.MissionTable.missionGroups["daily_g_seed_state"] = {
         missionIds: ["daily_5801", "daily_5802"],
       };
@@ -273,6 +275,7 @@ describe("MissionManager", () => {
       mockExcelRef.MissionTable.missions["daily_5802"] = {
         id: "daily_5802", type: "DAILY", periodicalPoint: 1,
         template: "CompleteStageAnyType", param: ["0", "1", "2"],
+        preMissionIds: ["daily_5801"],
       };
 
       const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
@@ -553,10 +556,17 @@ describe("MissionManager", () => {
       const testRewards = [{ type: "MATERIAL", id: "mat_001", count: 1 }];
       mockExcelRef.MissionTable.missionGroups["group_001"] = {
         rewards: testRewards,
+        missionIds: ["m_done_1"],
       };
 
       mockPlayer._playerdata.mission = {
-        missions: { DAILY: {}, WEEKLY: {}, ACTIVITY: {}, OPENSERVER: {} },
+        // 组奖励需组内任务全部完成（state=3）
+        missions: {
+          DAILY: { m_done_1: { state: 3 } },
+          WEEKLY: {},
+          ACTIVITY: {},
+          OPENSERVER: {},
+        },
         missionRewards: {
           dailyPoint: 0,
           weeklyPoint: 0,
@@ -598,6 +608,43 @@ describe("MissionManager", () => {
         (call) => call[0] === "items:get"
       );
       expect(itemsGetCalls.length).toBe(0);
+    });
+
+    it("组内任务未全部完成时不应发放组奖励（防凭空领取）", async () => {
+      const manager = new MissionManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const testRewards = [{ type: "CHAR", id: "char_102_texas", count: 1 }];
+      mockExcelRef.MissionTable.missionGroups["group_incomplete"] = {
+        rewards: testRewards,
+        missionIds: ["m_done_1", "m_running_2"],
+      };
+
+      mockPlayer._playerdata.mission = {
+        missions: {
+          DAILY: { m_done_1: { state: 3 }, m_running_2: { state: 2 } },
+          WEEKLY: {},
+          ACTIVITY: {},
+          OPENSERVER: {},
+        },
+        missionRewards: {
+          dailyPoint: 0,
+          weeklyPoint: 0,
+          rewards: { DAILY: {}, WEEKLY: {} },
+        },
+        missionGroups: {},
+      };
+
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await manager.confirmMissionGroup({ missionGroupId: "group_incomplete" });
+
+      // 不发奖励，也不标记已领取
+      expect(
+        emitSpy.mock.calls.filter((call) => call[0] === "items:get").length
+      ).toBe(0);
+      expect(mockPlayer._playerdata.mission.missionGroups["group_incomplete"]).toBeUndefined();
     });
   });
 
@@ -852,6 +899,29 @@ describe("MissionTemplates 核心模板", () => {
     MissionTemplates.StageWithEnemyKill["1"].init(mission);
     MissionTemplates.StageWithEnemyKill["1"].update(mission, { completeState: 1, killCnt: 5 } as any);
     expect(mission.progress[0].value).toBe(0);
+  });
+
+  it("Rlv2SettleGame 指定主题结算应推进（修复：原 update 空实现且无 emit）", () => {
+    const mission = makeMission(["0", "1", "rogue_5"]);
+    MissionTemplates.Rlv2SettleGame["0"].init(mission);
+    expect(mission.progress[0].target).toBe(1);
+    // 主题不匹配不推进
+    MissionTemplates.Rlv2SettleGame["0"].update(mission, {
+      data: { current: { game: { theme: "rogue_6" } } },
+    } as any);
+    expect(mission.progress[0].value).toBe(0);
+    // 匹配主题推进
+    MissionTemplates.Rlv2SettleGame["0"].update(mission, {
+      data: { current: { game: { theme: "rogue_5" } } },
+    } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("Rlv2SettleGameTimes 任意主题结算应推进", () => {
+    const mission = makeMission(["0", "1"]);
+    MissionTemplates.Rlv2SettleGameTimes["0"].init(mission);
+    MissionTemplates.Rlv2SettleGameTimes["0"].update(mission, {} as any);
+    expect(mission.progress[0].value).toBe(1);
   });
 
   it("UpgradeChar 应累加干员升级次数", () => {
@@ -1216,9 +1286,10 @@ describe("MissionManager 刷新", () => {
     };
     const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
     await manager.dailyRefresh();
-    // state 重置为可接取(1)，progress 由模板 init 重建并归零；修复前 state 残留昨日完成态(3)
+    // state 重置为可接取（daily_r1 无前置 → 链头 → 2），progress 由模板 init 重建并归零；
+    // 关键是不得残留昨日完成态(3)
     const reset = mockPlayer._playerdata.mission!.missions.DAILY["daily_r1"];
-    expect(reset.state).toBe(1);
+    expect(reset.state).toBe(2);
     expect(reset.progress[0]).toMatchObject({ value: 0, target: 1 });
   });
 

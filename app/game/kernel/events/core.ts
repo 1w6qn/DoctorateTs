@@ -63,8 +63,11 @@ export type EventMapCore = {
   "player:levelUp": [{ level: number }];
   /** 玩家登录事件 - 玩家登录 */
   "player:login": [{ playerId: string }];
-  /** 基建角色初始化事件 - 基建角色初始化 */
-  "building:char:init": [PlayerCharacter];
+  // 说明（2026-09-09，审计 §6.3-27）：「building:char:init」自建仓起就**从未有 emit 方**
+  // （git log -S 'emit("building:char:init"' 为空），而干员模块获取新干员时 emit 的是
+  // 「char:init」（payload 同为 [PlayerCharacter]）→ 基建侧 `_onCharInit` 永不执行、
+  // 新获得干员在 `building.chars` 无建档（心情/私人宿舍/进驻状态缺失）。
+  // 契约已合并到 "char:init"，此处删除死契约以免再次误订阅。
   /** 战斗保存事件 - 保存战斗信息 */
   "save:battle": [string, { stageId: string; isPractice: number }];
   /** 战斗开始事件 - 开始战斗 */
@@ -185,8 +188,13 @@ export type EventMapCore = {
   CompleteMainStage: [BattleData & { stageId: string }];
   /** 发送线索 */
   SendClue: [];
-  /** 获得组队角色 */
-  GainTeamChar: [];
+  /**
+   * 势力全员收集达成（guide_43/guide_48，模板 GainTeamChar）
+   *
+   * 修复（2026-09-09，S2）：原为空载荷且全仓无 emit 站点 → 两个引导任务永久卡死。
+   * 载荷 teamId 供排查（模板仅计数）。
+   */
+  GainTeamChar: [{ teamId?: string }];
   /** 加速订单 */
   AccelerateOrder: [];
   /** 消耗理智 */

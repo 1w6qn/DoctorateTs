@@ -423,14 +423,22 @@ export const charTemplates: MissionTemplateGroup = {
   },
 
   /**
-   * 获得团队干员（小程序/联动获得的干员）
+   * 势力全员收集（GainTeamChar）
    *
-   * 每次获得 +1，目标恒为 1。
+   * 修复（2026-09-09，S2）：数据实参为 [branch, 目标势力数]——guide_43「获得1个势力的
+   * 全部成员」= ["0","1"]、guide_48「获得3个势力的全部成员」= ["0","3"]；原实现把目标
+   * 硬编码为 1（guide_48 一次即完成）且全仓无 emit 站点。现在每次「新达成一个势力的全员
+   * 收集」计 1（事件由 character 模块在获得干员时判定后补发）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标势力数
    */
   GainTeamChar: {
     "0": {
       init: (mission) => {
-        mission.progress.push({ value: mission.value, target: 1 });
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1] ?? "1") || 1,
+        });
       },
       update: (mission) => {
         mission.progress[0].value += 1;

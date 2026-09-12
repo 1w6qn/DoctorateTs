@@ -353,8 +353,13 @@ export class RoguelikeRecruitManager {
       const skillData =
         (excel.CharacterTable as Record<string, any>)[picked.charId]?.skills ||
         [];
+      // 解锁相位字段名跨版本有两种：2.7.71 起官方把 MainSkill 的 unlockCond 更名为
+      // initialUnlockCond（槽位/语义不变）。旧数据仍用 unlockCond，故两者都读以保持兼容。
+      // 历史缺陷：只读 unlockCond，数据升级后该键被移除 → phaseOf(undefined)=0 →
+      // 精二才解锁的三技能未被剔除（精一却带三技能）。
+      const unlockCondOf = (s: any) => s?.initialUnlockCond ?? s?.unlockCond;
       const cappedSkills = (src?.skills ?? []).filter((_: any, i: number) => {
-        return phaseOf(skillData[i]?.unlockCond?.phase) <= capPhase;
+        return phaseOf(unlockCondOf(skillData[i])?.phase) <= capPhase;
       });
       skills = cappedSkills.map((s: any) => ({ ...s, specializeLevel: 0 }));
       if (skills.length > 0) {

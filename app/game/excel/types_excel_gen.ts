@@ -1,10 +1,11 @@
 /**
  * 自动生成的 excel 表类型定义文件
- * 从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成
+ * 从 reference/com.hypergryph.arknights_2.7.71.cs 反编译文件生成
  * （客户端表类闭包 + excel 协议适配 + JSON 实际键对照，见 scripts/excel-server-adapt.ts / excel-json-keys.ts）
  * 生成命令: pnpm run generate:types
  * 请勿手动修改此文件
  */
+import type { JsonValue } from "./json-value";
 
 export type SubProfessionAttackType = "NONE" | "PHYSICAL" | "MAGICAL" | "HEAL";
 
@@ -729,10 +730,10 @@ export interface ExtraBattleLogDataKey {
 
 export interface ExtraBattleLogData {
     data: ExtraBattleLogDataKey[];
-    SELECTOR: object;
-    DEATHDETAIL: object;
-    PROJECTILEBORN: object;
-    OUTPUT_DAMAGE_TOTAL: object;
+    SELECTOR: JsonValue;
+    DEATHDETAIL: JsonValue;
+    PROJECTILEBORN: JsonValue;
+    OUTPUT_DAMAGE_TOTAL: JsonValue;
 }
 
 export interface GridPosition {
@@ -1657,12 +1658,12 @@ export interface Act1VHalfIdleDiagramData {
 }
 
 export interface Act1VHalfIdleDiagramData_PointPosData {
-    pos: object;
+    pos: JsonValue;
 }
 
 export interface Act1VHalfIdleDiagramData_LinePosData {
-    startPos: object;
-    endPos: object;
+    startPos: JsonValue;
+    endPos: JsonValue;
 }
 
 export interface Act1VHalfIdleDiagramData_LineRelationData {
@@ -3713,7 +3714,7 @@ export interface ActArkHubInteractiveUnitData {
     actorParam: string;
     avgId: string;
     interactionRequirements: string[];
-    position: object;
+    position: JsonValue;
     yaw: number;
     blockRange: ArkventRangeData;
     interactRange: ArkventRangeData;
@@ -3725,7 +3726,7 @@ export interface ActArkHubInteractiveUnitData {
     overrideAnimConfig: { [key: string]: string };
     spineFace: ArkventSpineFaceType;
     hasSafePos: boolean;
-    safePos: object;
+    safePos: JsonValue;
 }
 
 export interface ActArkHubItemData {
@@ -4311,7 +4312,7 @@ export interface AutoChessData_AutoChessConstData {
     premiumColor: string;
     normalColor: string;
     reportMaxNum: number;
-    chatCD: number;
+    chatCd: number;
     chatTime: number;
     broadcastBeginDelay: number;
     noMoneyTipsBand: string[];
@@ -5818,7 +5819,7 @@ export interface FireworkData_LevelData {
     sortId: number;
     trapPosX: number;
     trapPosY: number;
-    isSPLevel: boolean;
+    isSplevel: boolean;
 }
 
 export interface FireworkData_ConstData {
@@ -5913,7 +5914,7 @@ export interface ActivityTable {
     extraData: ActivityTable_ActivityExtraData;
     activityItems: { [key: string]: string[] };
     syncPoints: { [key: string]: number[] };
-    dynActs: { [key: string]: object };
+    dynActs: { [key: string]: JsonValue };
     stageRewardsData: { [key: string]: ActivityStageRewardData };
     actThemes: ActivityThemeData[];
     actFunData: AprilFoolTable;
@@ -5981,11 +5982,11 @@ export interface ActivityTable_CustomUnlockCond {
     stageId: string;
 }
 
-export type ActivityTable_ActivityDetailTable = { [key: string]: object };
+export type ActivityTable_ActivityDetailTable = { [key: string]: JsonValue };
 
 export interface ActivityTable_ActivityExtraData {
     typeMainlineBpData: { [key: string]: ActMainlineBpExtraData };
-    MAINLINE_BP: object;
+    MAINLINE_BP: JsonValue;
 }
 
 export interface ActivityTable_ActivityHiddenAreaData {
@@ -6606,7 +6607,7 @@ export interface ArkventSceneData {
     sceneIdHash: number;
     sceneName: string;
     assetId: string;
-    spawnPos: object;
+    spawnPos: JsonValue;
     spawnRadius: number;
     moveCameraConfigId: string;
     idleCameraConfigId: string;
@@ -6647,7 +6648,7 @@ export interface ArkventCameraPlatformConfig {
     lookAheadSmoothing: number;
     screenX: number;
     screenY: number;
-    trackedObjectOffset: object;
+    trackedObjectOffset: JsonValue;
     deadZoneWidth: number;
     deadZoneHeight: number;
     deadZoneDepth: number;
@@ -6678,7 +6679,7 @@ export interface ArkventTaskActorData {
     overrideAnimConfig: { [key: string]: string };
     furnitureAssetId: string;
     actorType: ArkventTaskActorType;
-    actorPosition: object;
+    actorPosition: JsonValue;
     actorYaw: number;
     actorShowCondition: ArkventTaskShowCondition[];
     actorTriggerType: ArkventTaskActorTriggerType;
@@ -6699,7 +6700,7 @@ export interface ArkventTaskActorData {
     spineFace: ArkventSpineFaceType;
     persistFaceWhenInteract: boolean;
     hasSafePos: boolean;
-    safePos: object;
+    safePos: JsonValue;
 }
 
 export interface ArkventTaskData {
@@ -6999,16 +7000,16 @@ export interface BuildingData_BuildingRoomTypeBuffSortData_buffGroupInfo {
 }
 
 export interface BuildingData_RoomBean {
-    phases: object[];
+    phases: { buildCost?: { items?: { id: string; count: number; type: string }[]; time?: number; labor?: number }; maxStationedNum?: number; electricity?: number; manpowerRecover?: number | string; unlockCondId?: string }[];
 }
 
 export interface BuildingData_ControlRoomBean {
-    phases: object[];
+    phases: JsonValue[];
     basicCostBuff: number;
 }
 
 export interface BuildingData_ManufactRoomBean {
-    phases: object[];
+    phases: { speed?: number; outputCapacity?: number }[];
     basicSpeedBuff: number;
 }
 
@@ -7019,7 +7020,7 @@ export interface BuildingData_ShopPhase {
 }
 
 export interface BuildingData_HireRoomBean {
-    phases: object[];
+    phases: { economizeRate?: number; resSpeed?: number; refreshTimes?: number }[];
     basicSpeedBuff: number;
 }
 
@@ -7033,12 +7034,12 @@ export interface BuildingData_PrivatePhase {
 }
 
 export interface BuildingData_MeetingRoomBean {
-    phases: object[];
+    phases: { friendSlotInc?: number; maxVisitorNum?: number; gatheringSpeed?: number }[];
     basicSpeedBuff: number;
 }
 
 export interface BuildingData_TradingRoomBean {
-    phases: object[];
+    phases: JsonValue[];
     basicSpeedBuff: number;
 }
 
@@ -7047,12 +7048,12 @@ export interface BuildingData_WorkshopPhase {
 }
 
 export interface BuildingData_TrainingBean {
-    phases: object[];
+    phases: JsonValue[];
     basicSpeedBuff: number;
 }
 
 export interface BuildingData_PowerRoomBean {
-    phases: object[];
+    phases: JsonValue[];
     basicSpeedBuff: number;
 }
 
@@ -7321,7 +7322,7 @@ export interface BuildingData_TradingRoomInfoData {
 }
 
 export interface CampaignStageMapData {
-    position: object;
+    position: JsonValue;
 }
 
 export interface CampaignData {
@@ -7485,7 +7486,7 @@ export interface ChapterData {
     chapterEndStageId: string;
 }
 
-export interface CharacterData {
+export type CharacterData = {
     name: string;
     description: string;
     sortIndex: number;
@@ -7522,8 +7523,7 @@ export interface CharacterData {
     potentialRanks: CharacterData_PotentialRank[];
     favorKeyFrames: CharacterData_AttributesDeltaKeyFrame;
     allSkillLvlup: CharacterData_SkillLevelCost[];
-    [key: string]: any;
-}
+} & { [key: string]: JsonValue };
 
 export type CharacterData_AttributesKeyFrame = KeyFrames_KeyFrame[];
 
@@ -7581,8 +7581,8 @@ export interface CharacterData_MainSkill {
     skillId: string;
     overridePrefabKey: string;
     overrideTokenKey: string;
-    levelUpCostCond: CharacterData_MainSkill_SpecializeLevelData[];
-    unlockCond: CharacterData_UnlockCondition;
+    specializeLevelUpData: CharacterData_MainSkill_SpecializeLevelData[];
+    initialUnlockCond: CharacterData_UnlockCondition;
 }
 
 export interface CharacterData_MainSkill_SpecializeLevelData {
@@ -7653,7 +7653,7 @@ export interface CharMasterBasicData {
     sortId: number;
     masterType: CharMasterType;
     levelList: CharMasterLevelData[];
-    candidates: object[];
+    candidates: JsonValue[];
 }
 
 export interface CharMetaTable {
@@ -7674,7 +7674,7 @@ export interface CharPatchData {
 export interface CharPatchData_PatchInfo {
     tmplIds: string[];
     defaultPatch: string;
-    default: object;
+    default: JsonValue;
 }
 
 export interface CharPatchData_UnlockCond {
@@ -7966,7 +7966,7 @@ export interface ClimbTowerRewardInfo {
 
 export interface KeyFrames_KeyFrame {
     level: number;
-    data: object;
+    data: JsonValue;
 }
 
 export interface PingCond {
@@ -8512,7 +8512,7 @@ export interface MagazineLeafItemData {
     templateStartTime: number;
     templateColor: string;
     templateColor2: string;
-    skinDefaultPos: object;
+    skinDefaultPos: JsonValue;
     skinDefaultScale: number;
     leafDecorMaxNumMap: { [key: string]: number };
 }
@@ -8524,7 +8524,7 @@ export interface MagazineLeafDecorTypeData {
     engName: string;
     smallIconId: string;
     bigIconId: string;
-    templateUseCardPosBias: object;
+    templateUseCardPosBias: JsonValue;
     templateUseCardScale: number;
 }
 
@@ -8852,14 +8852,14 @@ export interface GachaPoolClientData {
     guarantee5Avail: number;
     guarantee5Count: number;
     lMTGSID: string;
-    cdprimColor: string;
-    cdsecColor: string;
+    cDPrimColor: string;
+    cDSecColor: string;
     freeBackColor: string;
     gachaRuleType: GachaRuleType;
-    dynMeta: object;
+    dynMeta: JsonValue;
     linkageRuleId: string;
-    linkageParam: object;
-    limitParam: object;
+    linkageParam: JsonValue;
+    limitParam: JsonValue;
 }
 
 export interface NewbeeGachaPoolClientData {
@@ -9215,7 +9215,7 @@ export interface HandbookInfoTable {
     handbookStageTime: HandbookStageTimeData[];
 }
 
-export type HandbookTeamData = { [key: string]: object };
+export type HandbookTeamData = { [key: string]: JsonValue };
 
 export interface HotUpdateMetaMovieData {
     videoId: string;
@@ -9310,7 +9310,7 @@ export interface ItemData_StageDropInfo {
     stageId: string;
     occPer: OccPer;
     sortId: number;
-    ExpectPerAp: number;
+    expectPerAp: number;
 }
 
 export interface ItemData_BuildingProductInfo {
@@ -9422,16 +9422,16 @@ export interface MedalPerData {
     expireTimes: MedalExpireTime[];
     medalRewardGroup: MedalRewardGroupData[];
     isHidden: boolean;
-    playerMedal: object;
-    stageMedal: object;
-    campMedal: object;
-    towerMedal: object;
-    growthMedal: object;
-    storyMedal: object;
-    buildMedal: object;
-    activityMedal: object;
-    rogueMedal: object;
-    hiddenMedal: object;
+    playerMedal: JsonValue;
+    stageMedal: JsonValue;
+    campMedal: JsonValue;
+    towerMedal: JsonValue;
+    growthMedal: JsonValue;
+    storyMedal: JsonValue;
+    buildMedal: JsonValue;
+    activityMedal: JsonValue;
+    rogueMedal: JsonValue;
+    hiddenMedal: JsonValue;
 }
 
 export interface MedalTypeData {
@@ -9766,9 +9766,9 @@ export interface OpenServerScheduleItem {
     totalCheckinDescption: string;
     chainLoginDescription: string;
     charImg: string;
-    constData: object;
-    openseverTaskGroup1: object;
-    openseverTaskGroup2: object;
+    constData: JsonValue;
+    openseverTaskGroup1: JsonValue;
+    openseverTaskGroup2: JsonValue;
     firstDiamondShardMailCount: number;
     initApMailEndTs: number;
     resFullOpenUnlockStageId: string;
@@ -9777,16 +9777,16 @@ export interface OpenServerScheduleItem {
     resFullOpenDesc: string;
     resFullOpenGuideGroupThreshold: number;
     resFullOpenStartTime: number;
-    groupDataMap: object;
-    onceDataMap: object;
-    checkinDataMap: object;
-    priceDataMap: object;
-    missionDataMap: object;
-    checkinGpData: object;
-    newsDataMap: object;
-    giftPackagePicDataMap: object;
-    openStyleData: object;
-    groupList: object;
+    groupDataMap: JsonValue;
+    onceDataMap: JsonValue;
+    checkinDataMap: JsonValue;
+    priceDataMap: JsonValue;
+    missionDataMap: JsonValue;
+    checkinGpData: JsonValue;
+    newsDataMap: JsonValue;
+    giftPackagePicDataMap: JsonValue;
+    openStyleData: JsonValue;
+    groupList: JsonValue;
 }
 
 export interface OpenServerConst {
@@ -9950,7 +9950,7 @@ export interface RetroTrailRuleData {
     desc: string[];
 }
 
-export type ActivityCustomData = { [key: string]: object };
+export type ActivityCustomData = { [key: string]: JsonValue };
 
 export interface ActivityCustomData_Act25sideCustomData {
     battlePerformanceData: { [key: string]: Act25SideData_BattlePerformanceData };
@@ -10122,7 +10122,7 @@ export interface RoguelikeActivityBasicData {
     validMode: RoguelikeTopicMode;
 }
 
-export type RoguelikeActivityTable = { [key: string]: object };
+export type RoguelikeActivityTable = { [key: string]: JsonValue };
 
 export interface RoguelikeActivitySeedModeData {
     officialSeedDataList: RoguelikeActivitySeedModeData_RoguelikeActivityOfficialSeedData[];
@@ -10161,23 +10161,23 @@ export interface RoguelikeTable {
     modes: { [key: string]: RoguelikeModeData };
     endings: { [key: string]: RoguelikeEndingData };
     outBuffs: { [key: string]: RoguelikeOutBuffData };
-    playerLevelTable: object;
-    recruitPopulationTable: object;
-    charUpgradeTable: object;
-    eventTypeTable: object;
-    shopDialogs: object;
-    shopRelicDialogs: object;
-    eventTypeDialogs: object;
-    shopTicketDialogs: object;
+    playerLevelTable: JsonValue;
+    recruitPopulationTable: JsonValue;
+    charUpgradeTable: JsonValue;
+    eventTypeTable: JsonValue;
+    shopDialogs: JsonValue;
+    shopRelicDialogs: JsonValue;
+    eventTypeDialogs: JsonValue;
+    shopTicketDialogs: JsonValue;
     mimicEnemyIds: string[];
-    clearZoneScores: object;
+    clearZoneScores: JsonValue;
     moveToNodeScore: number;
     clearNormalBattleScore: number;
     clearEliteBattleScore: number;
     clearBossBattleScore: number;
     upgradeRarityScore: number;
     collectEndingScore: number;
-    eventTypeIcons: object;
+    eventTypeIcons: JsonValue;
 }
 
 export interface RoguelikeConstTable {
@@ -10307,7 +10307,7 @@ export interface RoguelikeChoiceData {
     type: string;
     nextSceneId: string;
     icon: string;
-    param: { [key: string]: object };
+    param: { [key: string]: JsonValue };
 }
 
 export interface RoguelikeChoiceSceneData {
@@ -10972,7 +10972,7 @@ export interface RoguelikeTopicDetail {
     activity: RoguelikeActivityData;
 }
 
-export type RoguelikeTopicCustomizeData = { [key: string]: object };
+export type RoguelikeTopicCustomizeData = { [key: string]: JsonValue };
 
 export interface RL01CustomizeData {
     developments: { [key: string]: RoguelikeTopicDev };
@@ -12273,8 +12273,8 @@ export interface SandboxArchiveMusicUnlockData {
 
 export interface SandboxV2MapZoneData {
     zoneId: string;
-    center: object;
-    vertices: object[];
+    center: JsonValue;
+    vertices: JsonValue[];
     triangles: number[][];
     hasBorder: boolean;
 }
@@ -12284,8 +12284,8 @@ export interface SandboxV2MapConfig {
     RIFT_DEFAULT: SandboxV2MapConfig;
     isRift: boolean;
     isGuide: boolean;
-    cameraBoundMin: object;
-    cameraBoundMax: object;
+    cameraBoundMin: JsonValue;
+    cameraBoundMax: JsonValue;
     cameraMaxNormalizedZoom: number;
     backgroundId: string;
 }
@@ -13071,8 +13071,8 @@ export interface SandboxV2Data {
 }
 
 export interface SandboxV3MapGridPos {
-    x: number;
-    y: number;
+    X: number;
+    Y: number;
 }
 
 export interface SandboxV3ModeData {
@@ -13765,7 +13765,7 @@ export interface SandboxV3GameConst {
     luckyRewardMax: number;
     bandAchievementScore: number;
     generalTrademanSkillIndex: number;
-    generalTrademanAVGPath: string;
+    generalTrademanAvgpath: string;
     hideCookEntryNodeIds: string[];
     hideShopEntryNodeIds: string[];
     showProcessorNotWorkingInterval: number;
@@ -13909,8 +13909,8 @@ export interface SandboxPermBasicData_HomeEntryDisplayData {
 export interface SandboxPermDetailData {
     sandboxV2TemplateData: { [key: string]: SandboxV2Data };
     sandboxV3TemplateData: { [key: string]: SandboxV3Data };
-    SANDBOX_V2: object;
-    SANDBOX_V3: object;
+    SANDBOX_V2: JsonValue;
+    SANDBOX_V3: JsonValue;
 }
 
 export interface SandboxPermTable {
@@ -13932,15 +13932,15 @@ export interface ShopClientData {
     chooseShopRelations: ChooseShopRelation[];
     chooseOptionToGoodDict: { [key: string]: string };
     shopUnlockDict: { [key: string]: ShopUnlockType };
-    extraQcshopRule: string[];
-    repQcshopRule: string[];
-    shopGpdataDict: { [key: string]: ShopClientGPData };
+    extraQCShopRule: string[];
+    repQCShopRule: string[];
+    shopGPDataDict: { [key: string]: ShopClientGPData };
     tabDisplayData: { [key: string]: ShopGPTabDisplayData };
     shopMonthlySubGoodId: string;
     limitedShopSchedule: LMTGSShopSchedule[];
     overlaySchedule: LMTGSShopOverlaySchedule[];
-    ls: object;
-    os: object;
+    ls: JsonValue;
+    os: JsonValue;
 }
 
 export interface ShopClientData_ShopKeeperData {
@@ -13956,7 +13956,7 @@ export interface LMTGSShopOverlaySchedule {
 
 export interface LMTGSShopSchedule {
     gachaPoolId: string;
-    LMTGSId: string;
+    lMTGSId: string;
     iconColor: string;
     iconBackColor: string;
     storeTextColor: string;
@@ -14311,7 +14311,7 @@ export interface SpecialOperatorDiagramData {
 }
 
 export interface SpecialOperatorPointPosData {
-    pos: object;
+    pos: JsonValue;
 }
 
 export interface SpecialOperatorElitePointData {
@@ -14328,8 +14328,8 @@ export interface SpecialOperatorLevelPointData {
 }
 
 export interface SpecialOperatorLinePosData {
-    startPos: object;
-    endPos: object;
+    startPos: JsonValue;
+    endPos: JsonValue;
 }
 
 export interface SpecialOperatorLineRelationData {
@@ -14434,15 +14434,15 @@ export interface StageData {
     startButtonOverrideId: string;
     isStagePatch: boolean;
     mainStageId: string;
-    S_extraCondition: StageData_ExtraConditionDesc[];
-    S_extraInfo: StageData_SpecialStoryInfo[];
+    s_extraCondition: StageData_ExtraConditionDesc[];
+    s_extraInfo: StageData_SpecialStoryInfo[];
     sixStarBaseDesc: string;
     sixStarDisplayRewardList: ItemBundle[];
     advancedRuneIdList1: string[];
     advancedRuneIdList2: string[];
     useSpecialSizeMapPreview: boolean;
     extraCondition: { index: number; template: string; unlockParam: string[] }[];
-    extraInfo: { stageId: string; rewards: ItemBundle[]; progressInfo: object; imageId: string; keyItemId: string; unlockDesc: string }[];
+    extraInfo: { stageId: string; rewards: ItemBundle[]; progressInfo: JsonValue; imageId: string; keyItemId: string; unlockDesc: string }[];
 }
 
 export interface StageData_DisplayRewards {
@@ -14831,7 +14831,7 @@ export interface StoryReviewInfoClientData {
     requiredStages: StoryData_Condition_StageCondition[];
 }
 
-export interface StoryReviewGroupClientData {
+export type StoryReviewGroupClientData = {
     id: string;
     name: string;
     entryType: StoryReviewEntryType;
@@ -14849,8 +14849,7 @@ export interface StoryReviewGroupClientData {
     storyCompleteMedalId: string;
     rewards: ItemBundle[];
     infoUnlockDatas: StoryReviewInfoClientData[];
-    [key: string]: any;
-}
+} & { [key: string]: JsonValue };
 
 export interface StoryReviewMetaTable {
     miniActTrialData: MiniActTrialData;
@@ -15141,7 +15140,7 @@ export interface VoiceLangData {
     wordkeys: string[];
     charId: string;
     voiceLangInfoDataDict: { [key: string]: VoiceLangInfoData };
-    dict: object;
+    dict: JsonValue;
 }
 
 export interface VoiceLangTypeData {
@@ -15318,7 +15317,7 @@ export interface ArkventAudioSourceData {
 
 export interface ArkventRangeData {
     type: ArkventRangeType;
-    position: object;
-    bounds: object;
+    position: JsonValue;
+    bounds: JsonValue;
 }
 

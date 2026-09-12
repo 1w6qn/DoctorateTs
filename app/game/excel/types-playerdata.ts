@@ -1,10 +1,11 @@
 /**
  * 自动生成的玩家数据类型定义文件
- * 从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成
+ * 从 reference/com.hypergryph.arknights_2.7.71.cs 反编译文件生成
  * （客户端闭包 + 服务端协议适配 + 线格式适配，见 scripts/playerdata-server-adapt.ts）
  * 生成命令: pnpm run generate:types
  * 请勿手动修改此文件
  */
+import type { ServerPayload } from "./json-value";
 
 export type PlayerAvatarType = "NONE" | "ASSISTANT" | "ICON" | "DEFAULT";
 
@@ -411,7 +412,7 @@ export interface PlayerCharacter {
     voiceLan: string;
     currentEquip: string | null;
     equip: { [key: string]: PlayerCharEquipInfo };
-    master?: object;
+    master?: ServerPayload;
 }
 
 export interface PlayerCharPatch {
@@ -470,7 +471,7 @@ export interface PlayerSpecialOperatorNode {
     type: string;
 }
 
-export type PlayerActivity = { [typeKey: string]: { [actId: string]: object } };
+export type PlayerActivity = { [typeKey: string]: { [actId: string]: ServerPayload } };
 
 export interface PlayerActivity_PlayerDefaultActivity {
     coin: number;
@@ -2034,14 +2035,14 @@ export interface PlayerGacha {
     newbee: PlayerGacha_PlayerNewbeeGachaPool;
     normal: { [key: string]: PlayerGacha_PlayerGachaPool };
     limit: { [key: string]: PlayerGacha_PlayerFreeLimitGacha };
-    linkage: { [key: string]: { [key: string]: object } };
+    linkage: { [key: string]: { [key: string]: ServerPayload } };
     attain: { [key: string]: PlayerGacha_PlayerAttainGacha };
     single: { [key: string]: PlayerGacha_PlayerSingleGacha };
     doubleGacha: { [key: string]: PlayerGacha_PlayerDoubleGacha };
     fesClassic: { [key: string]: PlayerGacha_PlayerFesClassicGacha };
     special: { [key: string]: PlayerGacha_PlayerSpecialGacha };
     backflow: { [key: string]: PlayerGacha_PlayerReturnGacha };
-    double: object;
+    double: ServerPayload;
 }
 
 export interface PlayerGacha_PlayerNewbeeGachaPool {
@@ -2313,14 +2314,14 @@ export interface PlayerEnemyHandBook {
 export interface PlayerFormulaUnlockRecord {
     manufacture: { [key: string]: number };
     workshop: { [key: string]: number };
-    shop: object;
+    shop: ServerPayload;
 }
 
 export interface PlayerDexNav {
     enemy: PlayerEnemyHandBook;
     formula: PlayerFormulaUnlockRecord;
     character: { [key: string]: { charInstId: number; count: number; classicCount?: number } };
-    teamV2: { [key: string]: object };
+    teamV2: { [key: string]: { [key: string]: number } };
 }
 
 export interface PlayerSkins {
@@ -2373,7 +2374,7 @@ export interface PlayerRetroBlock {
 
 export interface PlayerAvatar {
     playerAvatarIcons: { [key: string]: PlayerAvatarBlock };
-    avatar_icon: { [key: string]: object };
+    avatar_icon: { [key: string]: { ts: number; src: string } };
 }
 
 export interface PlayerAvatarBlock {
@@ -2397,14 +2398,14 @@ export interface PlayerEquipMission {
 export interface PlayerBuildingManufactureBuff {
     speed: number;
     capacity: number;
-    apCost: { self: object; all: number };
+    apCost: { self: ServerPayload; all: number };
     sSpeed: number;
-    tSpeed: object;
+    tSpeed: ServerPayload;
     cSpeed: number;
-    capFrom: object;
+    capFrom: ServerPayload;
     maxSpeed: number;
-    point: object;
-    flag: object;
+    point: ServerPayload;
+    flag: ServerPayload;
     skillExtend: { [key: string]: string[] };
 }
 
@@ -2454,9 +2455,9 @@ export interface PlayerBuildingShop {
 
 export interface PlayerBuildingPowerBuff {
     laborSpeed: number;
-    apCost: object;
-    global: object;
-    manufacture: object;
+    apCost: ServerPayload;
+    global: ServerPayload;
+    manufacture: ServerPayload;
 }
 
 export interface PlayerBuildingPower {
@@ -2466,15 +2467,15 @@ export interface PlayerBuildingPower {
 
 export interface PlayerBuildingControlBuff {
     global: PlayerBuildingControlBuff_Global;
-    manufacture: object;
-    trading: object;
-    meeting: object;
-    apCost: object;
-    point: object;
-    hire: object;
-    power: object;
-    dormitory: object;
-    training: object;
+    manufacture: ServerPayload;
+    trading: ServerPayload;
+    meeting: ServerPayload;
+    apCost: ServerPayload;
+    point: ServerPayload;
+    hire: ServerPayload;
+    power: ServerPayload;
+    dormitory: ServerPayload;
+    training: ServerPayload;
 }
 
 export interface PlayerBuildingControlBuff_Global {
@@ -2499,9 +2500,9 @@ export interface PlayerBuildingWorkshopBuff {
     costFormula: PlayerBuildingWorkshopBuff_CostFormula;
     costForce: PlayerBuildingWorkshopBuff_CostForce;
     costDevide: PlayerBuildingWorkshopBuff_CostDevide;
-    recovery: object;
-    fFix: object;
-    activeBonus: object;
+    recovery: ServerPayload;
+    fFix: ServerPayload;
+    activeBonus: ServerPayload;
 }
 
 export interface PlayerBuildingWorkshopBuff_Cost {
@@ -2539,7 +2540,7 @@ export interface PlayerBuildingWorkshopBuff_Frate {
 
 export interface PlayerBuildingWorkshop {
     buff: PlayerBuildingWorkshopBuff;
-    statistic: object;
+    statistic: ServerPayload;
 }
 
 export interface PlayerBuildingMeetingClueChar {
@@ -2573,11 +2574,11 @@ export interface PlayerBuildingMeetingInfoShareState {
 
 export interface PlayerBuildingMeetingBuff {
     speed: number;
-    weight: object;
-    flag: object;
-    apCost: object;
-    notOwned: object;
-    owned: object;
+    weight: ServerPayload;
+    flag: ServerPayload;
+    apCost: ServerPayload;
+    notOwned: ServerPayload;
+    owned: ServerPayload;
 }
 
 export interface PlayerBuildingMessageLeaveSP {
@@ -2621,10 +2622,10 @@ export interface PlayerBuildingMeeting {
 
 export interface PlayerBuildingHireBuff {
     speed: number;
-    meeting: object;
-    stack: object;
-    point: object;
-    apCost: object;
+    meeting: ServerPayload;
+    stack: ServerPayload;
+    point: ServerPayload;
+    apCost: ServerPayload;
 }
 
 export interface PlayerBuildingHire {
@@ -2639,7 +2640,7 @@ export interface PlayerBuildingHire {
     presetQueue: number[][];
 }
 
-export type PlayerBuildingTradingOrder = { instId: number; delivery: ItemBundle[]; type: BuildingData_OrderType; gain: ItemBundle; buff: object[] };
+export type PlayerBuildingTradingOrder = { instId: number; delivery: ItemBundle[]; type: BuildingData_OrderType; gain: ItemBundle; buff: ServerPayload[] };
 
 export interface PlayerBuildingTradingOrder_TradingOrderBuff {
     from: string;
@@ -2654,15 +2655,15 @@ export interface PlayerBuildingTradingOrder_TradingGoldTag {
 export interface PlayerBuildingTradingBuff {
     speed: number;
     limit: number;
-    apCost: object;
-    rate: object;
-    tgw: object[];
-    point: object;
-    manuLines: object;
-    orderBuff: object[];
-    violatedInfo: object;
-    orderWtBuff: object[];
-    speGoldOrder: object;
+    apCost: ServerPayload;
+    rate: ServerPayload;
+    tgw: ServerPayload[];
+    point: ServerPayload;
+    manuLines: ServerPayload;
+    orderBuff: ServerPayload[];
+    violatedInfo: ServerPayload;
+    orderWtBuff: ServerPayload[];
+    speGoldOrder: ServerPayload;
 }
 
 export interface PlayerBuildingTradingNext {
@@ -2720,14 +2721,14 @@ export interface PlayerBuildingDormitory {
 
 export interface PlayerBuildingDormitory_Buff {
     apCost: PlayerBuildingDormitory_Buff_APCost;
-    point: object;
+    point: ServerPayload;
 }
 
 export interface PlayerBuildingDormitory_Buff_APCost {
     all: number;
     single: PlayerBuildingDormitory_Buff_APCost_SingleTarget;
-    self: object;
-    exclude: object;
+    self: ServerPayload;
+    exclude: ServerPayload;
 }
 
 export interface PlayerBuildingDormitory_Buff_APCost_SingleTarget {
@@ -2757,17 +2758,17 @@ export interface PlayerBuildingTrainee {
 export interface PlayerBuildingTrainingReduceTimeBd {
     activated: boolean;
     cnt: number;
-    fulltime: object;
-    reset: object;
+    fulltime: ServerPayload;
+    reset: ServerPayload;
 }
 
 export interface PlayerBuildingTrainingBuff {
     speed: number;
     reduceTimeBd: PlayerBuildingTrainingReduceTimeBd;
-    lvEx: object;
-    lvCost: object;
-    reduce: object;
-    apCost: object;
+    lvEx: ServerPayload;
+    lvCost: ServerPayload;
+    reduce: ServerPayload;
+    apCost: ServerPayload;
 }
 
 export interface PlayerBuildingTraining {
@@ -2809,7 +2810,7 @@ export interface PlayerBuilding {
     chars: { [key: string]: PlayerBuildingChar };
     assist: number[];
     roomSlots: { [key: string]: PlayerBuildingRoomSlot };
-    rooms: { CONTROL: { [slotId: string]: PlayerBuildingControl }; ELEVATOR: { [slotId: string]: object }; POWER: { [slotId: string]: PlayerBuildingPower }; MANUFACTURE: { [slotId: string]: PlayerBuildingManufacture }; TRADING: { [slotId: string]: PlayerBuildingTrading }; CORRIDOR: { [slotId: string]: object }; WORKSHOP: { [slotId: string]: PlayerBuildingWorkshop }; DORMITORY: { [slotId: string]: PlayerBuildingDormitory }; MEETING: { [slotId: string]: PlayerBuildingMeeting }; HIRE: { [slotId: string]: PlayerBuildingHire }; TRAINING: { [slotId: string]: PlayerBuildingTraining }; PRIVATE: { [slotId: string]: PlayerBuildingPrivate } };
+    rooms: { CONTROL: { [slotId: string]: PlayerBuildingControl }; ELEVATOR: { [slotId: string]: { state?: number; presetQueue?: number[][]; completeConstructTime?: number } }; POWER: { [slotId: string]: PlayerBuildingPower }; MANUFACTURE: { [slotId: string]: PlayerBuildingManufacture }; TRADING: { [slotId: string]: PlayerBuildingTrading }; CORRIDOR: { [slotId: string]: { state?: number; presetQueue?: number[][]; completeConstructTime?: number } }; WORKSHOP: { [slotId: string]: PlayerBuildingWorkshop }; DORMITORY: { [slotId: string]: PlayerBuildingDormitory }; MEETING: { [slotId: string]: PlayerBuildingMeeting }; HIRE: { [slotId: string]: PlayerBuildingHire }; TRAINING: { [slotId: string]: PlayerBuildingTraining }; PRIVATE: { [slotId: string]: PlayerBuildingPrivate } };
     furniture: { [key: string]: PlayerBuildingFurnitureInfo };
     diyPresetSolutions: { [key: string]: PlayerBuildingDIYPreset };
     solution: PlayerBuilding_PlayerBuildingSolution;
@@ -2850,9 +2851,9 @@ export interface PlayerCrisisShop {
 export interface PlayerCrisisSeason {
     coin: number;
     tCoin: number;
-    permanent: object;
-    temporary: object;
-    sInfo: object;
+    permanent: ServerPayload;
+    temporary: ServerPayload;
+    sInfo: ServerPayload;
 }
 
 export interface PlayerCrisisSocialInfo {
@@ -2874,7 +2875,7 @@ export interface PlayerCrisis {
     nst: number;
     map: { [key: string]: { rank: number; confirmed: number } };
     training: { currentStage: string[]; stage: { [key: string]: { point: number } }; nst: number };
-    box: object[];
+    box: ServerPayload[];
 }
 
 export interface PlayerCrisisV2Season {
@@ -2931,7 +2932,7 @@ export interface PlayerRecalRuneStage {
     state: number;
     record: number;
     passedRunes: string[];
-    runes: object;
+    runes: ServerPayload;
 }
 
 export interface PlayerRecalRuneReward {
@@ -3147,7 +3148,7 @@ export interface PlayerRoguelikeV2_CurrentData {
     troop: PlayerRoguelikeV2_CurrentData_Troop;
     buff: PlayerRoguelikeV2_CurrentData_Buff;
     module: PlayerRoguelikeV2_CurrentData_Module;
-    record: object;
+    record: ServerPayload;
 }
 
 export interface PlayerRoguelikeV2_CurrentData_PlayerStatus {
@@ -3636,7 +3637,7 @@ export interface PlayerRoguelikeV2_OuterData_Mission_MissionItem {
     state: number;
     target: number;
     value: number;
-    tmpl: object;
+    tmpl: ServerPayload;
 }
 
 export interface PlayerRoguelikeV2_OuterData_TotemCollection {
@@ -3666,7 +3667,7 @@ export interface PlayerRoguelikeV2_OuterData_Collection {
     wrath: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
     scrap: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
     weather: PlayerRoguelikeV2_OuterData_Collection_WeatherCollection;
-    chat: object;
+    chat: ServerPayload;
 }
 
 export interface PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo {
@@ -3738,7 +3739,7 @@ export interface PlayerReturnData {
     open: boolean;
     currentV2: PlayerReturnData_CurrentV2Data;
     version: number;
-    current: object;
+    current: ServerPayload;
 }
 
 export interface PlayerReturnData_CurrentV2Data {
@@ -4248,7 +4249,7 @@ export interface TowerCurrent_TowerGameLayer {
     pass: number;
 }
 
-export type TowerCurrent_GameCard = { relation: string; type: TowerCurrent_TowerCardType; charId: string; currentEquip: string | null; defaultSkillIndex: number; equip: object; evolvePhase: number; favorPoint: number; instId: string; level: number; mainSkillLvl: number; potentialRank: number; skills: object[]; skin: string };
+export type TowerCurrent_GameCard = { relation: string; type: TowerCurrent_TowerCardType; charId: string; currentEquip: string | null; defaultSkillIndex: number; equip: { [key: string]: PlayerCharEquipInfo }; evolvePhase: number; favorPoint: number; instId: string; level: number; mainSkillLvl: number; potentialRank: number; skills: { skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[]; skin: string };
 
 export interface TowerCurrent_TowerTrapInfo {
     id: string;
@@ -4276,7 +4277,7 @@ export interface TowerOuter {
     tactical: TowerTactical;
     strategy: TowerGameStrategy;
     squad: PlayerSquadItem[];
-    pickedGodCard: object;
+    pickedGodCard: ServerPayload;
 }
 
 export interface TowerOuter_TowerData {
@@ -4296,7 +4297,7 @@ export interface TowerSeason {
     passWithGodCard: { [key: string]: string[] };
     towerSlotsMap: { [key: string]: TowerSeason_TowerSeasonCardSquad[] };
     period: TowerSeason_TowerSeasonPeriod;
-    slots: object;
+    slots: ServerPayload;
 }
 
 export interface TowerSeason_TowerSeasonMission {
@@ -4419,7 +4420,7 @@ export interface PlayerMainlineRecord {
     explore: PlayerMainlineExplore;
     clue: PlayerMainlineClue;
     version: number;
-    charVoiceRecord: { [key: string]: object };
+    charVoiceRecord: { [key: string]: ServerPayload };
 }
 
 export interface PlayerMainlineExplore {
@@ -5632,15 +5633,15 @@ export interface PlayerSandboxPerm {
 export interface PlayerSandboxPerm_PlayerSandboxTemplateData {
     sandboxV2TemplateData: { [key: string]: PlayerSandboxV2 };
     sandboxV3TemplateData: { [key: string]: PlayerSandboxV3 };
-    SANDBOX_V2: object;
-    SANDBOX_V3: object;
+    SANDBOX_V2: ServerPayload;
+    SANDBOX_V3: ServerPayload;
 }
 
 export interface PlayerSandboxPerm_PlayerSandboxSummaryData {
     sandboxV2SummaryData: { [key: string]: PlayerSandboxV2Summary };
     sandboxV3SummaryData: { [key: string]: PlayerSandboxV3Summary };
-    SANDBOX_V2: object;
-    SANDBOX_V3: object;
+    SANDBOX_V2: ServerPayload;
+    SANDBOX_V3: ServerPayload;
 }
 
 export interface PlayerCrossAppShare {
@@ -5812,7 +5813,7 @@ export interface PlayerDataModel {
     mainline: PlayerMainlineRecord;
     limitedBuff: PlayerLimitedDropBuff;
     performanceStory: PlayerPerformanceStory;
-    deleted: { [key: string]: object };
+    deleted: { [key: string]: ServerPayload };
     checkMeta: { version: number; ts: number };
 }
 

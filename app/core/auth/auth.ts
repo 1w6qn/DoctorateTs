@@ -20,6 +20,38 @@ function serverUrl(): string {
   return `${config.Host}:${config.PORT}`;
 }
 
+/** U8 渠道 extension 载荷（客户端下发 JSON 字符串，字段随渠道而异） */
+interface U8ExtensionPayload {
+  /** 渠道授权码（getToken） */
+  code?: string;
+  /** 渠道访问令牌（verifyAccount） */
+  access_token?: string;
+}
+
+/**
+ * 解析 U8 渠道 extension 字段（JSON 字符串）
+ *
+ * 修复（2026-09-11）：U8 登录/校验两个端点的原实现直接 `JSON.parse(req.body.extension)`，
+ * 缺字段时抛 SyntaxError → 统一错误处理归一为 500。空 body 属客户端错误，改判空返回 null
+ * 由调用方回 400（core 层不引入 game 的错误类，避免 core → game 反向依赖）。
+ * @param body - 请求体
+ * @returns 解析后的 extension 对象；缺失或非合法 JSON 时为 null
+ */
+function parseExtension(body: { extension?: string } | undefined): U8ExtensionPayload | null {
+  const raw = body?.extension;
+  if (typeof raw !== "string" || raw.length === 0) return null;
+  try {
+    return JSON.parse(raw) as U8ExtensionPayload;
+  } catch {
+    return null;
+  }
+}
+
+/** extension 解析失败的统一 400 响应体（U8 渠道两端点共用） */
+function extensionErrorBody(): { status: number; msg: string; code: string } {
+  return { status: 1, msg: "extension 缺失或不是合法 JSON", code: "EXTENSION_INVALID" };
+}
+
 /**
  * 获取服务器时间
  * 
@@ -68,9 +100,21 @@ router.get("/app/v1/config", async (req, res) => {
  * @returns 包含 Token 的登录结果
  */
 router.post("/user/auth/v1/token_by_phone_password", async (req, res) => {
+  const phone = req.body?.phone;
+  const password = req.body?.password;
+  // 修复（2026-09-11）：缺字段时原实现把 undefined 透传给 AccountManager，real 模式会落到
+  // 「账号不存在→自动注册」分支并以未捕获异常收场（HTTP 500）；空凭据属客户端错误 → 400
+  if (typeof phone !== "string" || phone.length === 0 ||
+      typeof password !== "string" || password.length === 0) {
+    return res.status(400).send({
+      status: 1,
+      msg: "手机号与密码不能为空",
+      code: "CREDENTIAL_REQUIRED",
+    });
+  }
   const code = await accountManager.tokenByPhonePassword(
-    req.body!.phone,
-    req.body!.password,
+    phone,
+    password,
   );
   res.send({
     status: 0,
@@ -215,7 +259,9 @@ router.post("/user/oauth2/v2/grant", oauth2Grant);
  * @returns U8 渠道登录结果
  */
 router.post("/u8/user/v1/getToken", async (req, res) => {
-  const code: string = JSON.parse(req.body!.extension).code;
+  const ext = parseExtension(req.body);
+  if (!ext) return res.status(400).send(extensionErrorBody());
+  const code: string = ext.code ?? "";
   const uid = await accountManager.getUidByToken(code);
   // 对齐官服抓包结构：captcha/error/isNew 字段（2026-08-07 auth/u8/user/v1/getToken）
   res.send({
@@ -236,7 +282,9 @@ router.post("/u8/user/v1/getToken", async (req, res) => {
 
 /** U8 渠道账号验证（参考 DoctoratePy userVerifyAccount——access_token 换 uid） */
 router.post("/u8/user/verifyAccount", async (req, res) => {
-  const token: string = JSON.parse(req.body!.extension).access_token;
+  const ext = parseExtension(req.body);
+  if (!ext) return res.status(400).send(extensionErrorBody());
+  const token: string = ext.access_token ?? "";
   const uid = await accountManager.getUidByToken(token);
   res.send({
     result: 0,

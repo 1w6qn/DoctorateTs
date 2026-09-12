@@ -210,7 +210,7 @@ describe("MedalManager", () => {
   });
 
   describe("rewardMedal", () => {
-    it("当勋章存在于 medals 中时应该设置 rts 并触发 items:get", () => {
+    it("当勋章存在于 medals 中时应该设置 rts 并触发 items:get", async () => {
       const manager = new MedalManager(
         mockPlayer as any,
         mockTrigger as any
@@ -242,17 +242,22 @@ describe("MedalManager", () => {
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
-      const result = manager.rewardMedal({
+      // rewardMedal 已改 async（修复奖励发放与 delta 读取的竞态），须 await 取结果
+      const result = await manager.rewardMedal({
         medalId: "medal_test_001",
         group: "group_001",
       });
 
       expect(result).toEqual(medalItems);
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [medalItems]);
+      // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      for (const it of medalItems) {
+        expect(mockPlayer.gainItem.add).toHaveBeenCalledWith(it);
+      }
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalledTimes(1);
       expect(manager.medals["medal_test_001"].rts).toBeGreaterThan(0);
     });
 
-    it("当勋章不在 medals 中时应该从 playerdata 设置 rts", () => {
+    it("当勋章不在 medals 中时应该从 playerdata 设置 rts", async () => {
       const manager = new MedalManager(
         mockPlayer as any,
         mockTrigger as any
@@ -273,13 +278,17 @@ describe("MedalManager", () => {
       // 该勋章未领取（rts=-1）才允许发放奖励
       mockPlayer._playerdata.medal!.medals["medal_test_002"].rts = -1;
       const emitSpy = vi.spyOn(mockTrigger, "emit");
-      const result = manager.rewardMedal({
+      const result = await manager.rewardMedal({
         medalId: "medal_test_002",
         group: "group_002",
       });
 
       expect(result).toEqual(medalItems);
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [medalItems]);
+      // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      for (const it of medalItems) {
+        expect(mockPlayer.gainItem.add).toHaveBeenCalledWith(it);
+      }
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalledTimes(1);
       expect(
         mockPlayer._playerdata.medal!.medals["medal_test_002"].rts
       ).toBeGreaterThan(0);

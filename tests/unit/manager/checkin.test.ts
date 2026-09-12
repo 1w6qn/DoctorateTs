@@ -280,7 +280,6 @@ describe("CheckInManager", () => {
         mockTrigger as any
       );
 
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       const result = await manager.checkIn();
 
       expect(result).toBeDefined();
@@ -290,9 +289,13 @@ describe("CheckInManager", () => {
       expect(result!.subscriptionRewards).toEqual([]);
       expect(mockPlayer._playerdata.checkIn!.canCheckIn).toBe(0);
       expect(mockPlayer._playerdata.checkIn!.checkInHistory).toContain(0);
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [
-        [{ id: "item_001", count: 100, type: "MATERIAL" }],
-      ]);
+      // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+        id: "item_001",
+        count: 100,
+        type: "MATERIAL",
+      });
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalledTimes(1);
     });
 
     it("当持有月卡时签到应额外返回订阅奖励", async () => {
@@ -305,7 +308,6 @@ describe("CheckInManager", () => {
       mockPlayer._playerdata.status!.monthlySubscriptionStartTime = 0;
       mockPlayer._playerdata.status!.monthlySubscriptionEndTime = 9999999999;
 
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       const result = await manager.checkIn();
 
       expect(result).toBeDefined();
@@ -315,13 +317,18 @@ describe("CheckInManager", () => {
       expect(result!.subscriptionRewards).toEqual([
         { id: "sub_item_001", count: 1, type: "MATERIAL" },
       ]);
-      // items:get 应携带签到奖励 + 订阅奖励
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [
-        [
-          { id: "sub_item_001", count: 1, type: "MATERIAL" },
-          { id: "item_001", count: 100, type: "MATERIAL" },
-        ],
-      ]);
+      // items:get 发放已收敛到 player.gainItem 管道（订阅奖励在前，签到奖励在后）
+      expect(mockPlayer.gainItem.add).toHaveBeenNthCalledWith(1, {
+        id: "sub_item_001",
+        count: 1,
+        type: "MATERIAL",
+      });
+      expect(mockPlayer.gainItem.add).toHaveBeenNthCalledWith(2, {
+        id: "item_001",
+        count: 100,
+        type: "MATERIAL",
+      });
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalledTimes(1);
     });
 
     it("当 checkInRewardIndex 为 -1 时签到应重置为 0 后再发放奖励", async () => {

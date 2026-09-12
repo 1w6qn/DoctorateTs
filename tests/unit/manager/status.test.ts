@@ -332,9 +332,13 @@ describe("StatusManager", () => {
       expect(mockPlayer._playerdata.collectionReward!.team["reward_001"]).toBe(
         1
       );
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [
-        [{ id: "team_item_001", count: 5, type: "MATERIAL" }],
-      ]);
+      // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+        id: "team_item_001",
+        count: 5,
+        type: "MATERIAL",
+      });
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     });
   });
 

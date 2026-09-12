@@ -141,9 +141,13 @@ describe("SocialManager 其他方法", () => {
     const emitSpy = vi.spyOn(pd._trigger, "emit");
     const point = await social.receiveSocialPoint();
     expect(point).toBe(15);
-    expect(emitSpy).toHaveBeenCalledWith("items:get", [
-      [{ id: "", type: "SOCIAL_PT", count: 15 }],
-    ]);
+    // 信用发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+    expect(pd.gainItem.add).toHaveBeenCalledWith({
+      id: "",
+      type: "SOCIAL_PT",
+      count: 15,
+    });
+    expect(pd.gainItem.handle).toHaveBeenCalled();
     // 任务模板按「获得的信用」计量
     expect(emitSpy).toHaveBeenCalledWith("ReceiveSocialPoint", [
       { socialPoint: 15 },
@@ -153,9 +157,11 @@ describe("SocialManager 其他方法", () => {
     expect(pd._playerdata.social!.yesterdayReward.assistAmount).toBe(0);
     expect(pd._playerdata.social!.yesterdayReward.comfortAmount).toBe(0);
     // 幂等：再次领取不发第二次（canReceive 已关）
-    emitSpy.mockClear();
+    (pd.gainItem.add as any).mockClear();
+    (pd.gainItem.handle as any).mockClear();
     expect(await social.receiveSocialPoint()).toBe(0);
-    expect(emitSpy).not.toHaveBeenCalledWith("items:get", expect.anything());
+    expect(pd.gainItem.add).not.toHaveBeenCalled();
+    expect(pd.gainItem.handle).not.toHaveBeenCalled();
   });
 
   it("dailyRefresh 应结算宿舍氛围信用到昨日奖励并开启领取", async () => {

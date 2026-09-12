@@ -193,7 +193,9 @@ describe("RecruitManager 核心方法", () => {
     expect(slot.state).toBe(2);
     expect(slot.selectTags).toEqual([{ tagId: 1, pick: 1 }, { tagId: 3, pick: 1 }]);
     expect(slot.maxFinishTs).toBe(1234567890 + 32400);
-    expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "7001", count: 1, type: "TKT_RECRUIT" }]]);
+    // 招募券消耗已收敛到 player.gainItem 管道（setTarget 等价于原 items:use 载荷）
+    expect(mockPlayer.gainItem.setTarget).toHaveBeenCalledWith("7001", "TKT_RECRUIT", 1);
+    expect(mockPlayer.gainItem.use).toHaveBeenCalled();
   });
 
   // 修复（2026-09-09）：原实现 finish 无任何时间校验 —— 开始招募后立即结算即可
@@ -238,9 +240,9 @@ describe("RecruitManager 核心方法", () => {
     expect(slot.realFinishTs).toBe(1234567890);
     expect(slot.state).toBe(3); // 立即可领取
     expect(emitSpy).toHaveBeenCalledWith("BoostNormalGacha", []);
-    expect(emitSpy).toHaveBeenCalledWith("items:use", [
-      [{ id: "7002", count: 1, type: "TKT_INST_FIN" }],
-    ]);
+    // 加急许可消耗已收敛到 player.gainItem 管道
+    expect(mockPlayer.gainItem.setTarget).toHaveBeenCalledWith("7002", "TKT_INST_FIN", 1);
+    expect(mockPlayer.gainItem.use).toHaveBeenCalled();
   });
 
   it("boost 对非进行中槽位不消耗加急许可（防御）", async () => {
@@ -250,7 +252,7 @@ describe("RecruitManager 核心方法", () => {
     } as any;
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     await manager.boost({ slotId: 1, buy: 0 });
-    expect(emitSpy).not.toHaveBeenCalledWith("items:use", expect.anything());
+    expect(mockPlayer.gainItem.use).not.toHaveBeenCalled();
     expect(mockPlayer._playerdata.recruit!.normal.slots["1"].state).toBe(1);
   });
 });

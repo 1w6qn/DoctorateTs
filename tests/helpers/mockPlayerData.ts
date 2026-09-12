@@ -25,6 +25,32 @@ export interface MockPlayerDataManager {
 }
 
 /**
+ * 物品管道 mock（GainItemPipeline 替身）
+ *
+ * 物品增减已从「直发 items:get/items:use 事件」收敛到 `player.gainItem` 管道，
+ * 断言口径随之从 `trigger.emit` 换成本 mock 的 add/setTarget/use/handle 调用记录。
+ * 手搓 mockPlayer 的测试用例统一挂 `gainItem: mockGainItem()`。
+ */
+export function mockGainItem(): any {
+  const gainItem: any = {
+    add: vi.fn(function (this: any) {
+      return this;
+    }),
+    setTarget: vi.fn(function (this: any) {
+      return this;
+    }),
+    use: vi.fn().mockResolvedValue(undefined),
+    handle: vi.fn().mockResolvedValue(undefined),
+    clear: vi.fn(function (this: any) {
+      return this;
+    }),
+  };
+  Object.defineProperty(gainItem, "size", { get: () => 0 });
+  Object.defineProperty(gainItem, "targets", { get: () => [] });
+  return gainItem;
+}
+
+/**
  * 创建一个 mock 的 PlayerDataManager
  * 使用 vitest 的 vi.fn() 模拟方法，避免在测试中依赖 Immer/管理器实例
  */
@@ -61,15 +87,7 @@ export function mockPlayerData(
     pushMessage: vi.fn(function (path: string, payload: unknown) {
       this._pushMessages.push({ path, payload });
     }),
-    gainItem: {
-      setTarget: vi.fn(function () { return this; }),
-      add: vi.fn(function () { return this; }),
-      use: vi.fn().mockResolvedValue(undefined),
-      handle: vi.fn().mockResolvedValue(undefined),
-      clear: vi.fn(function () { return this; }),
-      get size() { return 0; },
-      get targets() { return []; },
-    } as any,
+    gainItem: mockGainItem(),
     checkIn: {
       ensureShowCount: vi.fn().mockResolvedValue(undefined),
       checkIn: vi.fn().mockResolvedValue(undefined),

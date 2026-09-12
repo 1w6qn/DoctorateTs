@@ -173,10 +173,12 @@ describe("StoryreviewManager", () => {
       expect(newStory.id).toBe("act_group_001_level_st99");
       expect(newStory.uts).toBe(1234567890);
       expect(newStory.rc).toBe(0);
-      // 应触发 items:use 事件消耗 STORY_REVIEW_COIN
-      expect(emitSpy).toHaveBeenCalledWith("items:use", [
-        [{ id: "STORY_REVIEW_COIN", count: 1 }],
-      ]);
+      // 消耗 STORY_REVIEW_COIN 已收敛到 player.gainItem 管道（不再直发 items:use）
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+        id: "STORY_REVIEW_COIN",
+        count: 1,
+      });
+      expect(mockPlayer.gainItem.use).toHaveBeenCalled();
     });
   });
 
@@ -237,13 +239,18 @@ describe("StoryreviewManager", () => {
         { id: "reward_item_001", count: 5, type: "MATERIAL" },
         { id: "reward_item_002", count: 10, type: "MATERIAL" },
       ]);
-      // 应触发 items:get 事件
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [
-        [
-          { id: "reward_item_001", count: 5, type: "MATERIAL" },
-          { id: "reward_item_002", count: 10, type: "MATERIAL" },
-        ],
-      ]);
+      // 奖励发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+        id: "reward_item_001",
+        count: 5,
+        type: "MATERIAL",
+      });
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+        id: "reward_item_002",
+        count: 10,
+        type: "MATERIAL",
+      });
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     });
   });
 
@@ -285,10 +292,13 @@ describe("StoryreviewManager", () => {
       expect(result).toEqual([
         { id: "trial_item_001", count: 3, type: "MATERIAL" },
       ]);
-      // 应触发 items:get 事件
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [
-        [{ id: "trial_item_001", count: 3, type: "MATERIAL" }],
-      ]);
+      // 奖励发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+        id: "trial_item_001",
+        count: 3,
+        type: "MATERIAL",
+      });
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
       // 应将 rewardIdList 追加到 trailRewards
       expect(
         mockPlayer._playerdata.storyreview!.groups["act_group_001"]

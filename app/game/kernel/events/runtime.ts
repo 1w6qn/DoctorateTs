@@ -223,6 +223,11 @@ export class EventBus extends TypedEventEmitter {
         }
       }
     }
+    // 透传给 Emittery 原生路径时只带首参——这是刻意行为：
+    // 本项目的 EventMap 契约是多参签名（如 "char:get": [string, {...}, cb?]），
+    // 而带优先级的监听器全部走 priorityListeners 分支（on/off/once 均被覆写），
+    // 参数完整。Emittery 原生订阅路径仅作为兼容逃生口存在，若未来有代码绕过
+    // on() 直接用 Emittery API 订阅多参事件，将只能收到首参——新增订阅一律走 on()。
     await Emittery.prototype.emit.call(
       this,
       eventName,

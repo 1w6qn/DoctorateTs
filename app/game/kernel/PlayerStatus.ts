@@ -60,12 +60,10 @@ export class PlayerStatus {
    * @returns 增量数据与是否有变更
    */
   get delta(): { playerDataDelta: { modified: {}; deleted: {} }; changed: boolean } {
-    // 补丁按发生顺序正序展开（acc.concat 为倒序——同一路径多次变更时倒序让最旧值
-    // 后写覆盖，客户端收到旧值、与服务器状态脱节，如十连后 cnt 收到 1 而非 10）
-    const delta = patchesToObject(
-      this._changes.reduce((pre, acc) => pre.concat(acc), []),
-      this._playerdata,
-    );
+    // 补丁按发生顺序正序展开（同一路径多次变更时倒序会让最旧值
+    // 后写覆盖，客户端收到旧值、与服务器状态脱节，如十连后 cnt 收到 1 而非 10）。
+    // flat 一次性展平（原 reduce+concat 为 O(n²)，批次多时放大常数）。
+    const delta = patchesToObject(this._changes.flat(), this._playerdata);
     // 条件落盘：仅当存在变更（Immer 补丁或 markDirty 的直接变更）才触发保存，
     // 纯读请求（syncStatus/syncPushMessage 等）不再触发全量落盘
     const changed = this._changes.length > 0 || this._dirty;

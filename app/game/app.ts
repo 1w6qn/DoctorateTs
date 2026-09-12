@@ -163,6 +163,10 @@ export function gameErrorHandler(
   res: express.Response,
   _next: express.NextFunction,
 ): void {
+  // 异常路径回收物品管道队列：正常路径由 player.delta getter 收尾回收，但抛错请求
+  // 不会走到 res.send(player.delta)，残留 _targets 会被下一个请求一并发放。
+  // resetGainItem 不触发懒建，且上下文缺失（如 /admin 控制平面）时安全跳过。
+  getPlayerOptional()?.resetGainItem();
   // 统一业务异常（建议 13）：状态码/错误码/业务文案透传，客户端可解析
   if (isGameError(err)) {
     logger.error("game", `[${err.code}] ${err.message}`);

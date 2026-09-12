@@ -551,10 +551,8 @@ describe("BattleManager", () => {
       } as any);
 
       expect(result).toBeDefined();
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:get",
-        expect.any(Array)
-      );
+      // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     });
 
     it("completeState 为 3 时应该设置 goldScale 和 expScale 为 1.2", async () => {
@@ -825,10 +823,8 @@ describe("BattleManager", () => {
 
       expect(result).toBeDefined();
       expect(result.unlockStages).toBeDefined();
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:get",
-        expect.any(Array)
-      );
+      // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     });
 
     it("stages 含 null 伪键时 finishStoryStage / finish 不应 500", async () => {

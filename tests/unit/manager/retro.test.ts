@@ -256,10 +256,13 @@ describe("RetroManager", () => {
       expect(mockPlayer._playerdata.retro!.trail["retro_001"]).toEqual({
         trail_reward_001: 1,
       });
-      // 应触发 items:get 事件
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [
-        [{ id: "retro_item_001", count: 5, type: "MATERIAL" }],
-      ]);
+      // 奖励发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+        id: "retro_item_001",
+        count: 5,
+        type: "MATERIAL",
+      });
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     });
 
     it("领取第二个追踪奖励时应保留已领取的第一个奖励标记", async () => {
@@ -335,13 +338,18 @@ describe("RetroManager", () => {
         { id: "pass_item_001", count: 100, type: "MATERIAL" },
         { id: "pass_item_002", count: 200, type: "MATERIAL" },
       ]);
-      // 应触发 items:get 事件
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [
-        [
-          { id: "pass_item_001", count: 100, type: "MATERIAL" },
-          { id: "pass_item_002", count: 200, type: "MATERIAL" },
-        ],
-      ]);
+      // 奖励发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+        id: "pass_item_001",
+        count: 100,
+        type: "MATERIAL",
+      });
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+        id: "pass_item_002",
+        count: 200,
+        type: "MATERIAL",
+      });
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     });
 
     it("当匹配的 retroId 不存在时应返回空奖励数组", async () => {

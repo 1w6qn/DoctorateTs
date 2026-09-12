@@ -57,7 +57,7 @@ export class PlayerDataManager {
   /**
    * 子模块聚合（组合根核心字段）
    *
-   * 全部 23 个子模块经 composePlayerChildModules 构造后挂在 modules 下；
+   * 全部 25 个子模块经 composePlayerChildModules 构造后挂在 modules 下；
    * 下方平铺字段为转发 getter（兼容既有调用点），新代码优先经 player.modules.xxx 访问。
    */
   modules: PlayerChildModules;
@@ -121,6 +121,19 @@ export class PlayerDataManager {
       this._gainItemPipeline = new GainItemPipeline(this, this._trigger);
     }
     return this._gainItemPipeline;
+  }
+
+  /**
+   * 回收物品管道队列（请求边界清理）
+   *
+   * 管道的 `_targets` 是实例态，而本实例经 AccountManager 缓存**跨请求存活**：
+   * 调用方若在 `handle()`/`use()` 之前抛错，残留目标会被**下一个请求**一并发放。
+   * 故在每个请求的必经出口（{@link delta} 收尾）与异常路径（gameErrorHandler）各回收一次。
+   *
+   * 刻意不经 `gainItem` getter——那会为从未使用物品管道的请求凭空创建实例。
+   */
+  resetGainItem(): void {
+    this._gainItemPipeline?.clear();
   }
   /** 事件触发器 */
   _trigger: TypedEventEmitter;
@@ -234,6 +247,9 @@ export class PlayerDataManager {
       base.pushMessage = this._pushMessages;
       this._pushMessages = [];
     }
+    // 请求边界回收物品管道队列：delta 是每个请求的必经出口（res.send(player.delta)），
+    // 回收走 handle()/use() 之前抛错遗留的目标，避免其泄漏到下一个请求被一并发放。
+    this.resetGainItem();
     return base;
   }
 

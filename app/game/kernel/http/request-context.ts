@@ -17,9 +17,11 @@ const PLAYER_KEY = "playerData";
 /**
  * 门面门面类型
  *
- * 当前原样映射到 PlayerDataManager（组合根）。接口化受限：router 层既有 50+ 处
- * 直接访问 `player._trigger.emit(...)` 与 `player._playerdata.*`（发事件/读快照的
- * 既有合法模式），显式接口会破坏这些调用点；子模块访问已收敛为
+ * 当前原样映射到 PlayerDataManager（组合根）。接口化受限：router 层仍有直接访问
+ * `player._trigger.emit(...)`（其他领域事件）与 `player._playerdata.*`（读快照）的
+ * 既有调用点，显式接口会破坏这些调用点。注意：物品增减**不再**属于合法直发——
+ * items:get/items:use 已全部收敛到 player.gainItem 管道（棘轮守卫见
+ * tests/unit/architecture/inventory-pipeline-ratchet.test.ts）。子模块访问已收敛为
  * `player.modules.xxx`（见 PlayerDataManager.modules 聚合），新代码优先经此访问。
  */
 export type PlayerFacade = PlayerDataManager;

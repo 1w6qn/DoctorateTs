@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ItemTable } from "@excel/excel";
+import type { CharacterData, StageTable } from "@excel/types_excel_gen";
 
 // Mock excel 数据表,AprilFoolManager 不直接依赖任何 excel 表
 vi.mock("@excel/excel", () => {
   return {
     default: {
+    // 门面方法读取的表显式声明（工厂对象 `this` 即字面量自身）；
+    // 空表与「键不存在的旧 mock」运行期等价（`?.` 链同样取到 undefined）
+    ItemTable: {} as ItemTable,
+    CharacterTable: {} as CharacterData,
+    StageTable: {} as StageTable,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -29,7 +36,7 @@ vi.mock("@utils/crypt", () => ({
   decryptBattleData: vi.fn(),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import { asPlayerManager, mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { AprilFoolManager } from "@game/modules/aprilFool/AprilFoolManager";
 import { decryptBattleData } from "@utils/crypt";
 
@@ -57,16 +64,12 @@ describe("AprilFoolManager", () => {
 
     mockPlayer._trigger = mockTrigger;
     // 重写 update 实现,使其在 draft 上执行 recipe 并同步回 _playerdata
-    mockPlayer.update = vi
-      .fn()
-      .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-          const result = await recipe(draft);
-          Object.assign(mockPlayer._playerdata, draft);
-          return result;
-        }
-      );
+    mockPlayer.update.mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   });
 
   /**
@@ -96,10 +99,7 @@ describe("AprilFoolManager", () => {
 
   describe("constructor", () => {
     it("应该正确初始化 AprilFoolManager 实例", () => {
-      const manager = new AprilFoolManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new AprilFoolManager(asPlayerManager(mockPlayer), mockTrigger);
       expect(manager).toBeDefined();
       expect(manager._player).toBe(mockPlayer);
       expect(manager._trigger).toBe(mockTrigger);
@@ -108,10 +108,7 @@ describe("AprilFoolManager", () => {
 
   describe("act5funBattleFinish", () => {
     it("应该从 SIMPLE,money 字段中解析得分", async () => {
-      const manager = new AprilFoolManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new AprilFoolManager(asPlayerManager(mockPlayer), mockTrigger);
 
       mockDecryptReturn({
         "SIMPLE,money,12345": 1,
@@ -129,10 +126,7 @@ describe("AprilFoolManager", () => {
     });
 
     it("应该统计 DETAILED,player,*,win 的胜利次数", async () => {
-      const manager = new AprilFoolManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new AprilFoolManager(asPlayerManager(mockPlayer), mockTrigger);
 
       mockDecryptReturn({
         "DETAILED,player,1,win": 1,
@@ -152,10 +146,7 @@ describe("AprilFoolManager", () => {
     });
 
     it("应该同时处理得分与胜利计数的混合信息", async () => {
-      const manager = new AprilFoolManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new AprilFoolManager(asPlayerManager(mockPlayer), mockTrigger);
 
       mockDecryptReturn({
         "SIMPLE,money,500": 1,
@@ -178,10 +169,7 @@ describe("AprilFoolManager", () => {
     });
 
     it("当 extraBattleInfo 为空时应返回 0 得分与 0 胜利", async () => {
-      const manager = new AprilFoolManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new AprilFoolManager(asPlayerManager(mockPlayer), mockTrigger);
 
       mockDecryptReturn({});
 
@@ -196,10 +184,7 @@ describe("AprilFoolManager", () => {
     });
 
     it("stats.extraBattleInfo 缺失（异常/旧版战斗数据）时应返回空结果而非 500", async () => {
-      const manager = new AprilFoolManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new AprilFoolManager(asPlayerManager(mockPlayer), mockTrigger);
       // 修复前：battleLog.battleData.stats.extraBattleInfo 解引用 undefined → TypeError
       (decryptBattleData as ReturnType<typeof vi.fn>).mockResolvedValue({
         battleId: "battle_001",
@@ -214,10 +199,7 @@ describe("AprilFoolManager", () => {
     });
 
     it("应该将玩家 pushFlags.status 作为 loginTime 传给 decryptBattleData", async () => {
-      const manager = new AprilFoolManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new AprilFoolManager(asPlayerManager(mockPlayer), mockTrigger);
 
       mockDecryptReturn({});
 

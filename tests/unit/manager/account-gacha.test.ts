@@ -19,15 +19,18 @@ vi.mock("@utils/file", async (importOriginal) => {
 });
 
 import { accountManager } from "@game/modules/account/AccountManager";
+import type { UserConfig } from "@game/modules/account/AccountManager";
+import { asModel } from "../../helpers";
 
 describe("AccountManager 抽卡保底计数", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    (accountManager as any).configs = {
-      "2222": {
+    // 夹具只声明被测分支读到的键（UserConfig 其余字段由 asModel 的深可选视图放宽）
+    accountManager.configs = {
+      "2222": asModel<UserConfig>({
         auth: { phone: "2222" },
         gacha: {},
-      },
+      }),
     };
   });
 
@@ -37,13 +40,8 @@ describe("AccountManager 抽卡保底计数", () => {
   });
 
   it("saveBeforeNonHitCnt 应惰性初始化 gachaType 并写入计数", async () => {
-    const emitSpy = vi.spyOn((accountManager as any)._trigger ?? { emit: vi.fn() }, "emit");
-    // 若 _trigger 未挂载则补挂（测试环境直接操作 configs）
-    if (!(accountManager as any)._trigger) {
-      (accountManager as any)._trigger = { emit: emitSpy };
-    }
     await accountManager.saveBeforeNonHitCnt("2222", "NORMAL", 7);
-    expect((accountManager as any).configs["2222"].gacha.NORMAL).toEqual({
+    expect(accountManager.configs["2222"].gacha.NORMAL).toEqual({
       beforeNonHitCnt: 7,
     });
     const cnt = await accountManager.getBeforeNonHitCnt("2222", "NORMAL");
@@ -51,12 +49,9 @@ describe("AccountManager 抽卡保底计数", () => {
   });
 
   it("saveBeforeNonHitCnt 已存在 gachaType 时应覆盖计数", async () => {
-    (accountManager as any).configs["2222"].gacha.NORMAL = { beforeNonHitCnt: 3 };
-    if (!(accountManager as any)._trigger) {
-      (accountManager as any)._trigger = { emit: vi.fn() };
-    }
+    accountManager.configs["2222"].gacha.NORMAL = { beforeNonHitCnt: 3 };
     await accountManager.saveBeforeNonHitCnt("2222", "NORMAL", 9);
-    expect((accountManager as any).configs["2222"].gacha.NORMAL).toEqual({
+    expect(accountManager.configs["2222"].gacha.NORMAL).toEqual({
       beforeNonHitCnt: 9,
     });
   });

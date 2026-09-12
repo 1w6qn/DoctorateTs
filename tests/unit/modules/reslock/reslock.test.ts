@@ -6,9 +6,23 @@
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
+/** 本用例读到的 item_table 行（reslock 仅用 canReslock 资格判定） */
+interface ReslockItemRow {
+  itemId: string;
+  name: string;
+  itemType: string;
+  canReslock: boolean;
+}
+
+/** excel 门面替身视图（仅 getItem 与 ItemTable） */
+interface ReslockExcelMock {
+  ItemTable: { items: Record<string, ReslockItemRow> };
+  getItem(id: string): ReslockItemRow | undefined;
+}
+
 // excel 门面打桩：reslock 仅依赖 getItem（canReslock 资格判定）
-vi.mock("@excel/excel", () => ({
-  default: {
+vi.mock("@excel/excel", () => {
+  const facade: ReslockExcelMock = {
     ItemTable: {
       items: {
         randomMaterialRune_0: {
@@ -32,13 +46,15 @@ vi.mock("@excel/excel", () => ({
       },
     },
     getItem(id: string) {
-      return (this as any).ItemTable?.items?.[id];
+      return this.ItemTable.items[id];
     },
-  },
-}));
+  };
+  return { default: facade };
+});
 
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
-import { mockPlayerData } from "../../../helpers/mockPlayerData";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
+import { mockPlayerData, type MockSeed } from "../../../helpers/mockPlayerData";
 import {
   lockConsumable,
   lockInventory,
@@ -50,18 +66,30 @@ import {
   reslockInventorySchema,
 } from "@game/modules/reslock/reslock.schema";
 
+/**
+ * rlv2 夹具宽视图
+ *
+ * `PlayerRoguelikeV2.pinned` 真实模型声明为 `string`（肉鸽置顶主题 id），而本用例沿用
+ * 历史夹具值 `{}`——该占位由被测实现的惰性分支承受（用例从不读取 pinned）。改值会改变
+ * 运行期夹具数据（规则禁止），故仅就地放宽该子树的类型声明，其余种子仍受
+ * `MockPlayerDataSeed` 的字段校验。
+ */
+const looseRlv2 = { outer: {}, current: {}, pinned: {} } as MockSeed<
+  PlayerDataModel["rlv2"]
+>;
+
 /** 构造带库存/消耗品的玩家（reslock 缺省不存在，模拟老存档） */
 function makePlayer(): PlayerDataManager {
-  const pd: any = mockPlayerData({
+  const pd = mockPlayerData({
     mission: { missions: {} },
     medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
-    rlv2: { outer: {}, current: {}, pinned: {} },
+    rlv2: looseRlv2,
     inventory: { "3251": 10, "3003": 5 },
     consumable: {
       randomMaterialRune_0: { 0: { count: 5, ts: 1695000000 } },
     },
-  } as any);
-  return new PlayerDataManager(pd._playerdata as any);
+  });
+  return new PlayerDataManager(pd._playerdata);
 }
 
 describe("reslock 保险库（库存物品）", () => {
@@ -73,28 +101,33 @@ describe("reslock 保险库（库存物品）", () => {
 
   it("存入：库存减少、reslock 增加，且两者同批下发 delta", async () => {
     await lockInventory(player, { itemId: "3251", count: 6 });
-    const data = player._playerdata as any;
+    const data = player._playerdata;
     expect(data.inventory["3251"]).toBe(4);
     expect(data.reslock.inventory["3251"]).toBe(6);
 
-    const delta = player.delta.playerDataDelta as any;
-    expect(delta.modified.inventory["3251"]).toBe(4);
-    expect(delta.modified.reslock.inventory["3251"]).toBe(6);
+    const delta = player.delta.playerDataDelta;
+    // modified 在协议层声明为 `{ [key: string]: unknown }`；用例按被改写分区的窄视图读取
+    const modified = delta.modified as {
+      inventory: { [key: string]: number };
+      reslock: { inventory: { [key: string]: number } };
+    };
+    expect(modified.inventory["3251"]).toBe(4);
+    expect(modified.reslock.inventory["3251"]).toBe(6);
   });
 
   it("存入：老存档缺 reslock 时自动初始化", async () => {
-    const data = player._playerdata as any;
+    const data = player._playerdata;
     expect(data.reslock).toBeUndefined();
     await lockInventory(player, { itemId: "3251", count: 1 });
-    expect((player._playerdata as any).reslock.inventory["3251"]).toBe(1);
+    expect(player._playerdata.reslock.inventory["3251"]).toBe(1);
   });
 
   it("存入：item_table 标记不可存入的物品被拒且不改数据", async () => {
     await expect(lockInventory(player, { itemId: "3003", count: 1 })).rejects.toThrow(
       /不可存入保险库/,
     );
-    expect((player._playerdata as any).inventory["3003"]).toBe(5);
-    expect((player._playerdata as any).reslock?.inventory?.["3003"]).toBeUndefined();
+    expect(player._playerdata.inventory["3003"]).toBe(5);
+    expect(player._playerdata.reslock?.inventory?.["3003"]).toBeUndefined();
   });
 
   it("存入：不在 item_table 的物品被拒", async () => {
@@ -107,25 +140,25 @@ describe("reslock 保险库（库存物品）", () => {
     await expect(lockInventory(player, { itemId: "3251", count: 11 })).rejects.toThrow(
       /物品不足/,
     );
-    expect((player._playerdata as any).inventory["3251"]).toBe(10);
-    expect((player._playerdata as any).reslock?.inventory?.["3251"]).toBeUndefined();
+    expect(player._playerdata.inventory["3251"]).toBe(10);
+    expect(player._playerdata.reslock?.inventory?.["3251"]).toBeUndefined();
   });
 
   it("移出：库存回补、保险库计数归零即摘除条目", async () => {
     await lockInventory(player, { itemId: "3251", count: 10 });
-    expect((player._playerdata as any).reslock.inventory["3251"]).toBe(10);
-    expect((player._playerdata as any).inventory["3251"]).toBe(0);
+    expect(player._playerdata.reslock.inventory["3251"]).toBe(10);
+    expect(player._playerdata.inventory["3251"]).toBe(0);
 
     await unlockInventory(player, { itemId: "3251", count: 10 });
-    expect((player._playerdata as any).inventory["3251"]).toBe(10);
-    expect((player._playerdata as any).reslock.inventory["3251"]).toBeUndefined();
+    expect(player._playerdata.inventory["3251"]).toBe(10);
+    expect(player._playerdata.reslock.inventory["3251"]).toBeUndefined();
   });
 
   it("移出：部分移出保留剩余计数", async () => {
     await lockInventory(player, { itemId: "3251", count: 8 });
     await unlockInventory(player, { itemId: "3251", count: 3 });
-    expect((player._playerdata as any).inventory["3251"]).toBe(5);
-    expect((player._playerdata as any).reslock.inventory["3251"]).toBe(5);
+    expect(player._playerdata.inventory["3251"]).toBe(5);
+    expect(player._playerdata.reslock.inventory["3251"]).toBe(5);
   });
 
   it("移出：保险库存量不足被拒（不做 canReslock 复核）", async () => {
@@ -148,7 +181,7 @@ describe("reslock 保险库（消耗品实例）", () => {
       itemId: "randomMaterialRune_0",
       count: 2,
     });
-    const data = player._playerdata as any;
+    const data = player._playerdata;
     expect(data.consumable.randomMaterialRune_0["0"].count).toBe(3);
     expect(data.reslock.consumable.randomMaterialRune_0["0"]).toEqual({
       count: 2,
@@ -162,7 +195,7 @@ describe("reslock 保险库（消耗品实例）", () => {
       itemId: "randomMaterialRune_0",
       count: 5,
     });
-    const data = player._playerdata as any;
+    const data = player._playerdata;
     expect(data.consumable.randomMaterialRune_0).toBeUndefined();
     expect(data.reslock.consumable.randomMaterialRune_0["0"].count).toBe(5);
   });
@@ -178,7 +211,7 @@ describe("reslock 保险库（消耗品实例）", () => {
       itemId: "randomMaterialRune_0",
       count: 5,
     });
-    const data = player._playerdata as any;
+    const data = player._playerdata;
     expect(data.consumable.randomMaterialRune_0["0"]).toEqual({
       count: 5,
       ts: 1695000000,
@@ -197,7 +230,7 @@ describe("reslock 保险库（消耗品实例）", () => {
       itemId: "randomMaterialRune_0",
       count: 2,
     });
-    const data = player._playerdata as any;
+    const data = player._playerdata;
     expect(data.consumable.randomMaterialRune_0["0"].count).toBe(5);
     expect(data.reslock.consumable?.randomMaterialRune_0).toBeUndefined();
   });
@@ -213,7 +246,7 @@ describe("reslock 保险库（消耗品实例）", () => {
       lockConsumable(player, { instId: "0", itemId: "3003", count: 1 }),
     ).rejects.toThrow(/不可存入保险库/);
     // 失败请求不得留下任何痕迹（配方抛错 → mutative 草稿丢弃）
-    expect((player._playerdata as any).reslock).toBeUndefined();
+    expect(player._playerdata.reslock).toBeUndefined();
   });
 
   it("移出：保险库无该实例被拒", async () => {

@@ -92,19 +92,21 @@ const excelMock = vi.hoisted(() => {
 vi.mock("@excel/excel", () => ({ default: excelMock }));
 
 import { AutoChessManager } from "@game/modules/autochess/autochess";
-import { mockPlayerData } from "../../../helpers";
+import { asPlayerManager, mockPlayerData } from "../../../helpers";
 
 function makePlayer() {
-  const pd: any = mockPlayerData({
-    activity: {} as any,
+  const pd = mockPlayerData({
+    activity: {},
     status: {
       uid: "1",
       nickName: "博士",
       nickNumber: 0,
       level: 1,
       exp: 0,
-    } as any,
+    },
   });
+  // battle 子管理器替身（helpers 的 MockBattleManager 窄接口）：训练战斗链路复用
+  // battle.start/finish 桩；真实 PlayerDataManager.battle 走私有 modules 组合根 getter。
   pd.battle = {
     start: vi.fn().mockResolvedValue({ battleId: "battle-train-1", result: 0 }),
     finish: vi.fn().mockResolvedValue({ result: 0, rewards: [] }),
@@ -112,8 +114,9 @@ function makePlayer() {
   return pd;
 }
 
-function makeManager(player: any) {
-  return new AutoChessManager(player, player._trigger);
+function makeManager(player: ReturnType<typeof makePlayer>) {
+  // _trigger 在 helpers 中已按 TypedEventEmitter 收口，可直接传入构造器
+  return new AutoChessManager(asPlayerManager(player), player._trigger);
 }
 
 describe("autochess 赛季管理器", () => {
@@ -123,7 +126,7 @@ describe("autochess 赛季管理器", () => {
     const resp = await mgr.syncInfo({ actId: "act2autochess" });
     expect(resp.changed).toEqual([]);
     expect(resp.battleInfo).toBeNull();
-    const user = player._playerdata.activity.AUTOCHESS_SEASON.act2autochess;
+    const user = player._playerdata.activity.AUTOCHESS_SEASON!.act2autochess;
     expect(user.mode).toEqual({});
     expect(user.milestone).toEqual({ point: 0, got: [] });
     expect(user.chessSquad).toEqual({});
@@ -146,7 +149,7 @@ describe("autochess 赛季管理器", () => {
       },
     });
     expect(ok.ok).toBe(true);
-    const user = player._playerdata.activity.AUTOCHESS_SEASON.act2autochess;
+    const user = player._playerdata.activity.AUTOCHESS_SEASON!.act2autochess;
     expect(Object.keys(user.chessSquad)).toEqual([
       "chess_char_1_01_a",
       "chess_char_1_01_b",
@@ -191,7 +194,7 @@ describe("autochess 赛季管理器", () => {
       },
     });
     expect(ok.ok).toBe(true);
-    const user = player._playerdata.activity.AUTOCHESS_SEASON.act2autochess;
+    const user = player._playerdata.activity.AUTOCHESS_SEASON!.act2autochess;
     expect(user.chessSquad.chess_char_1_01_a.type).toBe(3); // DIY
     expect(user.chessSquad.chess_char_1_01_a.charId).toBe("char_diy");
     expect(user.chessSquad.chess_char_1_01_a.diyBackupChessId).toBe(
@@ -204,7 +207,7 @@ describe("autochess 赛季管理器", () => {
     });
     expect(removed.ok).toBe(true);
     const afterRemove =
-      player._playerdata.activity.AUTOCHESS_SEASON.act2autochess;
+      player._playerdata.activity.AUTOCHESS_SEASON!.act2autochess;
     expect(afterRemove.chessSquad.chess_char_1_01_a).toBeUndefined();
   });
 
@@ -245,8 +248,8 @@ describe("autochess 赛季管理器", () => {
     });
     expect(start.ok).toBe(true);
     if (!start.ok) return;
-    expect(start.data.battleId).toBeTruthy();
-    expect(start.data.result).toBe(0);
+    expect(start.data!.battleId).toBeTruthy();
+    expect(start.data!.result).toBe(0);
 
     const finish = mgr.multiBattleFinish({
       activityId: "act2autochess",
@@ -257,15 +260,15 @@ describe("autochess 赛季管理器", () => {
     const settle = await mgr.settleGame({ activityId: "act2autochess" });
     expect(settle.ok).toBe(true);
     if (!settle.ok) return;
-    expect(settle.data.result).toBe(0);
-    const user = player._playerdata.activity.AUTOCHESS_SEASON.act2autochess;
+    expect(settle.data!.result).toBe(0);
+    const user = player._playerdata.activity.AUTOCHESS_SEASON!.act2autochess;
     // round1 基础奖励：token=10 / dailyMissionPoint=10
     expect(user.milestone.point).toBe(10);
     expect(user.dailyMission.process).toBe(10);
     // 完成 mode_single_funny 后解锁 mode_single_normal（preposedMode 链）
     expect(user.mode.mode_single_funny.completeCnt).toBe(1);
     expect(user.mode.mode_single_normal.unlock).toBe(1);
-    expect(settle.data.gameSettleData?.recordInfos.normalMilestone).toBe(10);
+    expect(settle.data!.gameSettleData?.recordInfos.normalMilestone).toBe(10);
 
     // 会话已清除，二次结算失败
     const again = await mgr.settleGame({ activityId: "act2autochess" });
@@ -283,8 +286,8 @@ describe("autochess 赛季管理器", () => {
     });
     expect(start.ok).toBe(true);
     if (!start.ok) return;
-    expect(start.data.battleId).toBe("battle-train-1");
-    expect(player.battle.start).toHaveBeenCalledOnce();
+    expect(start.data!.battleId).toBe("battle-train-1");
+    expect(player.battle!.start).toHaveBeenCalledOnce();
 
     const finish = await mgr.trainingBattleFinish({
       activityId: "act2autochess",
@@ -293,7 +296,7 @@ describe("autochess 赛季管理器", () => {
     });
     expect(finish.ok).toBe(true);
     expect(player._playerdata.autochessSeason.trainingModeFin.mode_training_1).toBe(1);
-    const user = player._playerdata.activity.AUTOCHESS_SEASON.act2autochess;
+    const user = player._playerdata.activity.AUTOCHESS_SEASON!.act2autochess;
     expect(user.mode.mode_training_1.completeCnt).toBe(1);
     expect(user.mode.mode_single_funny.unlock).toBe(1); // preposedMode=mode_training_1
   });

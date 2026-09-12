@@ -1,14 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string }
+/** excel mock 干员行形状（本文件用到的字段即可） */
+interface ExcelCharRowMock {
+  name?: string;
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+  subProfessionId?: string;
+}
 
 // 官方 excel mock：rogue_1 developments（增益树节点，含 frontNodeId 数组/tokenCost）
 vi.mock("@excel/excel", () => ({
   default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
     charData(charId: string) { return this.CharacterTable?.[charId]; },
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
 
     RoguelikeTopicTable: {
       details: {
@@ -32,7 +44,7 @@ vi.mock("@excel/excel", () => ({
       },
       consts: {},
     },
-    CharacterTable: {},
+    CharacterTable: {} as Record<string, ExcelCharRowMock>,
     RoguelikeConsts: {},
   },
 }));
@@ -41,8 +53,8 @@ import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {
-  const pd: any = mockPlayerData({
-    pushFlags: { status: 123456 } as any,
+  const pd = mockPlayerData({
+    pushFlags: { status: 123456 },
     rlv2: {
       outer: {
         rogue_1: {
@@ -50,10 +62,10 @@ function makePlayer() {
         },
       },
       current: {},
-      pinned: {},
-    } as any,
-    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } } as any,
-    mission: { missions: { DAILY: {}, ACTIVITY: {} }, missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} } } as any,
+      pinned: {} as string,
+    },
+    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
+    mission: { missions: { DAILY: {}, ACTIVITY: {} }, missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} } },
   });
   const player = new PlayerDataManager(pd._playerdata);
   return player;
@@ -67,64 +79,64 @@ describe("rlv2 增益树解锁（unlockBuff）", () => {
   });
 
   it("根节点（无前置）点数足够应解锁成功", async () => {
-    const ret = await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_1");
+    const ret = await player.rlv2.unlockBuff("rogue_1", "outbuff_1");
     expect(ret).toEqual({ success: true });
-    const buff = (player.rlv2 as any).outer.rogue_1.buff;
+    const buff = player.rlv2.outer.rogue_1.buff;
     expect(buff.pointOwned).toBe(40); // 50 - 10
     expect(buff.pointCost).toBe(10);
     expect(buff.unlocked).toHaveProperty("outbuff_1", 1);
   });
 
   it("前置未解锁应失败且不扣点", async () => {
-    const ret = await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_5");
+    const ret = await player.rlv2.unlockBuff("rogue_1", "outbuff_5");
     expect(ret.success).toBe(false);
     expect(ret.reason).toBe("FRONT_NOT_UNLOCKED");
-    const buff = (player.rlv2 as any).outer.rogue_1.buff;
+    const buff = player.rlv2.outer.rogue_1.buff;
     expect(buff.pointOwned).toBe(50);
     expect(buff.pointCost).toBe(0);
   });
 
   it("点数不足应失败", async () => {
     // 解锁 outbuff_1(10) + outbuff_2(10) + outbuff_5(20) = 40 点，剩 10
-    await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_1");
-    await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_2");
-    await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_5");
+    await player.rlv2.unlockBuff("rogue_1", "outbuff_1");
+    await player.rlv2.unlockBuff("rogue_1", "outbuff_2");
+    await player.rlv2.unlockBuff("rogue_1", "outbuff_5");
     // outbuff_6 cost 20 > 10（前置 outbuff_2 已解锁）→ 点数不足
-    const ret = await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_6");
+    const ret = await player.rlv2.unlockBuff("rogue_1", "outbuff_6");
     expect(ret.success).toBe(false);
     expect(ret.reason).toBe("POINT_NOT_ENOUGH");
   });
 
   it("已解锁应幂等返回 ALREADY_UNLOCKED", async () => {
-    await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_1");
-    const ret = await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_1");
+    await player.rlv2.unlockBuff("rogue_1", "outbuff_1");
+    const ret = await player.rlv2.unlockBuff("rogue_1", "outbuff_1");
     expect(ret.success).toBe(false);
     expect(ret.reason).toBe("ALREADY_UNLOCKED");
   });
 
   it("节点不存在应失败", async () => {
-    const ret = await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_999");
+    const ret = await player.rlv2.unlockBuff("rogue_1", "outbuff_999");
     expect(ret.success).toBe(false);
     expect(ret.reason).toBe("NODE_NOT_FOUND");
   });
 
   it("多前置需全部解锁才可解锁", async () => {
     // 只解锁 outbuff_1（outbuff_9 需要 outbuff_5 + outbuff_6）→ 前置未解锁
-    await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_1");
-    const ret = await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_9");
+    await player.rlv2.unlockBuff("rogue_1", "outbuff_1");
+    const ret = await player.rlv2.unlockBuff("rogue_1", "outbuff_9");
     expect(ret.success).toBe(false);
     expect(ret.reason).toBe("FRONT_NOT_UNLOCKED");
     // 只解锁 outbuff_5（前置 outbuff_1 ✓）但 outbuff_6 未解锁 → 仍前置未解锁
-    await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_5");
-    const ret2 = await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_9");
+    await player.rlv2.unlockBuff("rogue_1", "outbuff_5");
+    const ret2 = await player.rlv2.unlockBuff("rogue_1", "outbuff_9");
     expect(ret2.success).toBe(false);
     expect(ret2.reason).toBe("FRONT_NOT_UNLOCKED");
     // 全部前置解锁后成功（加点确保足够）
-    (player.rlv2 as any).outer.rogue_1.buff.pointOwned = 100;
-    await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_2");
-    await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_6");
-    const ret3 = await (player.rlv2 as any).unlockBuff("rogue_1", "outbuff_9");
+    player.rlv2.outer.rogue_1.buff.pointOwned = 100;
+    await player.rlv2.unlockBuff("rogue_1", "outbuff_2");
+    await player.rlv2.unlockBuff("rogue_1", "outbuff_6");
+    const ret3 = await player.rlv2.unlockBuff("rogue_1", "outbuff_9");
     expect(ret3).toEqual({ success: true });
-    expect((player.rlv2 as any).outer.rogue_1.buff.unlocked).toHaveProperty("outbuff_9", 1);
+    expect(player.rlv2.outer.rogue_1.buff.unlocked).toHaveProperty("outbuff_9", 1);
   });
 });

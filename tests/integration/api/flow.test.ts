@@ -9,6 +9,19 @@ import { describe, beforeAll, afterAll, it, expect } from "vitest";
 import { startApiFixture, type ApiFixture } from "../../helpers/apiServer";
 import excel from "@game/excel/excel";
 
+/** `/user/auth/v1/login` 响应（用例断言到的字段） */
+type LoginBody = { result: number; uid: string; token: string };
+/** `/user/checkIn` 响应（用例断言到的字段） */
+type CheckInBody = { signInRewards: { type: string }[] };
+/** `/shop/buyLowGood` 响应（用例断言到的字段） */
+type BuyLowGoodBody = { result: number; items: { id: string; type: string }[] };
+/** `/gacha/advancedGacha` 响应（用例断言到的字段，含增量中的卡池计数） */
+type AdvancedGachaBody = {
+  result: number;
+  charGet: { charId: string };
+  playerDataDelta: { modified: { gacha: { normal: { [poolId: string]: { cnt: number } } } } };
+};
+
 describe("游戏 API 核心业务流程（注册→登录→签到→商城→抽卡）", () => {
   let fx: ApiFixture;
   let uid: string;
@@ -27,7 +40,7 @@ describe("游戏 API 核心业务流程（注册→登录→签到→商城→�
     uid = acc.uid;
     secret = acc.secret;
     // 用账号密码走官方登录链路，确认返回 token 与注册 secret 一致
-    const login = await fx.post("/user/auth/v1/login", {
+    const login = await fx.post<LoginBody>("/user/auth/v1/login", {
       account: "flow_core_test",
       password: "Ab12cd34",
     });
@@ -40,9 +53,9 @@ describe("游戏 API 核心业务流程（注册→登录→签到→商城→�
   it("签到发放金币 → 商城购得寻访凭证 → 抽卡消耗凭证并新增干员", async () => {
     // 注入可签到状态与启动货币（等价账号日常刷新+充值）；status 子树可经配方写入
     const player = fx.getPlayerData(uid);
-    await player.update((draft: any) => {
+    await player.update(async (draft) => {
       draft.checkIn.canCheckIn = 1;
-      const groups: any = excel.CheckinTable?.groups ?? {};
+      const groups = excel.CheckinTable?.groups ?? {};
       draft.checkIn.checkInGroupId = Object.keys(groups)[0];
       draft.checkIn.checkInRewardIndex = 0;
       draft.status.gachaTicket = 0;
@@ -52,11 +65,11 @@ describe("游戏 API 核心业务流程（注册→登录→签到→商城→�
     });
 
     // 1) 签到 → 发放金币（不含寻访凭证）
-    const checkIn = await fx.post("/user/checkIn", {}, secret);
+    const checkIn = await fx.post<CheckInBody>("/user/checkIn", {}, secret);
     expect(checkIn.body.signInRewards[0].type).toBe("GOLD");
 
     // 2) 商城购买 1 张寻访凭证（id 7003 / TKT_GACHA）
-    const buy = await fx.post(
+    const buy = await fx.post<BuyLowGoodBody>(
       "/shop/buyLowGood",
       { goodId: "LS_lggShdShopnumber19_1", count: 1 },
       secret,
@@ -70,7 +83,7 @@ describe("游戏 API 核心业务流程（注册→登录→签到→商城→�
     expect(afterBuy).toBeGreaterThan(0);
 
     // 3) 单抽消耗 1 凭证 → 返回干员且凭证 -1
-    const gacha = await fx.post(
+    const gacha = await fx.post<AdvancedGachaBody>(
       "/gacha/advancedGacha",
       { poolId: "NORM_0_1_1", useTkt: 1, itemId: null },
       secret,

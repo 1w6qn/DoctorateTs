@@ -5,14 +5,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // 迁移说明(2026-09,excel 端口注入):管理者不再直连 `@excel/excel` 单例,
 // 改经 `player.excel`(PlayerDataManager 注入的数据端口)取表——模块级
 // vi.mock 因此失效,夹具改为显式注入到 mockPlayerData 的 excel 字段。
-const excelMock: any = {
-    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
-    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
-    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
-
+// 端口替身以 mockExcelWith 的空表底座（含门面方法）承载，只覆盖被测分支读到的表；
+// 未覆盖的表与旧夹具一样读不到数据（语义见 mockExcelWith 的 JSDoc）。
+const excelMock = mockExcelWith({
       // 怀旧活动表:提供追踪奖励列表
       RetroTable: {
         zoneToRetro: {},
@@ -122,7 +117,7 @@ const excelMock: any = {
         activityCrossDayTrackTypeMap: {},
         activityStoryReadTipsDatas: {},
       },
-};
+});
 
 vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
@@ -134,7 +129,13 @@ vi.mock("@utils/time", () => ({
 
 
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import type { PlayerRetro } from "@game/kernel/playerdata";
+import {
+  asPlayerManager,
+  mockExcelWith,
+  mockPlayerData,
+  mockTypedEventEmitter,
+} from "../../helpers";
 import { RetroManager } from "@game/modules/retro/RetroManager";
 
 /**
@@ -175,24 +176,20 @@ describe("RetroManager", () => {
     mockPlayer.excel = excelMock;
 
     mockPlayer._trigger = mockTrigger;
-    // 重写 update 实现,使其在 draft 上执行 recipe 并同步回 _playerdata
-    mockPlayer.update = vi
-      .fn()
-      .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-          const result = await recipe(draft);
-          Object.assign(mockPlayer._playerdata, draft);
-          return result;
-        }
-      );
+    // 覆写替身默认 update：与 helper 实现等价（JSON 深拷贝 draft → recipe → 回写）
+    mockPlayer.update.mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   });
 
   describe("constructor", () => {
     it("应该正确初始化 RetroManager 实例", () => {
       const manager = new RetroManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       expect(manager).toBeDefined();
       expect(manager._player).toBe(mockPlayer);
@@ -203,8 +200,8 @@ describe("RetroManager", () => {
   describe("unlockRetroBlock", () => {
     it("应该消耗一个怀旧币并解锁指定怀旧关卡块", async () => {
       const manager = new RetroManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       // 初始 coin=10,retro_001 处于锁定状态
@@ -223,8 +220,8 @@ describe("RetroManager", () => {
 
     it("应该只解锁指定的怀旧关卡块,不影响其他块", async () => {
       const manager = new RetroManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.unlockRetroBlock({ retroId: "retro_001" });
@@ -238,8 +235,8 @@ describe("RetroManager", () => {
   describe("getRetroTrailReward", () => {
     it("应该返回追踪奖励物品并标记该奖励为已领取", async () => {
       const manager = new RetroManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -267,8 +264,8 @@ describe("RetroManager", () => {
 
     it("领取第二个追踪奖励时应保留已领取的第一个奖励标记", async () => {
       const manager = new RetroManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.getRetroTrailReward({
@@ -290,8 +287,8 @@ describe("RetroManager", () => {
       // 修复前：trail[retroId] 为 undefined 时直接写 trail[retroId][rewardId] → TypeError
       //（新 retro/旧存档——模板只预置已知 retro 条目）
       const manager = new RetroManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       // 场景一：trail 存在但缺 retro_001 条目
       mockPlayer._playerdata.retro!.trail = {};
@@ -305,8 +302,8 @@ describe("RetroManager", () => {
       expect(mockPlayer._playerdata.retro!.trail["retro_001"]).toEqual({
         trail_reward_001: 1,
       });
-      // 场景二：trail 整体缺失（更旧存档）
-      delete (mockPlayer._playerdata.retro as any).trail;
+      // 场景二：trail 整体缺失（更旧存档）——就地按可选视图删除该键（运行期即 delete）
+      delete (mockPlayer._playerdata.retro as Partial<PlayerRetro>).trail;
       result = await manager.getRetroTrailReward({
         retroId: "retro_001",
         rewardId: "trail_reward_002",
@@ -323,8 +320,8 @@ describe("RetroManager", () => {
   describe("getRetroPassReward", () => {
     it("应该从匹配的活动 retroData 中找到对应 retroId 的通关奖励", async () => {
       const manager = new RetroManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -354,8 +351,8 @@ describe("RetroManager", () => {
 
     it("当匹配的 retroId 不存在时应返回空奖励数组", async () => {
       const manager = new RetroManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       // retro_999 在 retroData.rewards 中不存在

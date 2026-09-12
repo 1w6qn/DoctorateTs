@@ -66,7 +66,10 @@ vi.mock("@excel/excel", () => ({
         },
       },
     },
-    ItemTable: { items: {} },
+    ItemTable: { items: {} as Record<string, { itemType?: string; name?: string }> },
+    // 本文件未提供的表显式占位（缺键会让门面方法的 `this.XxxTable` 报 TS2339）
+    CharacterTable: undefined as Record<string, { name?: string }> | undefined,
+    StageTable: undefined as { stages: Record<string, { stageType?: string }> } | undefined,
   },
 }));
 
@@ -77,13 +80,23 @@ vi.mock("@game/modules/account/AccountManager", () => ({
   },
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
+import { asModel, asPlayerManager, mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
+import type { Draft } from "mutative";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
 import { GainItemPipeline } from "@game/kernel/inventory-pipeline";
 import { GachaManager } from "@game/modules/gacha/logic";
 import { setRandSource, resetRandSource } from "@game/kernel/util/random";
 import { GachaType } from "@game/modules/gacha/gacha";
 import { accountManager } from "@game/modules/account/AccountManager";
 import { freeCountFor, refreshLimitFree } from "@game/modules/gacha/limit-gacha";
+
+/**
+ * 限定池账本视图
+ *
+ * `freeDay` 是服务端扩展的日序字段（生成类型 PlayerGacha_PlayerFreeLimitGacha 未声明，
+ * 见 limit-gacha.ts 的 LimitGachaView）——此处就地声明，其余字段仍受真实模型约束。
+ */
+type LimitRecordView = PlayerDataModel["gacha"]["limit"][string] & { freeDay?: number };
 
 const saveSpy = vi.mocked(accountManager.saveBeforeNonHitCnt);
 
@@ -97,12 +110,14 @@ describe("限定寻访：免费次数 / 300 抽赠送 / 保底按池隔离", () 
     timeMock.now = 1700000000; // p_limited_1 免费窗口内
     mockTrigger = mockTypedEventEmitter();
     mockPlayer = mockPlayerData({
-      gacha: { normal: {}, single: {}, limit: {} } as any,
-      status: { diamondShard: 100000 } as any,
+      gacha: { normal: {}, single: {}, limit: {} },
+      status: { diamondShard: 100000 },
     });
     mockPlayer._trigger = mockTrigger;
-    (mockPlayer as any).gainItem = new GainItemPipeline(mockPlayer as any, mockTrigger as any);
-    mockPlayer.update = vi.fn().mockImplementation(async (recipe: any) => {
+    // 覆写为真实物品管道实例：免费寻访等经 items:use 事件（替身面不发射事件）；
+    // helpers 的 gainItem 写入面接受真实 GainItemPipeline（读侧仍是 Mock 面）。
+    mockPlayer.gainItem = new GainItemPipeline(asPlayerManager(mockPlayer), mockTrigger);
+    mockPlayer.update.mockImplementation(async (recipe) => {
       const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
       const result = await recipe(draft);
       Object.assign(mockPlayer._playerdata, draft);
@@ -112,7 +127,7 @@ describe("限定寻访：免费次数 / 300 抽赠送 / 保底按池隔离", () 
 
   /** 构造 GachaManager（mock 玩家） */
   function makeManager() {
-    return new GachaManager(mockPlayer as any, mockTrigger as any);
+    return new GachaManager(asPlayerManager(mockPlayer), mockTrigger);
   }
 
   it("freeCountFor：窗口内取 freeCount，窗口外为 0", () => {
@@ -122,7 +137,7 @@ describe("限定寻访：免费次数 / 300 抽赠送 / 保底按池隔离", () 
   });
 
   it("refreshLimitFree：按日重置 leastFree（同一天不重复重置）", () => {
-    const draft: any = { gacha: { limit: {} } };
+    const draft = asModel<Draft<PlayerDataModel>>({ gacha: { limit: {} } });
     refreshLimitFree(draft, "p_limited_1", 1700000000);
     expect(draft.gacha.limit.p_limited_1.leastFree).toBe(1);
     // 当日已抽完 → 同一天不再补
@@ -136,9 +151,9 @@ describe("限定寻访：免费次数 / 300 抽赠送 / 保底按池隔离", () 
 
   it("免费抽：leastFree 为 0 时拒绝（修复前恒放行 → 无限免费抽）", async () => {
     const mgr = makeManager();
-    mockPlayer._playerdata.gacha.limit.p_limited_1 = {
+    mockPlayer._playerdata.gacha.limit.p_limited_1 = asModel<LimitRecordView>({
       leastFree: 0, poolCnt: 0, recruitedFreeChar: false, freeDay: Math.floor(1700000000 / 86400),
-    };
+    });
     await expect(
       mgr.advancedGacha({ poolId: "p_limited_1", useTkt: GachaType.LimitSingle, itemId: null }),
     ).rejects.toThrow(/资源不足/);

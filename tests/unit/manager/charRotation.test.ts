@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ItemTable } from "@excel/excel";
+import type { CharacterData, StageTable } from "@excel/types_excel_gen";
 
 vi.mock("@excel/excel", () => {
   return {
     default: {
+    // 空表底座:门面方法体引用 this.X，键必须存在（空表语义与旧夹具一致——读不到数据）
+    ItemTable: {} as ItemTable,
+    CharacterTable: {} as CharacterData,
+    StageTable: {} as StageTable,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -24,10 +30,20 @@ vi.mock("@utils/time", () => ({
 
 // Mock immer:original 在源码中导入但未实际使用,提供空实现避免运行时错误
 vi.mock("immer", () => ({
-  original: (x: any) => x,
+  original: <T>(x: T): T => x,
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  asModel,
+  mockPlayerData,
+  mockTypedEventEmitter,
+  asPlayerManager,
+} from "../../helpers";
+import type { MockPlayerDataSeed } from "../../helpers";
+import type {
+  PlayerCharRotationPreset,
+  PlayerCharRotationSlot,
+} from "@game/kernel/playerdata";
 import {
   CharRotationManager,
   CharRotationUpdatePresetRequest,
@@ -44,6 +60,57 @@ describe("CharRotationManager", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mockTrigger = mockTypedEventEmitter();
+
+    // 夹具沿用旧存档的 mainStageProgress: null（生成模型声明为 string，两态并存：
+    // 未同步主线的新档为 null）。运行期值一字不改，仅在种子边界按「深可选宽契约」
+    // 断言一次（字段名与其余字段类型仍参与检查）。
+    const statusSeed: Omit<NonNullable<MockPlayerDataSeed["status"]>, "mainStageProgress"> & {
+      mainStageProgress?: string | null;
+    } = {
+      nickName: "TestUser",
+      nickNumber: "0",
+      level: 1,
+      exp: 0,
+      socialPoint: 0,
+      gachaTicket: 0,
+      tenGachaTicket: 0,
+      instantFinishTicket: 0,
+      hggShard: 0,
+      lggShard: 0,
+      recruitLicense: 0,
+      progress: 0,
+      buyApRemainTimes: 0,
+      apLimitUpFlag: 0,
+      uid: "10000",
+      flags: {},
+      ap: 100,
+      maxAp: 100,
+      androidDiamond: 0,
+      iosDiamond: 0,
+      diamondShard: 0,
+      gold: 9999,
+      practiceTicket: 0,
+      lastRefreshTs: 0,
+      lastApAddTime: 0,
+      mainStageProgress: null,
+      registerTs: 0,
+      lastOnlineTs: 0,
+      serverName: "TestServer",
+      avatarId: "",
+      resume: "",
+      birthday: { month: 1, day: 1 },
+      friendNumLimit: 50,
+      monthlySubscriptionStartTime: 0,
+      monthlySubscriptionEndTime: 0,
+      secretary: "",
+      secretarySkinId: "",
+      tipMonthlyCardExpireTs: 0,
+      avatar: { type: "ICON", id: "avatar_001" },
+      globalVoiceLan: "CN_MANDARIN",
+      classicShard: 0,
+      classicGachaTicket: 0,
+      classicTenGachaTicket: 0,
+    };
 
     mockPlayer = mockPlayerData({
       charRotation: {
@@ -69,51 +136,7 @@ describe("CharRotationManager", () => {
         selected: "tm_default",
         themes: {},
       },
-      status: {
-        nickName: "TestUser",
-        nickNumber: "0",
-        level: 1,
-        exp: 0,
-        socialPoint: 0,
-        gachaTicket: 0,
-        tenGachaTicket: 0,
-        instantFinishTicket: 0,
-        hggShard: 0,
-        lggShard: 0,
-        recruitLicense: 0,
-        progress: 0,
-        buyApRemainTimes: 0,
-        apLimitUpFlag: 0,
-        uid: "10000",
-        flags: {},
-        ap: 100,
-        maxAp: 100,
-        androidDiamond: 0,
-        iosDiamond: 0,
-        diamondShard: 0,
-        gold: 9999,
-        practiceTicket: 0,
-        lastRefreshTs: 0,
-        lastApAddTime: 0,
-        mainStageProgress: null,
-        registerTs: 0,
-        lastOnlineTs: 0,
-        serverName: "TestServer",
-        avatarId: "",
-        resume: "",
-        birthday: { month: 1, day: 1 },
-        friendNumLimit: 50,
-        monthlySubscriptionStartTime: 0,
-        monthlySubscriptionEndTime: 0,
-        secretary: "",
-        secretarySkinId: "",
-        tipMonthlyCardExpireTs: 0,
-        avatar: { type: "ICON", id: "avatar_001" },
-        globalVoiceLan: "CN_MANDARIN",
-        classicShard: 0,
-        classicGachaTicket: 0,
-        classicTenGachaTicket: 0,
-      } as any,
+      status: statusSeed as NonNullable<MockPlayerDataSeed["status"]>,
       troop: {
         curCharInstId: 1001,
         curSquadCount: 1,
@@ -144,23 +167,20 @@ describe("CharRotationManager", () => {
     });
 
     mockPlayer._trigger = mockTrigger;
-    mockPlayer.update = vi
-      .fn()
-      .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-          const result = await recipe(draft);
-          Object.assign(mockPlayer._playerdata, draft);
-          return result;
-        }
-      );
+    // 覆写替身默认 update：与 helper 实现等价（JSON 深拷贝 draft → recipe → 回写）
+    mockPlayer.update.mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   });
 
   describe("constructor", () => {
     it("应该正确初始化 CharRotationManager 实例", () => {
       const manager = new CharRotationManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       expect(manager).toBeDefined();
       expect(manager._player).toBe(mockPlayer);
@@ -171,8 +191,8 @@ describe("CharRotationManager", () => {
   describe("setCurrent", () => {
     it("应该切换当前预设并同步背景、主题与秘书配置", async () => {
       const manager = new CharRotationManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.setCurrent({ instId: "1" });
@@ -189,18 +209,20 @@ describe("CharRotationManager", () => {
 
     it("profileInst 指向不存在干员时应回退 profile 字符串而非 500", async () => {
       const manager = new CharRotationManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       // preset 1 的 profileInst=1 在 mock 中不存在（mock chars 键为 1001）→ 回退 profile
-      mockPlayer._playerdata.charRotation!.preset["1"] = {
+      // 夹具为增量写入的局部预设视图（省略 profileSp，模型虽必填但管理器不读该键），
+      // 经 asModel 按深可选宽契约断言回真实类型；运行期值一字不改
+      mockPlayer._playerdata.charRotation!.preset["1"] = asModel<PlayerCharRotationPreset>({
         name: "test",
         background: "bg_rhodes_day",
         homeTheme: "tm_rhodes_day",
         profile: "char_1012_skadi2#1",
         profileInst: 1,
         slots: [],
-      };
+      });
       await expect(
         manager.setCurrent({ instId: "1" }),
       ).resolves.not.toThrow();
@@ -209,8 +231,8 @@ describe("CharRotationManager", () => {
 
     it("未知预设 instId 不应抛错（不再 500）", async () => {
       const manager = new CharRotationManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       await expect(
         manager.setCurrent({ instId: "999" }),
@@ -220,8 +242,8 @@ describe("CharRotationManager", () => {
   describe("createPreset", () => {
     it("应该创建新预设并返回 instId", async () => {
       const manager = new CharRotationManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       // 修复：预设键为 {1} → 新预设 id = 最大数值 + 1 = "2"
@@ -245,8 +267,8 @@ describe("CharRotationManager", () => {
   describe("updatePreset", () => {
     it("应该根据传入 data 更新预设字段并同步当前选中状态", async () => {
       const manager = new CharRotationManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const req: CharRotationUpdatePresetRequest = {
@@ -259,7 +281,9 @@ describe("CharRotationManager", () => {
           secretarySkinId: "char_002_amiya#2",
           secretaryCharInstId: "1001",
           slots: [
-            { charId: "char_002_amiya", skinId: "char_002_amiya#2" },
+            // 客户端载荷可省略 skinSp（下方断言也按省略值比对），模型声明为必填；
+            // 经 asModel 按深可选宽契约断言，运行期值一字不改
+            asModel<PlayerCharRotationSlot>({ charId: "char_002_amiya", skinId: "char_002_amiya#2" }),
           ],
         },
       };
@@ -285,8 +309,8 @@ describe("CharRotationManager", () => {
 
     it("当 data 仅含部分字段时应该只更新对应字段", async () => {
       const manager = new CharRotationManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const originalPreset = JSON.parse(
@@ -311,8 +335,8 @@ describe("CharRotationManager", () => {
 
     it("secretaryCharInstId 指向不存在干员时应跳过而非 500", async () => {
       const manager = new CharRotationManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       // 修复前：draft.troop.chars["999"].charId 解引用 undefined → TypeError
       await expect(
@@ -334,19 +358,20 @@ describe("CharRotationManager", () => {
   describe("deletePreset", () => {
     it("应该删除指定 instId 的预设", async () => {
       const manager = new CharRotationManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       // 先添加第二个预设,确保删除后仍有预设存在
-      mockPlayer._playerdata.charRotation!.preset["2"] = {
+      // 同「增量写入的局部预设视图」：省略 profileSp，经 asModel 按深可选宽契约断言
+      mockPlayer._playerdata.charRotation!.preset["2"] = asModel<PlayerCharRotationPreset>({
         name: "预设2",
         background: "bg_2",
         homeTheme: "tm_2",
         profile: "p2",
         profileInst: 2,
         slots: [],
-      };
+      });
 
       await manager.deletePreset({ instId: "1" });
 

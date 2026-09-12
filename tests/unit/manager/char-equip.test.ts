@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ItemBundle, ItemTable } from "@excel/excel";
+import type { CharacterData, StageTable } from "@excel/types_excel_gen";
 
 vi.mock("@excel/excel", () => {
   return {
     default: {
+    // 空表底座:门面方法体引用 this.X，键必须存在（空表语义与旧夹具一致——读不到数据）
+    ItemTable: {} as ItemTable,
+    CharacterTable: {} as CharacterData,
+    StageTable: {} as StageTable,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -11,7 +17,6 @@ vi.mock("@excel/excel", () => {
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
 
       GameDataConst: {},
-      CharacterTable: {},
       UniequipTable: {
         equipDict: {
           uniequip_001_test1: {
@@ -128,12 +133,14 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import { mockPlayerData, mockTypedEventEmitter, asPlayerManager } from "../../helpers";
+import type { PlayerCharacter } from "@game/kernel/model";
 import { CharManager } from "@game/modules/character/char";
 import { EquipmentMissionManager } from "@game/modules/equipmentMission/equipmentMission";
 import { reconcileCharEquips } from "@game/modules/character/char-skills";
 
-function makeChar(overrides: Record<string, unknown> = {}) {
+/** 构造一份基础干员夹具（可覆盖局部字段；缺省字段由被测实现的惰性分支承受） */
+function makeChar(overrides: Partial<PlayerCharacter> = {}): PlayerCharacter {
   return {
     instId: 1001,
     charId: "char_001",
@@ -165,25 +172,29 @@ describe("CharManager 模组（uniequip）", () => {
     mockTrigger = mockTypedEventEmitter();
     mockPlayer = mockPlayerData({
       troop: {
-        chars: { 1001: makeChar() as any },
+        chars: { 1001: makeChar() },
         curCharInstId: 1001,
       },
       equipment: { missions: {} },
-      status: { gold: 9999, uid: 10000 } as any,
+      status: { gold: 9999, uid: 10000 },
     });
     mockPlayer._trigger = mockTrigger;
-    (mockPlayer as any).equipmentMission = new EquipmentMissionManager(mockPlayer as any);
-    manager = new CharManager(mockPlayer as any, mockTrigger as any);
+    // CharManager 经真实 PlayerDataManager 的 equipmentMission getter 取任务管理器
+    // （mock 组合根没有该 getter，用 Object.assign 挂上等价替身；不引入 any/cast）
+    Object.assign(mockPlayer, {
+      equipmentMission: new EquipmentMissionManager(asPlayerManager(mockPlayer)),
+    });
+    manager = new CharManager(asPlayerManager(mockPlayer), mockTrigger);
     // TypedEventEmitter 为真实实现——对 emit 打 spy 记录事件（items:use / HasEquipment）
     emitSpy = vi.spyOn(mockTrigger, "emit");
   });
 
   /** 从 mockPlayer 取当前干员 */
-  function char() {
-    return mockPlayer._playerdata.troop!.chars![1001] as any;
+  function char(): PlayerCharacter {
+    return mockPlayer._playerdata.troop!.chars![1001];
   }
 
-  function emittedItemsUse(): any[] {
+  function emittedItemsUse(): ItemBundle[] {
     // 物品消耗经 gainItem 管道（add + use），不再直发 items:use
     return mockPlayer.gainItem.add.mock.calls.map((c) => c[0]);
   }
@@ -194,7 +205,7 @@ describe("CharManager 模组（uniequip）", () => {
       mockPlayer._playerdata.troop!.chars![1001] = makeChar({
         evolvePhase: 1,
         level: 45,
-      }) as any;
+      });
 
       await manager.unlockEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_001_test1" });
 
@@ -217,7 +228,7 @@ describe("CharManager 模组（uniequip）", () => {
     });
 
     it("等级不足拒绝", async () => {
-      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 1, level: 10 }) as any;
+      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 1, level: 10 });
       await expect(
         manager.unlockEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_001_test1" }),
       ).rejects.toThrow("等级 40");
@@ -236,7 +247,7 @@ describe("CharManager 模组（uniequip）", () => {
         evolvePhase: 1,
         level: 45,
         equip: { uniequip_001_test1: { hide: 0, locked: 0, level: 1 } },
-      }) as any;
+      });
       await expect(
         manager.unlockEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_001_test1" }),
       ).rejects.toThrow("已解锁");
@@ -249,7 +260,7 @@ describe("CharManager 模组（uniequip）", () => {
     });
 
     it("特殊模组任务未完成时拒绝解锁", async () => {
-      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 2, level: 60 }) as any;
+      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 2, level: 60 });
       // 任务未播种/未完成（value=0）→ 拒绝解锁
       await expect(
         manager.unlockEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_002_test1" }),
@@ -258,7 +269,7 @@ describe("CharManager 模组（uniequip）", () => {
     });
 
     it("特殊模组任务已完成（progress 达标）时解锁", async () => {
-      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 2, level: 60 }) as any;
+      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 2, level: 60 });
       // 任务进度已达标（如战斗胜利结算推进 EquipmentDeployStage 完成 5 场）
       mockPlayer._playerdata.equipment!.missions!["mission_002_1"] = { value: 5, target: 5 };
       await manager.unlockEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_002_test1" });
@@ -276,7 +287,7 @@ describe("CharManager 模组（uniequip）", () => {
         // 满足升级到 3 级的信赖门槛（unlockFavors["3"]=200）
         favorPoint: 300,
         equip: { uniequip_001_test1: { hide: 0, locked: 0, level: 1 } },
-      }) as any;
+      });
     });
 
     it("1→3 累计扣 itemCost[2]+itemCost[3]（修复：原实现只扣目标档）", async () => {
@@ -321,7 +332,7 @@ describe("CharManager 模组（uniequip）", () => {
         evolvePhase: 1,
         level: 45,
         equip: { uniequip_001_test1: { hide: 1, locked: 1, level: 1 } },
-      }) as any;
+      });
       await expect(
         manager.upgradeEquipment({
           charInstId: 1001,
@@ -347,7 +358,7 @@ describe("CharManager 模组（uniequip）", () => {
           },
         },
         equip: { uniequip_001_test1: { hide: 0, locked: 0, level: 1 } },
-      }) as any;
+      });
 
       await manager.upgradeEquipment({
         charInstId: 1001,
@@ -356,7 +367,7 @@ describe("CharManager 模组（uniequip）", () => {
         targetLevel: 3,
       });
 
-      const patch = char().tmpl["char_1001_alt"];
+      const patch = char().tmpl!["char_1001_alt"];
       expect(patch.equip["uniequip_001_test1"].level).toBe(3);
       // base 等级不受影响
       expect(char().equip["uniequip_001_test1"].level).toBe(1);
@@ -370,7 +381,7 @@ describe("CharManager 模组（uniequip）", () => {
     it("仅可装备已解锁模组", async () => {
       mockPlayer._playerdata.troop!.chars![1001] = makeChar({
         equip: { uniequip_001_test1: { hide: 0, locked: 0, level: 1 } },
-      }) as any;
+      });
       await manager.setEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_001_test1" });
       expect(char().currentEquip).toBe("uniequip_001_test1");
     });
@@ -384,7 +395,7 @@ describe("CharManager 模组（uniequip）", () => {
     it("非本干员模组拒绝", async () => {
       mockPlayer._playerdata.troop!.chars![1001] = makeChar({
         equip: { uniequip_003_other: { hide: 0, locked: 0, level: 1 } },
-      }) as any;
+      });
       await expect(
         manager.setEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_003_other" }),
       ).rejects.toThrow("不属于");
@@ -393,7 +404,7 @@ describe("CharManager 模组（uniequip）", () => {
 
   describe("changeCharTemplate", () => {
     it("templateId 为基础 charId 时切回基础形态（currentTmpl 清除）", async () => {
-      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ currentTmpl: "char_1001_alt" }) as any;
+      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ currentTmpl: "char_1001_alt" });
       await manager.changeCharTemplate({ charInstId: 1001, templateId: "char_001" });
       expect(char().currentTmpl).toBeUndefined();
     });
@@ -401,7 +412,7 @@ describe("CharManager 模组（uniequip）", () => {
     it("未知模板自动初始化 tmpl 补丁（拷贝基础形态）", async () => {
       await manager.changeCharTemplate({ charInstId: 1001, templateId: "char_1001_alt" });
       expect(char().currentTmpl).toBe("char_1001_alt");
-      const patch = char().tmpl["char_1001_alt"];
+      const patch = char().tmpl!["char_1001_alt"];
       expect(patch.skinId).toBe("char_001#1");
       expect(patch.currentEquip).toBeNull();
       expect(patch.equip).toEqual({});
@@ -410,7 +421,7 @@ describe("CharManager 模组（uniequip）", () => {
 
   describe("精二模组校正（reconcileCharEquips：从无到有转变）", () => {
     it("E0 建档隐藏模组条目（hide:1）", () => {
-      const ch: any = makeChar(); // 默认 E0、equip 空
+      const ch = makeChar(); // 默认 E0、equip 空
       reconcileCharEquips(ch);
       // E0：模组条目补齐但隐藏（showEvolvePhase=PHASE_2 → hide:1）
       expect(ch.equip).toBeDefined();
@@ -421,7 +432,7 @@ describe("CharManager 模组（uniequip）", () => {
     });
 
     it("E2 精二后模组条目隐藏→显示（hide:0）+ 精二即用模组 locked:0 + currentEquip", () => {
-      const ch: any = makeChar({ evolvePhase: 2 });
+      const ch = makeChar({ evolvePhase: 2 });
       reconcileCharEquips(ch);
       // 精二后所有模组显示
       expect(ch.equip["uniequip_001_test1"].hide).toBe(0);
@@ -436,7 +447,7 @@ describe("CharManager 模组（uniequip）", () => {
     });
 
     it("unlockEquipment 对精二后显示条目的解锁仍可用（不破坏既有解锁流程）", async () => {
-      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 1, level: 45 }) as any;
+      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 1, level: 45 });
       await manager.unlockEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_001_test1" });
       expect(char().equip["uniequip_001_test1"].locked).toBe(0);
     });

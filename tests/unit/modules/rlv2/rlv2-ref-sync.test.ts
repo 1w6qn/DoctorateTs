@@ -1,14 +1,26 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string }
+/** excel mock 干员行形状（本文件用到的字段即可） */
+interface ExcelCharRowMock {
+  name?: string;
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+  subProfessionId?: string;
+}
 
 
 vi.mock("@excel/excel", () => ({
   default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
     charData(charId: string) { return this.CharacterTable?.[charId]; },
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
 
     RoguelikeTopicTable: {
       details: {
@@ -22,18 +34,19 @@ vi.mock("@excel/excel", () => ({
       },
       consts: {},
     },
-    CharacterTable: {},
+    CharacterTable: {} as Record<string, ExcelCharRowMock>,
   },
 }));
 
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
+import type { EventMap } from "@game/kernel/events";
 import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {
-  const pd: any = mockPlayerData({
-    rlv2: { outer: {}, current: {}, pinned: {} } as any,
-    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } } as any,
-    mission: { missions: { DAILY: {}, ACTIVITY: {} }, missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} } } as any,
+  const pd = mockPlayerData({
+    rlv2: { outer: {}, current: {}, pinned: {} as string },
+    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
+    mission: { missions: { DAILY: {}, ACTIVITY: {} }, missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} } },
   });
   return new PlayerDataManager(pd._playerdata);
 }
@@ -53,7 +66,7 @@ describe("rlv2 引用同步（wrapper 统一刷新）", () => {
   });
 
   it("update() 克隆子树后 outer/current/pinned 与持久态同步", async () => {
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     const oldCurrent = rlv2.current;
     await rlv2.update(async (draft) => {
       draft.current.game = {
@@ -73,20 +86,20 @@ describe("rlv2 引用同步（wrapper 统一刷新）", () => {
   });
 
   it("setPinned 后 pinned 引用同步到持久态", async () => {
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     await rlv2.setPinned({ id: "relic_1" });
     expect(player._playerdata.rlv2.pinned).toBe("relic_1");
     expect(rlv2.pinned).toBe("relic_1");
   });
 
   it("giveUpGame 后再 createGame：直接写落在持久态（重启不丢失）", async () => {
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     // rlv2:create 的子管理器 create() 处理器需要完整 excel 配置（与本用例断言无关），stub 掉
     const originalEmit = player._trigger.emit.bind(player._trigger);
-    vi.spyOn(player._trigger as any, "emit").mockImplementation(
-      (event: any, ...args: any[]) => {
-        if (event === "rlv2:create") return Promise.resolve();
-        return originalEmit(event, ...args);
+    vi.spyOn(player._trigger, "emit").mockImplementation(
+      async <Name extends keyof EventMap>(event: Name, data: EventMap[Name]) => {
+        if (event === "rlv2:create") return;
+        return originalEmit(event, data);
       },
     );
 

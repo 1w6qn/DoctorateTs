@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // 拦截文件读写：构造器 readFileSync 返回测试邮件库，saveDatabase 不落盘
-const testDB = vi.hoisted(() => ({
+// 夹具显式按 MailDB 声明，使附件 type 保持 ItemType 字面量（否则被放宽为 string，
+// 传给 nextMailId 时不再满足 MailDB）
+const testDB = vi.hoisted((): MailDB => ({
   user: {
     "10000": [
       {
@@ -52,6 +54,7 @@ vi.mock("@utils/time", () => ({ now: () => 1234567890 }));
 vi.mock("app/game/excel/excel", () => ({ ItemBundle: {} }));
 
 import { MailManager, buildMailItem, nextMailId } from "@game/modules/mail/MailManager";
+import type { MailDB } from "@game/modules/mail/MailManager";
 import { writeFile } from "fs/promises";
 
 describe("MailManager", () => {
@@ -167,11 +170,11 @@ describe("MailManager", () => {
 
 describe("nextMailId / buildMailItem", () => {
   it("nextMailId 应在现有最大值基础上 +1", () => {
-    expect(nextMailId(testDB as any)).toBe(1000003);
+    expect(nextMailId(testDB)).toBe(1000003);
   });
 
   it("nextMailId 最小值为 1000000", () => {
-    expect(nextMailId({ user: {} } as any)).toBe(1000000);
+    expect(nextMailId({ user: {} })).toBe(1000000);
   });
 
   it("buildMailItem 应构造完整邮件对象", () => {

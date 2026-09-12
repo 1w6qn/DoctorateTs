@@ -15,6 +15,9 @@ vi.mock("@excel/excel", () => ({
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
     charData(charId: string) { return this.CharacterTable?.[charId]; },
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    // 本文件不提供的表（占位：与「键不存在」在 ?. 读取下等价）
+    ItemTable: undefined as { items?: Record<string, ItemRowMock> } | undefined,
+    StageTable: undefined as { stages?: Record<string, StageRowMock> } | undefined,
 
     // 编成限制类任务需要职业/站位/星级（CharacterTable）
     CharacterTable: {
@@ -27,7 +30,7 @@ vi.mock("@excel/excel", () => ({
       char_455_nothin: { profession: "SPECIAL", position: "MELEE", rarity: "TIER_5" },
       char_4146_nymph: { profession: "CASTER", position: "RANGED", rarity: "TIER_6" },
       char_179_cgbird: { profession: "MEDIC", position: "RANGED", rarity: "TIER_6" },
-    },
+    } as Record<string, CharRowMock>,
     UniequipTable: {
       equipDict: {
         uniequip_002_mgllan: {
@@ -184,7 +187,26 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import { EquipmentMissionManager } from "@game/modules/equipmentMission/equipmentMission";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData, asPlayerManager, asModel } from "../../helpers";
+import type { Draft } from "mutative";
+import type { BattleInfo } from "@game/kernel/battle-info-store";
+import type { BattleData } from "@game/kernel/battle-model";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
+
+/** excel mock 行形状（本文件用到的字段） */
+interface ItemRowMock {
+  name?: string;
+}
+/** 干员表行窄视图（编成限制模板读职业/站位/稀有度） */
+interface CharRowMock {
+  profession?: string;
+  position?: string;
+  rarity?: string | number;
+}
+/** 关卡表行窄视图（mock 表为空，仅为索引签名占位） */
+interface StageRowMock {
+  stageId?: string;
+}
 
 function playerData() {
   return mockPlayerData({
@@ -204,7 +226,7 @@ function playerData() {
         12: { instId: 12, charId: "char_123_fang" },
       },
     },
-  } as any);
+  });
 }
 
 describe("EquipmentMissionManager", () => {
@@ -213,17 +235,17 @@ describe("EquipmentMissionManager", () => {
 
   beforeEach(() => {
     pd = playerData();
-    mgr = new EquipmentMissionManager(pd as any);
+    mgr = new EquipmentMissionManager(asPlayerManager(pd));
   });
 
   function missions() {
-    return (pd._playerdata as any).equipment?.missions ?? {};
+    return pd._playerdata.equipment?.missions ?? {};
   }
 
   it("场次型模板按上场非助战干员的通关战斗场次推进", async () => {
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-12", isPractice: 0, squad: { slots: [{ charInstId: 1 }] } } as any,
-      battleData: { completeState: 2 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-12", isPractice: 0, squad: { slots: [{ charInstId: 1 }] } }),
+      battleData: asModel<BattleData>({ completeState: 2 }),
     });
     // 麦哲伦 field 型任务推进 1 场（无关卡约束）；一次性任务关卡不符不推进
     expect(missions()["uniequip_002_mgllan_1"]).toEqual({ value: 1, target: 5 });
@@ -233,8 +255,8 @@ describe("EquipmentMissionManager", () => {
   it("累计型模板按真实统计累加（charAdvancedStats.outputDamageTotal）", async () => {
     // 芙兰卡本场造成 12000 伤害 → 累计 12000/60000
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-02", isPractice: 0, squad: { slots: [{ charInstId: 2 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-02", isPractice: 0, squad: { slots: [{ charInstId: 2 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: {
           stats: {
@@ -243,7 +265,7 @@ describe("EquipmentMissionManager", () => {
             },
           },
         },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_franka_dmg"]).toEqual({ value: 12000, target: 60000 });
     // 进度变化时压入 equipmentMission 推送
@@ -255,8 +277,8 @@ describe("EquipmentMissionManager", () => {
   it("累计型模板统计缺失时置满兜底（不卡死）", async () => {
     // 无 charAdvancedStats → EquipmentDamageTotal 一场达标
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-02", isPractice: 0, squad: { slots: [{ charInstId: 2 }] } } as any,
-      battleData: { completeState: 3, battleData: {} } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-02", isPractice: 0, squad: { slots: [{ charInstId: 2 }] } }),
+      battleData: asModel<BattleData>({ completeState: 3, battleData: {} }),
     });
     expect(missions()["uniequip_002_franka_dmg"]).toEqual({ value: 60000, target: 60000 });
   });
@@ -264,20 +286,20 @@ describe("EquipmentMissionManager", () => {
   it("场次阈值型依赖单场伤害统计（BattleCharDamage≥18000 才计一场）", async () => {
     // 本场 12000 < 18000 → 不计
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-02", isPractice: 0, squad: { slots: [{ charInstId: 2 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-02", isPractice: 0, squad: { slots: [{ charInstId: 2 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { charAdvancedStats: { char_106_franka: { outputDamageTotal: 12000 } } } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_franka_1"]).toEqual({ value: 0, target: 5 });
     // 本场 20000 ≥ 18000 → 计一场
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-03", isPractice: 0, squad: { slots: [{ charInstId: 2 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-03", isPractice: 0, squad: { slots: [{ charInstId: 2 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { charAdvancedStats: { char_106_franka: { outputDamageTotal: 20000 } } } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_franka_1"]).toEqual({ value: 1, target: 5 });
   });
@@ -285,8 +307,8 @@ describe("EquipmentMissionManager", () => {
   it("技能施放统计（skillTrigStats）驱动技能类模板", async () => {
     // 麦哲伦无人机召唤 3 回（token SPAWN）→ DeployStage 阈值 5，未达 → field 为 0
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-02", isPractice: 0, squad: { slots: [{ charInstId: 1 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-02", isPractice: 0, squad: { slots: [{ charInstId: 1 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: {
           stats: {
@@ -299,7 +321,7 @@ describe("EquipmentMissionManager", () => {
             charAdvancedStats: { char_248_mgllan: { outputDamageTotal: 5000 } },
           },
         },
-      } as any,
+      }),
     });
     // 麦哲伦 field 型任务（无统计需求默认 hit）→ 计一场
     expect(missions()["uniequip_002_mgllan_1"]).toEqual({ value: 1, target: 5 });
@@ -310,8 +332,8 @@ describe("EquipmentMissionManager", () => {
     // charStats(SPAWN/DEAD/WITHDRAW 字符串枚举)、skillTrigStats({Key:{charId,skillId}})、
     // charAdvancedStats:{}（真实线上逐干员高级统计恒空）与 totalDamage。
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-07", isPractice: 0, squad: { slots: [{ charInstId: 3 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-07", isPractice: 0, squad: { slots: [{ charInstId: 3 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: {
           stats: {
@@ -328,7 +350,7 @@ describe("EquipmentMissionManager", () => {
             totalDamage: 161720.047,
           },
         },
-      } as any,
+      }),
     });
     // 技能施放真实累计 5/8
     expect(missions()["uniequip_004_angel_cast"]).toEqual({ value: 5, target: 8 });
@@ -339,14 +361,14 @@ describe("EquipmentMissionManager", () => {
   it("一次性模板需命中指定关卡且三星通关", async () => {
     // 关卡命中但未三星（completeState=2）
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_02-05", isPractice: 0, squad: { slots: [{ charInstId: 1 }] } } as any,
-      battleData: { completeState: 2 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_02-05", isPractice: 0, squad: { slots: [{ charInstId: 1 }] } }),
+      battleData: asModel<BattleData>({ completeState: 2 }),
     });
     expect(missions()["uniequip_002_mgllan_2"]).toEqual({ value: 0, target: 1 });
     // 三星 + 命中关卡 → 完成
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_02-05", isPractice: 0, squad: { slots: [{ charInstId: 1 }] } } as any,
-      battleData: { completeState: 3 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_02-05", isPractice: 0, squad: { slots: [{ charInstId: 1 }] } }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
     expect(missions()["uniequip_002_mgllan_2"]).toEqual({ value: 1, target: 1 });
   });
@@ -354,21 +376,21 @@ describe("EquipmentMissionManager", () => {
   it("未上场干员（含助战）的模组任务不推进", async () => {
     // 仅麦哲伦上场；芙兰卡的模组任务不变
     await mgr.onBattleWin({
-      battleInfo: {
+      battleInfo: asModel<BattleInfo>({
         stageId: "main_02-05",
         isPractice: 0,
         squad: { slots: [{ charInstId: 1 }] },
         assistFriend: { uid: "1", assistChar: [{ charId: "char_106_franka" }], assistSlotIndex: 0 },
-      } as any,
-      battleData: { completeState: 3 } as any,
+      }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
     expect(missions()["uniequip_002_franka_1"]).toBeUndefined();
   });
 
   it("演习不计入进度", async () => {
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_02-05", isPractice: 1, squad: { slots: [{ charInstId: 1 }] } } as any,
-      battleData: { completeState: 3 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_02-05", isPractice: 1, squad: { slots: [{ charInstId: 1 }] } }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
     expect(missions()["uniequip_002_mgllan_1"]).toBeUndefined();
   });
@@ -376,37 +398,40 @@ describe("EquipmentMissionManager", () => {
   it("assertUnlockable：未完成任务拒绝解锁，完成态放行", async () => {
     // 未完成 → 抛错
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-12", isPractice: 0, squad: { slots: [{ charInstId: 1 }] } } as any,
-      battleData: { completeState: 3 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-12", isPractice: 0, squad: { slots: [{ charInstId: 1 }] } }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
-    const draft: any = { ...pd._playerdata, equipment: { missions: missions() } };
+    const draft: Draft<PlayerDataModel> = asModel<PlayerDataModel>({
+      ...pd._playerdata,
+      equipment: { missions: missions() },
+    });
     expect(() =>
       mgr.assertUnlockable("char_248_mgllan", ["uniequip_002_mgllan_1", "uniequip_002_mgllan_2"], draft),
     ).toThrow(/未完成/);
     // 老存档已完成态（value===target）→ 放行
-    const doneDraft: any = {
+    const doneDraft: Draft<PlayerDataModel> = asModel<PlayerDataModel>({
       equipment: { missions: { uniequip_002_mgllan_1: { value: 5, target: 5 } } },
-    };
+    });
     expect(() => mgr.assertUnlockable("char_248_mgllan", ["uniequip_002_mgllan_1"], doneDraft)).not.toThrow();
   });
 
   it("一次性击杀关卡：击杀不足不完成，累计达标才完成（不自动完成）", async () => {
     // 3星通关 main_03-01，本场歼灭 12 → 进度 12/20，不直接完成
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_03-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_03-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 12 }] } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_kirara_2"]).toEqual({ value: 12, target: 20 });
     // 再次通关再歼灭 8 → 累计 20/20 完成
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_03-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_03-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 8 }] } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_kirara_2"]).toEqual({ value: 20, target: 20 });
   });
@@ -414,31 +439,31 @@ describe("EquipmentMissionManager", () => {
   it("一次性击杀关卡：关卡不符或未三星不推进击杀进度", async () => {
     // 未三星（completeState=2）→ 仅播种进度，不累加
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_03-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_03-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 2,
         battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 12 }] } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_kirara_2"]).toEqual({ value: 0, target: 20 });
     // 击杀达标但关卡不符 → 仍不推进
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_04-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_04-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 12 }] } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_kirara_2"]).toEqual({ value: 0, target: 20 });
   });
 
   it("累计歼灭敌人：按 enemyStats 逐场累加而非一次置满", async () => {
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 5 }] } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_kirara_kill"]).toEqual({ value: 5, target: 30 });
   });
@@ -446,20 +471,20 @@ describe("EquipmentMissionManager", () => {
   it("场次型击杀：单场未达阈值不计数，达标才计一场", async () => {
     // 本场歼灭 2 < 3 → 不计
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 2 }] } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_kirara_battlekill"]).toEqual({ value: 0, target: 5 });
     // 本场歼灭 5 >= 3 → 计一场
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-02", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-02", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 5 }] } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_kirara_battlekill"]).toEqual({ value: 1, target: 5 });
   });
@@ -474,92 +499,92 @@ describe("EquipmentMissionManager", () => {
   it("SquadStar（13,3）：其他成员非 3 星 → 不完成；全 3 星 → 完成", async () => {
     // 杜宾 + 麦哲伦(6★) → 不符合「其他成员仅可编入3星干员」
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-12", isPractice: 0, squad: squad(9, 1) } as any,
-      battleData: { completeState: 3 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-12", isPractice: 0, squad: squad(9, 1) }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
     expect(missions()["uniequip_002_doberm_star"]).toEqual({ value: 0, target: 1 });
     // 杜宾 + 芬(2★) → 仍不符（要求 3 星）
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-12", isPractice: 0, squad: squad(9, 12) } as any,
-      battleData: { completeState: 3 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-12", isPractice: 0, squad: squad(9, 12) }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
     expect(missions()["uniequip_002_doberm_star"]).toEqual({ value: 0, target: 1 });
   });
 
   it("SquadProEx（MEDIC;TANK）：其他成员含被禁职业 → 不完成", async () => {
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_04-09", isPractice: 0, squad: squad(10, 7) } as any,
-      battleData: { completeState: 3 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_04-09", isPractice: 0, squad: squad(10, 7) }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
     expect(missions()["uniequip_002_plosis_ex"]).toEqual({ value: 0, target: 1 });
     // 换成先锋（非医疗/重装）→ 完成
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_04-09", isPractice: 0, squad: squad(10, 12) } as any,
-      battleData: { completeState: 3 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_04-09", isPractice: 0, squad: squad(10, 12) }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
     expect(missions()["uniequip_002_plosis_ex"]).toEqual({ value: 1, target: 1 });
   });
 
   it("SquadNum（上限 1）：其他成员人数超限 → 不完成", async () => {
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_04-01", isPractice: 0, squad: squad(11, 12, 9) } as any,
-      battleData: { completeState: 3 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_04-01", isPractice: 0, squad: squad(11, 12, 9) }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
     expect(missions()["uniequip_002_folivo_num"]).toEqual({ value: 0, target: 1 });
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_04-01", isPractice: 0, squad: squad(11, 12) } as any,
-      battleData: { completeState: 3 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_04-01", isPractice: 0, squad: squad(11, 12) }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
     expect(missions()["uniequip_002_folivo_num"]).toEqual({ value: 1, target: 1 });
   });
 
   it("SquadPos（1,MELEE）：其他成员为远程位 → 不完成", async () => {
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_02-09", isPractice: 0, squad: squad(11, 1) } as any,
-      battleData: { completeState: 3 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_02-09", isPractice: 0, squad: squad(11, 1) }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
     expect(missions()["uniequip_002_folivo_pos"]).toEqual({ value: 0, target: 1 });
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_02-09", isPractice: 0, squad: squad(11, 9) } as any,
-      battleData: { completeState: 3 } as any,
+      battleInfo: asModel<BattleInfo>({ stageId: "main_02-09", isPractice: 0, squad: squad(11, 9) }),
+      battleData: asModel<BattleData>({ completeState: 3 }),
     });
     expect(missions()["uniequip_002_folivo_pos"]).toEqual({ value: 1, target: 1 });
   });
 
   it("SquadNoAnyDead：有统计且有人阵亡 → 不完成；无人阵亡 → 完成", async () => {
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_04-08", isPractice: 0, squad: squad(12, 9) } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_04-08", isPractice: 0, squad: squad(12, 9) }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { charStats: [{ Key: { charId: "char_130_doberm", counterType: "DEAD" }, Value: 1 }] } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_fang_nodead"]).toEqual({ value: 0, target: 1 });
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_04-08", isPractice: 0, squad: squad(12, 9) } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_04-08", isPractice: 0, squad: squad(12, 9) }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { charStats: [{ Key: { charId: "char_130_doberm", counterType: "SPAWN" }, Value: 1 }] } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_fang_nodead"]).toEqual({ value: 1, target: 1 });
   });
 
   it("SkillCastStage：按 param[2] 技能 id 与 param[3] 阈值判定（原一律完成）", async () => {
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_03-06", isPractice: 0, squad: squad(7) } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_03-06", isPractice: 0, squad: squad(7) }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { skillTrigStats: [{ Key: { charId: "char_179_cgbird", skillId: "skchr_cgbird_2" }, Value: 4 }] } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_cgbird_cast"]).toEqual({ value: 0, target: 1 });
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_03-06", isPractice: 0, squad: squad(7) } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_03-06", isPractice: 0, squad: squad(7) }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: { stats: { skillTrigStats: [{ Key: { charId: "char_179_cgbird", skillId: "skchr_cgbird_2" }, Value: 10 }] } },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_cgbird_cast"]).toEqual({ value: 1, target: 1 });
   });
@@ -567,8 +592,8 @@ describe("EquipmentMissionManager", () => {
   it("DamageTypeStage：阈值取 param[3]、元素索引取 param[4]，读 outputElementDamageTotal", async () => {
     // 索引 5 的元素伤害 6000 ≥ 5000 → 完成（原实现把 5000 当索引 → 恒兜底完成）
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_14-06", isPractice: 0, squad: squad(8) } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_14-06", isPractice: 0, squad: squad(8) }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: {
           stats: {
@@ -577,14 +602,14 @@ describe("EquipmentMissionManager", () => {
             },
           },
         },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_nymph_elem"]).toEqual({ value: 1, target: 1 });
     // 索引 3（非任务索引）有大量伤害也不应误判为完成
     pd._playerdata.equipment.missions["uniequip_002_nymph_elem"] = { value: 0, target: 1 };
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_14-06", isPractice: 0, squad: squad(8) } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_14-06", isPractice: 0, squad: squad(8) }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: {
           stats: {
@@ -593,15 +618,15 @@ describe("EquipmentMissionManager", () => {
             },
           },
         },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_nymph_elem"]).toEqual({ value: 0, target: 1 });
   });
 
   it("DeployCharAndKillCnt：需同时满足部署≥2 与歼灭≥4（原丢弃击杀阈值）", async () => {
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-02", isPractice: 0, squad: squad(5) } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-02", isPractice: 0, squad: squad(5) }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: {
           stats: {
@@ -609,12 +634,12 @@ describe("EquipmentMissionManager", () => {
             enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 1 }],
           },
         },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_nothin_deploykill"]).toEqual({ value: 0, target: 5 });
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_01-02", isPractice: 0, squad: squad(5) } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_01-02", isPractice: 0, squad: squad(5) }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: {
           stats: {
@@ -622,15 +647,15 @@ describe("EquipmentMissionManager", () => {
             enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 4 }],
           },
         },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_nothin_deploykill"]).toEqual({ value: 1, target: 5 });
   });
 
   it("StageDeployCntAndSpec：部署过 5 位其他干员（> param[3]=4）→ 不完成", async () => {
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_03-04", isPractice: 0, squad: squad(6) } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_03-04", isPractice: 0, squad: squad(6) }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: {
           stats: {
@@ -644,13 +669,13 @@ describe("EquipmentMissionManager", () => {
             ],
           },
         },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_ling_spec"]).toEqual({ value: 0, target: 1 });
     // 仅令 + 1 位其他干员 → 完成
     await mgr.onBattleWin({
-      battleInfo: { stageId: "main_03-04", isPractice: 0, squad: squad(6) } as any,
-      battleData: {
+      battleInfo: asModel<BattleInfo>({ stageId: "main_03-04", isPractice: 0, squad: squad(6) }),
+      battleData: asModel<BattleData>({
         completeState: 3,
         battleData: {
           stats: {
@@ -660,7 +685,7 @@ describe("EquipmentMissionManager", () => {
             ],
           },
         },
-      } as any,
+      }),
     });
     expect(missions()["uniequip_002_ling_spec"]).toEqual({ value: 1, target: 1 });
   });

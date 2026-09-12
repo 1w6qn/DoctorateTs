@@ -1,9 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { Draft } from "mutative";
+import type { ItemTable } from "@excel/excel";
+import type { CharacterData, StageTable } from "@excel/types_excel_gen";
+import type { PlayerActivity } from "@excel/types-playerdata";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
 
 // 最小化 act44side excel 数据（字典键用真实数据的小写变体 tYPE_ACT44SIDE，
 // 同时验证大小写不敏感解析）；数据形状对照官服抓包（tmp/act44side-captures.json）
+//
+// 门面方法读取的 ItemTable/CharacterTable/StageTable 沿用 `mockExcel()` 的写法显式声明
+// 空表：mock 工厂对象无上下文类型，`this` 就是该字面量自身，不声明这些键会 TS2339；
+// 空表与「键不存在的旧 mock」运行期等价（`?.` 链同样取到 undefined）。
 vi.mock("@excel/excel", () => ({
   default: {
+    ItemTable: {} as ItemTable,
+    CharacterTable: {} as CharacterData,
+    StageTable: {} as StageTable,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -104,8 +116,27 @@ import {
 /** 受控随机：pick 恒取首个、掷点恒成功、incomeRate 无抖动 */
 let randomSpy: ReturnType<typeof vi.spyOn>;
 
-function newDraft(): any {
-  return { activity: {} };
+/** act44side 单活动存档条目（取自生成模型，不重复建模） */
+type Act44Entry = NonNullable<PlayerActivity["TYPE_ACT44SIDE"]>[string];
+/** 单日会话体（模型里可为 null 表示已收摊） */
+type Act44Game = NonNullable<Act44Entry["game"]>;
+/** 递归收紧可选字段：用例只在 startGame/ensureAct44State 自愈后才读取这些子树 */
+type Strict<T> = T extends string | number | boolean | null | undefined
+  ? T
+  : T extends (infer U)[]
+    ? Strict<U>[]
+    : { [K in keyof T]-?: Strict<T[K]> };
+/** 用例视图：把 game 收紧为必填非空（用例都在 startGame 后读取会话） */
+type Act44TestEntry = Omit<Strict<Act44Entry>, "game"> & { game: Strict<Act44Game> };
+/** 用例 draft：真实 draft 交集上把 TYPE_ACT44SIDE 声明为必填（入口函数会自愈创建该键） */
+type Act44Draft = Draft<PlayerDataModel> & {
+  activity: { TYPE_ACT44SIDE: { [actId: string]: Act44TestEntry } };
+};
+
+function newDraft(): Act44Draft {
+  // 断言两侧仍受真实模型约束（字段名/字段类型参与检查），仅「必填」被放宽为
+  // 「入口函数会自愈创建」——与 status.test.ts 的窄接口断言同旨，运行期对象一字未改。
+  return { activity: {} } as Act44Draft;
 }
 
 describe("act44side 情报屋状态机", () => {
@@ -290,7 +321,8 @@ describe("act44side 情报屋状态机", () => {
   it("无会话时 nextState/selectChoice/useInsight 应安全忽略", () => {
     const draft = newDraft();
     informantStartGame(draft, "act44sre");
-    draft.activity.TYPE_ACT44SIDE.act44sre.game = null;
+    // 会话置空：用例视图把 game 收紧为非空，此处按真实模型的可空字段写回 null
+    (draft.activity.TYPE_ACT44SIDE.act44sre as Act44Entry).game = null;
     expect(() => informantNextState(draft, "act44sre", 0)).not.toThrow();
     expect(() => informantSelectChoice(draft, "act44sre", 0)).not.toThrow();
     expect(() => informantUseInsight(draft, "act44sre")).not.toThrow();

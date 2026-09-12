@@ -8,6 +8,14 @@
 import { describe, beforeAll, afterAll, it, expect } from "vitest";
 import { startApiFixture, type ApiFixture } from "../../helpers/apiServer";
 
+/** 校验失败响应（validateBody 统一形状） */
+type ErrorBody = { result: number; message: string };
+/** `/rlv2/createGame` 成功响应（用例断言到的字段） */
+type CreateGameBody = {
+  playerDataDelta: { modified: { rlv2: { current: { player: { state: string } } } } };
+  pushMessage: { path: string }[];
+};
+
 describe("游戏 API rlv2 建局冒烟", () => {
   let fx: ApiFixture;
   let secret: string;
@@ -23,7 +31,7 @@ describe("游戏 API rlv2 建局冒烟", () => {
   });
 
   it("createGame 缺失必填参数 → HTTP 422（zod 格式校验，非 500）", async () => {
-    const res = await fx.post("/rlv2/createGame", {}, secret);
+    const res = await fx.post<ErrorBody>("/rlv2/createGame", {}, secret);
     expect(res.status).toBe(422);
     expect(res.body.result).toBe(-1);
     // 校验失败由 validateBody 中间件返回，不再进入控制器/playerDataDelta 分支
@@ -31,7 +39,7 @@ describe("游戏 API rlv2 建局冒烟", () => {
   });
 
   it("createGame 合法入参 → 建局成功进入 INIT 状态", async () => {
-    const res = await fx.post(
+    const res = await fx.post<CreateGameBody>(
       "/rlv2/createGame",
       { theme: "rogue_6", mode: "NORMAL", modeGrade: 15 },
       secret,

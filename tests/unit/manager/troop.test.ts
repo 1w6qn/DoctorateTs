@@ -1,52 +1,67 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ItemData, StageData } from "@excel/types_excel_gen";
+import type { PlayerSquadItem } from "@game/kernel/model";
+
+/** 干员表窄视图行（TroopManager 只读这几个字段；真实 CharacterData 的其余字段本例不涉及） */
+interface MockTroopCharRow {
+  charId: string;
+  name: string;
+  /** 用例覆盖两种真实形态：数值索引与 "TIER_5" 字符串 */
+  rarity: number | string;
+  potentialItemId?: string;
+  classicPotentialItemId?: string;
+  skills: { skillId: string; unlockCond?: { phase: number; level: number } }[];
+}
 
 // Mock excel 数据表,提供 TroopManager 依赖的最小数据
 vi.mock("@excel/excel", () => {
+  /** 角色表:提供 rarity、potentialItemId、classicPotentialItemId、skills 字段（带索引签名） */
+  const characterTable: Record<string, MockTroopCharRow> = {
+    char_001: {
+      charId: "char_001",
+      name: "测试干员",
+      rarity: 5,
+      potentialItemId: "pot_001",
+      classicPotentialItemId: "pot_classic_001",
+      skills: [
+        {
+          skillId: "sk1",
+          unlockCond: { phase: 0, level: 1 },
+        },
+      ],
+    },
+    char_002: {
+      charId: "char_002",
+      name: "字符串稀有度干员（真实数据格式）",
+      rarity: "TIER_5",
+      potentialItemId: "pot_001",
+      classicPotentialItemId: "pot_classic_001",
+      skills: [
+        {
+          skillId: "sk1",
+          unlockCond: { phase: 0, level: 1 },
+        },
+      ],
+    },
+    char_002_amiya: {
+      charId: "char_002_amiya",
+      name: "阿米娅",
+      rarity: 5,
+      potentialItemId: "pot_amiya",
+      skills: [],
+    },
+  };
   return {
     default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    // 本例 mock 未提供 ItemTable/StageTable：与真实门面「该表缺失 → 取不到」等价
+    getItem(_id: string): ItemData | undefined { return undefined; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
     charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    stageData(_stageId: string): StageData | undefined { return undefined; },
 
-      // 角色表:提供 rarity、potentialItemId、classicPotentialItemId、skills 字段
-      CharacterTable: {
-        char_001: {
-          charId: "char_001",
-          name: "测试干员",
-          rarity: 5,
-          potentialItemId: "pot_001",
-          classicPotentialItemId: "pot_classic_001",
-          skills: [
-            {
-              skillId: "sk1",
-              unlockCond: { phase: 0, level: 1 },
-            },
-          ],
-        },
-        char_002: {
-          charId: "char_002",
-          name: "字符串稀有度干员（真实数据格式）",
-          rarity: "TIER_5",
-          potentialItemId: "pot_001",
-          classicPotentialItemId: "pot_classic_001",
-          skills: [
-            {
-              skillId: "sk1",
-              unlockCond: { phase: 0, level: 1 },
-            },
-          ],
-        },
-        char_002_amiya: {
-          charId: "char_002_amiya",
-          name: "阿米娅",
-          rarity: 5,
-          potentialItemId: "pot_amiya",
-          skills: [],
-        },
-      },
+      CharacterTable: characterTable,
       // 抽卡表:提供潜能物品转换器
       GachaTable: {
         potentialMaterialConverter: {
@@ -138,7 +153,11 @@ vi.mock("@utils/time", () => ({
 
 
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  asPlayerManager,
+  mockPlayerData,
+  mockTypedEventEmitter,
+} from "../../helpers";
 import { TroopManager } from "@game/modules/character/troop";
 
 /**
@@ -216,24 +235,21 @@ describe("TroopManager", () => {
 
     mockPlayer._trigger = mockTrigger;
     // 重写 update 实现,使其在 draft 上执行 recipe 并同步回 _playerdata
-    mockPlayer.update = vi
-      .fn()
-      .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-          const result = await recipe(draft);
-          Object.assign(mockPlayer._playerdata, draft);
-          return result;
-        }
-      );
+    // 覆写替身默认 update：与 helper 实现等价（JSON 深拷贝 draft → recipe → 回写）
+    mockPlayer.update.mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   });
 
   describe("constructor", () => {
     it("应该正确初始化实例并注册 game:fix 事件监听", () => {
       const onSpy = vi.spyOn(mockTrigger, "on");
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       expect(manager).toBeDefined();
       expect(manager._player).toBe(mockPlayer);
@@ -245,15 +261,17 @@ describe("TroopManager", () => {
   describe("squadFormation", () => {
     it("应该更新编队槽位并触发 SquadFormation 事件", async () => {
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
-      const newSlots = [
+      // 槽位夹具只给三个字段：真实 PlayerSquadItem 还要求 tmpl，而管理器对 slots 原样透传
+      // （不读 tmpl），故此处按「契约的窄视图」声明后断言到 PlayerSquadItem[]，运行期值一字未改。
+      const newSlots: { charInstId: number; skillIndex: number; currentEquip: string | null }[] = [
         { charInstId: 1001, skillIndex: 0, currentEquip: null },
       ];
-      await manager.squadFormation({ squadId: 1, slots: newSlots });
+      await manager.squadFormation({ squadId: 1, slots: newSlots as PlayerSquadItem[] });
 
       expect(mockPlayer._playerdata.troop!.squads[1].slots).toEqual(newSlots);
       expect(emitSpy).toHaveBeenCalledWith("SquadFormation", []);
@@ -263,8 +281,8 @@ describe("TroopManager", () => {
   describe("changeSquadName", () => {
     it("应该更新指定编队的名称", async () => {
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.changeSquadName({ squadId: 1, name: "新编队名" });
@@ -276,8 +294,8 @@ describe("TroopManager", () => {
   describe("decomposePotentialItem", () => {
     it("应该按稀有度分解潜能物品并触发 items:use 与 items:get 事件", async () => {
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       // rarity=5 -> 10 个 shard_5;inventory 中 pot_001 有 3 个 -> 共 30 个
@@ -297,8 +315,8 @@ describe("TroopManager", () => {
   describe("decomposeClassicPotentialItem", () => {
     it("应该分解经典潜能物品并触发事件", async () => {
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       // rarity=5 -> 5 个 classic_shard_5;inventory 中 pot_classic_001 有 2 个 -> 共 10 个
@@ -318,7 +336,7 @@ describe("TroopManager", () => {
   describe("addonStoryUnlock", () => {
     /** 让 char_001 满足 story_001 的解锁条件（精二 Lv1 + 信赖 50 = favorPoint 2732） */
     function satisfyConditions() {
-      const c = mockPlayer._playerdata.troop!.chars[1001] as any;
+      const c = mockPlayer._playerdata.troop!.chars[1001];
       c.evolvePhase = 2;
       c.level = 1;
       c.favorPoint = 2732;
@@ -327,8 +345,8 @@ describe("TroopManager", () => {
     it("应该解锁指定干员的附加故事并记录时间戳", async () => {
       satisfyConditions();
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.addonStoryUnlock({
@@ -346,8 +364,8 @@ describe("TroopManager", () => {
     it("应该同步发放密录对应勋章并返回勋章 ID（对照官服抓包）", async () => {
       satisfyConditions();
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const medalId = await manager.addonStoryUnlock({
@@ -367,8 +385,8 @@ describe("TroopManager", () => {
     it("无对应勋章配置时返回 null 且不写勋章", async () => {
       satisfyConditions();
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const medalId = await manager.addonStoryUnlock({
@@ -385,7 +403,7 @@ describe("TroopManager", () => {
 
     it("归属校验：干员没有该密录时拒绝", async () => {
       satisfyConditions();
-      const manager = new TroopManager(mockPlayer as any, mockTrigger as any);
+      const manager = new TroopManager(asPlayerManager(mockPlayer), mockTrigger);
       await expect(
         manager.addonStoryUnlock({ charId: "char_001", storyId: "story_401_not_exist" }),
       ).rejects.toThrow(/不存在密录/);
@@ -395,14 +413,14 @@ describe("TroopManager", () => {
 
     it("归属校验：storyId 与 charId 不匹配（他人密录）时拒绝", async () => {
       satisfyConditions();
-      const manager = new TroopManager(mockPlayer as any, mockTrigger as any);
+      const manager = new TroopManager(asPlayerManager(mockPlayer), mockTrigger);
       await expect(
         manager.addonStoryUnlock({ charId: "char_002", storyId: "story_001" }),
       ).rejects.toThrow(/不存在密录/);
     });
 
     it("未持有该干员时拒绝", async () => {
-      const manager = new TroopManager(mockPlayer as any, mockTrigger as any);
+      const manager = new TroopManager(asPlayerManager(mockPlayer), mockTrigger);
       await expect(
         manager.addonStoryUnlock({ charId: "char_003", storyId: "story_003" }),
       ).rejects.toThrow(/未持有干员/);
@@ -410,8 +428,8 @@ describe("TroopManager", () => {
 
     it("精英化/等级不满足时拒绝（story_001 需精二 Lv1）", async () => {
       satisfyConditions();
-      (mockPlayer._playerdata.troop!.chars[1001] as any).evolvePhase = 1;
-      const manager = new TroopManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.troop!.chars[1001].evolvePhase = 1;
+      const manager = new TroopManager(asPlayerManager(mockPlayer), mockTrigger);
       await expect(
         manager.addonStoryUnlock({ charId: "char_001", storyId: "story_001" }),
       ).rejects.toThrow(/需精英化2/);
@@ -419,8 +437,8 @@ describe("TroopManager", () => {
 
     it("信赖不足时拒绝（story_001 需信赖 50 = favorPoint 2732）", async () => {
       satisfyConditions();
-      (mockPlayer._playerdata.troop!.chars[1001] as any).favorPoint = 2731;
-      const manager = new TroopManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.troop!.chars[1001].favorPoint = 2731;
+      const manager = new TroopManager(asPlayerManager(mockPlayer), mockTrigger);
       await expect(
         manager.addonStoryUnlock({ charId: "char_001", storyId: "story_001" }),
       ).rejects.toThrow(/需信赖 50/);
@@ -430,8 +448,8 @@ describe("TroopManager", () => {
   describe("addonStageBattleStart", () => {
     it("应调用 player.battle.start（携带关卡/编队/演习标记）并返回其结果（含 battleId）", async () => {
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const startFn = vi.fn().mockResolvedValue({
@@ -442,7 +460,8 @@ describe("TroopManager", () => {
         inApProtectPeriod: false,
         notifyPowerScoreNotEnoughIfFailed: false,
       });
-      (mockPlayer as any).battle = { start: startFn };
+      // 组合根 battle 子管理器只用到 start 一个入口：Object.assign 注入（不新增关键字/Cast）
+      Object.assign(mockPlayer, { battle: { start: startFn } });
 
       const squad = {
         squadId: "1",
@@ -476,8 +495,8 @@ describe("TroopManager", () => {
   describe("addonStageBattleFinish", () => {
     it("应该触发 battle:finish 事件并原样传递参数与回调", async () => {
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -495,20 +514,18 @@ describe("TroopManager", () => {
 
     it("应通过回调回传战斗结算结果", async () => {
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const mockResult = {
         rewards: [{ id: "mat_001", type: "MATERIAL", count: 1 }],
         firstRewards: [],
       };
-      mockTrigger.on(
-        "battle:finish",
-        (([args, cb]: [any, any]) => {
-          cb(mockResult);
-        }) as any
-      );
+      mockTrigger.on("battle:finish", ([, cb]) => {
+        // 事件契约的 callback 参数可为空，此处按用例意图必然存在
+        cb!(mockResult);
+      });
 
       const result = await manager.addonStageBattleFinish({
         data: "test_data",
@@ -522,8 +539,8 @@ describe("TroopManager", () => {
   describe("fix", () => {
     it("应该为干员补充缺失的技能与装备信息", async () => {
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.fix();
@@ -551,14 +568,13 @@ describe("TroopManager", () => {
         },
       };
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.fix();
 
-      const patch = mockPlayer._playerdata.troop!.chars[1001].tmpl!
-        .char_001_alt as any;
+      const patch = mockPlayer._playerdata.troop!.chars[1001].tmpl!.char_001_alt;
       // 归属 char_001_alt 的模组被回填；归属 char_001 的 base 模组不进 tmpl
       expect(patch.equip.equip_tmpl_001).toBeDefined();
       expect(patch.equip.equip_tmpl_001.hide).toBe(1);
@@ -570,8 +586,8 @@ describe("TroopManager", () => {
   describe("decomposePotentialItem 字符串 rarity（2026-08-09 修复）", () => {
     it('rarity 为 "TIER_5" 字符串时应转索引分解（原 items["TIER_5"] undefined 500）', async () => {
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       // char_002 的 rarity 为字符串 "TIER_5"，items 表按数值键 5 —— 修复后应正确命中
       const result = await manager.decomposePotentialItem({
@@ -583,8 +599,8 @@ describe("TroopManager", () => {
 
     it("不存在的干员应跳过而非 500", async () => {
       const manager = new TroopManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       const result = await manager.decomposePotentialItem({
         charInstIdList: ["99999"],

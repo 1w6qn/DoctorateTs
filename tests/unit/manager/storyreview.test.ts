@@ -5,14 +5,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // 迁移说明(2026-09,excel 端口注入):管理者不再直连 `@excel/excel` 单例,
 // 改经 `player.excel`(PlayerDataManager 注入的数据端口)取表——模块级
 // vi.mock 因此失效,夹具改为显式注入到 mockPlayerData 的 excel 字段。
-const excelMock: any = {
-    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
-    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
-    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
-
+// 端口替身以 mockExcelWith 的空表底座（含门面方法）承载，只覆盖被测分支读到的表；
+// 未覆盖的表与旧夹具一样读不到数据（语义见 mockExcelWith 的 JSDoc）。
+const excelMock = mockExcelWith({
       // 故事回顾表:提供分组奖励
       StoryReviewTable: {
         act_group_001: {
@@ -81,7 +76,7 @@ const excelMock: any = {
           components: {},
         },
       },
-};
+});
 
 vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
@@ -94,7 +89,12 @@ vi.mock("@utils/time", () => ({
 
 
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  asPlayerManager,
+  mockExcelWith,
+  mockPlayerData,
+  mockTypedEventEmitter,
+} from "../../helpers";
 import { StoryreviewManager } from "@game/modules/storyreview/StoryreviewManager";
 
 /**
@@ -129,24 +129,20 @@ describe("StoryreviewManager", () => {
     mockPlayer.excel = excelMock;
 
     mockPlayer._trigger = mockTrigger;
-    // 重写 update 实现,使其在 draft 上执行 recipe 并同步回 _playerdata
-    mockPlayer.update = vi
-      .fn()
-      .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-          const result = await recipe(draft);
-          Object.assign(mockPlayer._playerdata, draft);
-          return result;
-        }
-      );
+    // 覆写替身默认 update：与 helper 实现等价（JSON 深拷贝 draft → recipe → 回写）
+    mockPlayer.update.mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   });
 
   describe("constructor", () => {
     it("应该正确初始化 StoryreviewManager 实例", () => {
       const manager = new StoryreviewManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       expect(manager).toBeDefined();
       expect(manager._player).toBe(mockPlayer);
@@ -157,8 +153,8 @@ describe("StoryreviewManager", () => {
   describe("unlockStoryByCoin", () => {
     it("应该在指定故事组中追加新故事并触发 items:use 事件", async () => {
       const manager = new StoryreviewManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -185,8 +181,8 @@ describe("StoryreviewManager", () => {
   describe("readStory", () => {
     it("应该将指定故事的阅读次数 rc 自增 1", async () => {
       const manager = new StoryreviewManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       // 初始 rc 为 0
@@ -205,8 +201,8 @@ describe("StoryreviewManager", () => {
 
     it("多次调用 readStory 应该累计增加阅读次数", async () => {
       const manager = new StoryreviewManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.readStory({ storyId: "act_group_001" });
@@ -223,8 +219,8 @@ describe("StoryreviewManager", () => {
   describe("rewardGroup", () => {
     it("应该记录领取时间戳并返回奖励物品列表", async () => {
       const manager = new StoryreviewManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -257,8 +253,8 @@ describe("StoryreviewManager", () => {
   describe("markStoryAcceKnown", () => {
     it("应该将 knownStoryAcceleration 标记置为 1", async () => {
       const manager = new StoryreviewManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       // 初始为 0
@@ -277,8 +273,8 @@ describe("StoryreviewManager", () => {
   describe("trailReward", () => {
     it("应该根据 rewardIdList 过滤并返回对应的奖励物品", async () => {
       const manager = new StoryreviewManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -308,8 +304,8 @@ describe("StoryreviewManager", () => {
 
     it("当领取多个奖励时应返回所有匹配项并记录到 trailRewards", async () => {
       const manager = new StoryreviewManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const result = await manager.trailReward({

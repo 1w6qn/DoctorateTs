@@ -1,4 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string }
+/** excel mock 干员行形状（本文件用到的字段即可） */
+interface ExcelCharRowMock {
+  name?: string;
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+  subProfessionId?: string;
+}
 
 // ===== rogue_6（黑流树海）非战斗节点完整效果回归 =====
 // 对照 prts.wiki「沉沦者的黑流树海」事件节点节：
@@ -10,11 +20,13 @@ import { describe, it, expect, vi } from "vitest";
 // 6. 先行一步：休息 +2 希望；远征标记（三结局）保持
 const excelMock = vi.hoisted(() => ({
   // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
   itemName(id: string): string { return this.getItem(id)?.name ?? id; },
   makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
   charData(charId: string) { return this.CharacterTable?.[charId]; },
   stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+  ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+  StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
   RoguelikeTopicTable: {
     details: {
       rogue_6: {
@@ -144,64 +156,83 @@ const excelMock = vi.hoisted(() => ({
     },
     consts: {},
   },
-  CharacterTable: {},
+  CharacterTable: {} as Record<string, ExcelCharRowMock>,
   GameDataConst: { maxLevel: [[], [], [], [], [], []] },
 }));
 
 vi.mock("@excel/excel", () => ({ default: excelMock }));
 
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
-import { mockPlayerData } from "../../../helpers";
+import type {
+  PlayerRoguelikePendingEvent,
+  PlayerRoguelikeV2,
+  PlayerRoguelikeV2Zone,
+} from "@game/modules/roguelike/rlv2-model";
+import { asModel, mockPlayerData } from "../../../helpers";
 
-function makePlayer(): any {
-  const pd: any = mockPlayerData({
+/** 开局 game 夹具类型（真实模型 `CurrentData.Game`） */
+type Rlv2Game = NonNullable<PlayerRoguelikeV2["current"]["game"]>;
+
+/**
+ * 外部增益夹具视图
+ *
+ * 真实 `OuterData.Buff.unlocked` 声明为 `{ [key: string]: number }`（解锁位图），
+ * 生产侧只做真值判断（buff.ts `unlocked[id]`）；本用例沿用历史布尔夹具值，
+ * 为不改夹具数据，仅就地声明该键的读取视图（真实类型可赋给本视图，故单点断言成立）。
+ */
+interface OuterBuffFixture {
+  unlocked: { [key: string]: number | boolean };
+}
+
+function makePlayer(): PlayerDataManager {
+  const pd = mockPlayerData({
     rlv2: {
-      outer: { rogue_6: {} } as any,
+      outer: { rogue_6: {} },
       current: {},
-      pinned: {},
-    } as any,
-    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } } as any,
+      pinned: {} as string,
+    },
+    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
     mission: {
       missions: { DAILY: {}, ACTIVITY: {} },
       missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} },
-    } as any,
+    },
   });
   const player = new PlayerDataManager(pd._playerdata);
-  (player.rlv2 as any).current.game = {
+  player.rlv2.current.game = asModel<Rlv2Game>({
     theme: "rogue_6",
     mode: "NORMAL",
     modeGrade: 0,
-  } as any;
+  });
   return player;
 }
 
-async function setupGame(player: any, zone: number) {
+async function setupGame(player: PlayerDataManager, zone: number) {
   await player.rlv2._module.create();
   await player.rlv2._pool.create();
   player.rlv2._status.cursor.zone = zone;
   player.rlv2._status.cursor.position = { x: 2, y: 1 };
   // 常规层地图键 1000+；节点无 zone_end（险路小径为中途捷径，出口推进需引擎补标）
-  player.rlv2._map.zones = {
+  player.rlv2._map.zones = asModel<{ [key: string]: PlayerRoguelikeV2Zone }>({
     [String(1000 + zone - 1)]: { nodes: { 201: { type: 32 } } },
-  };
+  });
   player.rlv2._status.property.gold = 8;
   player.rlv2._status.property.hp = { current: 8, max: 8 };
 }
 
-function pendingScene(player: any): any {
+function pendingScene(player: PlayerDataManager): PlayerRoguelikePendingEvent.SceneContent {
   const p = player.rlv2._status.pending;
   expect(p.length).toBeGreaterThan(0);
   expect(p[0].type).toBe("SCENE");
-  return p[0].content.scene;
+  return p[0].content.scene!;
 }
 
-function relicsOf(player: any): string[] {
-  return Object.values(player.rlv2.inventory.relic).map((r: any) => r.id);
+function relicsOf(player: PlayerDataManager): string[] {
+  return Object.values(player.rlv2.inventory!.relic).map((r) => r.id);
 }
 
-function scrapIds(player: any): string[] {
+function scrapIds(player: PlayerDataManager): string[] {
   return Object.values(player.rlv2._module.scrap.inventory).map(
-    (it: any) => it.id,
+    (it) => it.id,
   );
 }
 
@@ -262,7 +293,7 @@ describe("rogue_6 非战斗节点·失与得（回滚文明）", () => {
     const player = makePlayer();
     await setupGame(player, 3);
     // 持有 1 件可献祭藏品（value 8）
-    player.rlv2.inventory._relic.relics = {
+    player.rlv2.inventory!._relic.relics = {
       r_0: { index: "r_0", id: "rogue_6_relic_a", count: 1, ts: 0 },
     };
     vi.spyOn(Math, "random").mockReturnValue(0);
@@ -289,13 +320,14 @@ describe("rogue_6 非战斗节点·失与得（回滚文明）", () => {
   it("点亮声带/手掌：零件交换选项与二次交换解锁，零件同稀有度交换", async () => {
     const player = makePlayer();
     await setupGame(player, 3);
-    player.rlv2.inventory._relic.relics = {
+    player.rlv2.inventory!._relic.relics = {
       r_0: { index: "r_0", id: "rogue_6_relic_a", count: 1, ts: 0 },
     };
     // 生命游戏：声带（零件交换） + 手掌（交换次数+1）
-    (player.rlv2 as any).outer.rogue_6.buff = {
+    const buffFixture: OuterBuffFixture = {
       unlocked: { rogue_6_outbuff_8: true, rogue_6_outbuff_32: true },
     };
+    player.rlv2.outer.rogue_6.buff = buffFixture as PlayerRoguelikeV2.OuterData["buff"];
     vi.spyOn(Math, "random").mockReturnValue(0);
     expect(await player.rlv2._incident.createNodeScene(1024)).toBe(true);
     vi.restoreAllMocks();
@@ -318,7 +350,7 @@ describe("rogue_6 非战斗节点·失与得（回滚文明）", () => {
   it("持怦然信标：复原“文明”差分（耗 2 随机自然物 → 焚毁“文明”）", async () => {
     const player = makePlayer();
     await setupGame(player, 3);
-    player.rlv2.inventory._relic.relics = {
+    player.rlv2.inventory!._relic.relics = {
       r_0: { index: "r_0", id: "rogue_6_relic_final_3", count: 1, ts: 0 },
     };
     // 零件箱补 2 件自然物（开局自带 2 件 G_01）

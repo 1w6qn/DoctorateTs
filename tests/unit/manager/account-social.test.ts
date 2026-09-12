@@ -1,33 +1,46 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { AccountManager } from "@game/modules/account/AccountManager";
+import type { UserConfig } from "@game/modules/account/AccountManager";
 import { closeDatabase, openDatabase } from "@core/db/database";
 import { FriendRepository } from "@core/db/friend-repo";
+import { asModel, asPlayerManager, mockPlayerData } from "../../helpers";
 
 describe("AccountManager 社交方法（SQLite 后端）", () => {
   let manager: AccountManager;
+
+  /**
+   * 构造「update 不执行 recipe」的玩家替身
+   *
+   * 原夹具给 `data[uid]` 挂的是 `update: vi.fn().mockResolvedValue(undefined)`——
+   * 接收方红点写入（`draft.pushFlags.hasFriendRequest = 1`）不真正执行。mockPlayerData
+   * 的默认 update 会执行 recipe，而本夹具 `_playerdata` 没有 pushFlags 子树会抛错，
+   * 故此处保留原语义（空实现，只在类型层换成真实 PlayerDataManager 视图）。
+   * @param uid - 账号 uid
+   * @returns 该账号的玩家数据管理器替身
+   */
+  const stubPlayer = (uid: string) => {
+    const pd = mockPlayerData({ status: { uid } });
+    pd.update.mockImplementation(async () => {});
+    return asPlayerManager(pd);
+  };
 
   beforeEach(async () => {
     vi.restoreAllMocks();
     // 用内存库构造 manager
     const db = await openDatabase(":memory:");
     manager = new AccountManager();
-    (manager as any)._friendRepo = new FriendRepository(db);
-    (manager as any).configs = {
-      "1": {
-        uid: "1",
-        social: { friends: [], friendRequests: [], visited: [] },
-      },
-      "2": {
-        uid: "2",
-        social: { friends: [], friendRequests: [], visited: [] },
-      },
-    } as any;
-    // sendFriendRequest 会更新接收方 pushFlags
-    (manager as any).data = {
-      "1": { update: vi.fn().mockResolvedValue(undefined), _playerdata: { status: { uid: "1" } } },
-      "2": { update: vi.fn().mockResolvedValue(undefined), _playerdata: { status: { uid: "2" } } },
+    manager._friendRepo = new FriendRepository(db);
+    // 社交数据以 _friendRepo（social.db）为唯一事实源——夹具不再挂已废弃的 configs.social 键
+    manager.configs = {
+      "1": asModel<UserConfig>({ uid: "1" }),
+      "2": asModel<UserConfig>({ uid: "2" }),
     };
-    vi.spyOn(manager._trigger, "emit").mockResolvedValue(undefined as any);
+    // sendFriendRequest 会更新接收方 pushFlags
+    manager.data = {
+      "1": stubPlayer("1"),
+      "2": stubPlayer("2"),
+    };
+    vi.spyOn(manager._trigger, "emit").mockResolvedValue(undefined);
   });
 
   afterEach(async () => {

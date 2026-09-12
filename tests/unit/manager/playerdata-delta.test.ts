@@ -1,7 +1,33 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
+import { mockPlayerData, type MockSeed } from "../../helpers";
 
+/**
+ * rlv2 夹具宽视图
+ *
+ * `PlayerRoguelikeV2.pinned` 真实模型声明为 `string`（肉鸽置顶主题 id），而本用例沿用
+ * 历史夹具值 `{}`——该占位由被测实现的惰性分支承受（用例从不读取 pinned）。改值会改变
+ * 运行期夹具数据（规则禁止），故仅就地放宽该子树的类型声明，其余种子仍受
+ * `MockPlayerDataSeed` 的字段校验。
+ */
+const looseRlv2 = { outer: {}, current: {}, pinned: {} } as MockSeed<
+  PlayerDataModel["rlv2"]
+>;
+
+/**
+ * 测试专用动态事件通道
+ *
+ * `test:nested` 不在 EventMap 契约内（该事件仅本用例用于在 recipe 内触发嵌套 update），
+ * Emittery 运行期允许任意事件名。此处按发射器的运行期形状就地声明窄接口，避免用
+ * `as never` 把事件载荷类型抹成 never；调用与载荷一字未改。
+ */
+interface NestedEventChannel {
+  /** 注册嵌套触发监听 */
+  on(eventName: "test:nested", listener: () => void | Promise<void>): void;
+  /** 触发嵌套 update（载荷沿用历史空数组） */
+  emit(eventName: "test:nested", eventData: []): Promise<void>;
+}
 
 /**
  * 条件落盘回归测试
@@ -17,12 +43,12 @@ describe("PlayerDataManager 条件落盘", () => {
   const flush = () => new Promise((r) => setTimeout(r, 20));
 
   beforeEach(async () => {
-    const pd: any = mockPlayerData({
+    const pd = mockPlayerData({
       mission: { missions: {} },
       medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
-      rlv2: { outer: {}, current: {}, pinned: {} },
+      rlv2: looseRlv2,
     });
-    player = new PlayerDataManager(pd._playerdata as any);
+    player = new PlayerDataManager(pd._playerdata);
     await flush();
     saveCount = 0;
     player._trigger.on("save", () => {
@@ -85,19 +111,24 @@ describe("PlayerDataManager 条件落盘", () => {
 
     // 模拟 items:get → gainItem → 事件处理器内再调 player.update（原实现内层
     // finishDraft 先提交、外层 finishDraft 再按旧 base 覆盖 → 嵌套变更从存档丢失）
-    player._trigger.on("test:nested" as never, async () => {
+    const nested = player._trigger as NestedEventChannel;
+    nested.on("test:nested", async () => {
       await player.update(async (draft) => {
         draft.status.gold += 100;
       });
     });
     await player.update(async (draft) => {
       draft.status.level = 5;
-      await player._trigger.emit("test:nested" as never, []);
+      await nested.emit("test:nested", []);
     });
 
-    expect((player as any)._playerdata.status.gold).toBe(100);
+    expect(player._playerdata.status.gold).toBe(100);
     const delta = player.delta;
-    expect(delta.playerDataDelta.modified.status.gold).toBe(100);
+    // modified 在协议层声明为 `{ [key: string]: unknown }`；用例按被改写分区的窄视图读取
+    const modified = delta.playerDataDelta.modified as {
+      status: { gold: number };
+    };
+    expect(modified.status.gold).toBe(100);
   });
 
   it("同路径多次 update 时 delta 下发最新值（补丁正序，非反转）", async () => {
@@ -109,6 +140,9 @@ describe("PlayerDataManager 条件落盘", () => {
       draft.status.nickName = "c";
     });
     const delta = player.delta;
-    expect(delta.playerDataDelta.modified.status.nickName).toBe("c");
+    const modified = delta.playerDataDelta.modified as {
+      status: { nickName: string };
+    };
+    expect(modified.status.nickName).toBe("c");
   });
 });

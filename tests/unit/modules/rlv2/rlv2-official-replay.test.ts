@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string }
+/** excel mock 干员行形状（本文件用到的字段即可） */
+interface ExcelCharRowMock {
+  name?: string;
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+  subProfessionId?: string;
+}
 
 
 // ===== 官服抓包回放验证（2026-08-11 rogue_6 完整对局）=====
@@ -11,11 +21,13 @@ import * as path from "node:path";
 vi.mock("@excel/excel", () => ({
   default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
     charData(charId: string) { return this.CharacterTable?.[charId]; },
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
 
     RoguelikeTopicTable: {
       details: {
@@ -98,7 +110,7 @@ vi.mock("@excel/excel", () => ({
       char_1039_thorn2: { charId: "char_1039_thorn2", rarity: "TIER_6", profession: "SNIPER" },
       char_1063_vigil: { charId: "char_1063_vigil", rarity: "TIER_5", profession: "SPECIAL" },
       char_1001_amiya2: { charId: "char_1001_amiya2", rarity: "TIER_5", profession: "CASTER" },
-    },
+    } as Record<string, ExcelCharRowMock>,
     GameDataConst: { maxLevel: [[], [], [], [], [], []] },
   },
 }));
@@ -108,10 +120,57 @@ vi.mock("@utils/crypt", () => ({
 }));
 
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
-import { mockPlayerData } from "../../../helpers";
+import { mockPlayerData, asModel } from "../../../helpers";
+import type { PlayerRoguelikeV2 } from "@game/modules/roguelike/rlv2-model";
+import type { RoguelikeV2Manager } from "@game/modules/roguelike/logic";
+import type { BattleData } from "@game/kernel/battle-model";
+import type { JsonValue } from "@excel/json-value";
 
 // 官服抓包 fixtures（tests/fixtures/rlv2-official/，从统一抓包存储提取归档——不依赖运行时 tmp/）
 const CAPTURE_ROOT = path.resolve(__dirname, "../../../fixtures/rlv2-official");
+
+/**
+ * rlv2 快照读取视图
+ *
+ * 官服抓包与 `toJSON()` 快照都是未建模 JSON；本文件只读
+ * `current.player.{state,pending[].type}`、`current.module.gridZone.zones`、
+ * `current.map.zones` 四处键，故按此声明窄视图（值仍为 {@link JsonValue}）。
+ */
+interface Rlv2SnapshotView {
+  player?: { state?: string; pending?: { type: string }[] };
+  module?: { gridZone?: { zones?: { [key: string]: JsonValue } } };
+  map?: { zones?: { [key: string]: JsonValue } };
+}
+/** 抓包响应读取视图（只读 modified.rlv2.current） */
+interface CaptureResponseView {
+  playerDataDelta?: { modified?: { rlv2?: { current?: Rlv2SnapshotView } } };
+}
+
+/** 最终响应快照读取视图（只读用例断言的序列化键） */
+interface FinalSnapshotView {
+  current: {
+    module: {
+      gridZone: {
+        zones: { [key: string]: { nodes: { [key: string]: { show?: boolean; content?: JsonValue } } } };
+        needConfirmStepZero?: boolean;
+      };
+      scrap: { activeVehicle: { isWalk?: boolean } };
+    };
+    map: { zones: { [key: string]: JsonValue } };
+  };
+}
+
+/** 开局 game 夹具类型（真实模型 CurrentData.Game） */
+type Rlv2Game = NonNullable<PlayerRoguelikeV2["current"]["game"]>;
+
+/** rlv2 外局存档夹具（`record.lastZone` 为服务端兼容旧字段，模型未声明；不加注解以保留该键） */
+const OUTER_SEED = {
+  rogue_6: {
+    record: { last: 0, lastZone: 3, legacy: ["rogue_6_legacy_01", "rogue_6_legacy_01_1", "rogue_6_legacy_02"], stageCnt: {}, bandCnt: {}, bandGrade: {} },
+    collect: { band: {} },
+    buff: { pointOwned: 0, pointCost: 0, unlocked: {}, score: 0 },
+  },
+};
 
 function readReq(route: string, ts: string) {
   const f = path.join(CAPTURE_ROOT, route, `${ts}.json`);
@@ -126,21 +185,15 @@ function readRes(route: string, ts: string) {
 
 function makePlayer() {
   // 官服抓包 createGame 含 GAME_INIT_SUPPORT（上一把到达 3 层触发支援选项）
-  const pd: any = mockPlayerData({
-    pushFlags: { status: 123456 } as any,
+  const pd = mockPlayerData({
+    pushFlags: { status: 123456 },
     rlv2: {
-      outer: {
-        rogue_6: {
-          record: { last: 0, lastZone: 3, legacy: ["rogue_6_legacy_01", "rogue_6_legacy_01_1", "rogue_6_legacy_02"], stageCnt: {}, bandCnt: {}, bandGrade: {} },
-          collect: { band: {} },
-          buff: { pointOwned: 0, pointCost: 0, unlocked: {}, score: 0 },
-        },
-      },
+      outer: OUTER_SEED,
       current: {},
-      pinned: {},
-    } as any,
-    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } } as any,
-    mission: { missions: { DAILY: {}, ACTIVITY: {} }, missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} } } as any,
+      pinned: {} as string,
+    },
+    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
+    mission: { missions: { DAILY: {}, ACTIVITY: {} }, missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} } },
     troop: {
       chars: {
         1: { charId: "char_1012_skadi" },
@@ -149,31 +202,31 @@ function makePlayer() {
         4: { charId: "char_1063_vigil" },
         5: { charId: "char_1001_amiya2" },
       },
-    } as any,
+    },
   });
   const player = new PlayerDataManager(pd._playerdata);
-  (player.rlv2 as any).current.game = { theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefined: null } as any;
+  player.rlv2.current.game = asModel<Rlv2Game>({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefined: null });
   return player;
 }
 
 /** 官服响应关键字段提取（用于比对） */
-function officialKey(res: any) {
+function officialKey(res: CaptureResponseView) {
   const r = res.playerDataDelta?.modified?.rlv2;
   return {
     state: r?.current?.player?.state,
-    pendingTypes: (r?.current?.player?.pending || []).map((e: any) => e.type),
+    pendingTypes: (r?.current?.player?.pending || []).map((e) => e.type),
     gridZoneKeys: Object.keys(r?.current?.module?.gridZone?.zones || {}),
     mapZoneKeys: Object.keys(r?.current?.map?.zones || {}),
   };
 }
 
 /** 当前逻辑响应关键字段 */
-function ourKey(rlv2: any) {
-  const json = JSON.parse(JSON.stringify(rlv2.toJSON()));
+function ourKey(rlv2: RoguelikeV2Manager) {
+  const json = JSON.parse(JSON.stringify(rlv2.toJSON())) as { current: Rlv2SnapshotView };
   return {
-    state: json.current.player.state,
-    pendingTypes: (json.current.player.pending || []).map((e: any) => e.type),
-    gridZoneKeys: Object.keys(json.current.module.gridZone?.zones || {}),
+    state: json.current.player?.state,
+    pendingTypes: (json.current.player?.pending || []).map((e) => e.type),
+    gridZoneKeys: Object.keys(json.current.module?.gridZone?.zones || {}),
     mapZoneKeys: Object.keys(json.current.map?.zones || {}),
   };
 }
@@ -181,7 +234,7 @@ function ourKey(rlv2: any) {
 describe("官服抓包回放验证（2026-08-11 rogue_6 完整对局）", () => {
   it("createGame → chooseInitialRelic → finishEvent(GIFT) → selectChoice 的 state/pending 链与官服一致", async () => {
     const player = makePlayer();
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     // 官方初始事件链由 rlv2:create 生成（relic/gift/support/recruit_set/recruit）
     await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
     // 官方 createGame 响应：state INIT，pending = [RELIC, GIFT, SUPPORT, RECRUIT_SET, RECRUIT]
@@ -220,7 +273,7 @@ describe("官服抓包回放验证（2026-08-11 rogue_6 完整对局）", () => 
 
   it("chooseInitialRecruitSet 后 RECRUIT_SET 消费、RECRUIT 待处理", async () => {
     const player = makePlayer();
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
     await rlv2.chooseInitialRelic({ select: "0" });
     await rlv2.finishEvent(); // GIFT
@@ -236,13 +289,13 @@ describe("官服抓包回放验证（2026-08-11 rogue_6 完整对局）", () => 
     expect(ourRS.pendingTypes).toContain("GAME_INIT_RECRUIT");
     expect(ourRS.pendingTypes).not.toContain("GAME_INIT_RECRUIT_SET");
     // 官服 RECRUIT_SET 消费后 GAME_INIT_RECRUIT 的 tickets 填充（3 张）
-    const recruitEvt = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
-    expect(recruitEvt.content.initRecruit.tickets.length).toBe(3);
+    const recruitEvt = rlv2._status.pending.find((e) => e.type === "GAME_INIT_RECRUIT");
+    expect(recruitEvt!.content.initRecruit!.tickets.length).toBe(3);
   });
 
   it("activeRecruitTicket 生成 RECRUIT 事件 + finishEvent 消费 RECRUIT 进入 WAIT_MOVE", async () => {
     const player = makePlayer();
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
     await rlv2.chooseInitialRelic({ select: "0" });
     await rlv2.finishEvent();
@@ -251,8 +304,8 @@ describe("官服抓包回放验证（2026-08-11 rogue_6 完整对局）", () => 
       await rlv2.selectChoice({ choice: "choice_ro6_startbuff_1" });
     }
     await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
-    const recruitEvt = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
-    const tickets = [...recruitEvt.content.initRecruit.tickets];
+    const recruitEvt = rlv2._status.pending.find((e) => e.type === "GAME_INIT_RECRUIT");
+    const tickets = [...recruitEvt!.content.initRecruit!.tickets];
     // 官服 activeRecruitTicket 响应：RECRUIT 事件 + 候选 list
     const offActive = officialKey(readRes("activeRecruitTicket", "2026-08-11T07-46-13-391Z"));
     expect(offActive.pendingTypes).toContain("RECRUIT");
@@ -260,7 +313,7 @@ describe("官服抓包回放验证（2026-08-11 rogue_6 完整对局）", () => 
     await rlv2.activeRecruitTicket({ id: t0 });
     const ourActive = ourKey(rlv2);
     expect(ourActive.pendingTypes).toContain("RECRUIT");
-    const ticket = rlv2.inventory.recruit[t0];
+    const ticket = rlv2.inventory!.recruit[t0];
     expect(ticket.list.length).toBeGreaterThan(0);
     // 招募第一张
     await rlv2.recruitChar({ ticketIndex: t0, optionId: String(ticket.list[0].instId) });
@@ -278,7 +331,7 @@ describe("官服抓包回放验证（2026-08-11 rogue_6 完整对局）", () => 
 
   it("最终响应序列化：布尔字段 + 无 kind + 键格式全对齐", async () => {
     const player = makePlayer();
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
     await rlv2.chooseInitialRelic({ select: "0" });
     await rlv2.finishEvent();
@@ -287,20 +340,20 @@ describe("官服抓包回放验证（2026-08-11 rogue_6 完整对局）", () => 
       await rlv2.selectChoice({ choice: "choice_ro6_startbuff_1" });
     }
     await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
-    const recruitEvt = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
-    const tickets = [...recruitEvt.content.initRecruit.tickets];
+    const recruitEvt = rlv2._status.pending.find((e) => e.type === "GAME_INIT_RECRUIT");
+    const tickets = [...recruitEvt!.content.initRecruit!.tickets];
     for (const t of tickets) {
       await rlv2.activeRecruitTicket({ id: t });
-      const ticket = rlv2.inventory.recruit[t];
+      const ticket = rlv2.inventory!.recruit[t];
       if (ticket?.list?.length) {
         await rlv2.recruitChar({ ticketIndex: t, optionId: String(ticket.list[0].instId) });
       }
     }
     await rlv2.finishEvent();
-    const json = JSON.parse(JSON.stringify(rlv2.toJSON()));
+    const json = JSON.parse(JSON.stringify(rlv2.toJSON())) as FinalSnapshotView;
     // gridZone 节点：show 布尔、content 无 kind
     const gzNodes = Object.values(json.current.module.gridZone.zones.zone_1.nodes);
-    for (const n of gzNodes as any[]) {
+    for (const n of gzNodes) {
       expect(typeof n.show).toBe("boolean");
       expect(n.content).not.toHaveProperty("kind");
     }
@@ -319,7 +372,7 @@ describe("官服回放扩展：战斗/暂存/结算", () => {
     const rand = vi.spyOn(Math, "random").mockReturnValue(0.1);
     try {
     const player = makePlayer();
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     // 走完开局（进入第一层）
     await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
     await rlv2.chooseInitialRelic({ select: "0" });
@@ -329,11 +382,11 @@ describe("官服回放扩展：战斗/暂存/结算", () => {
       await rlv2.selectChoice({ choice: "choice_ro6_startbuff_1" });
     }
     await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
-    const recruitEvt = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
-    const tickets = [...recruitEvt.content.initRecruit.tickets];
+    const recruitEvt = rlv2._status.pending.find((e) => e.type === "GAME_INIT_RECRUIT");
+    const tickets = [...recruitEvt!.content.initRecruit!.tickets];
     for (const t of tickets) {
       await rlv2.activeRecruitTicket({ id: t });
-      const ticket = rlv2.inventory.recruit[t];
+      const ticket = rlv2.inventory!.recruit[t];
       if (ticket?.list?.length) {
         await rlv2.recruitChar({ ticketIndex: t, optionId: String(ticket.list[0].instId) });
       }
@@ -343,23 +396,26 @@ describe("官服回放扩展：战斗/暂存/结算", () => {
     const offBattle = officialKey(readRes("battleFinish", "2026-08-11T07-48-18-678Z"));
     expect(offBattle.pendingTypes).toContain("BATTLE_REWARD");
     // 战斗开始（battleStart 创建 BATTLE 事件，走 rlv2:battle:start）
-    const battleEvt = rlv2._status.pending.find((e: any) => e.type === "BATTLE");
+    const battleEvt = rlv2._status.pending.find((e) => e.type === "BATTLE");
     if (!battleEvt) {
       await rlv2._trigger.emit("rlv2:event:create", ["BATTLE", { state: 1, chestCnt: 2, goldTrapCnt: 1, boxInfo: {}, tmpChar: [] }]);
     }
     rlv2._status.property.hp = { current: 10, max: 10 };
+    // finalHp/isPerfect 为生产侧合并视图字段（Rlv2BattleReport），模型 BattleData 未声明；
+    // 经变量传入避免字面量多余属性检查，值原样保留。
+    const report = { completeState: 2, finalHp: 8, isPerfect: 1 };
     await rlv2._battle.finish([{
       battleLog: "",
       data: "encrypted",
-      battleData: { completeState: 2, finalHp: 8, isPerfect: 1 },
+      battleData: asModel<BattleData>(report),
     }]);
     const ourBattle = ourKey(rlv2);
     expect(ourBattle.pendingTypes).toContain("BATTLE_REWARD");
     // 黑流树海战斗奖励含零件组（官服 battleFinish 含 scrap_P_01/02）
-    const rewardEvent = rlv2._status.pending.find((e: any) => e.type === "BATTLE_REWARD");
-    const rewardGroups = rewardEvent.content.battleReward.rewards;
-    const hasScrap = rewardGroups.some((g: any) =>
-      g.items.some((it: any) => String(it.id).includes("scrap")),
+    const rewardEvent = rlv2._status.pending.find((e) => e.type === "BATTLE_REWARD");
+    const rewardGroups = rewardEvent!.content.battleReward!.rewards;
+    const hasScrap = rewardGroups.some((g) =>
+      g.items.some((it) => String(it.id).includes("scrap")),
     );
     expect(hasScrap).toBe(true);
     } finally {
@@ -369,24 +425,24 @@ describe("官服回放扩展：战斗/暂存/结算", () => {
 
   it("stashRecruitTicket 与官服一致：stashRecruit 记录 + 上限 3", async () => {
     const player = makePlayer();
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     // 构造一张票
-    rlv2.inventory._recruit.gain("rogue_6_recruit_ticket_pioneer", "battle", 0);
-    const idx = Object.keys(rlv2.inventory.recruit)[0];
+    rlv2.inventory!._recruit.gain("rogue_6_recruit_ticket_pioneer", "battle", 0);
+    const idx = Object.keys(rlv2.inventory!.recruit)[0];
     await rlv2.stashRecruitTicket({ index: idx });
     const offStash = JSON.parse(fs.readFileSync(path.join(CAPTURE_ROOT, "stashRecruitTicket/2026-08-11T07-50-50-630Z.json"), "utf8"));
     const s = JSON.stringify(offStash);
     expect(s).toContain("stashRecruit");
     expect(s).toContain("stashRecruitLimit");
     // 我们的 inventory 输出含 stashRecruit/stashRecruitLimit
-    const inv = JSON.parse(JSON.stringify(rlv2.inventory.toJSON()));
+    const inv = JSON.parse(JSON.stringify(rlv2.inventory!.toJSON()));
     expect(Array.isArray(inv.stashRecruit)).toBe(true);
     expect(inv.stashRecruitLimit).toBe(3);
   });
 
   it("gameSettle 响应含 game/outer 结构（与官服一致）", async () => {
     const player = makePlayer();
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
     await rlv2.chooseInitialRelic({ select: "0" });
     rlv2._status.cursor.zone = 5;

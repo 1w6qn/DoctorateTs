@@ -11,9 +11,22 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * - 专精：精2/技能7级/材料消耗/训练时长阈值（maxPoint）/待领取门控/训练锁
  */
 
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string }
+
+/** 干员表 mock 行形状（专精配置读取） */
+interface CharRowMock {
+  skills?: {
+    levelUpCostCond: { lvlUpTime: number; levelUpCost: { id: string; count: number; type: string }[] }[];
+  }[];
+}
+
 // Excel 样本：制造配方（曾达等级条件）、加工配方（关卡星条件）、专精配置
 const excelMock = vi.hoisted(() => ({
   default: {
+    // —— 本文件不提供的表（占位，保持门面方法的 `this.XxxTable` 读取路径）——
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -63,7 +76,7 @@ const excelMock = vi.hoisted(() => ({
           ],
         }],
       },
-    },
+    } as Record<string, CharRowMock>,
   },
 }));
 vi.mock("@excel/excel", () => excelMock);
@@ -75,13 +88,46 @@ vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  mockPlayerData,
+  mockTypedEventEmitter,
+  asPlayerManager,
+  type MockPlayerDataManager,
+  type MockPlayerDataSeed,
+  type MockSeed,
+  type MockUpdateRecipe,
+} from "../../helpers";
+import type { Draft } from "mutative";
+import type {
+  PlayerBuilding,
+  PlayerBuildingWorkshop,
+  PlayerCharacter,
+  PlayerDataModel,
+} from "@game/kernel/playerdata";
+import type { BuildingWithExt, RoomTimestamp, TraineeWithMaxPoint } from "@game/modules/building/logic/ext-types";
 import config from "@core/config/index";
 import { isFormulaUnlocked, isDiamondStrategyUnlocked } from "@game/modules/building/unlocks";
+import type { FormulaUnlockSpec } from "@game/modules/building/unlocks";
 import { getSpecCond, SPEC_ASSIST_BASE_BONUS } from "@game/modules/building/mastery";
 import { BuildingManager } from "@game/modules/building/logic";
 
-function makePlayer(building: any, extra: any = {}) {
+/**
+ * 基建夹具视图
+ *
+ * 与 {@link MockPlayerDataSeed} 的 building 子树同形，唯一差异：服务端存档的
+ * `rooms.WORKSHOP[slot]` 带 `state`（生成模型 `PlayerBuildingWorkshop` 只有 buff/statistic，
+ * 读取侧按 {@link RoomTimestamp} 处理），故 WORKSHOP 槽位按该视图表达。
+ */
+type BuildingFixture = MockSeed<Omit<PlayerBuilding, "rooms">> & {
+  rooms?: MockSeed<Omit<PlayerBuilding["rooms"], "WORKSHOP">> & {
+    WORKSHOP?: Record<string, MockSeed<PlayerBuildingWorkshop> & RoomTimestamp>;
+  };
+};
+
+function makePlayer(
+  building: BuildingFixture,
+  extra: Omit<MockPlayerDataSeed, "building"> = {},
+) {
   const mockPlayer = mockPlayerData({
     building,
     event: { building: 0 },
@@ -91,19 +137,17 @@ function makePlayer(building: any, extra: any = {}) {
   const mockTrigger = mockTypedEventEmitter();
   mockPlayer._trigger = mockTrigger;
   mockPlayer.update = vi
-    .fn()
-    .mockImplementation(
-      async (recipe: (draft: any) => Promise<any> | any) => {
-        const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-        const result = await recipe(draft);
-        Object.assign(mockPlayer._playerdata, draft);
-        return result;
-      },
-    );
+    .fn<(recipe: MockUpdateRecipe) => Promise<void>>()
+    .mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   return { mockPlayer, mockTrigger };
 }
 
-function baseBuilding(): any {
+function baseBuilding(): BuildingFixture {
   return {
     status: {
       labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 1000, maxValue: 225 },
@@ -144,7 +188,7 @@ function baseBuilding(): any {
   };
 }
 
-function setup(extra: any = {}) {
+function setup(extra: Omit<MockPlayerDataSeed, "building"> = {}) {
   const { mockPlayer, mockTrigger } = makePlayer(baseBuilding(), {
     status: { uid: "1", gold: 10000, androidDiamond: 100, socialPoint: 0, nickName: "A", nickNumber: "1" },
     inventory: { "3112": 10, "3303": 5 },
@@ -152,7 +196,7 @@ function setup(extra: any = {}) {
     dungeon: { stages: {} },
     ...extra,
   });
-  const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+  const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
   return { mockPlayer, mockTrigger, manager };
 }
 
@@ -164,26 +208,29 @@ describe("unlocks.ts 纯函数（配方/策略解锁）", () => {
   };
 
   it("requireRooms：曾达等级与房间数均满足时 解锁", () => {
-    const f = { requireRooms: [{ roomId: "MANUFACTURE", roomLevel: 3, roomCount: 1 }] };
+    // 显式空 requireStages：生成类型两键必填，与实现 `?? []` 的缺省语义等价
+    const f: FormulaUnlockSpec = { requireRooms: [{ roomId: "MANUFACTURE", roomLevel: 3, roomCount: 1 }], requireStages: [] };
     expect(isFormulaUnlocked(f, ctx)).toBe(true);
   });
 
   it("requireRooms：曾达等级不足/房间数不足时 锁定", () => {
-    const f = { requireRooms: [{ roomId: "MANUFACTURE", roomLevel: 3, roomCount: 2 }] };
+    const f: FormulaUnlockSpec = { requireRooms: [{ roomId: "MANUFACTURE", roomLevel: 3, roomCount: 2 }], requireStages: [] };
     expect(isFormulaUnlocked(f, ctx)).toBe(false); // 房间数 1 < 2
-    const f2 = { requireRooms: [{ roomId: "TRADING", roomLevel: 1, roomCount: 1 }] };
+    const f2: FormulaUnlockSpec = { requireRooms: [{ roomId: "TRADING", roomLevel: 1, roomCount: 1 }], requireStages: [] };
     expect(isFormulaUnlocked(f2, ctx)).toBe(false); // 从未建造贸易站
   });
 
   it("requireStages：关卡星满足时 解锁；不足时 锁定", () => {
-    const f = { requireRooms: [{ roomId: "WORKSHOP", roomLevel: 1, roomCount: 1 }], requireStages: [{ stageId: "wk_armor_3", rank: 2 }] };
+    const f: FormulaUnlockSpec = { requireRooms: [{ roomId: "WORKSHOP", roomLevel: 1, roomCount: 1 }], requireStages: [{ stageId: "wk_armor_3", rank: 2 }] };
     expect(isFormulaUnlocked(f, ctx)).toBe(true);
     expect(isFormulaUnlocked(f, { ...ctx, stageState: { wk_armor_3: 1 } })).toBe(false);
     expect(isFormulaUnlocked(f, { ...ctx, stageState: {} })).toBe(false);
   });
 
   it("无条件配方视为解锁；配方缺失视为锁定", () => {
-    expect(isFormulaUnlocked({}, ctx)).toBe(true);
+    // 无条件配方 = 两条件皆空（实现按 `?? []` 处理缺省键，二者等价）
+    const unconditional: FormulaUnlockSpec = { requireRooms: [], requireStages: [] };
+    expect(isFormulaUnlocked(unconditional, ctx)).toBe(true);
     expect(isFormulaUnlocked(null, ctx)).toBe(false);
   });
 
@@ -216,16 +263,16 @@ describe("BuildingManager 配方解锁门控", () => {
   it("changeManufactureSolution：未达曾达等级的配方拒绝（不切换、不结算）", async () => {
     const { manager, mockPlayer } = setup();
     // 配方 3 需制造站曾达 3 级——存档无 maxLevelReached 记录且站级 1 时
-    await manager.changeManufactureSolution({ roomSlotId: "slot_5", targetFormulaId: "3", solutionCount: 10 } as any);
+    await manager.changeManufactureSolution({ roomSlotId: "slot_5", targetFormulaId: "3", solutionCount: 10 });
     expect(mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId).toBe("1");
     expect(mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.remainSolutionCnt).toBe(0);
   });
 
   it("upgradeRoom 记录曾达等级后 高级配方解锁（降级不回退）_touchMaxLevel 保证", async () => {
     const { manager, mockPlayer } = setup();
-    await manager.upgradeRoom({ roomSlotId: "slot_5", targetLevel: 3 } as any);
-    expect((mockPlayer._playerdata.building as any).maxLevelReached.MANUFACTURE).toBe(3);
-    await manager.changeManufactureSolution({ roomSlotId: "slot_5", targetFormulaId: "3", solutionCount: 10 } as any);
+    await manager.upgradeRoom({ roomSlotId: "slot_5", targetLevel: 3 });
+    expect((mockPlayer._playerdata.building as BuildingWithExt).maxLevelReached!.MANUFACTURE).toBe(3);
+    await manager.changeManufactureSolution({ roomSlotId: "slot_5", targetFormulaId: "3", solutionCount: 10 });
     expect(mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId).toBe("3");
     expect(mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.remainSolutionCnt).toBe(10);
   });
@@ -233,28 +280,28 @@ describe("BuildingManager 配方解锁门控", () => {
   it("workshopSynthesis：requireStages 未通关拒绝；通关后正常合成", async () => {
     const { manager, mockPlayer } = setup();
     // 未通关 wk_armor_3 时 拒绝（材料不扣）
-    await manager.workshopSynthesis({ roomSlotId: "slot_32", times: 1, formulaId: "4" } as any);
+    await manager.workshopSynthesis({ roomSlotId: "slot_32", times: 1, formulaId: "4" });
     expect(mockPlayer._playerdata.inventory!["3112"]).toBe(10);
     // 二星通关时 放行（直接控制解锁上下文，隔离 excel/dungeon 环境噪声）
-    vi.spyOn(manager as any, "_unlockCtx").mockReturnValue({
+    vi.spyOn(manager, "_unlockCtx").mockReturnValue({
       maxLevelReached: { WORKSHOP: 1 },
       roomCountByType: { WORKSHOP: 1 },
       stageState: { wk_armor_3: 2 },
     });
-    const result = await manager.workshopSynthesis({ roomSlotId: "slot_32", times: 1, formulaId: "4" } as any);
+    const result = await manager.workshopSynthesis({ roomSlotId: "slot_32", times: 1, formulaId: "4" });
     expect(result).toEqual({ type: "MATERIAL", id: "3131", count: 1 });
     expect(mockPlayer._playerdata.inventory!["3112"]).toBe(8);
   });
 
   it("changeSaleSolution：开采协力需贸易站 3 级（2 级忽略策略，3 级生效）", async () => {
     const { manager, mockPlayer } = setup();
-    await manager.changeSaleSolution({ slotId: "slot_6", targetFormulaId: "O_DIAMOND", solutionCount: 8 } as any);
-    const room = mockPlayer._playerdata.building.rooms.TRADING.slot_6 as any;
+    await manager.changeSaleSolution({ slotId: "slot_6", targetFormulaId: "O_DIAMOND", solutionCount: 8 });
+    const room = mockPlayer._playerdata.building.rooms.TRADING.slot_6;
     expect(room.strategy).toBe("O_GOLD"); // 站级 2 时 策略被拒
     expect(room.stockLimit).toBe(8); // 库存上限正常生效
     mockPlayer._playerdata.building.roomSlots.slot_6.level = 3;
-    await manager.changeSaleSolution({ slotId: "slot_6", targetFormulaId: "O_DIAMOND" } as any);
-    expect((mockPlayer._playerdata.building.rooms.TRADING.slot_6 as any).strategy).toBe("O_DIAMOND");
+    await manager.changeSaleSolution({ slotId: "slot_6", targetFormulaId: "O_DIAMOND" });
+    expect(mockPlayer._playerdata.building.rooms.TRADING.slot_6.strategy).toBe("O_DIAMOND");
   });
 });
 
@@ -270,7 +317,7 @@ describe("BuildingManager 专精系统（材料/时长/门控/训练锁）", () 
   });
 
 /** 满足专精门控的干员：精英2 + 技能7级 */
-  function specChar(extra: any = {}) {
+  function specChar(extra: MockSeed<PlayerCharacter> = {}) {
     return {
       charId: "char_spec", level: 80, evolvePhase: 2, mainSkillLvl: 7,
       skills: [{ skillId: "sk1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 }],
@@ -282,14 +329,14 @@ describe("BuildingManager 专精系统（材料/时长/门控/训练锁）", () 
     const { manager, mockPlayer } = setup({
       troop: { chars: { "501": specChar({ evolvePhase: 1 }) }, charGroup: {} },
     });
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     expect(mockPlayer._playerdata.troop.chars["501"].skills[0].state).toBe(0);
     expect(mockPlayer._playerdata.inventory!["3303"]).toBe(5);
 
     const r2 = setup({
       troop: { chars: { "501": specChar({ mainSkillLvl: 6 }) }, charGroup: {} },
     });
-    await r2.manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await r2.manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     expect(r2.mockPlayer._playerdata.troop.chars["501"].skills[0].state).toBe(0);
   });
 
@@ -298,7 +345,7 @@ describe("BuildingManager 专精系统（材料/时长/门控/训练锁）", () 
       troop: { chars: { "501": specChar() }, charGroup: {} },
       inventory: { "3112": 10, "3303": 4 }, // 需 5 个 3303
     });
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     expect(mockPlayer._playerdata.troop.chars["501"].skills[0].state).toBe(0);
   });
 
@@ -306,12 +353,12 @@ describe("BuildingManager 专精系统（材料/时长/门控/训练锁）", () 
     const { manager, mockPlayer } = setup({
       troop: { chars: { "501": specChar() }, charGroup: {} },
     });
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     expect(mockPlayer._playerdata.inventory!["3303"]).toBe(0); // 5 - 5
     const skill = mockPlayer._playerdata.troop.chars["501"].skills[0];
     expect(skill.state).toBe(1);
     expect(skill.completeUpgradeTime).toBe(timeMock.now + 28800);
-    const trainee = mockPlayer._playerdata.building.rooms.TRAINING.slot_13.trainee as any;
+    const trainee = mockPlayer._playerdata.building.rooms.TRAINING.slot_13.trainee as TraineeWithMaxPoint;
     expect(trainee.charInstId).toBe(501);
     expect(trainee.state).toBe(1);
     expect(trainee.maxPoint).toBe(28800);
@@ -321,8 +368,8 @@ describe("BuildingManager 专精系统（材料/时长/门控/训练锁）", () 
     const { manager, mockPlayer } = setup({
       troop: { chars: { "501": specChar() }, charGroup: {} },
     });
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
-    await manager.assignChar({ roomSlotId: "slot_5", charInstIdList: [501] } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
+    await manager.assignChar({ roomSlotId: "slot_5", charInstIdList: [501] });
     // 拒绝：制造站未进驻该干员
     expect(mockPlayer._playerdata.building.roomSlots.slot_5.charInstIds).toEqual([]);
   });
@@ -331,19 +378,19 @@ describe("BuildingManager 专精系统（材料/时长/门控/训练锁）", () 
     const { manager, mockPlayer } = setup({
       troop: { chars: { "501": specChar() }, charGroup: {} },
     });
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     // 未到时长：结算被拒
-    await manager.completeUpgradeSpecialization({} as any);
+    await manager.completeUpgradeSpecialization({});
     expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(0);
     // 推进超过 8h（无教官/协助时 速度 1）
     const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
     draft.building.rooms.TRAINING.slot_13.lastUpdateTime = timeMock.now;
-    (manager as any)._accrueTraining(draft, timeMock.now + 28800);
+    manager["_accrueTraining"](draft, timeMock.now + 28800);
     expect(draft.building.rooms.TRAINING.slot_13.trainee.state).toBe(2); // OUTOFDATE 待领取
     expect(draft.building.rooms.TRAINING.slot_13.trainee.processPoint).toBe(28800);
     // 应用进度后结算 → 专精 +1
     Object.assign(mockPlayer._playerdata, { building: draft.building });
-    await manager.completeUpgradeSpecialization({} as any);
+    await manager.completeUpgradeSpecialization({});
     expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(1);
   });
 });
@@ -361,7 +408,7 @@ describe("训练室专精：即时完成分支（specializationTimeZero=true，d
   });
 
   /** 满足专精门控的干员：精英2 + 技能 7 级 + 技能已解锁 */
-  function specChar(extra: any = {}) {
+  function specChar(extra: MockSeed<PlayerCharacter> = {}) {
     return {
       charId: "char_spec", level: 80, evolvePhase: 2, mainSkillLvl: 7,
       skills: [{ skillId: "sk1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 }],
@@ -373,7 +420,7 @@ describe("训练室专精：即时完成分支（specializationTimeZero=true，d
     const { manager, mockPlayer } = setup({
       troop: { chars: { "501": specChar({ evolvePhase: 1 }) }, charGroup: {} },
     });
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(0);
     expect(mockPlayer._playerdata.inventory!["3303"]).toBe(5);
   });
@@ -382,7 +429,7 @@ describe("训练室专精：即时完成分支（specializationTimeZero=true，d
     const { manager, mockPlayer } = setup({
       troop: { chars: { "501": specChar({ mainSkillLvl: 6 }) }, charGroup: {} },
     });
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(0);
     expect(mockPlayer._playerdata.inventory!["3303"]).toBe(5);
   });
@@ -394,7 +441,7 @@ describe("训练室专精：即时完成分支（specializationTimeZero=true，d
         charGroup: {},
       },
     });
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(0);
   });
 
@@ -403,7 +450,7 @@ describe("训练室专精：即时完成分支（specializationTimeZero=true，d
       troop: { chars: { "501": specChar() }, charGroup: {} },
       inventory: { "3112": 10, "3303": 4 }, // M1 需 5 个 3303
     });
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(0);
     expect(mockPlayer._playerdata.inventory!["3303"]).toBe(4);
   });
@@ -413,13 +460,13 @@ describe("训练室专精：即时完成分支（specializationTimeZero=true，d
       troop: { chars: { "501": specChar() }, charGroup: {} },
     });
     const emitSpy = vi.spyOn(mockTrigger, "emit");
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     const skill = mockPlayer._playerdata.troop.chars["501"].skills[0];
     expect(skill.specializeLevel).toBe(1); // 即时完成，不是 state=1 等待
     expect(skill.state).toBe(0);
     expect(skill.completeUpgradeTime).toBe(-1);
     expect(mockPlayer._playerdata.inventory!["3303"]).toBe(0); // 扣满 5
-    const trainee = (mockPlayer._playerdata.building as any).rooms.TRAINING.slot_13.trainee;
+    const trainee = mockPlayer._playerdata.building.rooms.TRAINING.slot_13.trainee;
     expect(trainee.state).toBe(3); // WAITING
     expect(trainee.targetSkill).toBe(-1);
     expect(emitSpy).toHaveBeenCalledWith("UpgradeSpecialization", [{ targetLevel: 1 }]);
@@ -430,9 +477,9 @@ describe("训练室专精：即时完成分支（specializationTimeZero=true，d
       troop: { chars: { "501": specChar() }, charGroup: {} },
       inventory: { "3303": 21 }, // 5 + 6 + 10
     });
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     const skill = mockPlayer._playerdata.troop.chars["501"].skills[0];
     expect(skill.specializeLevel).toBe(3);
     expect(mockPlayer._playerdata.inventory!["3303"]).toBe(0);
@@ -440,7 +487,7 @@ describe("训练室专精：即时完成分支（specializationTimeZero=true，d
     const { manager: m2, mockPlayer: p2 } = setup({
       troop: { chars: { "501": specChar({ skills: [{ skillId: "sk1", unlock: 1, state: 0, specializeLevel: 3, completeUpgradeTime: -1 }] }) }, charGroup: {} },
     });
-    await m2.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await m2.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     expect(p2._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(3);
     expect(p2._playerdata.inventory!["3303"]).toBe(5);
   });
@@ -457,7 +504,7 @@ describe("训练室专精：即时完成分支（specializationTimeZero=true，d
       },
       inventory: { "3303": 0 }, // 材料已在训练发起时扣光
     });
-    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 } as any);
+    await manager.upgradeSpecialization({ charInstId: 501, targetSkill: 0 });
     const skill = mockPlayer._playerdata.troop.chars["501"].skills[0];
     expect(skill.specializeLevel).toBe(1);
     expect(skill.state).toBe(0);
@@ -471,9 +518,9 @@ describe("训练室专精：即时完成分支（specializationTimeZero=true，d
         charGroup: {},
       },
     });
-    const rooms: any = (mockPlayer._playerdata.building as any).rooms.TRAINING;
+    const rooms = mockPlayer._playerdata.building.rooms.TRAINING;
     rooms.slot_13.trainee = { charInstId: 501, state: 2, targetSkill: 0, processPoint: 28800, speed: 1 };
-    await manager.completeUpgradeSpecialization({} as any);
+    await manager.completeUpgradeSpecialization({});
     expect(mockPlayer._playerdata.troop.chars["501"].skills[0].specializeLevel).toBe(3);
   });
 });

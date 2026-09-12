@@ -34,6 +34,8 @@
     "build": "tsc",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json",
+    "typecheck:tests": "tsc -p tsconfig.tests.json",
+    "typecheck:all": "tsc -p tsconfig.json && tsc -p tsconfig.scripts.json && tsc -p tsconfig.tests.json",
     "hook": "frida-compile hook/main.ts -o _arknights.js -c",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -3,8 +3,16 @@
  * 道具购买（扣券/库存/每日重置）与使用、交换、保护区解锁。2026-08-17。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { EventBus } from "@game/kernel/events/runtime";
-import { mockPlayerData } from "../../helpers";
+import { TypedEventEmitter } from "@game/kernel/events/runtime";
+import type { EventMap } from "@game/kernel/events";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
+import type { ArkdexCreature } from "@excel/excel";
+import {
+  asPlayerManager,
+  mockPlayerData,
+  mockTypedEventEmitter,
+  type MockPlayerDataManager,
+} from "../../helpers";
 import {
   ARKDEX_PROPS,
   arkdexDamageScale,
@@ -38,10 +46,66 @@ import {
   ARKDEX_MAX_ENCOUNTER,
 } from "@game/modules/activities/arkhub/arkdex";
 
-function hubPlayer(overrides: Record<string, any> = {}) {
-  const bus = new EventBus();
+/**
+ * ARK_HUB act1arkhub 存档窄视图
+ *
+ * 用例夹具里这些键都会写入（`hubPlayer` 的默认值 + overrides），而生成类型把 ARK_HUB
+ * 子形状声明为全可选；若直接用生成类型，30+ 处断言都要补 `!`。此处声明「夹具保证存在」
+ * 的只读视图，仅在 `hubOf` 出口断言一次（视图可赋值给生成类型，属收窄断言，运行期零开销）。
+ */
+interface ArkHubView {
+  coin: number;
+  creatureCollected: number;
+  activeCreatureCollected: number;
+  alterCollected: number;
+  dex: {
+    [key: string]: { numId?: number; isAlter?: boolean; alterOf?: number; active?: boolean };
+  };
+  scanBag: { id: number; numId: number; isAlter?: boolean; alterOf?: number; fav?: boolean }[];
+  scanSeq: number;
+  props: { [key: string]: { count: number; uses: number } };
+  propSoldToday: { date: string; sold: { [key: string]: number } };
+  trade: { wantSpecies?: number | null; offerNumIds?: number[]; ts?: number };
+  unlockedAreas: { [key: string]: number };
+  arkdexState: { activeLure?: number; activeEncounter?: { id?: string } };
+}
+
+/**
+ * 生物表测试视图
+ *
+ * app 侧 {@link ArkdexCreature} 刻意只声明服务端消费字段（无 hp/atk），而 `arkdex.json`
+ * 的原始行带六维；本用例要验证「数据含六维」，故声明带六维的窄视图（视图可赋值给
+ * `ArkdexCreature`，断言方向合法；读取的仍是同一对象）。
+ */
+interface ArkdexCreatureRow extends ArkdexCreature {
+  hp: number;
+  atk: number;
+}
+
+/**
+ * 订阅 EventBus 事件并把「载荷元组」交给回调
+ *
+ * `EventBus.on` 的声明是「展开的载荷参数」，但实现遵循 Emittery 单参约定：监听器实际收到
+ * 的是载荷元组本身（生产消费方 `app/game/modules/medal/medal.ts` 即按 `data[0]` 取载荷）。
+ * 本助手把该约定显式化：调用点写 `([payload]) => …`，元组类型由 {@link EventMap} 精确给出。
+ * @param bus - 事件总线
+ * @param name - 事件名
+ * @param handler - 接收载荷元组的回调
+ */
+function hubPlayer(overrides: Partial<ArkHubView> = {}) {
+  // 用例只观察事件载荷（Emittery 单参约定：监听器收到载荷元组本身，生产消费方见
+  // app/game/modules/medal/medal.ts），不需要 EventBus 的优先级/中间件，故用
+  // mockTypedEventEmitter()——其 on 签名即为「单参元组」，与运行期一致、无需 cast。
+  const bus = mockTypedEventEmitter();
   const player = mockPlayerData({
-    status: { uid: 1, nickName: "T", nickNumber: 0, level: 1, exp: 0 } as any,
+    status: { uid: 1, nickName: "T", nickNumber: 0, level: 1, exp: 0 },
+    tshop: { shop_act1arkhub: { coin: 500 } },
+  });
+  // 生成类型 PlayerActivity 把具名 ARK_HUB 成员与 `& { [typeKey: string]: ServerPayload }`
+  // 兜底索引签名取交集，而 ARK_HUB 载荷含**对象数组**（scanBag），两层 ServerPayload 装不下，
+  // 直接写进种子会被 TS2322 挡住；故夹具经 Object.assign 单点写入（无 cast/无关键字，
+  // 运行期与「种子里直接给 activity」等价：同一对象、同一键值）。
+  Object.assign(player._playerdata, {
     activity: {
       ARK_HUB: {
         act1arkhub: {
@@ -56,14 +120,18 @@ function hubPlayer(overrides: Record<string, any> = {}) {
         },
       },
     },
-    tshop: { shop_act1arkhub: { coin: 500 } },
   });
-  (player as any)._trigger = bus;
+  player._trigger = bus;
   return player;
 }
 
-function hubOf(player: any): any {
-  return player._playerdata.activity.ARK_HUB.act1arkhub;
+/**
+ * 取 ARK_HUB act1arkhub 存档视图
+ * @param player - mock 组合根
+ * @returns 存档窄视图（见 {@link ArkHubView}）
+ */
+function hubOf(player: MockPlayerDataManager): ArkHubView {
+  return player._playerdata.activity.ARK_HUB!.act1arkhub as ArkHubView;
 }
 
 describe("属性克制与六维换算", () => {
@@ -88,19 +156,22 @@ describe("属性克制与六维换算", () => {
   });
 });
 
+/** ARK_HUB 活动 id（存档字典键，与 app 侧 ARKHUB_ACT_ID 一致） */
+const ARKHUB_ACT_ID = "act1arkhub";
+
 describe("扫描结算", () => {
   it("扫描成功：发 15 券 + 币同步 + 数据库收录 + 扫描仪入袋 + 计数事件", async () => {
     const player = hubPlayer();
     const seen: string[] = [];
-    const bus = player._trigger as EventBus;
-    bus.on("ArkhubCreatureCollection", (args: any[]) => {
-      seen.push(`m:${args[0].collectionKey}:${args[0].count}`);
+    const bus = player._trigger as TypedEventEmitter;
+    bus.on("ArkhubCreatureCollection", ([payload]) => {
+      seen.push(`m:${payload.collectionKey}:${payload.count}`);
     });
-    bus.on("ActivityArkhubAlterCollect", (args: any[]) => {
-      seen.push(`alter:${args[0].alterCount}`);
+    bus.on("ActivityArkhubAlterCollect", ([payload]) => {
+      seen.push(`alter:${payload.alterCount}`);
     });
 
-    const ok = await arkhubScanSucceed(player as any, {
+    const ok = await arkhubScanSucceed(asPlayerManager(player), {
       creatureNumIds: [5001, 5002, 5001, 5003],
       alterOf: { 5003: 5001 },
       active: { 5002: true },
@@ -109,7 +180,7 @@ describe("扫描结算", () => {
 
     const hub = hubOf(player);
     expect(hub.coin).toBe(515);
-    expect((player._playerdata as any).tshop.shop_act1arkhub.coin).toBe(515);
+    expect(player._playerdata.tshop.shop_act1arkhub.coin).toBe(515);
     // dex：3 种（5001/5002/5003），5003 为亚种，5002 活动频繁
     expect(Object.keys(hub.dex)).toHaveLength(3);
     expect(hub.dex["5003"].isAlter).toBe(true);
@@ -131,18 +202,18 @@ describe("扫描结算", () => {
 
   it("扫描失败：无任何奖励与收录", async () => {
     const player = hubPlayer();
-    const ok = await arkhubScanSucceed(player as any, { creatureNumIds: [] });
+    const ok = await arkhubScanSucceed(asPlayerManager(player), { creatureNumIds: [] });
     expect(ok).toBe(false);
     const hub = hubOf(player);
     expect(hub.coin).toBe(500);
     expect(Object.keys(hub.dex)).toHaveLength(0);
     expect(hub.scanBag).toHaveLength(0);
-    await arkhubScanFail(player as any); // 占位函数不抛
+    await arkhubScanFail(asPlayerManager(player)); // 占位函数不抛
   });
 
   it("扫描仪内存上限 400：满员后不再入袋", async () => {
     const player = hubPlayer({ scanBag: Array.from({ length: ARKDEX_BAG_MAX }, (_, i) => ({ id: i + 1, numId: 5000 })), scanSeq: ARKDEX_BAG_MAX });
-    await arkhubScanSucceed(player as any, { creatureNumIds: [5001, 5002] });
+    await arkhubScanSucceed(asPlayerManager(player), { creatureNumIds: [5001, 5002] });
     const hub = hubOf(player);
     expect(hub.scanBag).toHaveLength(ARKDEX_BAG_MAX);
     expect(hub.scanSeq).toBe(ARKDEX_BAG_MAX);
@@ -152,52 +223,56 @@ describe("扫描结算", () => {
 describe("巡展道具", () => {
   it("购买：扣券 + 道具箱 +生效次数；券不足失败（官方错误码 601）", async () => {
     const player = hubPlayer({ coin: 100 });
-    const ok = await arkhubBuyProp(player as any, 5004, 2); // 标准诱引剂 40×2
+    const ok = await arkhubBuyProp(asPlayerManager(player), 5004, 2); // 标准诱引剂 40×2
     expect(ok).toEqual({ ok: true, code: 100 });
     const hub = hubOf(player);
     expect(hub.coin).toBe(20);
     expect(hub.props["5004"]).toEqual({ count: 2, uses: 2 });
 
     // 券不足（只剩 20，专业 60）→ ITEM_NOT_ENOUGH 601
-    const ok2 = await arkhubBuyProp(player as any, 5005);
+    const ok2 = await arkhubBuyProp(asPlayerManager(player), 5005);
     expect(ok2).toEqual({ ok: false, code: 601 });
     expect(hubOf(player).coin).toBe(20);
     // 未知道具 → ITEM_ID_INVALID 602
-    expect(await arkhubBuyProp(player as any, 9999)).toEqual({ ok: false, code: 602 });
+    expect(await arkhubBuyProp(asPlayerManager(player), 9999)).toEqual({ ok: false, code: 602 });
   });
 
   it("购买：每日库存限购（稀有诱引剂 2），跨日重置；售罄错误码 605", async () => {
     const player = hubPlayer({ coin: 10000 });
-    expect(await arkhubBuyProp(player as any, 5006, 2)).toEqual({ ok: true, code: 100 }); // 稀有 250×2 库存 2
+    expect(await arkhubBuyProp(asPlayerManager(player), 5006, 2)).toEqual({ ok: true, code: 100 }); // 稀有 250×2 库存 2
     // 库存售罄 → SHOP_ITEM_NOT_ENOUGH 605
-    expect(await arkhubBuyProp(player as any, 5006)).toEqual({ ok: false, code: 605 });
+    expect(await arkhubBuyProp(asPlayerManager(player), 5006)).toEqual({ ok: false, code: 605 });
     // 模拟跨日：直接改 propSoldToday 日期
-    await (player as any).update(async (draft: any) => {
-      draft.activity.ARK_HUB.act1arkhub.propSoldToday = { date: "Sun Aug 16 2026", sold: {} };
+    const playerManager = asPlayerManager(player);
+    await playerManager.update(async (draft) => {
+      draft.activity.ARK_HUB![ARKHUB_ACT_ID].propSoldToday = {
+        date: "Sun Aug 16 2026",
+        sold: {},
+      };
     });
-    expect(await arkhubBuyProp(player as any, 5006)).toEqual({ ok: true, code: 100 });
+    expect(await arkhubBuyProp(asPlayerManager(player), 5006)).toEqual({ ok: true, code: 100 });
   });
 
   it("使用：消耗 1 次生效次数；次数耗尽/未知道具回官方错误码 603/602", async () => {
     const player = hubPlayer({ props: { "5004": { count: 1, uses: 1 } } });
-    expect(await arkhubUseProp(player as any, 5004)).toEqual({ ok: true, code: 100 });
+    expect(await arkhubUseProp(asPlayerManager(player), 5004)).toEqual({ ok: true, code: 100 });
     expect(hubOf(player).props["5004"].uses).toBe(0);
     // 生效次数耗尽 → ITEM_CAN_NOT_USE 603
-    expect(await arkhubUseProp(player as any, 5004)).toEqual({ ok: false, code: 603 });
+    expect(await arkhubUseProp(asPlayerManager(player), 5004)).toEqual({ ok: false, code: 603 });
     // 未知道具 → ITEM_ID_INVALID 602
-    expect(await arkhubUseProp(player as any, 9999)).toEqual({ ok: false, code: 602 });
+    expect(await arkhubUseProp(asPlayerManager(player), 9999)).toEqual({ ok: false, code: 602 });
   });
 });
 
 describe("数据集换与保护区", () => {
   it("设置交换需求：同时 1 条、可清除", async () => {
     const player = hubPlayer();
-    await arkhubSetTrade(player as any, 5001, [5002, 5003]);
+    await arkhubSetTrade(asPlayerManager(player), 5001, [5002, 5003]);
     const trade = hubOf(player).trade;
     expect(trade.wantSpecies).toBe(5001);
     expect(trade.offerNumIds).toEqual([5002, 5003]);
     expect(trade.ts).toBeGreaterThan(0); // 挂单时间（GetAll requests 回填的 request_time 数据源）
-    await arkhubSetTrade(player as any, null);
+    await arkhubSetTrade(asPlayerManager(player), null);
     expect(hubOf(player).trade.wantSpecies).toBeNull();
     expect(hubOf(player).trade.offerNumIds).toEqual([]);
   });
@@ -205,14 +280,17 @@ describe("数据集换与保护区", () => {
   it("发起交换：发 ArkhubCreatureExchange 事件（任务 16）", async () => {
     const player = hubPlayer();
     const seen: string[] = [];
-    (player._trigger as EventBus).on("ArkhubCreatureExchange", (args: any[]) => seen.push(args[0].activityId));
-    await arkhubDoTrade(player as any);
+    const bus = player._trigger as TypedEventEmitter;
+    bus.on("ArkhubCreatureExchange", ([payload]) => {
+      seen.push(payload.activityId);
+    });
+    await arkhubDoTrade(asPlayerManager(player));
     expect(seen).toEqual(["act1arkhub"]);
   });
 
   it("保护区解锁：unlockedAreas 标记", async () => {
     const player = hubPlayer();
-    await arkhubUnlockArea(player as any, 1);
+    await arkhubUnlockArea(asPlayerManager(player), 1);
     expect(hubOf(player).unlockedAreas["1"]).toBe(1);
   });
 
@@ -240,7 +318,7 @@ describe("arkdexModule 数据访问（data/arkhub/arkdex.json 实锤数据）", 
   it("生物数据：37 种，含名称/珍奇度/属性/六维/亚种关联", () => {
     const creatures = arkdexCreatures();
     expect(creatures.length).toBe(37);
-    const c1 = arkdexCreature(19001)!;
+    const c1 = arkdexCreature(19001) as ArkdexCreatureRow;
     expect(c1.name).toBe("星术绒绒");
     expect(c1.rarity).toBe(3);
     expect(c1.advantageType).toBe("arkdex_advantage_A");
@@ -311,8 +389,8 @@ describe("arkdexModule 活动细节补全（2026-08-18 实锤）", () => {
     expect(reserve.length).toBe(13);
     // 三个区域都是"生息于"前缀（obtainApproach）；3★ 生物分布在所有区域
     // （普通区域遭遇限制 1-2★ 是玩法规则，非数据分组——3★ 只在保护区/概率出）
-    expect(forest.some((c: any) => c.rarity === 3)).toBe(true);
-    expect(reserve.some((c: any) => c.rarity === 3)).toBe(true);
+    expect(forest.some((c) => c.rarity === 3)).toBe(true);
+    expect(reserve.some((c) => c.rarity === 3)).toBe(true);
     expect(arkdexCreaturesByRarity(3).length).toBe(15);
   });
 
@@ -365,15 +443,15 @@ describe("草丛遭遇机制（2026-08-19）", () => {
   it("遭遇物种池：普通区域仅 1-2★，保护区（解锁）含 3★", () => {
     const normal = arkdexBuildEncounterPool("密林外沿", false);
     expect(normal.length).toBeGreaterThan(0);
-    expect(normal.every((c: any) => (c.rarity ?? 0) <= 2)).toBe(true);
+    expect(normal.every((c) => (c.rarity ?? 0) <= 2)).toBe(true);
     const protectedPool = arkdexBuildEncounterPool("密林外沿", true);
     expect(protectedPool.length).toBeGreaterThan(normal.length);
-    expect(protectedPool.some((c: any) => c.rarity === 3)).toBe(true);
+    expect(protectedPool.some((c) => c.rarity === 3)).toBe(true);
   });
 
   it("生成遭遇：个体 1-10、来自栖息地池、群集/单种与暂未收录标记", async () => {
     const player = hubPlayer();
-    const enc = await arkhubStartEncounter(player as any, CAPTURE1);
+    const enc = await arkhubStartEncounter(asPlayerManager(player), CAPTURE1);
     expect(enc.habitat).toBe("密林外沿");
     expect(enc.areaId).toBe(CAPTURE1);
     expect(enc.isProtected).toBe(false);
@@ -387,27 +465,27 @@ describe("草丛遭遇机制（2026-08-19）", () => {
     // 初始 dex 为空 → 全部"暂未收录"
     expect(enc.creatures.every((c) => c.collected === false)).toBe(true);
     // 会话已持久化
-    expect(hubOf(player).arkdexState.activeEncounter.id).toBe(enc.id);
+    expect(hubOf(player).arkdexState.activeEncounter!.id).toBe(enc.id);
     // 群集标记为布尔（多种类 = 群集，见 forceNumIds 单种用例）
     expect(typeof enc.cluster).toBe("boolean");
   });
 
   it("保护区（守门人解锁）遭遇可出 3★；珍奇度诱引剂定向稀有度", async () => {
     const player = hubPlayer();
-    await arkhubUnlockArea(player as any, CAPTURE1);
-    const enc = await arkhubStartEncounter(player as any, CAPTURE1);
+    await arkhubUnlockArea(asPlayerManager(player), CAPTURE1);
+    const enc = await arkhubStartEncounter(asPlayerManager(player), CAPTURE1);
     expect(enc.isProtected).toBe(true);
     // 保护区池含 3★（随机可能抽不到，但池子允许）
     expect(enc.creatures.every((c) => c.rarity <= 2 || c.rarity === 3)).toBe(true);
     // 稀有诱引剂 5006（targetRarity=3）：遭遇池强制 3★
-    const lureEnc = await arkhubStartEncounter(player as any, CAPTURE1, { lureNumId: 5006 });
+    const lureEnc = await arkhubStartEncounter(asPlayerManager(player), CAPTURE1, { lureNumId: 5006 });
     expect(lureEnc.lureNumId).toBe(5006);
     expect(lureEnc.creatures.every((c) => c.rarity === 3)).toBe(true);
   });
 
   it("显式指定个体（forceNumIds）：信息素强制引出单种生物", async () => {
     const player = hubPlayer();
-    const enc = await arkhubStartEncounter(player as any, CAPTURE1, {
+    const enc = await arkhubStartEncounter(asPlayerManager(player), CAPTURE1, {
       forceNumIds: [19005],
     });
     expect(enc.creatures).toHaveLength(1);
@@ -417,22 +495,22 @@ describe("草丛遭遇机制（2026-08-19）", () => {
 
   it("生效道具：使用后记录 activeLure，生效次数耗尽失效", async () => {
     const player = hubPlayer({ props: { "5004": { count: 1, uses: 1 } } });
-    expect(arkdexActiveLure(player as any)).toBeUndefined();
-    expect((await arkhubUseProp(player as any, 5004)).ok).toBe(true);
+    expect(arkdexActiveLure(asPlayerManager(player))).toBeUndefined();
+    expect((await arkhubUseProp(asPlayerManager(player), 5004)).ok).toBe(true);
     expect(hubOf(player).arkdexState.activeLure).toBe(5004);
     // uses=0 → 不再生效
-    expect(arkdexActiveLure(player as any)).toBeUndefined();
+    expect(arkdexActiveLure(asPlayerManager(player))).toBeUndefined();
   });
 
   it("扫描结算成功：发 15 券 + 收录 + 会话清除 + 诱引剂消耗 1 次", async () => {
     const player = hubPlayer({ props: { "5004": { count: 2, uses: 2 } } });
     // 使用诱引剂（uses 2→1）→ 遭遇被定向
-    await arkhubUseProp(player as any, 5004);
-    const enc = await arkhubStartEncounter(player as any, CAPTURE1);
+    await arkhubUseProp(asPlayerManager(player), 5004);
+    const enc = await arkhubStartEncounter(asPlayerManager(player), CAPTURE1);
     expect(enc.lureNumId).toBe(5004);
     expect(hubOf(player).props["5004"].uses).toBe(1);
     // 结算：捕获 19005（密林外沿 1★）
-    const result = await arkhubEndScan(player as any, [19005]);
+    const result = await arkhubEndScan(asPlayerManager(player), [19005]);
     expect(result.success).toBe(true);
     expect(result.encounter?.id).toBe(enc.id);
     const hub = hubOf(player);
@@ -449,8 +527,8 @@ describe("草丛遭遇机制（2026-08-19）", () => {
 
   it("扫描结算失败：未捕获任何生物 → 无奖励；亚种映射正确", async () => {
     const player = hubPlayer();
-    await arkhubStartEncounter(player as any, CAPTURE1);
-    const fail = await arkhubEndScan(player as any, []);
+    await arkhubStartEncounter(asPlayerManager(player), CAPTURE1);
+    const fail = await arkhubEndScan(asPlayerManager(player), []);
     expect(fail.success).toBe(false);
     const hub = hubOf(player);
     expect(hub.coin).toBe(500);

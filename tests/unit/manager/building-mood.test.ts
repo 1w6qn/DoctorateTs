@@ -11,9 +11,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * - 暖机工时推进：在岗累积 / 离岗清零 / 换工位清零
  */
 
+/** excel mock 的行形状（本文件只需 `name`，供 `itemName` 回退读取） */
+interface ExcelRowMock { name?: string }
+
 // Excel BuildingData 样本（制造/宿舍 buff + 相位）
 const excelMock = vi.hoisted(() => ({
   default: {
+    // —— 本文件不提供的表（占位；`?.` 读取下与「键不存在」运行时等价）——
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    CharacterTable: undefined as Record<string, ExcelRowMock> | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -78,7 +85,15 @@ vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  mockPlayerData,
+  mockTypedEventEmitter,
+  asPlayerManager,
+  type MockPlayerDataManager,
+  type MockPlayerDataSeed,
+  type MockSeed,
+  type MockUpdateRecipe,
+} from "../../helpers";
 import {
   isDispersedAp,
   headcountMoodRelief,
@@ -91,9 +106,15 @@ import {
   dormRecoveryBonus,
 } from "@game/modules/building/buff";
 import { BuildingManager } from "@game/modules/building/logic";
+import type { CharWithWarmup } from "@game/modules/building/logic/ext-types";
+import type { PlayerBuilding, PlayerBuildingChar, PlayerBuildingRoomSlot, PlayerDataModel } from "@game/kernel/playerdata";
+import type { Draft } from "mutative";
 
 /** 构造带指定 building 的 mock 玩家（update 深拷贝 → recipe → 回写） */
-function makePlayer(building: any, extra: any = {}) {
+function makePlayer(
+  building: MockPlayerDataSeed["building"],
+  extra: Omit<MockPlayerDataSeed, "building"> = {},
+) {
   const mockPlayer = mockPlayerData({
     building,
     event: { building: 0 },
@@ -103,20 +124,33 @@ function makePlayer(building: any, extra: any = {}) {
   const mockTrigger = mockTypedEventEmitter();
   mockPlayer._trigger = mockTrigger;
   mockPlayer.update = vi
-    .fn()
-    .mockImplementation(
-      async (recipe: (draft: any) => Promise<any> | any) => {
-        const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-        const result = await recipe(draft);
-        Object.assign(mockPlayer._playerdata, draft);
-        return result;
-      },
-    );
+    .fn<(recipe: MockUpdateRecipe) => Promise<void>>()
+    .mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   return { mockPlayer, mockTrigger };
 }
 
+/**
+ * 本文件构造的 building 夹具视图
+ *
+ * `chars`/`roomSlots` 需在用例中增量写入，故声明为必填的索引字典；
+ * 其余顶层字段与 {@link MockPlayerDataSeed} 的 building 子树同形（深可选）。
+ */
+type BuildingFixture = MockSeed<Omit<PlayerBuilding, "rooms" | "chars" | "roomSlots">> & {
+  /** 干员心情条目（键为 instId 字符串） */
+  chars: Record<string, MockSeed<PlayerBuildingChar>>;
+  /** 房间槽位（键为 slotId） */
+  roomSlots: Record<string, MockSeed<PlayerBuildingRoomSlot>>;
+  /** 各类型房间的房间对象 */
+  rooms: MockSeed<PlayerBuilding["rooms"]>;
+};
+
 /** 基础 building 结构（制造站/贸易站/控制中枢/宿舍/训练室槽位） */
-function baseBuilding(): any {
+function baseBuilding(): BuildingFixture {
   return {
     status: {
       labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 0, maxValue: 225 },
@@ -157,22 +191,31 @@ function baseBuilding(): any {
   };
 }
 
-function draftOf(mockPlayer: any): any {
-  return JSON.parse(JSON.stringify(mockPlayer._playerdata));
+function draftOf(mockPlayer: MockPlayerDataManager): Draft<PlayerDataModel> {
+  return JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
 }
 
-function setup(building: any = baseBuilding()) {
+/**
+ * 读取带暖机扩展字段的干员条目
+ *
+ * `warmupSec`/`warmupSlot` 为服务端自建字段（生成模型没有，见 logic/ext-types#CharWithWarmup）。
+ */
+function charExt(draft: Draft<PlayerDataModel>, instId: string): CharWithWarmup {
+  return draft.building.chars[instId] as CharWithWarmup;
+}
+
+function setup(building: BuildingFixture = baseBuilding()) {
   const { mockPlayer, mockTrigger } = makePlayer(building, {
     status: { uid: "1", gold: 10000, androidDiamond: 100, socialPoint: 0, nickName: "A", nickNumber: "1" },
     inventory: {},
     troop: { chars: {}, charGroup: {} },
   });
-  const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+  const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
   return { mockPlayer, mockTrigger, manager };
 }
 
 /** building.chars 干员条目（心情满/指定值） */
-function bchar(charId: string, ap: number = MAX_AP): any {
+function bchar(charId: string, ap: number = MAX_AP): MockSeed<PlayerBuildingChar> {
   return {
     charId, ap, lastApAddTime: 0, roomSlotId: "", index: -1, changeScale: 0,
     bubble: { normal: { add: -1, ts: 0 }, assist: { add: -1, ts: 0 }, private: { add: -1, ts: 0 } },
@@ -220,7 +263,7 @@ describe("注意力涣散技能失效（buff.ts 集成）", () => {
 
   it("ap 缺失（旧数据）视为满心情，不影响既有行为", () => {
     const legacy = { charId: "char_prod", level: 10, evolvePhase: 0 };
-    expect(roomSpeedBonus([legacy as any], "MANUFACTURE", ["F_GOLD"])).toBeCloseTo(0.15);
+    expect(roomSpeedBonus([legacy], "MANUFACTURE", ["F_GOLD"])).toBeCloseTo(0.15);
   });
 
   it("宿舍恢复为休息语境：涣散干员的宿舍技能仍生效", () => {
@@ -234,7 +277,7 @@ describe("BuildingManager 头数心情减免（_recomputeCharScales）", () => {
     vi.restoreAllMocks();
   });
 
-  function withManufactChars(n: number): any {
+  function withManufactChars(n: number): BuildingFixture {
     const b = baseBuilding();
     const ids: number[] = [];
     for (let i = 1; i <= n; i++) {
@@ -248,14 +291,14 @@ describe("BuildingManager 头数心情减免（_recomputeCharScales）", () => {
   it("制造站 1 人无减免（基础 -55）", () => {
     const { manager, mockPlayer } = setup(withManufactChars(1));
     const draft = draftOf(mockPlayer);
-    (manager as any)._recomputeCharScales(draft);
+    manager["_recomputeCharScales"](draft);
     expect(draft.building.chars["1"].changeScale).toBe(-55);
   });
 
   it("制造站 2 人减免 0.05 点/时（-55 + 5 = -50）", () => {
     const { manager, mockPlayer } = setup(withManufactChars(2));
     const draft = draftOf(mockPlayer);
-    (manager as any)._recomputeCharScales(draft);
+    manager["_recomputeCharScales"](draft);
     expect(draft.building.chars["1"].changeScale).toBe(-50);
     expect(draft.building.chars["2"].changeScale).toBe(-50);
   });
@@ -263,7 +306,7 @@ describe("BuildingManager 头数心情减免（_recomputeCharScales）", () => {
   it("制造站 3 人减免 0.1 点/时（-55 + 10 = -45）", () => {
     const { manager, mockPlayer } = setup(withManufactChars(3));
     const draft = draftOf(mockPlayer);
-    (manager as any)._recomputeCharScales(draft);
+    manager["_recomputeCharScales"](draft);
     for (const k of ["1", "2", "3"]) {
       expect(draft.building.chars[k].changeScale).toBe(-45);
     }
@@ -276,7 +319,7 @@ describe("BuildingManager 头数心情减免（_recomputeCharScales）", () => {
     b.roomSlots.slot_34.charInstIds = [1];
     const { manager, mockPlayer } = setup(b);
     const draft = draftOf(mockPlayer);
-    (manager as any)._recomputeCharScales(draft);
+    manager["_recomputeCharScales"](draft);
     expect(draft.building.chars["1"].changeScale).toBe(-65);
   });
 });
@@ -286,7 +329,7 @@ describe("BuildingManager 暖机工时推进（_accrueWarmup）", () => {
     vi.restoreAllMocks();
   });
 
-  function withWorkChar(): any {
+  function withWorkChar(): BuildingFixture {
     const b = baseBuilding();
     b.chars["1"] = bchar("char_prod");
     b.roomSlots.slot_5.charInstIds = [1];
@@ -296,26 +339,26 @@ describe("BuildingManager 暖机工时推进（_accrueWarmup）", () => {
   it("工作区在岗按 deltaTime 累积（注入 ts）", () => {
     const { manager, mockPlayer } = setup(withWorkChar());
     const draft = draftOf(mockPlayer);
-    (manager as any)._accrueWarmup(draft, 1000); // 首次建立时间基准
-    (manager as any)._accrueWarmup(draft, 1000 + 3600);
-    expect(draft.building.chars["1"].warmupSec).toBe(3600);
-    expect(warmupHoursOf(draft.building.chars["1"].warmupSec)).toBe(1);
+    manager["_accrueWarmup"](draft, 1000); // 首次建立时间基准
+    manager["_accrueWarmup"](draft, 1000 + 3600);
+    expect(charExt(draft, "1").warmupSec).toBe(3600);
+    expect(warmupHoursOf(charExt(draft, "1").warmupSec)).toBe(1);
     // 连续累积
-    (manager as any)._accrueWarmup(draft, 1000 + 3600 + 7200);
-    expect(draft.building.chars["1"].warmupSec).toBe(10800);
+    manager["_accrueWarmup"](draft, 1000 + 3600 + 7200);
+    expect(charExt(draft, "1").warmupSec).toBe(10800);
   });
 
   it("离岗（进驻宿舍）累积清零", () => {
     const { manager, mockPlayer } = setup(withWorkChar());
     const draft = draftOf(mockPlayer);
-    (manager as any)._accrueWarmup(draft, 1000);
-    (manager as any)._accrueWarmup(draft, 4600);
-    expect(draft.building.chars["1"].warmupSec).toBe(3600);
+    manager["_accrueWarmup"](draft, 1000);
+    manager["_accrueWarmup"](draft, 4600);
+    expect(charExt(draft, "1").warmupSec).toBe(3600);
     // 撤出工作区 → 宿舍
     draft.building.roomSlots.slot_5.charInstIds = [];
     draft.building.roomSlots.slot_28.charInstIds = [1];
-    (manager as any)._accrueWarmup(draft, 8200);
-    expect(draft.building.chars["1"].warmupSec).toBe(0);
+    manager["_accrueWarmup"](draft, 8200);
+    expect(charExt(draft, "1").warmupSec).toBe(0);
   });
 
   it("换工位（不同房间槽位）累积清零后重新起算", () => {
@@ -324,25 +367,25 @@ describe("BuildingManager 暖机工时推进（_accrueWarmup）", () => {
     b.roomSlots.slot_7 = { level: 1, state: 2, roomId: "MANUFACTURE", charInstIds: [], completeConstructTime: -1 };
     const { manager, mockPlayer } = setup(b);
     const draft = draftOf(mockPlayer);
-    (manager as any)._accrueWarmup(draft, 1000);
-    (manager as any)._accrueWarmup(draft, 4600);
-    expect(draft.building.chars["1"].warmupSec).toBe(3600);
+    manager["_accrueWarmup"](draft, 1000);
+    manager["_accrueWarmup"](draft, 4600);
+    expect(charExt(draft, "1").warmupSec).toBe(3600);
     // 换到 slot_7
     draft.building.roomSlots.slot_5.charInstIds = [];
     draft.building.roomSlots.slot_7.charInstIds = [1];
-    (manager as any)._accrueWarmup(draft, 8200); // 换岗当次清零
-    expect(draft.building.chars["1"].warmupSec).toBe(0);
-    (manager as any)._accrueWarmup(draft, 8200 + 1800);
-    expect(draft.building.chars["1"].warmupSec).toBe(1800);
+    manager["_accrueWarmup"](draft, 8200); // 换岗当次清零
+    expect(charExt(draft, "1").warmupSec).toBe(0);
+    manager["_accrueWarmup"](draft, 8200 + 1800);
+    expect(charExt(draft, "1").warmupSec).toBe(1800);
   });
 
   it("同房间重复推进不重置（槽位不变持续累积）", () => {
     const { manager, mockPlayer } = setup(withWorkChar());
     const draft = draftOf(mockPlayer);
-    (manager as any)._accrueWarmup(draft, 1000);
-    (manager as any)._accrueWarmup(draft, 2000);
-    (manager as any)._accrueWarmup(draft, 3000);
-    expect(draft.building.chars["1"].warmupSec).toBe(2000);
-    expect(draft.building.chars["1"].warmupSlot).toBe("slot_5");
+    manager["_accrueWarmup"](draft, 1000);
+    manager["_accrueWarmup"](draft, 2000);
+    manager["_accrueWarmup"](draft, 3000);
+    expect(charExt(draft, "1").warmupSec).toBe(2000);
+    expect(charExt(draft, "1").warmupSlot).toBe("slot_5");
   });
 });

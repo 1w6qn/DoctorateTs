@@ -25,7 +25,7 @@ vi.mock("@excel/excel", () => {
       },
       MedalTable: { medalList: [], medalTypeData: {} },
       StageTable: {
-        stages: {},
+        stages: {} as Record<string, StageRowMock>,
         runeStageGroups: {},
         mapThemes: {},
         tileInfo: {},
@@ -57,8 +57,8 @@ vi.mock("@excel/excel", () => {
       },
       GachaTable: {},
       GameDataConst: {},
-      CharacterTable: {},
-      ItemTable: { items: {}, expItems: {} },
+      CharacterTable: {} as Record<string, CharRowMock>,
+      ItemTable: { items: {} as Record<string, ItemRowMock>, expItems: {} },
       ShopClientTable: {},
       SkillDataBundle: {},
     },
@@ -80,18 +80,99 @@ vi.mock("moment", () => ({
   default: () => ({ diff: () => 0 }),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import { mockPlayerData, mockTypedEventEmitter, asPlayerManager, asModel } from "../../helpers";
+import type { MockUpdateRecipe } from "../../helpers";
+import type { Draft } from "mutative";
+import type {
+  PlayerDataModel,
+  PlayerMedalCustomLayout,
+  PlayerMedalCustomLayoutItem,
+  PlayerPerMedal,
+} from "@game/kernel/playerdata";
+import type { PassStageStats } from "@game/kernel/events/medal";
 import { MedalManager, MedalProgress } from "@game/modules/medal/medal";
+
+/** excel mock 行形状（本文件用到的字段） */
+interface ItemRowMock {
+  name?: string;
+}
+/** 干员表行窄视图（mock 表只提供稀有度） */
+interface CharRowMock {
+  rarity?: string | number;
+}
+/** 关卡表行窄视图（mock 表为空，仅为索引签名占位） */
+interface StageRowMock {
+  stageId?: string;
+}
+
+/** 用例写入的勋章表行窄视图（只含被读到的字段） */
+interface MedalRowMock {
+  medalId: string;
+  medalName?: string;
+  template?: string | null;
+  unlockParam?: string[];
+  preMedalIdList?: string[];
+  medalRewardGroup?: MedalRewardGroupMock[];
+}
+/** 勋章奖励组窄视图（itemList 元素类型与用例手写物品字面量兼容） */
+interface MedalRewardGroupMock {
+  groupId?: string;
+  itemList?: { id?: string; count?: number; type?: string }[];
+}
+
+/** `@excel/excel` 模块替身窄视图（用例就地覆写 medal / character 表） */
+interface MedalExcelMock {
+  MedalTable: { medalList: MedalRowMock[] };
+  CharacterTable: Record<string, CharRowMock>;
+}
+
+/**
+ * 旧存档勋章视图（目标位为 null）
+ *
+ * 真实模型 `PlayerPerMedal.val` 声明为 `number[][]`，但 NaN 经 JSON 落盘会变成 null，
+ * 旧存档的目标位可能为 null——用例据此验证「按重算目标回写」。
+ */
+interface LegacyMedalItem extends Omit<PlayerPerMedal, "val"> {
+  val: (number | null)[][];
+}
+
+/**
+ * 自定义布局夹具 → 真实模型类型（同一引用）
+ *
+ * 用例夹具的 `layout` 是字符串（"grid"/"list"），而真实模型
+ * `PlayerMedalCustomLayout.layout` 是条目数组；此处只做类型适配，不改夹具与断言。
+ * @param fixture - 用例局部布局夹具（字符串 layout + 可选 positions）
+ * @returns 同一对象，类型视作真实布局
+ */
+function asCustomLayout(fixture: {
+  layout: string | PlayerMedalCustomLayoutItem[];
+  positions?: number[];
+}): PlayerMedalCustomLayout {
+  return fixture as PlayerMedalCustomLayout;
+}
+
+/**
+ * 按模板名派发到 MedalProgress 的同名模板方法（与生产侧 MedalTemplateHandlers 同语义）
+ *
+ * 模板名由用例数据驱动，各模板方法签名统一为 `(args, mode)`。
+ * @param progress - 勋章进度实例
+ * @param template - 模板名（excel MedalTable 的 template 取值）
+ * @param args - 模板载荷（init 模式不读）
+ * @param mode - "init" | "update"
+ */
+function callTemplate(progress: MedalProgress, template: string, args: {}, mode: string): void {
+  (progress[template as keyof MedalProgress] as (args: {}, mode?: string) => void)(args, mode);
+}
 
 describe("MedalManager", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
-  let mockExcelRef: any;
+  let mockExcelRef: MedalExcelMock;
 
   beforeEach(async () => {
     vi.restoreAllMocks();
     mockTrigger = mockTypedEventEmitter();
-    mockExcelRef = (vi.mocked(await import("@excel/excel")).default as any);
+    mockExcelRef = vi.mocked(await import("@excel/excel")).default;
 
     mockPlayer = mockPlayerData({
       medal: {
@@ -120,10 +201,12 @@ describe("MedalManager", () => {
 
     mockPlayer._trigger = mockTrigger;
     mockPlayer.update = vi
-      .fn()
+      .fn<(recipe: MockUpdateRecipe) => Promise<void>>()
       .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+        async (recipe) => {
+          const draft = JSON.parse(
+            JSON.stringify(mockPlayer._playerdata)
+          ) as Draft<PlayerDataModel>;
           const result = await recipe(draft);
           Object.assign(mockPlayer._playerdata, draft);
           return result;
@@ -134,8 +217,8 @@ describe("MedalManager", () => {
   describe("constructor", () => {
     it("应该正确初始化 MedalManager 实例", () => {
       const manager = new MedalManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       expect(manager).toBeDefined();
       expect(manager.medals).toEqual({});
@@ -145,7 +228,7 @@ describe("MedalManager", () => {
 
     it("应该注册 medal:complete 事件监听", () => {
       const onSpy = vi.spyOn(mockTrigger, "on");
-      new MedalManager(mockPlayer as any, mockTrigger as any);
+      new MedalManager(asPlayerManager(mockPlayer), mockTrigger);
       expect(onSpy).toHaveBeenCalledWith(
         "medal:complete",
         expect.any(Function)
@@ -156,8 +239,8 @@ describe("MedalManager", () => {
   describe("init", () => {
     it("应该初始化勋章进度实例", async () => {
       const manager = new MedalManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       mockExcelRef.MedalTable.medalList = [
@@ -186,12 +269,12 @@ describe("MedalManager", () => {
   describe("setCustomData", () => {
     it("应该设置自定义展示数据", () => {
       const manager = new MedalManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const customData = { layout: "grid", positions: [0, 1, 2] };
-      manager.setCustomData({ index: "1", data: customData as any });
+      manager.setCustomData({ index: "1", data: asCustomLayout(customData) });
 
       expect(manager.custom.currentIndex).toBe("1");
       expect(manager.custom.customs["1"]).toEqual(customData);
@@ -199,11 +282,11 @@ describe("MedalManager", () => {
 
     it("应该覆盖已存在的自定义数据", () => {
       const manager = new MedalManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
-      manager.setCustomData({ index: "0", data: { layout: "list" } as any });
+      manager.setCustomData({ index: "0", data: asCustomLayout({ layout: "list" }) });
       expect(manager.custom.currentIndex).toBe("0");
       expect(manager.custom.customs["0"]).toEqual({ layout: "list" });
     });
@@ -212,8 +295,8 @@ describe("MedalManager", () => {
   describe("rewardMedal", () => {
     it("当勋章存在于 medals 中时应该设置 rts 并触发 items:get", async () => {
       const manager = new MedalManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const medalItems = [{ type: "FURN", id: "furn_001", count: 1 }];
@@ -237,8 +320,8 @@ describe("MedalManager", () => {
           rts: -1,
           fts: 0,
           reward: "",
-        } as any,
-        mockTrigger as any
+        },
+        mockTrigger
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -259,8 +342,8 @@ describe("MedalManager", () => {
 
     it("当勋章不在 medals 中时应该从 playerdata 设置 rts", async () => {
       const manager = new MedalManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const medalItems = [{ type: "DIAMOND", id: "4002", count: 1 }];
@@ -296,18 +379,18 @@ describe("MedalManager", () => {
 
     it("勋章进度更新应经共享引用写入持久态（_playerdata.medal.medals[id].val）", async () => {
       const manager = new MedalManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       await manager.init();
       // beforeEach 的 medal_test_001 带 val:[[50,100]]——MedalProgress.val 与该数组共享引用
-      const progress = manager.medals["medal_test_001"] as any;
+      const progress = manager.medals["medal_test_001"];
       progress.param = ["50"];
       progress.PlayerLevel({ level: 30 }, "update");
       expect(progress.val[0][0]).toBe(30);
       // 原地更新即写回持久态（服务端落盘/读取依赖此共享引用机制）
       expect(
-        (manager as any)._playerdata.medal.medals["medal_test_001"].val[0][0]
+        manager["_playerdata"].medal.medals["medal_test_001"].val[0][0]
       ).toBe(30);
     });
 
@@ -322,15 +405,15 @@ describe("MedalManager", () => {
       ];
       const markDirtySpy = vi.spyOn(mockPlayer, "markDirty");
       const manager = new MedalManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       await manager.init();
       // 真实 TypedEventEmitter（Emittery）：emit 会调用 init() 订阅的进度处理函数
-      await (mockTrigger as any).emit("PlayerLevel", [{ level: 30 }]);
+      await (mockTrigger).emit("PlayerLevel", [{ level: 30 }]);
       // 显式写回：持久态 val 同步（即使引用断链也会重链接）
       expect(
-        (manager as any)._playerdata.medal.medals["medal_test_001"].val[0][0]
+        manager["_playerdata"].medal.medals["medal_test_001"].val[0][0]
       ).toBe(30);
       // 显式标记脏：条件落盘不会漏掉 medal 进度更新
       expect(markDirtySpy).toHaveBeenCalled();
@@ -340,8 +423,8 @@ describe("MedalManager", () => {
   describe("onMedalComplete", () => {
     it("当勋章有奖励组时应该触发 rewardMedal", async () => {
       const manager = new MedalManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const rewardItems = [{ type: "FURN", id: "furn_test", count: 1 }];
@@ -367,8 +450,8 @@ describe("MedalManager", () => {
 
     it("当勋章没有奖励组时不应该触发 rewardMedal", async () => {
       const manager = new MedalManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       mockExcelRef.MedalTable.medalList = [
@@ -390,8 +473,8 @@ describe("MedalManager", () => {
   describe("toJSON", () => {
     it("应该序列化勋章数据", () => {
       const manager = new MedalManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       mockExcelRef.MedalTable.medalList = [
@@ -410,8 +493,8 @@ describe("MedalManager", () => {
           rts: 123,
           fts: 456,
           reward: "done",
-        } as any,
-        mockTrigger as any
+        },
+        mockTrigger
       );
 
       const json = manager.toJSON();
@@ -439,8 +522,8 @@ describe("MedalManager", () => {
           rts: 0,
           fts: 0,
           reward: "",
-        } as any,
-        mockTrigger as any
+        },
+        mockTrigger
       );
 
       expect(progress.id).toBe("test_medal");
@@ -466,8 +549,8 @@ describe("MedalManager", () => {
           rts: 0,
           fts: 0,
           reward: "",
-        } as any,
-        mockTrigger as any
+        },
+        mockTrigger
       );
 
       expect(progress).toBeDefined();
@@ -490,8 +573,8 @@ describe("MedalManager", () => {
           rts: 0,
           fts: 1,
           reward: "",
-        } as any,
-        mockTrigger as any
+        },
+        mockTrigger
       );
 
       expect(progress.val[0]).toEqual([0, 50]);
@@ -514,8 +597,8 @@ describe("MedalManager", () => {
           rts: 0,
           fts: 1,
           reward: "",
-        } as any,
-        mockTrigger as any
+        },
+        mockTrigger
       );
 
       progress.param = ["50"];
@@ -540,8 +623,8 @@ describe("MedalManager", () => {
           rts: 1000,
           fts: 0,
           reward: "test",
-        } as any,
-        mockTrigger as any
+        },
+        mockTrigger
       );
 
       const json = progress.toJSON();
@@ -559,8 +642,8 @@ describe("MedalManager", () => {
         },
       ];
       const progress = new MedalProgress(
-        { id: "medal_days", val: [[0, 30]], fts: 0, rts: -1, reward: "" } as any,
-        mockTrigger as any
+        { id: "medal_days", val: [[0, 30]], fts: 0, rts: -1, reward: "" },
+        mockTrigger
       );
       expect(progress.val[0][1]).toBe(30);
       progress.JoinGameDays({ registerTs: 100 }, "update");
@@ -577,8 +660,8 @@ describe("MedalManager", () => {
         },
       ];
       const progress = new MedalProgress(
-        { id: "medal_chnum", val: [[0, 10]], fts: 0, rts: -1, reward: "" } as any,
-        mockTrigger as any
+        { id: "medal_chnum", val: [[0, 10]], fts: 0, rts: -1, reward: "" },
+        mockTrigger
       );
       progress.CharNum({ curCharInstId: 8 }, "update");
       // 修复：实际干员数 = curCharInstId - 1（instId 从 1 递增）——原实现多算 1
@@ -595,8 +678,8 @@ describe("MedalManager", () => {
         },
       ];
       const progress = new MedalProgress(
-        { id: "medal_recruit", val: [[0, 5]], fts: 0, rts: -1, reward: "" } as any,
-        mockTrigger as any
+        { id: "medal_recruit", val: [[0, 5]], fts: 0, rts: -1, reward: "" },
+        mockTrigger
       );
       progress.RecruitCount({}, "update");
       progress.RecruitCount({}, "update");
@@ -614,8 +697,8 @@ describe("MedalManager", () => {
       ];
       mockExcelRef.CharacterTable = { char_001: { rarity: 5 } };
       const progress = new MedalProgress(
-        { id: "medal_got", val: [[0, 3]], fts: 0, rts: -1, reward: "" } as any,
-        mockTrigger as any
+        { id: "medal_got", val: [[0, 3]], fts: 0, rts: -1, reward: "" },
+        mockTrigger
       );
       progress.GotChars({ char: { charId: "char_001" } }, "update");
       expect(progress.val[0][0]).toBe(1);
@@ -631,8 +714,8 @@ describe("MedalManager", () => {
         },
       ];
       const progress = new MedalProgress(
-        { id: "medal_evolve", val: [[0, 1]], fts: 0, rts: -1, reward: "" } as any,
-        mockTrigger as any
+        { id: "medal_evolve", val: [[0, 1]], fts: 0, rts: -1, reward: "" },
+        mockTrigger
       );
       progress.CharEvolveCount({ char: { evolvePhase: 2 } }, "update");
       expect(progress.val[0][0]).toBe(1);
@@ -650,8 +733,8 @@ describe("MedalManager", () => {
         },
       ];
       const progress = new MedalProgress(
-        { id: "medal_radian_evolve", val: [[0, 0]], fts: 1, rts: -1, reward: "" } as any,
-        mockTrigger as any
+        { id: "medal_radian_evolve", val: [[0, 0]], fts: 1, rts: -1, reward: "" },
+        mockTrigger
       );
       progress.param = ["char_4195_radian", "2"];
       expect(progress._paramNum(1)).toBe(2);
@@ -677,8 +760,8 @@ describe("MedalManager", () => {
         },
       ];
       const progress = new MedalProgress(
-        { id: "medal_spec_01", val: [[0, 1]], fts: 1, rts: -1, reward: "" } as any,
-        mockTrigger as any
+        { id: "medal_spec_01", val: [[0, 1]], fts: 1, rts: -1, reward: "" },
+        mockTrigger
       );
       progress.param = ["1", "3"];
       // 专二不计数
@@ -703,8 +786,8 @@ describe("MedalManager", () => {
         },
       ];
       const progress = new MedalProgress(
-        { id: "medal_tower", val: [[0, 1]], fts: 1, rts: -1, reward: "" } as any,
-        mockTrigger as any
+        { id: "medal_tower", val: [[0, 1]], fts: 1, rts: -1, reward: "" },
+        mockTrigger
       );
       progress.param = ["tower_n_01", "0", "0"];
       progress.PassTower({ count: 1, stageId: "tower_n_01" }, "update");
@@ -715,12 +798,12 @@ describe("MedalManager", () => {
 
 describe("Medal 核心修复", () => {
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
-  let mockExcelRef: any;
+  let mockExcelRef: MedalExcelMock;
 
   beforeEach(async () => {
     vi.restoreAllMocks();
     mockTrigger = mockTypedEventEmitter();
-    mockExcelRef = (vi.mocked(await import("@excel/excel")).default as any);
+    mockExcelRef = vi.mocked(await import("@excel/excel")).default;
     mockExcelRef.MedalTable.medalList = [
       {
         medalId: "medal_lv_1",
@@ -748,8 +831,8 @@ describe("Medal 核心修复", () => {
   it("fts 非 0 但进度未满的勋章应注册进度监听", () => {
     const onSpy = vi.spyOn(mockTrigger, "on");
     new MedalProgress(
-      { id: "medal_lv_1", val: [[30, 50]], fts: 1000, rts: -1, reward: "" } as any,
-      mockTrigger as any,
+      { id: "medal_lv_1", val: [[30, 50]], fts: 1000, rts: -1, reward: "" },
+      mockTrigger,
     );
     expect(onSpy).toHaveBeenCalledWith("PlayerLevel", expect.any(Function));
   });
@@ -757,16 +840,16 @@ describe("Medal 核心修复", () => {
   it("进度已满的勋章不应注册监听", () => {
     const onSpy = vi.spyOn(mockTrigger, "on");
     new MedalProgress(
-      { id: "medal_lv_1", val: [[50, 50]], fts: 1000, rts: -1, reward: "" } as any,
-      mockTrigger as any,
+      { id: "medal_lv_1", val: [[50, 50]], fts: 1000, rts: -1, reward: "" },
+      mockTrigger,
     );
     expect(onSpy).not.toHaveBeenCalled();
   });
 
   it("val 缺失的勋章（旧数据）构造不应崩溃且回填持久态（共享引用防断链）", () => {
     const onSpy = vi.spyOn(mockTrigger, "on");
-    const item: any = { id: "medal_broken", fts: 0, rts: -1, reward: "" };
-    const progress = new MedalProgress(item, mockTrigger as any);
+    const item = asModel<PlayerPerMedal>({ id: "medal_broken", fts: 0, rts: -1, reward: "" });
+    const progress = new MedalProgress(item, mockTrigger);
     // init 在共享引用上构建进度结构 [0, unlockParam]（unlockParam ["1"]）并回填 item.val
     expect(progress.val[0][0]).toBe(0);
     expect(progress.val[0][1]).toBe(1);
@@ -781,8 +864,8 @@ describe("Medal 核心修复", () => {
     mockExcelRef.MedalTable.medalList = [
       { medalId: "medal_a", template: "PlayerLevel", unlockParam: ["10"], medalRewardGroup: [] },
     ];
-    const item: any = { id: "medal_a", fts: 0, rts: -1, reward: "" };
-    const progress = new MedalProgress(item, mockTrigger as any);
+    const item = asModel<PlayerPerMedal>({ id: "medal_a", fts: 0, rts: -1, reward: "" });
+    const progress = new MedalProgress(item, mockTrigger);
     // init 在共享引用上构建 [0, target] 并回填 item.val
     expect(item.val).toBe(progress.val);
     expect(progress.val[0][0]).toBe(0);
@@ -793,7 +876,7 @@ describe("Medal 核心修复", () => {
   });
 
   it("rewardMedal 已领取（rts != -1）不应重复发放", async () => {
-    const pd: any = mockPlayerData({
+    const pd = mockPlayerData({
       medal: {
         medals: {
           medal_lv_1: {
@@ -808,7 +891,7 @@ describe("Medal 核心修复", () => {
       },
     });
     pd._trigger = mockTrigger;
-    const manager = new MedalManager(pd as any, mockTrigger as any);
+    const manager = new MedalManager(asPlayerManager(pd), mockTrigger);
     await manager.init();
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     const items = await manager.rewardMedal({ medalId: "medal_lv_1", group: "g1" });
@@ -817,7 +900,7 @@ describe("Medal 核心修复", () => {
   });
 
   it("rewardMedal 领取后 rts 应持久化到 playerdata", async () => {
-    const pd: any = mockPlayerData({
+    const pd = mockPlayerData({
       medal: {
         medals: {
           medal_lv_1: {
@@ -832,7 +915,7 @@ describe("Medal 核心修复", () => {
       },
     });
     pd._trigger = mockTrigger;
-    const manager = new MedalManager(pd as any, mockTrigger as any);
+    const manager = new MedalManager(asPlayerManager(pd), mockTrigger);
     await manager.init();
     await manager.rewardMedal({ medalId: "medal_lv_1", group: "g1" });
     expect(pd._playerdata.medal.medals["medal_lv_1"].rts).not.toBe(-1);
@@ -841,34 +924,30 @@ describe("Medal 核心修复", () => {
 
 describe("MedalManager 集齐章结算", () => {
   it("前置章全部达成才点亮（未全不点亮）", async () => {
-    const ref = (vi.mocked(await import("@excel/excel")).default as any);
+    const ref: MedalExcelMock = vi.mocked(await import("@excel/excel")).default;
     ref.MedalTable.medalList = [
       { medalId: "G", medalName: "集章", template: null, preMedalIdList: ["P1", "P2"], medalRewardGroup: [] },
       { medalId: "P1", template: "PassStageSome", preMedalIdList: [], medalRewardGroup: [] },
       { medalId: "P2", template: "PassStageSome", preMedalIdList: [], medalRewardGroup: [] },
     ];
-    const player: any = {
-      _playerdata: {
-        medal: {
-          medals: {
-            G: { id: "G", val: [[]], fts: 0, rts: -1 },
-            P1: { id: "P1", val: [[0, 1]], fts: 100, rts: -1 },
-            P2: { id: "P2", val: [[0, 1]], fts: 0, rts: -1 },
-          },
-          custom: { currentIndex: "", customs: {} },
+    const player = mockPlayerData({
+      medal: {
+        medals: {
+          G: { id: "G", val: [[]], fts: 0, rts: -1 },
+          P1: { id: "P1", val: [[0, 1]], fts: 100, rts: -1 },
+          P2: { id: "P2", val: [[0, 1]], fts: 0, rts: -1 },
         },
+        custom: { currentIndex: "", customs: {} },
       },
-      markDirty: vi.fn(),
-      pushMessage: vi.fn(),
-    };
-    const mgr = new MedalManager(player, mockTypedEventEmitter());
+    });
+    const mgr = new MedalManager(asPlayerManager(player), mockTypedEventEmitter());
     mgr.medals = {};
     // P2 未完成（fts=0 且 val 未满）→ 集章不点亮
-    await (mgr as any)._settleCollectionMedals();
+    await mgr["_settleCollectionMedals"]();
     expect(player._playerdata.medal.medals["G"].fts).toBe(0);
     // P2 进度填满 → 全部前置达成 → 集章点亮（fts>0）
     player._playerdata.medal.medals["P2"].val = [[1, 1]];
-    await (mgr as any)._settleCollectionMedals();
+    await mgr["_settleCollectionMedals"]();
     expect(player._playerdata.medal.medals["G"].fts).toBeGreaterThan(0);
   });
 });
@@ -876,8 +955,8 @@ describe("MedalManager 集齐章结算", () => {
 describe("S1 勋章事件补齐（2026-09-09 修复）", () => {
   it("PassTower：按保全派驻关卡 id 判定通关（原 parseInt(param[0]) 恒 NaN）", () => {
     const p = new MedalProgress(
-      { id: "medal_tower_complete_01", fts: 1, rts: -1 } as any,
-      mockTypedEventEmitter() as any,
+      asModel<PlayerPerMedal>({ id: "medal_tower_complete_01", fts: 1, rts: -1 }),
+      mockTypedEventEmitter(),
     );
     p.param = ["tower_n_01", "0", "0"];
     p.PassTower({}, "init");
@@ -890,8 +969,8 @@ describe("S1 勋章事件补齐（2026-09-09 修复）", () => {
 
   it("PassTower：困难章需 isHard", () => {
     const p = new MedalProgress(
-      { id: "medal_tower_complete_05_hard", fts: 1, rts: -1 } as any,
-      mockTypedEventEmitter() as any,
+      asModel<PlayerPerMedal>({ id: "medal_tower_complete_05_hard", fts: 1, rts: -1 }),
+      mockTypedEventEmitter(),
     );
     p.param = ["tower_n_05", "0", "1"];
     p.PassTower({}, "init");
@@ -904,8 +983,8 @@ describe("S1 勋章事件补齐（2026-09-09 修复）", () => {
   it("GotItemBeforeTime：按物品 id + 截止时间判定（原为注册天数占位）", () => {
     const future = Math.floor(Date.now() / 1000) + 86400;
     const p = new MedalProgress(
-      { id: "medal_skin_1", fts: 1, rts: -1 } as any,
-      mockTypedEventEmitter() as any,
+      asModel<PlayerPerMedal>({ id: "medal_skin_1", fts: 1, rts: -1 }),
+      mockTypedEventEmitter(),
     );
     p.param = ["1", "char_264_f12yin@marthe#13", String(future)];
     p.GotItemBeforeTime({}, "init");
@@ -919,8 +998,8 @@ describe("S1 勋章事件补齐（2026-09-09 修复）", () => {
   it("GotItemBeforeTime：超过截止时间不再推进", () => {
     const past = Math.floor(Date.now() / 1000) - 86400;
     const p = new MedalProgress(
-      { id: "medal_skin_2", fts: 1, rts: -1 } as any,
-      mockTypedEventEmitter() as any,
+      asModel<PlayerPerMedal>({ id: "medal_skin_2", fts: 1, rts: -1 }),
+      mockTypedEventEmitter(),
     );
     p.param = ["1", "skin_x", String(past)];
     p.GotItemBeforeTime({}, "init");
@@ -930,8 +1009,8 @@ describe("S1 勋章事件补齐（2026-09-09 修复）", () => {
 
   it("CampaignsComplete：击杀 400 且无未领突破奖励才完成", () => {
     const p = new MedalProgress(
-      { id: "medal_camp_permanent_01", fts: 1, rts: -1 } as any,
-      mockTypedEventEmitter() as any,
+      asModel<PlayerPerMedal>({ id: "medal_camp_permanent_01", fts: 1, rts: -1 }),
+      mockTypedEventEmitter(),
     );
     p.param = ["camp_01"];
     p.CampaignsComplete({}, "init");
@@ -957,23 +1036,23 @@ describe("S1 勋章事件补齐（2026-09-09 修复）", () => {
 describe("S1 战斗统计勋章（2026-09-09 修复：模板占位/事件缺失）", () => {
   function makeP(id: string, param: string[]) {
     const p = new MedalProgress(
-      { id, fts: 1, rts: -1 } as any,
-      mockTypedEventEmitter() as any,
+      asModel<PlayerPerMedal>({ id, fts: 1, rts: -1 }),
+      mockTypedEventEmitter(),
     );
     p.param = param;
     return p;
   }
-  const stats = (over: any = {}) => ({
+  const stats = (over: Partial<PassStageStats> = {}): PassStageStats => ({
     stageId: "act47side_06",
     completeState: 3,
-    enemyStats: [] as any[],
-    extraBattleInfo: {} as Record<string, unknown>,
+    enemyStats: [],
+    extraBattleInfo: {},
     ...over,
   });
 
   it("PassStageWithSimpleCountLess：通关且计数器未触发才推进", () => {
     const p = makeP("m1", ["3", "act47side_06", "enemy_x", "FALLDOWN", "2"]);
-    p.PassStageWithSimpleCountLess({}, "init");
+    p.PassStageWithSimpleCountLess(asModel<PassStageStats>({}), "init");
     expect(p.val[0][1]).toBe(2);
     p.PassStageWithSimpleCountLess(
       stats({
@@ -988,7 +1067,7 @@ describe("S1 战斗统计勋章（2026-09-09 修复：模板占位/事件缺失�
 
   it("PassStageKilled：通关且击杀达标才推进", () => {
     const p = makeP("m2", ["3", "act42side_08", "enemy_10091_hlsttu_3", "1"]);
-    p.PassStageKilled({}, "init");
+    p.PassStageKilled(asModel<PassStageStats>({}), "init");
     p.PassStageKilled(stats({ stageId: "act99_01" }), "update");
     expect(p.val[0][0]).toBe(0); // 关卡不符
     p.PassStageKilled(
@@ -1005,7 +1084,7 @@ describe("S1 战斗统计勋章（2026-09-09 修复：模板占位/事件缺失�
 
   it("PassStageKilledLess：未击杀（不超阈值）才推进", () => {
     const p = makeP("m3", ["3", "act19side_ex07", "enemy_1257_lydrty", "0"]);
-    p.PassStageKilledLess({}, "init");
+    p.PassStageKilledLess(asModel<PassStageStats>({}), "init");
     p.PassStageKilledLess(
       stats({
         stageId: "act19side_ex07",
@@ -1027,7 +1106,7 @@ describe("S1 战斗统计勋章（2026-09-09 修复：模板占位/事件缺失�
       "trap_248_crprop",
       "30",
     ]);
-    p.PassStageKilledTotal({}, "init");
+    p.PassStageKilledTotal(asModel<PassStageStats>({}), "init");
     expect(p.val[0][1]).toBe(30);
     p.PassStageKilledTotal(
       stats({
@@ -1054,7 +1133,7 @@ describe("S1 战斗统计勋章（2026-09-09 修复：模板占位/事件缺失�
 
   it("PassStageWithSimpleTokenCountMore/Less：按 extraBattleInfo token 判定", () => {
     const more = makeP("m5", ["3", "act48side_ex01", "pirene_hp_full", "10"]);
-    more.PassStageWithSimpleTokenCountMore({}, "init");
+    more.PassStageWithSimpleTokenCountMore(asModel<PassStageStats>({}), "init");
     expect(more.val[0][1]).toBe(10);
     more.PassStageWithSimpleTokenCountMore(
       stats({ stageId: "act48side_ex01" }),
@@ -1071,7 +1150,7 @@ describe("S1 战斗统计勋章（2026-09-09 修复：模板占位/事件缺失�
     expect(more.val[0][0]).toBe(1);
 
     const less = makeP("m6", ["3", "act47side_06", "killed_by_nstree", "21"]);
-    less.PassStageWithSimpleTokenCountLess({}, "init");
+    less.PassStageWithSimpleTokenCountLess(asModel<PassStageStats>({}), "init");
     less.PassStageWithSimpleTokenCountLess(
       stats({ extraBattleInfo: { killed_by_nstree: 3 } }),
       "update",
@@ -1085,8 +1164,8 @@ describe("S1 战斗统计勋章（2026-09-09 修复：模板占位/事件缺失�
 describe("MedalManager 危机合约章（事件驱动 + unlockParam 参数位修复）", () => {
   /** 构造进度对象（param 由用例按官方 unlockParam 赋值） */
   function mk(id: string) {
-    const item: any = { id, fts: 1, rts: -1 };
-    return new MedalProgress(item, mockTypedEventEmitter() as any);
+    const item = asModel<PlayerPerMedal>({ id, fts: 1, rts: -1 });
+    return new MedalProgress(item, mockTypedEventEmitter());
   }
 
   // 修复（2026-09-09）：危机合约 / 重构符文系列的 unlockParam[0] 是**赛季 id**
@@ -1262,7 +1341,7 @@ describe("MedalManager 危机合约章（事件驱动 + unlockParam 参数位修
     for (const [tpl, params, want] of cases) {
       const p = mk("s_" + tpl + "_" + want);
       p.param = params;
-      (p as any)[tpl]({}, "init");
+      callTemplate(p, tpl, {}, "init");
       expect(p.val[0][1], tpl + JSON.stringify(params)).toBe(want);
       expect(Number.isFinite(p.val[0][1]), tpl).toBe(true);
     }
@@ -1294,14 +1373,14 @@ describe("MedalManager 危机合约章（事件驱动 + unlockParam 参数位修
     for (const [tpl, params, want] of cases) {
       const p = mk("t_" + tpl);
       p.param = params;
-      (p as any)[tpl]({}, "init");
+      callTemplate(p, tpl, {}, "init");
       expect(p.val[0][1], tpl).toBe(want);
       expect(Number.isFinite(p.val[0][1]), tpl).toBe(true);
     }
   });
 
   it("存档目标位为 null（旧实现 NaN 落盘）时按重算目标回写", () => {
-    const item: any = { id: "c10", fts: -1, rts: -1, val: [[0, null]] };
+    const item: LegacyMedalItem = { id: "c10", fts: -1, rts: -1, val: [[0, null]] };
     const prev = mockExcelRef.MedalTable.medalList;
     mockExcelRef.MedalTable.medalList = [
       {
@@ -1311,7 +1390,7 @@ describe("MedalManager 危机合约章（事件驱动 + unlockParam 参数位修
       },
     ];
     const markDirty = vi.fn();
-    const p = new MedalProgress(item, mockTypedEventEmitter() as any, markDirty);
+    const p = new MedalProgress(item as PlayerPerMedal, mockTypedEventEmitter(), markDirty);
     // NaN 经 JSON 落盘为 null → 回写为真实目标（否则客户端进度条无目标、
     // 且 rewardMedal/集齐章的完成判定 val[0][1] != null 永假）
     expect(item.val[0][1]).toBe(1);

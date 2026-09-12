@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { buildRoguelikeConsts } from "@game/excel/roguelike_consts_gen";
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string }
+/** excel mock 干员行形状（本文件用到的字段即可） */
+interface ExcelCharRowMock {
+  name?: string;
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+  subProfessionId?: string;
+}
 
 
 // 官方 excel mock：提供 RoguelikeConsts（由官方表派生，替代 data/rlv2.json）
@@ -7,11 +17,13 @@ import { buildRoguelikeConsts } from "@game/excel/roguelike_consts_gen";
 vi.mock("@excel/excel", () => ({
   default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
     charData(charId: string) { return this.CharacterTable?.[charId]; },
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
 
     RoguelikeTopicTable: {
       details: {
@@ -39,22 +51,53 @@ vi.mock("@excel/excel", () => ({
     RoguelikeConsts: {
       rogue_3: { outbuff: {}, modebuff: {}, recruitGrps: { recruit_group_1: ["ro3_ticket_a"] } },
     },
-    CharacterTable: {},
+    CharacterTable: {} as Record<string, ExcelCharRowMock>,
   },
 }));
 
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
-import { mockPlayerData } from "../../../helpers";
+import type { EventMap } from "@game/kernel/events";
+import type { RoguelikeInventoryManager } from "@game/modules/roguelike/inventory";
+import type { PlayerRoguelikeV2 } from "@game/modules/roguelike/rlv2-model";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
+import type { RoguelikePendingEvent } from "@game/modules/roguelike/events";
+import { mockPlayerData, asModel, type MockSeed } from "../../../helpers";
 
-function makePlayer(outer: any = {}) {
-  const pd: any = mockPlayerData({
+/** 开局 game 夹具类型（真实模型 `CurrentData.Game`） */
+type Rlv2Game = NonNullable<PlayerRoguelikeV2["current"]["game"]>;
+
+/**
+ * 待处理事件入队夹具视图
+ *
+ * `_pending._pending` 的元素是 `RoguelikePendingEvent` class（用例历史写法直接 push 字面量，
+ * 与构造器产出的对象在队列语义上等价：只按 `type`/`content` 读取）。生成模型
+ * `InitRecruitSetContent.option` 声明为 `string[]`（写入侧 events.ts 写数组），而本用例沿用
+ * 历史夹具值字符串；该字段在 `chooseInitialRecruitSet` 中不被读取（只消费 `{ select }` 参数，
+ * 见 game-init.ts）。为不改夹具数据，此处按读取侧声明视图，并做一次单向断言入队。
+ */
+interface PendingEventFixture {
+  type: string;
+  content: {
+    initRecruitSet?: { option?: string | string[] };
+    initRecruit?: { tickets?: string[]; showChar?: never[]; team?: string | null };
+  };
+}
+
+/** 按 {@link PendingEventFixture} 的说明入队一个夹具事件 */
+function pushPendingEvent(queue: RoguelikePendingEvent[], event: PendingEventFixture): void {
+  queue.push(event as RoguelikePendingEvent);
+}
+
+/** 构造玩家：`outer` 为局外数据夹具（深可选视图，字段名/类型仍受真实模型约束） */
+function makePlayer(outer: MockSeed<PlayerDataModel["rlv2"]["outer"]> = {}) {
+  const pd = mockPlayerData({
     rlv2: {
-      outer: outer as any,
-      current: { game: { theme: "rogue_3", modeGrade: 0 } } as any,
-      pinned: {} as any,
+      outer,
+      current: { game: { theme: "rogue_3", modeGrade: 0 } },
+      pinned: {} as string,
     },
-    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } } as any,
-    mission: { missions: { DAILY: {}, ACTIVITY: {} }, missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} } } as any,
+    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
+    mission: { missions: { DAILY: {}, ACTIVITY: {} }, missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} } },
   });
   return new PlayerDataManager(pd._playerdata);
 }
@@ -65,7 +108,7 @@ describe("rlv2 局外buff/难度buff/招募组数据", () => {
   beforeEach(() => {
     player = makePlayer({ rogue_3: { buff: { unlocked: {} } } });
     // RoguelikeV2Manager 构造会重置 current.game，需在此重设主题
-    player.rlv2.current.game = { theme: "rogue_3", mode: "NORMAL", modeGrade: 0, predefined: null } as any;
+    player.rlv2.current.game = asModel<Rlv2Game>({ theme: "rogue_3", mode: "NORMAL", modeGrade: 0, predefined: null });
   });
 
   describe("派生 RoguelikeConsts（官方 excel 取代 data/rlv2.json）", () => {
@@ -111,33 +154,37 @@ describe("rlv2 局外buff/难度buff/招募组数据", () => {
   describe("buff.create 容错", () => {
     it("modebuff 缺失时不崩（modebuff[modeGrade] 为 undefined 时跳过）", async () => {
       // mock 的 RoguelikeConsts.rogue_3.modebuff = {} → create 不崩
-      await expect((player.rlv2 as any)._buff.create()).resolves.not.toThrow();
+      await expect(player.rlv2._buff.create()).resolves.not.toThrow();
     });
 
     it("outer 无该主题数据（从未玩过）时不崩", async () => {
       // outer 为空（makePlayer 默认），create 遍历 unlocked 为空对象
       const emptyPlayer = makePlayer({});
-      emptyPlayer.rlv2.current.game = { theme: "rogue_3", mode: "NORMAL", modeGrade: 0, predefined: null } as any;
-      await expect((emptyPlayer.rlv2 as any)._buff.create()).resolves.not.toThrow();
+      emptyPlayer.rlv2.current.game = asModel<Rlv2Game>({ theme: "rogue_3", mode: "NORMAL", modeGrade: 0, predefined: null });
+      await expect(emptyPlayer.rlv2._buff.create()).resolves.not.toThrow();
     });
   });
 
   describe("chooseInitialRecruitSet 招募组", () => {
     it("应从官方 recruitTickets 发放 3 张标准职业招募票", async () => {
-      const emitSpy = vi.spyOn((player.rlv2 as any)._trigger, "emit");
+      const emitSpy = vi.spyOn(player.rlv2._trigger, "emit");
       // 注入 GAME_INIT_RECRUIT 事件（chooseInitialRecruitSet 需要找到它）
-      (player.rlv2 as any)._status._pending._pending.push(
-        { type: "GAME_INIT_RECRUIT_SET", content: { initRecruitSet: { option: "recruit_group_1" } } },
-        { type: "GAME_INIT_RECRUIT", content: { initRecruit: { tickets: [], showChar: [], team: null } } },
+      pushPendingEvent(player.rlv2._status._pending._pending, {
+        type: "GAME_INIT_RECRUIT_SET",
+        content: { initRecruitSet: { option: "recruit_group_1" } },
+      });
+      pushPendingEvent(player.rlv2._status._pending._pending, {
+        type: "GAME_INIT_RECRUIT",
+        content: { initRecruit: { tickets: [], showChar: [], team: null } },
+      });
+      player.rlv2.inventory = asModel<RoguelikeInventoryManager>({ recruit: {} });
+      await player.rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
+      const recruitGainCalls = emitSpy.mock.calls.filter(
+        (c): c is ["rlv2:recruit:gain", EventMap["rlv2:recruit:gain"]] => c[0] === "rlv2:recruit:gain",
       );
-      player.rlv2.inventory = {
-        recruit: {},
-      } as any;
-      await (player.rlv2 as any).chooseInitialRecruitSet({ select: "recruit_group_1" });
-      const recruitGainCalls = emitSpy.mock.calls.filter((c: any) => c[0] === "rlv2:recruit:gain");
       // 先手必胜组（recruit_group_1）→ 先锋、狙击、特种券各一张（官方组合映射）
       expect(recruitGainCalls.length).toBe(3);
-      const ticketIds = recruitGainCalls.map((c: any) => c[1][0]).sort();
+      const ticketIds = recruitGainCalls.map((c) => c[1][0]).sort();
       expect(ticketIds).toEqual([
         "rogue_3_recruit_ticket_pioneer",
         "rogue_3_recruit_ticket_sniper",
@@ -147,14 +194,20 @@ describe("rlv2 局外buff/难度buff/招募组数据", () => {
     });
 
     it("recruit_group_random 应发放 3 张随机标准职业票", async () => {
-      const emitSpy = vi.spyOn((player.rlv2 as any)._trigger, "emit");
-      (player.rlv2 as any)._status._pending._pending.push(
-        { type: "GAME_INIT_RECRUIT_SET", content: { initRecruitSet: { option: "recruit_group_random" } } },
-        { type: "GAME_INIT_RECRUIT", content: { initRecruit: { tickets: [], showChar: [], team: null } } },
+      const emitSpy = vi.spyOn(player.rlv2._trigger, "emit");
+      pushPendingEvent(player.rlv2._status._pending._pending, {
+        type: "GAME_INIT_RECRUIT_SET",
+        content: { initRecruitSet: { option: "recruit_group_random" } },
+      });
+      pushPendingEvent(player.rlv2._status._pending._pending, {
+        type: "GAME_INIT_RECRUIT",
+        content: { initRecruit: { tickets: [], showChar: [], team: null } },
+      });
+      player.rlv2.inventory = asModel<RoguelikeInventoryManager>({ recruit: {} });
+      await player.rlv2.chooseInitialRecruitSet({ select: "recruit_group_random" });
+      const recruitGainCalls = emitSpy.mock.calls.filter(
+        (c): c is ["rlv2:recruit:gain", EventMap["rlv2:recruit:gain"]] => c[0] === "rlv2:recruit:gain",
       );
-      player.rlv2.inventory = { recruit: {} } as any;
-      await (player.rlv2 as any).chooseInitialRecruitSet({ select: "recruit_group_random" });
-      const recruitGainCalls = emitSpy.mock.calls.filter((c: any) => c[0] === "rlv2:recruit:gain");
       expect(recruitGainCalls.length).toBe(3);
       for (const c of recruitGainCalls) {
         expect(c[1][0]).toMatch(/^rogue_3_recruit_ticket_(pioneer|warrior|tank|sniper|caster|support|medic|special)$/);

@@ -6,6 +6,11 @@ import { describe, it, expect, vi } from "vitest";
 // 狭路相逢（藏品+零件双池）/ Boss 藏品池 / 额外掉落池（地质调查分队）。
 // excel mock 的 relics/items 由真实 pools.json 成员动态构建（登记即合法）。
 
+/** 道具/藏品行夹具（本文件只登记 id/type/rarity 三键） */
+interface PoolRowFixture { id: string; type: string; rarity: number | string }
+/** 藏品行夹具（buffs 只登记空表，被测实现按 id 取材） */
+interface RelicRowFixture { id: string; buffs: never[] }
+
 vi.mock("@excel/excel", () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const fs = require("fs");
@@ -27,11 +32,11 @@ vi.mock("@excel/excel", () => {
     ...pools.pool_boss.members.slice(0, 3),
     ...pools.drop_extra_pool.members.slice(0, 3),
   ]);
-  const items: { [id: string]: any } = {
+  const items: { [id: string]: PoolRowFixture } = {
     rogue_6_gold: { id: "rogue_6_gold", type: "GOLD", rarity: 0 },
     rogue_6_band_21: { id: "rogue_6_band_21", type: "RELIC", rarity: 0 },
   };
-  const relics: { [id: string]: any } = {
+  const relics: { [id: string]: RelicRowFixture } = {
     rogue_6_band_21: { id: "rogue_6_band_21", buffs: [] },
   };
   for (const id of relicIds) {
@@ -67,7 +72,8 @@ vi.mock("@excel/excel", () => {
 
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import excel from "@excel/excel";
-import { mockPlayerData } from "../../../helpers";
+import { mockPlayerData, asModel } from "../../../helpers";
+import type { PlayerRoguelikeV2 } from "@game/modules/roguelike/rlv2-model";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const fs = require("fs");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -79,29 +85,32 @@ const realPools = JSON.parse(
   ),
 ).pools;
 
-function makePlayer(): any {
-  const pd: any = mockPlayerData({
+/** 开局 game 夹具类型（真实模型 CurrentData.Game） */
+type Rlv2Game = NonNullable<PlayerRoguelikeV2["current"]["game"]>;
+
+function makePlayer(): PlayerDataManager {
+  const pd = mockPlayerData({
     rlv2: {
-      outer: { rogue_6: {} } as any,
+      outer: { rogue_6: {} },
       current: {},
-      pinned: {},
-    } as any,
-    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } } as any,
+      pinned: {} as string,
+    },
+    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
     mission: {
       missions: { DAILY: {}, ACTIVITY: {} },
       missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} },
-    } as any,
+    },
   });
   const player = new PlayerDataManager(pd._playerdata);
-  (player.rlv2 as any).current.game = {
+  player.rlv2.current.game = asModel<Rlv2Game>({
     theme: "rogue_6",
     mode: "NORMAL",
     modeGrade: 0,
-  } as any;
+  });
   return player;
 }
 
-async function setup(player: any) {
+async function setup(player: PlayerDataManager) {
   // 构造期发射的 rlv2:init 为异步（Emittery 微任务），先冲刷再建池，
   // 否则 init 监听会在 create 之后把 _pools 清空
   await new Promise((r) => setTimeout(r, 0));
@@ -130,52 +139,52 @@ describe("战斗藏品选池（节点类型 / 特殊关卡）", () => {
   it("紧急作战节点 → node_battle_elite 观测池", async () => {
     const player = makePlayer();
     await setup(player);
-    const id = player.rlv2._battle.pickBattleRelic(2, "", []);
+    const id = player.rlv2._battle["pickBattleRelic"](2, "", []);
     expect(realPools.node_battle_elite.members).toContain(id);
   });
 
   it("险路恶敌（首领）→ pool_boss", async () => {
     const player = makePlayer();
     await setup(player);
-    const id = player.rlv2._battle.pickBattleRelic(4, "", []);
+    const id = player.rlv2._battle["pickBattleRelic"](4, "", []);
     expect(realPools.pool_boss.members).toContain(id);
   });
 
   it("“居民”据点 → node_battle_savage", async () => {
     const player = makePlayer();
     await setup(player);
-    const id = player.rlv2._battle.pickBattleRelic(134217728, "", []);
+    const id = player.rlv2._battle["pickBattleRelic"](134217728, "", []);
     expect(realPools.node_battle_savage.members).toContain(id);
   });
 
   it("无效验尸关卡（ro6_t_12）→ 专属 16 件池", async () => {
     const player = makePlayer();
     await setup(player);
-    const id = player.rlv2._battle.pickBattleRelic(1, "ro6_t_12", []);
+    const id = player.rlv2._battle["pickBattleRelic"](1, "ro6_t_12", []);
     expect(realPools.node_battle_normal_invalid_autopsy.members).toContain(id);
   });
 
   it("湖中仙女事件战（ro6_t_5 / ro6_e_t_5）→ 各自观测池", async () => {
     const player = makePlayer();
     await setup(player);
-    const id = player.rlv2._battle.pickBattleRelic(undefined, "ro6_t_5", []);
+    const id = player.rlv2._battle["pickBattleRelic"](undefined, "ro6_t_5", []);
     expect(realPools.node_incident_lake_fairy.members).toContain(id);
     const player2 = makePlayer();
     await setup(player2);
-    const id2 = player2.rlv2._battle.pickBattleRelic(undefined, "ro6_e_t_5", []);
+    const id2 = player2.rlv2._battle["pickBattleRelic"](undefined, "ro6_e_t_5", []);
     expect(realPools.node_incident_lake_fairy_emergency.members).toContain(id2);
   });
 
   it("狭路相逢（ro6_duel_*）→ 藏品池 + 零件池各可抽", async () => {
     const player = makePlayer();
     await setup(player);
-    const id = player.rlv2._battle.pickBattleRelic(undefined, "ro6_duel_1", []);
+    const id = player.rlv2._battle["pickBattleRelic"](undefined, "ro6_duel_1", []);
     expect(realPools.node_duel_relic.members).toContain(id);
-    const scrap = player.rlv2._battle.pickFromPool(
+    const scrap = player.rlv2._battle["pickFromPool"](
       "node_duel_scrap",
       [],
       (sid: string) =>
-        (excel.RoguelikeTopicTable.details as any).rogue_6.items[sid]?.type ===
+        excel.RoguelikeTopicTable.details.rogue_6.items[sid]?.type ===
         "SCRAP",
     );
     expect(realPools.node_duel_scrap.members).toContain(scrap);
@@ -185,10 +194,10 @@ describe("战斗藏品选池（节点类型 / 特殊关卡）", () => {
     const player = makePlayer();
     await setup(player);
     const only = realPools.node_battle_normal.members[0];
-    const first = player.rlv2._battle.pickBattleRelic(1, "", []);
+    const first = player.rlv2._battle["pickBattleRelic"](1, "", []);
     expect(first).toBe(only);
     // 池已抽空 → 降档（本 mock 稀有度池 = 全部登记藏品），不再返回同一件
-    const second = player.rlv2._battle.pickBattleRelic(1, "", [first]);
+    const second = player.rlv2._battle["pickBattleRelic"](1, "", [first]);
     expect(second).not.toBe(only);
     expect(second).not.toBe("");
   });
@@ -196,10 +205,10 @@ describe("战斗藏品选池（节点类型 / 特殊关卡）", () => {
   it("地质调查分队判定（持有 rogue_6_band_21）", async () => {
     const player = makePlayer();
     await setup(player);
-    expect(player.rlv2._battle.hasBand("rogue_6_band_21")).toBe(false);
-    player.rlv2.inventory._relic.relics = {
+    expect(player.rlv2._battle["hasBand"]("rogue_6_band_21")).toBe(false);
+    player.rlv2.inventory!._relic.relics = {
       r_0: { index: "r_0", id: "rogue_6_band_21", count: 1, ts: 0 },
     };
-    expect(player.rlv2._battle.hasBand("rogue_6_band_21")).toBe(true);
+    expect(player.rlv2._battle["hasBand"]("rogue_6_band_21")).toBe(true);
   });
 });

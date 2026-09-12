@@ -1,6 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { CharacterData, StageData } from "@excel/types_excel_gen";
+
+/** 物品表窄视图行（InventoryManager 只读 itemType/rarity；name 供门面 itemName 回退） */
+interface MockItemRow {
+  itemType: string;
+  rarity: number;
+  name?: string;
+}
+
+/** excel 单例类型（mockExcelRef 用它替代 any） */
+type ExcelSingleton = typeof import("@excel/excel")["default"];
 
 vi.mock("@excel/excel", () => {
+  /** 物品表（带索引签名；expItems 供经验类物品换算） */
+  const itemTable: {
+    items: Record<string, MockItemRow>;
+    expItems: Record<string, { gainExp: number }>;
+  } = {
+    items: {
+      mat_001: { itemType: "MATERIAL", rarity: 1 },
+      exp_mat: { itemType: "CARD_EXP", rarity: 0 },
+      gold: { itemType: "GOLD", rarity: 0 },
+      ap_item: { itemType: "AP_GAMEPLAY", rarity: 0 },
+      char_skin: { itemType: "CHAR_SKIN", rarity: 0 },
+    },
+    expItems: {
+      exp_mat: { gainExp: 50 },
+    },
+  };
+  /** 干员表（本例为空表：门面 charData 恒取不到） */
+  const characterTable: Record<string, CharacterData> = {};
+  /** 关卡表（本例为空表：门面 stageData 恒取不到） */
+  const stages: Record<string, StageData> = {};
   return {
     default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
@@ -25,7 +56,7 @@ vi.mock("@excel/excel", () => {
       },
       MedalTable: { medalList: [], medalTypeData: {} },
       StageTable: {
-        stages: {},
+        stages,
         runeStageGroups: {},
         mapThemes: {},
         tileInfo: {},
@@ -60,19 +91,8 @@ vi.mock("@excel/excel", () => {
         playerExpMap: [100, 200, 300],
         playerApMap: [100, 110, 120],
       },
-      CharacterTable: {},
-      ItemTable: {
-        items: {
-          mat_001: { itemType: "MATERIAL", rarity: 1 },
-          exp_mat: { itemType: "CARD_EXP", rarity: 0 },
-          gold: { itemType: "GOLD", rarity: 0 },
-          ap_item: { itemType: "AP_GAMEPLAY", rarity: 0 },
-          char_skin: { itemType: "CHAR_SKIN", rarity: 0 },
-        },
-        expItems: {
-          exp_mat: { gainExp: 50 },
-        },
-      },
+      CharacterTable: characterTable,
+      ItemTable: itemTable,
       ShopClientTable: {},
       SkillDataBundle: {},
       ActivityTable: {
@@ -103,18 +123,26 @@ vi.mock("@utils/time", () => ({
 
 
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  asPlayerManager,
+  mockPlayerData,
+  mockTypedEventEmitter,
+} from "../../helpers";
 import { InventoryManager } from "@game/kernel/inventory";
+import type { PipelineItem } from "@game/kernel/inventory-pipeline";
+import { asShape } from "@game/modules/activities/shared/activity-json";
+import type { ItemBundle } from "@excel/excel";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
 
 describe("InventoryManager", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
-  let mockExcelRef: any;
+  let mockExcelRef: ExcelSingleton;
 
   beforeEach(async () => {
     vi.restoreAllMocks();
     mockTrigger = mockTypedEventEmitter();
-    mockExcelRef = (vi.mocked(await import("@excel/excel")).default as any);
+    mockExcelRef = vi.mocked((await import("@excel/excel")).default);
 
     mockPlayer = mockPlayerData({
       inventory: {},
@@ -157,23 +185,20 @@ describe("InventoryManager", () => {
     });
 
     mockPlayer._trigger = mockTrigger;
-    mockPlayer.update = vi
-      .fn()
-      .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-          const result = await recipe(draft);
-          Object.assign(mockPlayer._playerdata, draft);
-          return result;
-        }
-      );
+    // 覆写替身默认 update：与 helper 实现等价（JSON 深拷贝 draft → recipe → 回写）
+    mockPlayer.update.mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   });
 
   describe("constructor", () => {
     it("应该正确初始化 InventoryManager 实例", () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       expect(manager).toBeDefined();
       expect(manager._player).toBe(mockPlayer);
@@ -182,7 +207,7 @@ describe("InventoryManager", () => {
 
     it("应该注册 items:use 和 items:get 事件监听", () => {
       const onSpy = vi.spyOn(mockTrigger, "on");
-      new InventoryManager(mockPlayer as any, mockTrigger as any);
+      new InventoryManager(asPlayerManager(mockPlayer), mockTrigger);
       expect(onSpy).toHaveBeenCalledWith(
         "items:use",
         expect.any(Function)
@@ -203,8 +228,8 @@ describe("InventoryManager", () => {
       };
 
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       expect(manager.skinCnt).toBe(3);
@@ -214,8 +239,8 @@ describe("InventoryManager", () => {
       mockPlayer._playerdata.skin!.characterSkins = {};
 
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       expect(manager.skinCnt).toBe(0);
@@ -225,8 +250,8 @@ describe("InventoryManager", () => {
   describe("gainItem", () => {
     it("MATERIAL 类型物品应该增加到库存", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.gainItem({
@@ -245,8 +270,8 @@ describe("InventoryManager", () => {
       // itemType = "SO_CHAR_EXP"，原 gainItem 未处理该类型 → 走「未知物品类型」
       // WARN 分支静默跳过，特勤干员周任务奖励（6000/8000 特勤作战记录）发放失败。
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.gainItem({
@@ -268,8 +293,8 @@ describe("InventoryManager", () => {
 
     it("GOLD 类型物品应该增加金币", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.gainItem({
@@ -283,8 +308,8 @@ describe("InventoryManager", () => {
 
     it("EXP_PLAYER 类型物品应该增加经验值", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.gainItem({
@@ -298,8 +323,8 @@ describe("InventoryManager", () => {
 
     it("CHAR 类型物品应该触发 char:get 事件", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -314,8 +339,8 @@ describe("InventoryManager", () => {
 
     it("CHAR_SKIN 类型物品应该添加皮肤记录", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.gainItem({
@@ -331,8 +356,8 @@ describe("InventoryManager", () => {
 
     it("AP_GAMEPLAY 类型物品应该增加理智值", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const oldAp = mockPlayer._playerdata.status!.ap;
@@ -347,8 +372,8 @@ describe("InventoryManager", () => {
 
     it("TKT_GACHA 类型物品应该增加寻访凭证", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.gainItem({
@@ -362,8 +387,8 @@ describe("InventoryManager", () => {
 
     it("DIAMOND 类型物品应该增加合成玉", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.gainItem({
@@ -387,8 +412,8 @@ describe("InventoryManager", () => {
       };
 
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager._useItem({
@@ -405,13 +430,13 @@ describe("InventoryManager", () => {
 
     it("非消耗类型物品应该触发反向 items:get", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
       // 修复（2026-09-09）：消耗前校验余额——先给足 3 个材料
-      (mockPlayer._playerdata as any).inventory["mat_001"] = 3;
+      mockPlayer._playerdata.inventory["mat_001"] = 3;
       await manager._useItem({
         type: "MATERIAL",
         id: "mat_001",
@@ -426,16 +451,16 @@ describe("InventoryManager", () => {
 
     it("余额不足的材料消耗应抛 BadRequestError（防负库存）", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
-      (mockPlayer._playerdata as any).inventory["mat_001"] = 1;
+      mockPlayer._playerdata.inventory["mat_001"] = 1;
       await expect(
         manager._useItem({ type: "MATERIAL", id: "mat_001", count: 3 })
       ).rejects.toThrow(/物品不足/);
       // 余额未被扣成负数
-      expect((mockPlayer._playerdata as any).inventory["mat_001"]).toBe(1);
+      expect(mockPlayer._playerdata.inventory["mat_001"]).toBe(1);
     });
 
     // Round 42：把「拒绝负数量」下沉为 items:use 的全局不变量 —— 负数量在 _useItem
@@ -443,63 +468,66 @@ describe("InventoryManager", () => {
     // canConsume 的 Math.abs 校验即可凭空复制物品（Round 41 的两处入口漏洞即由此放大）。
     it("items:use 负数量应被拒绝（不反向发放物品）", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
-      (mockPlayer._playerdata as any).inventory["mat_001"] = 5;
+      mockPlayer._playerdata.inventory["mat_001"] = 5;
       await expect(
         mockTrigger.emit("items:use", [
           [{ type: "MATERIAL", id: "mat_001", count: -5 }],
-        ] as any)
+        ])
       ).rejects.toThrow(/数量非法/);
       // 库存未被反向增加
-      expect((mockPlayer._playerdata as any).inventory["mat_001"]).toBe(5);
+      expect(mockPlayer._playerdata.inventory["mat_001"]).toBe(5);
     });
 
     it("items:use 数量 0 仍放行（免费商品价格为 0 的场景）", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
-      (mockPlayer._playerdata as any).inventory["mat_001"] = 5;
+      mockPlayer._playerdata.inventory["mat_001"] = 5;
       await expect(
         mockTrigger.emit("items:use", [
           [{ type: "MATERIAL", id: "mat_001", count: 0 }],
-        ] as any)
+        ])
       ).resolves.toBeUndefined();
-      expect((mockPlayer._playerdata as any).inventory["mat_001"]).toBe(5);
+      expect(mockPlayer._playerdata.inventory["mat_001"]).toBe(5);
     });
 
     it("canConsume：材料 0 持有应报告不足、充足应放行", () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
-      (mockPlayer._playerdata as any).inventory["mat_001"] = 0;
+      mockPlayer._playerdata.inventory["mat_001"] = 0;
       expect(
-        manager.canConsume({ type: "MATERIAL", id: "mat_001", count: 1 } as any)
+        manager.canConsume({ type: "MATERIAL", id: "mat_001", count: 1 })
       ).toMatch(/持有 0/);
-      (mockPlayer._playerdata as any).inventory["mat_001"] = 2;
+      mockPlayer._playerdata.inventory["mat_001"] = 2;
       expect(
-        manager.canConsume({ type: "MATERIAL", id: "mat_001", count: 2 } as any)
+        manager.canConsume({ type: "MATERIAL", id: "mat_001", count: 2 })
       ).toBeNull();
       // 未纳入校验的类型（AP）不拦截
       expect(
-        manager.canConsume({ type: "AP_GAMEPLAY", id: "", count: 999 } as any)
+        manager.canConsume({ type: "AP_GAMEPLAY", id: "", count: 999 })
       ).toBeNull();
     });
 
     it("无 type 且 ItemTable 不存在的物品应跳过（不 500）", async () => {
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
+      // 用例刻意省略 type（覆盖缺 type 的防御分支）：契约要求 type，故按「宽视图」声明后
+      // 断言到契约类型；运行期载荷仍是 { id, count } 两项，一字未改。
+      const noTypeItem = { id: "DIAMOND_SHD", count: 600 };
       await expect(
-        manager._useItem({ id: "DIAMOND_SHD", count: 600 })
+        manager._useItem(noTypeItem as PipelineItem)
       ).resolves.toBeUndefined();
       await expect(
-        manager.gainItem({ id: "TKT_GACHA", count: 1 })
+        manager.gainItem({ id: "TKT_GACHA", count: 1 } as ItemBundle)
       ).resolves.toBeUndefined();
     });
   });
@@ -510,16 +538,20 @@ describe("InventoryManager", () => {
         TYPE_ACT53SIDE: { act53side: { actCoin: 0, campaignCnt: 0, favorList: [] } },
       };
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await mockTrigger.emit("items:get", [[
         { id: "act53side_token_photo", type: "ACTIVITY_ITEM", count: 3 },
       ]]);
 
+      // TYPE_ACT53SIDE 第三层（actCoin）未在生成类型具名登记：读取处经活动 JSON 收窄助手
+      // 就地取视图（与 kernel/inventory.ts 生产侧 asJsonShape 同款），断言仍读存档实际值。
       expect(
-        mockPlayer._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin
+        asShape<{ actCoin?: number }>(
+          mockPlayer._playerdata.activity.TYPE_ACT53SIDE.act53side
+        )?.actCoin
       ).toBe(3);
     });
 
@@ -528,14 +560,16 @@ describe("InventoryManager", () => {
         TYPE_ACT53SIDE: { act53side: { actCoin: 5, campaignCnt: 0, favorList: [] } },
       };
       const manager = new InventoryManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.gainItem({ id: "mat_001", type: "MATERIAL", count: 1 });
 
       expect(
-        mockPlayer._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin
+        asShape<{ actCoin?: number }>(
+          mockPlayer._playerdata.activity.TYPE_ACT53SIDE.act53side
+        )?.actCoin
       ).toBe(5);
     });
   });

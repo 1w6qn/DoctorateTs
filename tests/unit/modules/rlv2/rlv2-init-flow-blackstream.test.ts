@@ -1,4 +1,14 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string }
+/** excel mock 干员行形状（本文件用到的字段即可） */
+interface ExcelCharRowMock {
+  name?: string;
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+  subProfessionId?: string;
+}
 
 // ===== rogue_6（黑流树海）初始流程修正回归（对照 prts.wiki 开始探索节） =====
 // 1. 行动奖励触发门槛：上一把「至少通过两层」（2 层通关记录即触发，兼容 3 层样本）
@@ -6,11 +16,13 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 //    未编号物=NORMAL 藏品 / 巢寄生=RARE 藏品+零件箱-1 / 林间代步=加工品 / 空间租赁=-6金+零件箱+2
 const excelMock = vi.hoisted(() => ({
   // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
   itemName(id: string): string { return this.getItem(id)?.name ?? id; },
   makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
   charData(charId: string) { return this.CharacterTable?.[charId]; },
   stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+  ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+  StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
   RoguelikeTopicTable: {
     details: {
       rogue_6: {
@@ -81,44 +93,49 @@ const excelMock = vi.hoisted(() => ({
     },
     consts: {},
   },
-  CharacterTable: {},
+  CharacterTable: {} as Record<string, ExcelCharRowMock>,
   GameDataConst: { maxLevel: [[], [], [], [], [], []] },
 }));
 
 vi.mock("@excel/excel", () => ({ default: excelMock }));
 
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
-import { mockPlayerData } from "../../../helpers";
+import { mockPlayerData, asModel } from "../../../helpers";
 import { RoguelikePendingEvent } from "@game/modules/roguelike/events";
+import type { PlayerRoguelikeV2 } from "@game/modules/roguelike/rlv2-model";
 
-function makePlayer(): any {
-  const pd: any = mockPlayerData({
+/** 开局 game 夹具类型（真实模型 `CurrentData.Game`） */
+type Rlv2Game = NonNullable<PlayerRoguelikeV2["current"]["game"]>;
+
+function makePlayer(): PlayerDataManager {
+  const pd = mockPlayerData({
     rlv2: {
-      outer: { rogue_6: {} } as any,
+      outer: { rogue_6: {} },
       current: {},
-      pinned: {},
-    } as any,
-    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } } as any,
+      pinned: {} as string,
+    },
+    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
     mission: {
       missions: { DAILY: {}, ACTIVITY: {} },
       missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} },
-    } as any,
+    },
   });
   const player = new PlayerDataManager(pd._playerdata);
-  (player.rlv2 as any).current.game = {
+  // 夹具只声明被测分支读到的键，其余 game 字段由惰性分支承受
+  player.rlv2.current.game = asModel<Rlv2Game>({
     theme: "rogue_6",
     mode: "NORMAL",
     modeGrade: 0,
     outer: { support: true },
-  } as any;
+  });
   return player;
 }
 
 /** 构造 GAME_INIT_SUPPORT pending 事件并入队（与官方初始流程同序） */
-function pushSupport(player: any): void {
+function pushSupport(player: PlayerDataManager): void {
   const ev = new RoguelikePendingEvent(
     player.rlv2,
-    (player.rlv2 as any)._trigger,
+    player.rlv2._trigger,
     "GAME_INIT_SUPPORT",
     0,
     { step: [1, 3] },
@@ -126,8 +143,8 @@ function pushSupport(player: any): void {
   player.rlv2._status._pending._pending.push(ev);
 }
 
-function relicsOf(player: any): string[] {
-  return Object.values(player.rlv2.inventory.relic).map((r: any) => r.id);
+function relicsOf(player: PlayerDataManager): string[] {
+  return Object.values(player.rlv2.inventory!.relic).map((r) => r.id);
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -135,7 +152,7 @@ afterEach(() => vi.restoreAllMocks());
 describe("行动奖励触发门槛（prts.wiki「至少通过两层」）", () => {
   it("2 层通关记录即触发；无记录不触发；3 层样本兼容", () => {
     const player = makePlayer();
-    const f = (player.rlv2 as any).hasReachedZone3.bind(player.rlv2);
+    const f = player.rlv2.hasReachedZone3.bind(player.rlv2);
     expect(f({ ro6_n_2_1: 1 })).toBe(true);
     expect(f({ ro6_e_2_3: 1 })).toBe(true);
     expect(f({ ro6_n_3_1: 1 })).toBe(true); // 抓包样本形态兼容
@@ -196,7 +213,7 @@ describe("行动奖励发放（官方语义）", () => {
     await new Promise((r) => setTimeout(r, 0));
     await player.rlv2.selectChoice({ choice: "choice_ro6_startbuff_5" });
     const ids = Object.values(player.rlv2._module.scrap.inventory).map(
-      (it: any) => it.id,
+      (it) => it.id,
     );
     // 开局自带 2 件 G_01（seedInitial）+ 1 件 MOVE 加工品
     expect(ids.some((id: string) => id.startsWith("rogue_6_scrap_M_"))).toBe(true);

@@ -8,6 +8,23 @@ import {
   ensureCampaignsV2State,
   refreshCampaignMissions,
 } from "@game/modules/campaignV2/public";
+import type {
+  BreakLadder,
+  CampaignMissionCfg,
+  CampaignsV2State,
+} from "@game/modules/campaignV2/public";
+
+/**
+ * campaignsV2 存档视图
+ *
+ * `missions`（委托任务达标状态）是服务端扩展字段，存档模型与 `CampaignsV2State` 均未声明
+ * （生产侧 accrue.ts 以就地窄化 `{ missions?: Record<string, number> }` 承载）；
+ * 本视图与生产侧同源，其余字段仍受 `CampaignsV2State` 约束。
+ */
+type CampaignsV2View = CampaignsV2State & { missions?: Record<string, number> };
+
+/** 用例草稿视图：夹具总是提供 campaignsV2，故此处收为必填 */
+type DraftWithCampaigns = { campaignsV2: CampaignsV2View };
 
 /**
  * 剿灭作战（campaignV2）每周经济单元测试
@@ -18,7 +35,7 @@ describe("campaignV2 每周经济", () => {
   const TS = 1_788_000_000; // 固定时间戳（2026-09）
 
   it("ensureCampaignsV2State 应补齐结构并按周重置 currentFee", () => {
-    const draft: any = {
+    const draft: DraftWithCampaigns = {
       campaignsV2: { campaignCurrentFee: 1800, campaignTotalFee: 1800, lastRefreshTs: 1 },
     };
     const root = ensureCampaignsV2State(draft, TS);
@@ -29,7 +46,7 @@ describe("campaignV2 每周经济", () => {
   });
 
   it("同一周内不应重复重置", () => {
-    const draft: any = {
+    const draft: DraftWithCampaigns = {
       campaignsV2: { campaignCurrentFee: 300, campaignTotalFee: 1800, lastRefreshTs: TS },
     };
     const root = ensureCampaignsV2State(draft, TS + 60);
@@ -37,7 +54,7 @@ describe("campaignV2 每周经济", () => {
   });
 
   it("accrueCampaignKills 应记录 maxKills 并按击杀累计合成玉", () => {
-    const draft: any = { campaignsV2: { lastRefreshTs: TS } };
+    const draft: DraftWithCampaigns = { campaignsV2: { lastRefreshTs: TS } };
     const first = accrueCampaignKills(draft, "camp_01", 400, TS + 10);
     expect(first.gained).toBe(400);
     expect(first.after).toBe(400);
@@ -50,7 +67,7 @@ describe("campaignV2 每周经济", () => {
   });
 
   it("每周上限 campaignTotalFee 应封顶（超出部分不发）", () => {
-    const draft: any = {
+    const draft: DraftWithCampaigns = {
       campaignsV2: { campaignCurrentFee: 1700, campaignTotalFee: 1800, lastRefreshTs: TS },
     };
     const r = accrueCampaignKills(draft, "camp_02", 400, TS + 30);
@@ -62,7 +79,7 @@ describe("campaignV2 每周经济", () => {
   });
 
   it("campaignWeeklyBudget 应给出本周剩余额度", () => {
-    const draft: any = {
+    const draft: DraftWithCampaigns = {
       campaignsV2: { campaignCurrentFee: 1200, campaignTotalFee: 1800, lastRefreshTs: TS },
     };
     const budget = campaignWeeklyBudget(draft, TS + 5);
@@ -78,7 +95,7 @@ describe("campaignV2 每周经济", () => {
 });
 describe("campaignV2 突破奖励（进度奖励）", () => {
   const TS = Math.floor(Date.now() / 1000);
-  const ladders = [
+  const ladders: BreakLadder[] = [
     {
       killCnt: 100,
       breakFeeAdd: 0,
@@ -92,7 +109,7 @@ describe("campaignV2 突破奖励（进度奖励）", () => {
   ];
 
   it("未达标档位不可领，达标档位可领并入账", () => {
-    const draft: any = {
+    const draft: DraftWithCampaigns = {
       campaignsV2: {
         campaignCurrentFee: 0,
         campaignTotalFee: 1800,
@@ -104,11 +121,11 @@ describe("campaignV2 突破奖励（进度奖励）", () => {
     expect(r.claimed).toEqual([0]);
     expect(r.items).toEqual([{ id: "4001", count: 4000, type: "GOLD" }]);
     expect(r.allClaimed).toBe(false);
-    expect(draft.campaignsV2.instances.camp_01.rewardStatus).toEqual([1, 0]);
+    expect(draft.campaignsV2.instances!.camp_01!.rewardStatus).toEqual([1, 0]);
   });
 
   it("一键领取（indexList 为空）应领完所有可领档位并回报 allClaimed", () => {
-    const draft: any = {
+    const draft: DraftWithCampaigns = {
       campaignsV2: {
         campaignCurrentFee: 0,
         campaignTotalFee: 1800,
@@ -125,7 +142,7 @@ describe("campaignV2 突破奖励（进度奖励）", () => {
   });
 
   it("重复领取不重复发放（rewardStatus 幂等）", () => {
-    const draft: any = {
+    const draft: DraftWithCampaigns = {
       campaignsV2: {
         campaignCurrentFee: 0,
         campaignTotalFee: 1800,
@@ -142,7 +159,7 @@ describe("campaignV2 突破奖励（进度奖励）", () => {
   });
 
   it("feeAdd 受每周上限约束", () => {
-    const draft: any = {
+    const draft: DraftWithCampaigns = {
       campaignsV2: {
         campaignCurrentFee: 1790,
         campaignTotalFee: 1800,
@@ -157,13 +174,13 @@ describe("campaignV2 突破奖励（进度奖励）", () => {
 });
 describe("campaignV2 委托任务（campaignMissions）", () => {
   const TS = Math.floor(Date.now() / 1000);
-  const missions = {
+  const missions: Record<string, CampaignMissionCfg> = {
     exterminateActivity_1: { id: "exterminateActivity_1", param: ["200", "100"], breakFeeAdd: 25 },
     exterminateActivity_2: { id: "exterminateActivity_2", param: ["300", "150"], breakFeeAdd: 25 },
   };
 
   it("刷新达标：最高单次歼灭数跨委托取最大值，达标任务置 1", () => {
-    const draft: any = {
+    const draft: DraftWithCampaigns = {
       campaignsV2: {
         campaignCurrentFee: 0,
         campaignTotalFee: 1800,
@@ -181,7 +198,7 @@ describe("campaignV2 委托任务（campaignMissions）", () => {
   });
 
   it("领取委托奖励：feeAdd 计入本周进度并置 2（不可重复领）", () => {
-    const draft: any = {
+    const draft: DraftWithCampaigns = {
       campaignsV2: {
         campaignCurrentFee: 100,
         campaignTotalFee: 1800,
@@ -194,7 +211,7 @@ describe("campaignV2 委托任务（campaignMissions）", () => {
     expect(r.ok).toBe(true);
     expect(r.feeGain).toBe(25);
     expect(draft.campaignsV2.campaignCurrentFee).toBe(125);
-    expect(draft.campaignsV2.missions.exterminateActivity_1).toBe(2);
+    expect(draft.campaignsV2.missions!.exterminateActivity_1).toBe(2);
     // 重复领取被拒
     const again = claimCampaignMissionReward(draft, "exterminateActivity_1", missions, TS);
     expect(again.ok).toBe(false);
@@ -202,7 +219,7 @@ describe("campaignV2 委托任务（campaignMissions）", () => {
   });
 
   it("未达标（state=0）不可领取", () => {
-    const draft: any = {
+    const draft: DraftWithCampaigns = {
       campaignsV2: {
         campaignCurrentFee: 0,
         campaignTotalFee: 1800,
@@ -213,6 +230,6 @@ describe("campaignV2 委托任务（campaignMissions）", () => {
     };
     const r = claimCampaignMissionReward(draft, "exterminateActivity_2", missions, TS);
     expect(r.ok).toBe(false);
-    expect(draft.campaignsV2.missions.exterminateActivity_2).toBeUndefined();
+    expect(draft.campaignsV2.missions!.exterminateActivity_2).toBeUndefined();
   });
 });

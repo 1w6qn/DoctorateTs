@@ -8,6 +8,7 @@
  */
 import { describe, it, expect } from "vitest";
 import excel from "@excel/excel";
+import type { Excel } from "@excel/excel";
 import {
   buffValue,
   buffValueForTarget,
@@ -19,9 +20,12 @@ import { ControlGlobalTpl } from "@game/modules/building/buffs/control-global";
 import { DormRecoveryTpl } from "@game/modules/building/buffs/dorm-recovery";
 import { MoodCostTpl } from "@game/modules/building/buffs/mood-cost";
 
-function allBuffs(): any[] {
-  const building = (excel as any).BuildingData as any;
-  return Object.values(building?.buffs ?? {});
+/** excel.BuildingData.buffs 的单行类型（与 buff-parse 的 ExcelBuildingBuff 同源） */
+type BuildingBuffRow = Excel["BuildingData"]["buffs"][string];
+
+function allBuffs(): BuildingBuffRow[] {
+  const buffs: Record<string, BuildingBuffRow> = excel.BuildingData?.buffs ?? {};
+  return Object.values(buffs);
 }
 
 describe("buff 模板注册表", () => {

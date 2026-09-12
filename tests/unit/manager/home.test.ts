@@ -1,14 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type {
+  CharacterData,
+  ItemData,
+  StageData,
+} from "@excel/types_excel_gen";
 
 vi.mock("@excel/excel", () => {
   return {
     default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    // 本替身刻意不提供数据表：三张表恒为空，查表得到 undefined（与旧夹具一致）
+    ItemTable: undefined as { items?: Record<string, ItemData> } | undefined,
+    CharacterTable: undefined as Record<string, CharacterData> | undefined,
+    StageTable: undefined as { stages?: Record<string, StageData> } | undefined,
+    getItem(id: string): ItemData | undefined { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    charData(charId: string): CharacterData | undefined { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string): StageData | undefined { return this.StageTable?.stages?.[stageId]; },
 },
   };
 });
@@ -24,7 +33,11 @@ vi.mock("@utils/time", () => ({
 
 
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  asPlayerManager,
+  mockPlayerData,
+  mockTypedEventEmitter,
+} from "../../helpers";
 import { HomeManager } from "@game/modules/home/HomeManager";
 
 /**
@@ -81,24 +94,21 @@ describe("HomeManager", () => {
     });
 
     mockPlayer._trigger = mockTrigger;
-    mockPlayer.update = vi
-      .fn()
-      .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-          const result = await recipe(draft);
-          Object.assign(mockPlayer._playerdata, draft);
-          return result;
-        }
-      );
+    // 覆写替身默认 update：与 helper 实现等价（JSON 深拷贝 draft → recipe → 回写）
+    mockPlayer.update.mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   });
 
   describe("constructor", () => {
     it("应该正确初始化并注册所有背景/主题事件监听", () => {
       const onSpy = vi.spyOn(mockTrigger, "on");
       const manager = new HomeManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
       expect(manager).toBeDefined();
       expect(manager._player).toBe(mockPlayer);
@@ -134,8 +144,8 @@ describe("HomeManager", () => {
   describe("setBackground", () => {
     it("应该更新选中的背景 ID", async () => {
       const manager = new HomeManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.setBackground({ bgID: "bg_001" });
@@ -147,8 +157,8 @@ describe("HomeManager", () => {
   describe("setHomeTheme", () => {
     it("应该更新选中的主题 ID", async () => {
       const manager = new HomeManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.setHomeTheme({ themeId: "tm_001" });
@@ -160,8 +170,8 @@ describe("HomeManager", () => {
   describe("setLowPower", () => {
     it("应该更新低功耗模式开关", async () => {
       const manager = new HomeManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.setLowPower({ newValue: 1 });
@@ -173,8 +183,8 @@ describe("HomeManager", () => {
   describe("npcAudioChangeLan", () => {
     it("应该更新 NPC 语音语言", async () => {
       const manager = new HomeManager(
-        mockPlayer as any,
-        mockTrigger as any
+        asPlayerManager(mockPlayer),
+        mockTrigger
       );
 
       await manager.npcAudioChangeLan({
@@ -190,7 +200,7 @@ describe("HomeManager", () => {
 
   describe("background:get 事件", () => {
     it("触发 background:get 事件应该解锁指定背景", async () => {
-      new HomeManager(mockPlayer as any, mockTrigger as any);
+      new HomeManager(asPlayerManager(mockPlayer), mockTrigger);
 
       // 直接 emit background:get 事件,模拟事件触发
       await mockTrigger.emit("background:get", ["bg_002"]);
@@ -204,7 +214,7 @@ describe("HomeManager", () => {
   describe("background:condition:update 事件", () => {
     it("条件达成时应该更新进度并触发 background:unlock 事件", async () => {
       const emitSpy = vi.spyOn(mockTrigger, "emit");
-      new HomeManager(mockPlayer as any, mockTrigger as any);
+      new HomeManager(asPlayerManager(mockPlayer), mockTrigger);
 
       // 设置目标值为 10(达成条件 t=10)
       await mockTrigger.emit("background:condition:update", [
@@ -226,7 +236,7 @@ describe("HomeManager", () => {
 
     it("条件未达成时应该只更新进度但不触发 unlock 事件", async () => {
       const emitSpy = vi.spyOn(mockTrigger, "emit");
-      new HomeManager(mockPlayer as any, mockTrigger as any);
+      new HomeManager(asPlayerManager(mockPlayer), mockTrigger);
 
       // 设置目标值为 5(未达成 t=10)
       await mockTrigger.emit("background:condition:update", [
@@ -250,7 +260,7 @@ describe("HomeManager", () => {
   describe("homeTheme:condition:update 事件", () => {
     it("主题条件达成时应该触发 homeTheme:unlock 事件", async () => {
       const emitSpy = vi.spyOn(mockTrigger, "emit");
-      new HomeManager(mockPlayer as any, mockTrigger as any);
+      new HomeManager(asPlayerManager(mockPlayer), mockTrigger);
 
       await mockTrigger.emit("homeTheme:condition:update", [
         { themeId: "tm_001", conditionId: "cond_001", target: 10 },

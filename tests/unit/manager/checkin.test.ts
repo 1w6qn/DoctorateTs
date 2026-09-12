@@ -1,56 +1,66 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { PlayerCheckIn } from "@excel/types-playerdata";
+
+/**
+ * 签到组窄视图（用例只读到窗口时间与奖励条目；真实 CheckinTable 表项还有
+ * 更多必填字段，夹具与 `mockExcelWith` 语义一致地只声明被测分支会读到的行）
+ */
+interface CheckinGroupView {
+  groupId: string;
+  title: string;
+  description: string;
+  signStartTime: number;
+  signEndTime: number;
+  items: { itemId: string; itemType: string; count: number }[];
+}
 
 // excel 数据端口替身:提供 CheckInManager 依赖的最小数据
 //
 // 迁移说明(2026-09,excel 端口注入):管理者不再直连 `@excel/excel` 单例,
 // 改经 `player.excel`(PlayerDataManager 注入的数据端口)取表——模块级
 // vi.mock 因此失效,夹具改为显式注入到 mockPlayerData 的 excel 字段。
-const excelMock: any = {
-    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
-    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
-    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
-
-      // 签到表:提供签到组、月卡订阅物品等
-      CheckinTable: {
-        groups: {
-          group_001: {
-            groupId: "group_001",
-            title: "测试签到组",
-            description: "测试用",
-            signStartTime: 0,
-            signEndTime: 9999999999,
-            items: [
-              { itemId: "item_001", itemType: "MATERIAL", count: 100 },
-              { itemId: "item_002", itemType: "MATERIAL", count: 200 },
-            ],
-          },
-          group_002: {
-            groupId: "group_002",
-            title: "二月签到组",
-            description: "测试用",
-            signStartTime: 0,
-            signEndTime: 9999999999,
-            items: [
-              { itemId: "item_003", itemType: "MATERIAL", count: 300 },
-            ],
-          },
-        },
-        currentMonthlySubId: "sub_001",
-        monthlySubItem: {
-          sub_001: [
-            {},
-            {
-              items: [
-                { id: "sub_item_001", count: 1, type: "MATERIAL" },
-              ],
-            },
+//
+// 端口替身以 `mockExcel()`(空表 + 门面方法)为底,仅覆盖 CheckInManager 读到的
+// CheckinTable;未覆盖的表与旧夹具一样取不到数据(mockExcelWith 语义见其 JSDoc)。
+const excelMock = mockExcelWith({
+  // 签到表:提供签到组、月卡订阅物品等
+  CheckinTable: {
+    groups: {
+      group_001: {
+        groupId: "group_001",
+        title: "测试签到组",
+        description: "测试用",
+        signStartTime: 0,
+        signEndTime: 9999999999,
+        items: [
+          { itemId: "item_001", itemType: "MATERIAL", count: 100 },
+          { itemId: "item_002", itemType: "MATERIAL", count: 200 },
+        ],
+      },
+      group_002: {
+        groupId: "group_002",
+        title: "二月签到组",
+        description: "测试用",
+        signStartTime: 0,
+        signEndTime: 9999999999,
+        items: [
+          { itemId: "item_003", itemType: "MATERIAL", count: 300 },
+        ],
+      },
+    } as Record<string, CheckinGroupView | null>,
+    currentMonthlySubId: "sub_001",
+    monthlySubItem: {
+      sub_001: [
+        {},
+        {
+          items: [
+            { id: "sub_item_001", count: 1, type: "MATERIAL" },
           ],
         },
-      },
-};
+      ],
+    },
+  },
+});
 
 vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
@@ -65,7 +75,12 @@ vi.mock("@utils/time", () => ({
 
 
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  asPlayerManager,
+  mockExcelWith,
+  mockPlayerData,
+  mockTypedEventEmitter,
+} from "../../helpers";
 import { CheckInManager } from "@game/modules/checkin/checkin";
 
 /**
@@ -120,7 +135,6 @@ describe("CheckInManager", () => {
         practiceTicket: 0,
         lastRefreshTs: 0,
         lastApAddTime: 0,
-        mainStageProgress: null,
         registerTs: 0,
         lastOnlineTs: 0,
         serverName: "TestServer",
@@ -138,31 +152,28 @@ describe("CheckInManager", () => {
         classicShard: 0,
         classicGachaTicket: 0,
         classicTenGachaTicket: 0,
-      } as any,
+      },
     });
+    // 夹具覆盖 mainStageProgress=null 的缺省分支（模型声明 string，真实存档为字符串）；
+    // 这里按含 null 的窄视图就地写回，运行期值与「写进种子」完全一致。
+    const statusView = mockPlayer._playerdata.status as { mainStageProgress: string | null };
+    statusView.mainStageProgress = null;
     // excel 数据端口替身注入(见文件头说明)
     mockPlayer.excel = excelMock;
 
     mockPlayer._trigger = mockTrigger;
-    mockPlayer.update = vi
-      .fn()
-      .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-          const result = await recipe(draft);
-          Object.assign(mockPlayer._playerdata, draft);
-          return result;
-        }
-      );
+    mockPlayer.update.mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   });
 
   describe("constructor", () => {
     it("应该正确初始化并注册 refresh:monthly 与 refresh:daily 事件", () => {
       const onSpy = vi.spyOn(mockTrigger, "on");
-      const manager = new CheckInManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new CheckInManager(asPlayerManager(mockPlayer), mockTrigger);
       expect(manager).toBeDefined();
       expect(manager._player).toBe(mockPlayer);
       expect(manager._trigger).toBe(mockTrigger);
@@ -179,10 +190,7 @@ describe("CheckInManager", () => {
 
   describe("dailyRefresh", () => {
     it("应该重置 canCheckIn 并递增 checkInRewardIndex", async () => {
-      const manager = new CheckInManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new CheckInManager(asPlayerManager(mockPlayer), mockTrigger);
 
       // 先设置为已签到状态,验证每日刷新会重置
       mockPlayer._playerdata.checkIn!.canCheckIn = 0;
@@ -195,7 +203,7 @@ describe("CheckInManager", () => {
     });
 
     it("dailyRefresh 应递增 showCount（累计签到天数）", async () => {
-      const manager = new CheckInManager(mockPlayer as any, mockTrigger as any);
+      const manager = new CheckInManager(asPlayerManager(mockPlayer), mockTrigger);
       mockPlayer._playerdata.checkIn!.canCheckIn = 0;
       mockPlayer._playerdata.checkIn!.showCount = 10;
       await manager.dailyRefresh();
@@ -203,16 +211,16 @@ describe("CheckInManager", () => {
     });
 
     it("老档缺失 showCount 时按注册时长回填（不再重复 +1）", async () => {
-      const manager = new CheckInManager(mockPlayer as any, mockTrigger as any);
+      const manager = new CheckInManager(asPlayerManager(mockPlayer), mockTrigger);
       mockPlayer._playerdata.checkIn!.canCheckIn = 0;
-      delete (mockPlayer._playerdata.checkIn as any).showCount;
-      (mockPlayer._playerdata.status as any).registerTs = 1234567890 - 180 * 86400; // 180 天前注册
+      delete (mockPlayer._playerdata.checkIn as Partial<PlayerCheckIn>).showCount;
+      mockPlayer._playerdata.status.registerTs = 1234567890 - 180 * 86400; // 180 天前注册
       await manager.dailyRefresh();
       expect(mockPlayer._playerdata.checkIn!.showCount).toBe(180);
     });
 
     it("每日重复触发 dailyRefresh（canCheckIn 已为 1）时不再重复递增", async () => {
-      const manager = new CheckInManager(mockPlayer as any, mockTrigger as any);
+      const manager = new CheckInManager(asPlayerManager(mockPlayer), mockTrigger);
       mockPlayer._playerdata.checkIn!.canCheckIn = 1;
       mockPlayer._playerdata.checkIn!.showCount = 10;
       await manager.dailyRefresh();
@@ -222,10 +230,7 @@ describe("CheckInManager", () => {
 
   describe("monthlyRefresh", () => {
     it("应该重置签到历史与奖励索引,并匹配当前可用签到组", async () => {
-      const manager = new CheckInManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new CheckInManager(asPlayerManager(mockPlayer), mockTrigger);
 
       mockPlayer._playerdata.checkIn!.checkInHistory = [0, 0, 0];
       mockPlayer._playerdata.checkIn!.checkInRewardIndex = 15;
@@ -245,10 +250,7 @@ describe("CheckInManager", () => {
       const groups = excelMock.CheckinTable.groups;
       groups["groupId"] = null;
       groups["signStartTime"] = null;
-      const manager = new CheckInManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new CheckInManager(asPlayerManager(mockPlayer), mockTrigger);
       await expect(manager.monthlyRefresh()).resolves.not.toThrow();
       // 仍能匹配到正常签到组
       expect(mockPlayer._playerdata.checkIn!.checkInGroupId).toBe("group_001");
@@ -257,10 +259,7 @@ describe("CheckInManager", () => {
 
   describe("checkIn", () => {
     it("当 canCheckIn 为 0 时应该返回 undefined 且不触发事件", async () => {
-      const manager = new CheckInManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new CheckInManager(asPlayerManager(mockPlayer), mockTrigger);
 
       mockPlayer._playerdata.checkIn!.canCheckIn = 0;
       const emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -275,10 +274,7 @@ describe("CheckInManager", () => {
     });
 
     it("当可签到且无月卡时应该返回签到奖励并将 canCheckIn 置 0", async () => {
-      const manager = new CheckInManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new CheckInManager(asPlayerManager(mockPlayer), mockTrigger);
 
       const result = await manager.checkIn();
 
@@ -299,10 +295,7 @@ describe("CheckInManager", () => {
     });
 
     it("当持有月卡时签到应额外返回订阅奖励", async () => {
-      const manager = new CheckInManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new CheckInManager(asPlayerManager(mockPlayer), mockTrigger);
 
       // 设置月卡有效期内
       mockPlayer._playerdata.status!.monthlySubscriptionStartTime = 0;
@@ -332,10 +325,7 @@ describe("CheckInManager", () => {
     });
 
     it("当 checkInRewardIndex 为 -1 时签到应重置为 0 后再发放奖励", async () => {
-      const manager = new CheckInManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
+      const manager = new CheckInManager(asPlayerManager(mockPlayer), mockTrigger);
 
       mockPlayer._playerdata.checkIn!.checkInRewardIndex = -1;
       const result = await manager.checkIn();

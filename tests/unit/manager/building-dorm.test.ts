@@ -10,8 +10,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * - buyLabor：中枢 4 级用理智兑换（1 AP → 2 劳动力），未达级走源石兼容路径
  */
 
+/** excel mock 的行形状（本文件只需 `name`，供 `itemName` 回退读取） */
+interface ExcelRowMock { name?: string }
+
 const excelMock = vi.hoisted(() => ({
   default: {
+    // —— 本文件不提供的表（占位；`?.` 读取下与「键不存在」运行时等价）——
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    CharacterTable: undefined as Record<string, ExcelRowMock> | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -68,15 +75,28 @@ vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  mockPlayerData,
+  mockTypedEventEmitter,
+  asPlayerManager,
+  type MockPlayerDataManager,
+  type MockPlayerDataSeed,
+  type MockSeed,
+  type MockUpdateRecipe,
+} from "../../helpers";
 import {
   classifyDormBuff,
   splitDormBuffs,
   sumByGroupMax,
 } from "@game/modules/building/dorm-special";
 import { BuildingManager } from "@game/modules/building/logic";
+import type { PlayerBuilding, PlayerBuildingChar, PlayerCharacter, PlayerDataModel } from "@game/kernel/playerdata";
+import type { Draft } from "mutative";
 
-function makePlayer(building: any, extra: any = {}) {
+function makePlayer(
+  building: MockPlayerDataSeed["building"],
+  extra: Omit<MockPlayerDataSeed, "building"> = {},
+) {
   const mockPlayer = mockPlayerData({
     building,
     event: { building: 0 },
@@ -86,16 +106,22 @@ function makePlayer(building: any, extra: any = {}) {
   const mockTrigger = mockTypedEventEmitter();
   mockPlayer._trigger = mockTrigger;
   mockPlayer.update = vi
-    .fn()
-    .mockImplementation(
-      async (recipe: (draft: any) => Promise<any> | any) => {
-        const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-        const result = await recipe(draft);
-        Object.assign(mockPlayer._playerdata, draft);
-        return result;
-      },
-    );
+    .fn<(recipe: MockUpdateRecipe) => Promise<void>>()
+    .mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   return { mockPlayer, mockTrigger };
+}
+
+/** 本文件构造的存档夹具（building + troop 两棵子树） */
+interface DormFixture {
+  /** 基建子树 */
+  building: MockPlayerDataSeed["building"];
+  /** 干员子树 */
+  troop: MockPlayerDataSeed["troop"];
 }
 
 const MAX = 8640000;
@@ -105,9 +131,9 @@ function dormBuilding(opts: {
   comfort?: number;
   level?: number;
   controlLevel?: number;
-}): any {
-  const chars: any = {};
-  const troopChars: any = {};
+}): DormFixture {
+  const chars: Record<string, MockSeed<PlayerBuildingChar>> = {};
+  const troopChars: Record<string, MockSeed<PlayerCharacter>> = {};
   for (const [instId, charId, ap] of opts.members) {
     chars[String(instId)] = {
       charId, ap, lastApAddTime: timeMock.now, roomSlotId: "slot_28", index: 0,
@@ -148,13 +174,16 @@ function setup(opts: Parameters<typeof dormBuilding>[0]) {
     inventory: {},
     troop: data.troop,
   });
-  const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+  const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
   return { mockPlayer, manager };
 }
 
-function recompute(manager: any, mockPlayer: any): any {
-  const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-  (manager as any)._recomputeCharScales(draft);
+function recompute(
+  manager: BuildingManager,
+  mockPlayer: MockPlayerDataManager,
+): Draft<PlayerBuilding>["chars"] {
+  const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
+  manager["_recomputeCharScales"](draft);
   return draft.building.chars;
 }
 
@@ -192,14 +221,14 @@ describe("BuildingManager 宿舍恢复按成员分发（_recomputeCharScales）"
   });
 
   it("恢复公式：(1.5+0.1×级) + 氛围×0.0004（无技能，1 级 2000 氛围 → 1.6+0.8=2.4）", () => {
-    const { manager, mockPlayer } = setup({ members: [[1, "char_plain" as any, MAX]], comfort: 2000, level: 1 });
+    const { manager, mockPlayer } = setup({ members: [[1, "char_plain", MAX]], comfort: 2000, level: 1 });
     const chars = recompute(manager, mockPlayer);
     expect(chars["1"].changeScale).toBe(240);
   });
 
   it("自身恢复仅作用于施放者（all 全员 + self 独享）", () => {
     const { manager, mockPlayer } = setup({
-      members: [[1, "char_all" as any, MAX], [2, "char_self" as any, MAX]],
+      members: [[1, "char_all", MAX], [2, "char_self", MAX]],
       level: 1,
     });
     const chars = recompute(manager, mockPlayer);
@@ -211,9 +240,9 @@ describe("BuildingManager 宿舍恢复按成员分发（_recomputeCharScales）"
   it("单体恢复给除施放者外心情最低成员", () => {
     const { manager, mockPlayer } = setup({
       members: [
-        [1, "char_single" as any, MAX],
-        [2, "char_plain_a" as any, MAX], // 满心情，不是目标
-        [3, "char_plain_b" as any, 1000], // 心情最低 → 目标
+        [1, "char_single", MAX],
+        [2, "char_plain_a", MAX], // 满心情，不是目标
+        [3, "char_plain_b", 1000], // 心情最低 → 目标
       ],
       level: 1,
     });
@@ -226,9 +255,9 @@ describe("BuildingManager 宿舍恢复按成员分发（_recomputeCharScales）"
   it("均分恢复（小酌怡情）：总量 0.8 平分给心情未满成员", () => {
     const { manager, mockPlayer } = setup({
       members: [
-        [1, "char_shared" as any, MAX], // 施放者满心情，不参与分配
-        [2, "char_plain_a" as any, 100], // 未满 → +0.4
-        [3, "char_plain_b" as any, 200], // 未满 → +0.4
+        [1, "char_shared", MAX], // 施放者满心情，不参与分配
+        [2, "char_plain_a", 100], // 未满 → +0.4
+        [3, "char_plain_b", 200], // 未满 → +0.4
       ],
       level: 1,
     });
@@ -247,7 +276,7 @@ describe("BuildingManager buyLabor AP 兑换（官方路径）", () => {
   it("中枢 4 级：理智兑换（1 AP → 2 劳动力），不扣源石", async () => {
     const { manager, mockPlayer } = setup({ members: [], controlLevel: 4 });
     mockPlayer._playerdata.building.status.labor.value = 200;
-    await manager.buyLabor({ buyCount: 10 } as any);
+    await manager.buyLabor({ buyCount: 10 });
     expect(mockPlayer._playerdata.status!.ap).toBe(95); // 100 - ceil(10/2)
     expect(mockPlayer._playerdata.building.status.labor.value).toBe(210);
     expect(mockPlayer._playerdata.status!.androidDiamond).toBe(100);
@@ -255,14 +284,14 @@ describe("BuildingManager buyLabor AP 兑换（官方路径）", () => {
 
   it("中枢 4 级但理智不足时 拒绝", async () => {
     const { manager, mockPlayer } = setup({ members: [], controlLevel: 4 });
-    (mockPlayer._playerdata.status as any).ap = 2;
-    await manager.buyLabor({ buyCount: 10 } as any);
+    mockPlayer._playerdata.status.ap = 2;
+    await manager.buyLabor({ buyCount: 10 });
     expect(mockPlayer._playerdata.building.status.labor.value).toBe(100);
   });
 
   it("中枢 <4 级：走源石兼容路径（1 源石 → 10 劳动力）", async () => {
     const { manager, mockPlayer } = setup({ members: [], controlLevel: 3 });
-    await manager.buyLabor({ buyCount: 1 } as any);
+    await manager.buyLabor({ buyCount: 1 });
     expect(mockPlayer._playerdata.status!.androidDiamond).toBe(99);
     expect(mockPlayer._playerdata.building.status.labor.value).toBe(110);
     expect(mockPlayer._playerdata.status!.ap).toBe(100); // 理智不动

@@ -6,6 +6,41 @@ import {
   freshGacha,
 } from "@game/modules/user/freshPlayer";
 
+/**
+ * freshPlayer 构造函数的返回契约是 `Record<string, unknown>`（用于整体覆盖存档分区），
+ * 用例按「被读到键」的窄视图断言；下表即各分区的窄视图，字段名与真实模型一致。
+ */
+type FreshStatusView = {
+  uid: string;
+  level: number;
+  exp: number;
+  gold: number;
+  androidDiamond: number;
+  iosDiamond: number;
+  gachaTicket: number;
+  registerTs: number;
+  lastOnlineTs: number;
+  mainStageProgress: number;
+  campaigns: Record<string, number>;
+  maxAccountResVersion?: string;
+  avatar: { avatar_icon: Record<string, { ts: number; src: string }> };
+};
+
+type FreshTroopView = {
+  chars: Record<string, never>;
+  addon: Record<string, never>;
+  charGroup: Record<string, never>;
+  squads: Record<string, { slots: null[] }>;
+};
+
+type FreshGachaView = {
+  normal: { cnt: number; poolId: string };
+  newbee: { cnt: number; poolId: string };
+};
+
+type FreshBuildingView = { chars: Record<string, never> };
+type FreshHomeThemeView = { selected: string };
+
 /** 一份模拟的「满配模板」基底（足够表征各分区，用于验证全新化） */
 function maxedTemplate(): Record<string, unknown> {
   return {
@@ -74,7 +109,7 @@ describe("freshPlayer 构造全新玩家存档", () => {
 
   it("新号不从满配模板继承财富/等级（status 归零重置为 1 级）", () => {
     const data = buildFreshPlayerData(maxedTemplate(), opts);
-    const s = data.status as Record<string, any>;
+    const s = data.status as FreshStatusView;
     expect(s.level).toBe(1);
     expect(s.exp).toBe(0);
     expect(s.gold).toBe(0);
@@ -90,18 +125,18 @@ describe("freshPlayer 构造全新玩家存档", () => {
 
   it("去除满配版本标记，避免新号被按版本刷成满配", () => {
     const data = buildFreshPlayerData(maxedTemplate(), opts);
-    expect((data.status as Record<string, any>).maxAccountResVersion).toBeUndefined();
+    expect((data.status as FreshStatusView).maxAccountResVersion).toBeUndefined();
   });
 
   it("拥有干员清空、编队槽位保留为空", () => {
     const data = buildFreshPlayerData(maxedTemplate(), opts);
-    const troop = data.troop as Record<string, any>;
+    const troop = data.troop as FreshTroopView;
     expect(troop.chars).toEqual({});
     expect(troop.addon).toEqual({});
     expect(troop.charGroup).toEqual({});
     // 编队骨架保留，槽位清空
     expect(Object.keys(troop.squads)).toContain("0");
-    expect(troop.squads["0"].slots.every((slot: unknown) => slot === null)).toBe(true);
+    expect(troop.squads["0"].slots.every((slot) => slot === null)).toBe(true);
   });
 
   it("背包计数清零、消耗品/皮肤清空", () => {
@@ -114,7 +149,7 @@ describe("freshPlayer 构造全新玩家存档", () => {
 
   it("抽卡计数重置但保留各卡池 poolId", () => {
     const data = buildFreshPlayerData(maxedTemplate(), opts);
-    const g = data.gacha as Record<string, any>;
+    const g = data.gacha as FreshGachaView;
     expect(g.normal.cnt).toBe(0);
     expect(g.normal.poolId).toBe("OBT");
     expect(g.newbee.poolId).toBe("BOOT_0_1_1");
@@ -125,8 +160,8 @@ describe("freshPlayer 构造全新玩家存档", () => {
     expect(data.medal).toEqual({ medals: {}, custom: {} });
     expect(data.mission).toEqual({ missions: {}, missionRewards: {}, missionGroups: {} });
     expect(data.rlv2).toEqual({ outer: {}, current: {}, pinned: "" });
-    expect((data.building as Record<string, any>).chars).toEqual({});
-    expect((data.homeTheme as Record<string, any>).selected).toBe("tm_rhodes_day");
+    expect((data.building as FreshBuildingView).chars).toEqual({});
+    expect((data.homeTheme as FreshHomeThemeView).selected).toBe("tm_rhodes_day");
   });
 
   it("收集/历史分区全新清空，不继承满配图鉴与活动进度", () => {
@@ -143,16 +178,16 @@ describe("freshPlayer 构造全新玩家存档", () => {
   });
 
   it("头像仅保留默认（src=initial），丢弃活动头像", () => {
-    const fr = buildFreshStatus(maxedTemplate().status as any, opts);
-    const icons = (fr.avatar as any).avatar_icon;
+    const fr = buildFreshStatus(maxedTemplate().status as FreshStatusView, opts);
+    const icons = (fr.avatar as FreshStatusView["avatar"]).avatar_icon;
     expect(Object.keys(icons)).toEqual(["avatar_def_01"]);
   });
 
   it("未对模板产生副作用（深拷贝隔离）", () => {
     const tpl = maxedTemplate();
     buildFreshPlayerData(tpl, opts);
-    expect((tpl.status as any).level).toBe(120);
-    expect((tpl.status as any).gold).toBe(99999999);
+    expect((tpl.status as FreshStatusView).level).toBe(120);
+    expect((tpl.status as FreshStatusView).gold).toBe(99999999);
   });
 
   it("freshTroop/freshGacha 对缺省（undefined）输入安全", () => {

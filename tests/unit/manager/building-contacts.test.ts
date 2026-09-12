@@ -11,8 +11,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * - recruit.refreshTags：消耗人脉库存（库存 0 拒绝；无人力办公室免消耗兜底）
  */
 
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string; rarity?: string }
+
 const excelMock = vi.hoisted(() => ({
   default: {
+    // —— 本文件不提供的表（占位，保持门面方法的 `this.XxxTable` 读取路径）——
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -30,7 +36,7 @@ const excelMock = vi.hoisted(() => ({
       },
     },
     GachaData: {},
-    CharacterTable: {},
+    CharacterTable: {} as Record<string, ExcelRowMock>,
   },
 }));
 vi.mock("@excel/excel", () => excelMock);
@@ -42,7 +48,25 @@ vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  mockPlayerData,
+  mockTypedEventEmitter,
+  asPlayerManager,
+  asModel,
+  type MockPlayerDataManager,
+  type MockPlayerDataSeed,
+  type MockSeed,
+  type MockUpdateRecipe,
+} from "../../helpers";
+import type { Draft } from "mutative";
+import type {
+  PlayerBuilding,
+  PlayerBuildingChar,
+  PlayerBuildingMeeting,
+  PlayerCharacter,
+  PlayerDataModel,
+} from "@game/kernel/playerdata";
+import type { HireRoom, MeetingRoom } from "@game/modules/building/logic/ext-types";
 import {
   contactSpeedFactor,
   settleContactProgress,
@@ -57,7 +81,36 @@ import {
 import { BuildingManager } from "@game/modules/building/logic";
 import { RecruitManager, RecruitTools } from "@game/modules/gacha/recruit";
 
-function makePlayer(building: any, extra: any = {}) {
+/**
+ * 基建夹具视图
+ *
+ * 与 {@link MockPlayerDataSeed} 的 building 子树同形，两处服务端扩展：
+ * - `rooms.HIRE[slot]` 带 `refreshStock`（旧存档人脉库存回退字段，见 `logic/ext-types.ts#HireRoom`）；
+ * - `rooms.MEETING[slot].dailyReward` 允许 `null`（今日未领，见 `logic/ext-types.ts` 偏差清单 1）。
+ */
+type BuildingFixture = MockSeed<Omit<PlayerBuilding, "rooms">> & {
+  rooms?: MockSeed<Omit<PlayerBuilding["rooms"], "MEETING" | "HIRE">> & {
+    MEETING?: Record<string, MockSeed<PlayerBuildingMeeting>>;
+    HIRE?: Record<string, MockSeed<HireRoom>>;
+  };
+};
+
+/**
+ * 会客室槽位夹具
+ *
+ * 生成模型 `dailyReward` 声明为必填线索对象，服务端以 `null` 表示「今日免费线索未领」，
+ * 故按 {@link MeetingRoom} 视图装入后适配回种子视图。
+ * @param seed - 会客室槽位的深可选夹具
+ * @returns 同一对象，视作生成模型的会客室槽位种子
+ */
+function meetingSlot(seed: MockSeed<MeetingRoom>): MockSeed<PlayerBuildingMeeting> {
+  return seed as MockSeed<PlayerBuildingMeeting>;
+}
+
+function makePlayer(
+  building: BuildingFixture,
+  extra: Omit<MockPlayerDataSeed, "building"> = {},
+) {
   const mockPlayer = mockPlayerData({
     building,
     event: { building: 0 },
@@ -67,19 +120,17 @@ function makePlayer(building: any, extra: any = {}) {
   const mockTrigger = mockTypedEventEmitter();
   mockPlayer._trigger = mockTrigger;
   mockPlayer.update = vi
-    .fn()
-    .mockImplementation(
-      async (recipe: (draft: any) => Promise<any> | any) => {
-        const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-        const result = await recipe(draft);
-        Object.assign(mockPlayer._playerdata, draft);
-        return result;
-      },
-    );
+    .fn<(recipe: MockUpdateRecipe) => Promise<void>>()
+    .mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   return { mockPlayer, mockTrigger };
 }
 
-function baseBuilding(): any {
+function baseBuilding(): BuildingFixture {
   return {
     status: {
       labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 1000, maxValue: 225 },
@@ -96,10 +147,10 @@ function baseBuilding(): any {
       CONTROL: {}, ELEVATOR: {}, POWER: {}, MANUFACTURE: {}, TRADING: {},
       CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {},
       MEETING: {
-        slot_36: {
+        slot_36: meetingSlot({
           state: 1, speed: 100, processPoint: 0, lastUpdateTime: 1000,
           ownStock: [], receiveStock: [], board: {}, dailyReward: null,
-        },
+        }),
       },
       HIRE: { slot_23: { state: 1, speed: 100, processPoint: 0, lastUpdateTime: 1000 } },
       TRAINING: {}, PRIVATE: {},
@@ -112,8 +163,8 @@ function baseBuilding(): any {
   };
 }
 
-function draftOf(mockPlayer: any): any {
-  return JSON.parse(JSON.stringify(mockPlayer._playerdata));
+function draftOf(mockPlayer: MockPlayerDataManager): Draft<PlayerDataModel> {
+  return JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
 }
 
 function setup() {
@@ -122,7 +173,7 @@ function setup() {
     inventory: {},
     troop: { chars: { "1": { charId: "char_hire", level: 10, evolvePhase: 0 } }, charGroup: {} },
   });
-  const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+  const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
   return { mockPlayer, mockTrigger, manager };
 }
 
@@ -183,10 +234,10 @@ describe("BuildingManager 人脉联络充能（_accrueHire）", () => {
   it("进驻干员 12h 基准进度后 人脉库存 +1（速度系数 1.05）", () => {
     const { manager, mockPlayer } = setup();
     const draft = draftOf(mockPlayer);
-    (manager as any)._accrueHire(draft, 1000); // 建立基准
+    manager["_accrueHire"](draft, 1000); // 建立基准
     // 12h / 1.05 ≈ 41142.86s 实际时长后 基准进度恰满 12h
-    (manager as any)._accrueHire(draft, 1000 + CONTACT_BASE_SECONDS / 1.05);
-    const room = draft.building.rooms.HIRE.slot_23;
+    manager["_accrueHire"](draft, 1000 + CONTACT_BASE_SECONDS / 1.05);
+    const room = draft.building.rooms.HIRE.slot_23 as HireRoom;
     expect(room.refreshStock).toBe(1);
     expect(room.contactSec).toBeLessThan(1);
   });
@@ -194,10 +245,10 @@ describe("BuildingManager 人脉联络充能（_accrueHire）", () => {
   it("人脉库存上限 3（达上限暂停累积）", () => {
     const { manager, mockPlayer } = setup();
     const draft = draftOf(mockPlayer);
-    draft.building.rooms.HIRE.slot_23.refreshStock = 3;
-    (manager as any)._accrueHire(draft, 1000);
-    (manager as any)._accrueHire(draft, 1000 + CONTACT_BASE_SECONDS * 2);
-    const room = draft.building.rooms.HIRE.slot_23;
+    (draft.building.rooms.HIRE.slot_23 as HireRoom).refreshStock = 3;
+    manager["_accrueHire"](draft, 1000);
+    manager["_accrueHire"](draft, 1000 + CONTACT_BASE_SECONDS * 2);
+    const room = draft.building.rooms.HIRE.slot_23 as HireRoom;
     expect(room.refreshStock).toBe(3);
     expect(room.contactSec ?? 0).toBe(0);
   });
@@ -206,9 +257,9 @@ describe("BuildingManager 人脉联络充能（_accrueHire）", () => {
     const { manager, mockPlayer } = setup();
     const draft = draftOf(mockPlayer);
     draft.building.roomSlots.slot_23.charInstIds = [];
-    (manager as any)._accrueHire(draft, 1000);
-    (manager as any)._accrueHire(draft, 1000 + CONTACT_BASE_SECONDS * 2);
-    expect(draft.building.rooms.HIRE.slot_23.refreshStock ?? 0).toBe(0);
+    manager["_accrueHire"](draft, 1000);
+    manager["_accrueHire"](draft, 1000 + CONTACT_BASE_SECONDS * 2);
+    expect((draft.building.rooms.HIRE.slot_23 as HireRoom).refreshStock ?? 0).toBe(0);
   });
 });
 
@@ -222,13 +273,13 @@ describe("BuildingManager 会客室线索产出（_accrueMeeting）", () => {
    * B11（PRTS《罗德岛基建/会客室》）：「进驻干员后，干员将自动开始线索收集」——
    * 未进驻不搜集。1★ 精0 非涣散 → 仅非涣散 +5%（mult = 相位 1.07 + 0.05 = 1.12 → speed 112）。
    */
-  function stationMeetingChar(draft: any) {
+  function stationMeetingChar(draft: Draft<PlayerDataModel>) {
     draft.building.roomSlots.slot_36.charInstIds = [2];
-    draft.building.chars["2"] = {
+    draft.building.chars["2"] = asModel<PlayerBuildingChar>({
       charId: "char_meet", ap: 8640000, lastApAddTime: 1000,
       roomSlotId: "slot_36", index: 0, changeScale: 100, bubble: {},
-    };
-    draft.troop.chars["2"] = { charId: "char_meet", level: 10, evolvePhase: 0 };
+    });
+    draft.troop.chars["2"] = asModel<PlayerCharacter>({ charId: "char_meet", level: 10, evolvePhase: 0 });
   }
 
   it("进度达 20h 基准阈值后 真实产出线索（长离线多份，余量保留）", () => {
@@ -236,8 +287,8 @@ describe("BuildingManager 会客室线索产出（_accrueMeeting）", () => {
     const draft = draftOf(mockPlayer);
     stationMeetingChar(draft);
     // 进驻 1 名 1★精0非涣散干员：mult = 相位 1.07 + 非涣散 0.05 = 1.12 → speed 112
-    (manager as any)._accrueMeeting(draft, 1000);
-    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 2.5);
+    manager["_accrueMeeting"](draft, 1000);
+    manager["_accrueMeeting"](draft, 1000 + 72000 * 2.5);
     const room = draft.building.rooms.MEETING.slot_36;
     expect(room.ownStock).toHaveLength(2);
     expect(draft.pushFlags.hasClues).toBe(1);
@@ -249,8 +300,8 @@ describe("BuildingManager 会客室线索产出（_accrueMeeting）", () => {
   it("未进驻干员不搜集线索", () => {
     const { manager, mockPlayer } = setup();
     const draft = draftOf(mockPlayer);
-    (manager as any)._accrueMeeting(draft, 1000);
-    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 3);
+    manager["_accrueMeeting"](draft, 1000);
+    manager["_accrueMeeting"](draft, 1000 + 72000 * 3);
     const room = draft.building.rooms.MEETING.slot_36;
     expect(room.ownStock).toHaveLength(0);
     expect(room.processPoint).toBe(0);
@@ -261,15 +312,15 @@ describe("BuildingManager 会客室线索产出（_accrueMeeting）", () => {
     const { manager, mockPlayer } = setup();
     const draft = draftOf(mockPlayer);
     stationMeetingChar(draft);
-    (manager as any)._accrueMeeting(draft, 1000);
-    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 2.5);
+    manager["_accrueMeeting"](draft, 1000);
+    manager["_accrueMeeting"](draft, 1000 + 72000 * 2.5);
     expect(draft.building.rooms.MEETING.slot_36.ownStock).toHaveLength(2);
     // 2 张线索 × 20 = 40 信用
     expect(draft.status.socialPoint).toBe(40);
   });
 
   /** 自有库塞满 10 份（手工构造，不含信用） */
-  function fillOwnStock(draft: any) {
+  function fillOwnStock(draft: Draft<PlayerDataModel>) {
     draft.building.rooms.MEETING.slot_36.ownStock = Array.from({ length: 10 }, (_, i) => ({
       id: `1#${i}#0`, type: "RHINE", number: 1, uid: "1", name: "A", nickNum: "1",
       chars: [], inUse: 0, ts: 0,
@@ -284,14 +335,14 @@ describe("BuildingManager 会客室线索产出（_accrueMeeting）", () => {
     const draft = draftOf(mockPlayer);
     fillOwnStock(draft);
     stationMeetingChar(draft);
-    (manager as any)._accrueMeeting(draft, 1000);
-    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 3);
+    manager["_accrueMeeting"](draft, 1000);
+    manager["_accrueMeeting"](draft, 1000 + 72000 * 3);
     const room = draft.building.rooms.MEETING.slot_36;
     expect(room.ownStock).toHaveLength(10); // 满库不入库
     expect(room.processPoint).toBe(7200000); // 停在阈值 = 第 11 份已完成、滞留待入库
     expect(draft.status.socialPoint ?? 0).toBe(0); // 未入库不发信用
     // 继续离线：已滞留 → 停工，进度不再累积（时间戳照常推进）
-    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 6);
+    manager["_accrueMeeting"](draft, 1000 + 72000 * 6);
     expect(room.processPoint).toBe(7200000);
     expect(room.ownStock).toHaveLength(10);
   });
@@ -301,11 +352,11 @@ describe("BuildingManager 会客室线索产出（_accrueMeeting）", () => {
     const draft = draftOf(mockPlayer);
     fillOwnStock(draft);
     stationMeetingChar(draft);
-    (manager as any)._accrueMeeting(draft, 1000);
-    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 3);
+    manager["_accrueMeeting"](draft, 1000);
+    manager["_accrueMeeting"](draft, 1000 + 72000 * 3);
     const room = draft.building.rooms.MEETING.slot_36;
     room.ownStock.pop(); // 传递/回收 1 份 → 腾出空位
-    (manager as any)._accrueMeeting(draft, 1000 + 72000 * 3 + 100);
+    manager["_accrueMeeting"](draft, 1000 + 72000 * 3 + 100);
     expect(room.ownStock).toHaveLength(10); // 滞留线索入库
     expect(room.processPoint).toBe(100 * 112); // 阈值已扣除，仅余 100s 新进度
     expect(draft.status.socialPoint).toBe(20); // 入库时发信用（20/张）
@@ -318,27 +369,27 @@ describe("RecruitManager 标签刷新消耗人脉（refreshTags）", () => {
     vi.spyOn(RecruitTools, "refreshTagList").mockResolvedValue([1, 2, 3]);
   });
 
-  function recruitSetup(building: any) {
+  function recruitSetup(building: BuildingFixture) {
     const { mockPlayer, mockTrigger } = makePlayer(building, {
       status: { uid: "1" },
       recruit: { normal: { slots: { "0": { tags: [] } } } },
     });
-    const manager = new RecruitManager(mockPlayer as any, mockTrigger as any);
+    const manager = new RecruitManager(asPlayerManager(mockPlayer), mockTrigger);
     return { mockPlayer, manager };
   }
 
   it("进驻人力办公室且库存 >0 时 消耗 1 次并刷新", async () => {
     const b = baseBuilding();
-    b.rooms.HIRE.slot_23.refreshStock = 2;
+    b.rooms!.HIRE!.slot_23.refreshStock = 2;
     const { mockPlayer, manager } = recruitSetup(b);
     await manager.refreshTags({ slotId: 0 });
-    expect(mockPlayer._playerdata.building.rooms.HIRE.slot_23.refreshStock).toBe(1);
+    expect((mockPlayer._playerdata.building.rooms.HIRE.slot_23 as HireRoom).refreshStock).toBe(1);
     expect(mockPlayer._playerdata.recruit.normal.slots["0"].tags).toEqual([1, 2, 3]);
   });
 
   it("进驻但库存 0 时 拒绝刷新（人脉不足）", async () => {
     const b = baseBuilding();
-    b.rooms.HIRE.slot_23.refreshStock = 0;
+    b.rooms!.HIRE!.slot_23.refreshStock = 0;
     const { mockPlayer, manager } = recruitSetup(b);
     await manager.refreshTags({ slotId: 0 });
     expect(mockPlayer._playerdata.recruit.normal.slots["0"].tags).toEqual([]);
@@ -346,7 +397,7 @@ describe("RecruitManager 标签刷新消耗人脉（refreshTags）", () => {
 
   it("无人进驻人力办公室时 私服兜底免消耗放行", async () => {
     const b = baseBuilding();
-    b.roomSlots.slot_23.charInstIds = [];
+    b.roomSlots!.slot_23!.charInstIds = [];
     const { mockPlayer, manager } = recruitSetup(b);
     await manager.refreshTags({ slotId: 0 });
     expect(mockPlayer._playerdata.recruit.normal.slots["0"].tags).toEqual([1, 2, 3]);

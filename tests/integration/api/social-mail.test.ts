@@ -6,6 +6,15 @@
 import { describe, beforeAll, afterAll, it, expect } from "vitest";
 import { startApiFixture, type ApiFixture } from "../../helpers/apiServer";
 
+/** `/social/getFriendRequestList` 响应（用例断言到的字段） */
+type FriendRequestListBody = { requestList: { uid: string }[] };
+/** `/social/processFriendRequest` 响应（用例断言到的字段） */
+type FriendNumBody = { friendNum: number };
+/** `/social/getFriendList` 响应（用例断言到的字段） */
+type FriendListBody = { friends: { uid: string }[] };
+/** `/mail/listMailBox` 响应（用例断言到的字段） */
+type MailListBody = { mailList: { mailId: string }[] };
+
 describe("游戏 API 社交 / 邮件流程", () => {
   let fx: ApiFixture;
   let aUid: string;
@@ -37,7 +46,11 @@ describe("游戏 API 社交 / 邮件流程", () => {
   });
 
   it("B 的待处理申请列表中出现 A", async () => {
-    const res = await fx.post("/social/getFriendRequestList", { idList: [aUid] }, bSecret);
+    const res = await fx.post<FriendRequestListBody>(
+      "/social/getFriendRequestList",
+      { idList: [aUid] },
+      bSecret,
+    );
     expect(res.status).toBe(200);
     expect(res.body.requestList).toEqual(
       expect.arrayContaining([expect.objectContaining({ uid: aUid })]),
@@ -45,7 +58,7 @@ describe("游戏 API 社交 / 邮件流程", () => {
   });
 
   it("B 同意 A 的申请 → 好友数 +1", async () => {
-    const res = await fx.post(
+    const res = await fx.post<FriendNumBody>(
       "/social/processFriendRequest",
       { friendId: aUid, action: 1 },
       bSecret,
@@ -55,18 +68,18 @@ describe("游戏 API 社交 / 邮件流程", () => {
   });
 
   it("双向好友列表各自包含对方", async () => {
-    const bList = await fx.post("/social/getFriendList", { idList: [aUid] }, bSecret);
+    const bList = await fx.post<FriendListBody>("/social/getFriendList", { idList: [aUid] }, bSecret);
     expect(bList.body.friends).toEqual(
       expect.arrayContaining([expect.objectContaining({ uid: aUid })]),
     );
-    const aList = await fx.post("/social/getFriendList", { idList: [bUid] }, aSecret);
+    const aList = await fx.post<FriendListBody>("/social/getFriendList", { idList: [bUid] }, aSecret);
     expect(aList.body.friends).toEqual(
       expect.arrayContaining([expect.objectContaining({ uid: bUid })]),
     );
   });
 
   it("邮件列表 /mail/listMailBox 返回数组契约", async () => {
-    const res = await fx.post(
+    const res = await fx.post<MailListBody>(
       "/mail/listMailBox",
       { mailIdList: [], sysMailIdList: [], surveyMailIdList: [] },
       aSecret,

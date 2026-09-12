@@ -10,8 +10,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * - accelerateSolution：带 cost → 3 分钟/架推进进度；缺省 → 兼容立即完成 1 方案
  */
 
+/** excel mock 的行形状（本文件只需 `name`，供 `itemName` 回退读取） */
+interface ExcelRowMock { name?: string }
+
 const excelMock = vi.hoisted(() => ({
   default: {
+    // —— 本文件不提供的表（占位；`?.` 读取下与「键不存在」运行时等价）——
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    CharacterTable: undefined as Record<string, ExcelRowMock> | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -72,7 +79,15 @@ vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  mockPlayerData,
+  mockTypedEventEmitter,
+  asPlayerManager,
+  asModel,
+  type MockPlayerDataManager,
+  type MockPlayerDataSeed,
+  type MockUpdateRecipe,
+} from "../../helpers";
 import {
   goldOrderDistribution,
   pickGoldCount,
@@ -80,8 +95,14 @@ import {
   GOLD_ORDER_DISTRIBUTION,
 } from "@game/modules/building/trade-orders";
 import { BuildingManager } from "@game/modules/building/logic";
+import type { CharWithWarmup, TradingOrder } from "@game/modules/building/logic/ext-types";
+import type { PlayerCharacter, PlayerDataModel } from "@game/kernel/playerdata";
+import type { Draft } from "mutative";
 
-function makePlayer(building: any, extra: any = {}) {
+function makePlayer(
+  building: MockPlayerDataSeed["building"],
+  extra: Omit<MockPlayerDataSeed, "building"> = {},
+) {
   const mockPlayer = mockPlayerData({
     building,
     event: { building: 0 },
@@ -91,19 +112,20 @@ function makePlayer(building: any, extra: any = {}) {
   const mockTrigger = mockTypedEventEmitter();
   mockPlayer._trigger = mockTrigger;
   mockPlayer.update = vi
-    .fn()
-    .mockImplementation(
-      async (recipe: (draft: any) => Promise<any> | any) => {
-        const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-        const result = await recipe(draft);
-        Object.assign(mockPlayer._playerdata, draft);
-        return result;
-      },
-    );
+    .fn<(recipe: MockUpdateRecipe) => Promise<void>>()
+    .mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   return { mockPlayer, mockTrigger };
 }
 
-function baseBuilding(): any {
+/** 本文件构造的 building 夹具（与 MockPlayerDataSeed 的 building 子树同形，深可选） */
+type BuildingFixture = MockPlayerDataSeed["building"];
+
+function baseBuilding(): BuildingFixture {
   return {
     status: {
       labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 1000, maxValue: 225 },
@@ -133,8 +155,8 @@ function baseBuilding(): any {
   };
 }
 
-function draftOf(mockPlayer: any): any {
-  return JSON.parse(JSON.stringify(mockPlayer._playerdata));
+function draftOf(mockPlayer: MockPlayerDataManager): Draft<PlayerDataModel> {
+  return JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
 }
 
 function setup() {
@@ -143,7 +165,7 @@ function setup() {
     inventory: {},
     troop: { chars: {}, charGroup: {} },
   });
-  const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+  const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
   return { mockPlayer, mockTrigger, manager };
 }
 
@@ -186,12 +208,12 @@ describe("BuildingManager 订单生成（_genTradingOrder）", () => {
   });
 
   /** 进驻干员到贸易站（troop + building.chars，可带暖机工时） */
-  function stationChar(mockPlayer: any, instId: number, charId: string, warmupSec = 0) {
-    mockPlayer._playerdata.troop.chars[String(instId)] = { charId, level: 10, evolvePhase: 0 };
-    mockPlayer._playerdata.building.chars[String(instId)] = {
+  function stationChar(mockPlayer: MockPlayerDataManager, instId: number, charId: string, warmupSec = 0) {
+    mockPlayer._playerdata.troop.chars[String(instId)] = asModel<PlayerCharacter>({ charId, level: 10, evolvePhase: 0 });
+    mockPlayer._playerdata.building.chars[String(instId)] = asModel<CharWithWarmup>({
       charId, ap: 8640000, lastApAddTime: timeMock.now, roomSlotId: "slot_6", index: 0,
       changeScale: 0, bubble: {}, warmupSec, warmupTs: timeMock.now, warmupSlot: "slot_6",
-    };
+    });
     mockPlayer._playerdata.building.roomSlots.slot_6.charInstIds.push(instId);
   }
 
@@ -200,7 +222,7 @@ describe("BuildingManager 订单生成（_genTradingOrder）", () => {
     const draft = draftOf(mockPlayer);
     draft.building.roomSlots.slot_6.level = 1;
     const room = draft.building.rooms.TRADING.slot_6;
-    (manager as any)._genTradingOrder(draft, room, 1);
+    manager["_genTradingOrder"](draft, room, 1);
     expect(room.stock[0].delivery).toEqual([{ id: "3003", type: "MATERIAL", count: 2 }]);
     expect(room.stock[0].gain.count).toBe(1000); // 2 × 500
   });
@@ -209,7 +231,7 @@ describe("BuildingManager 订单生成（_genTradingOrder）", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const { manager, mockPlayer } = setup();
     const draft = draftOf(mockPlayer);
-    (manager as any)._genTradingOrder(draft, draft.building.rooms.TRADING.slot_6, 1);
+    manager["_genTradingOrder"](draft, draft.building.rooms.TRADING.slot_6, 1);
     expect(draft.building.rooms.TRADING.slot_6.stock[0].delivery[0].count).toBe(4);
   });
 
@@ -218,7 +240,7 @@ describe("BuildingManager 订单生成（_genTradingOrder）", () => {
     const { manager, mockPlayer } = setup();
     stationChar(mockPlayer, 701, "char_wta", 3 * 3600);
     const draft = draftOf(mockPlayer);
-    (manager as any)._genTradingOrder(draft, draft.building.rooms.TRADING.slot_6, 1);
+    manager["_genTradingOrder"](draft, draft.building.rooms.TRADING.slot_6, 1);
     expect(draft.building.rooms.TRADING.slot_6.stock[0].delivery[0].count).toBe(4);
   });
 
@@ -227,7 +249,7 @@ describe("BuildingManager 订单生成（_genTradingOrder）", () => {
     const { manager, mockPlayer } = setup();
     stationChar(mockPlayer, 701, "char_wta", 2 * 3600);
     const draft = draftOf(mockPlayer);
-    (manager as any)._genTradingOrder(draft, draft.building.rooms.TRADING.slot_6, 1);
+    manager["_genTradingOrder"](draft, draft.building.rooms.TRADING.slot_6, 1);
     expect(draft.building.rooms.TRADING.slot_6.stock[0].delivery[0].count).toBe(2);
   });
 
@@ -236,8 +258,9 @@ describe("BuildingManager 订单生成（_genTradingOrder）", () => {
     const { manager, mockPlayer } = setup();
     stationChar(mockPlayer, 702, "char_law");
     const draft = draftOf(mockPlayer);
-    (manager as any)._genTradingOrder(draft, draft.building.rooms.TRADING.slot_6, 1);
-    const order = draft.building.rooms.TRADING.slot_6.stock[0];
+    manager["_genTradingOrder"](draft, draft.building.rooms.TRADING.slot_6, 1);
+    // 订单条目的服务端扩展字段（`special` 违约标记）见 logic/ext-types#TradingOrder
+    const order: TradingOrder = draft.building.rooms.TRADING.slot_6.stock[0];
     expect(order.delivery[0].count).toBe(3); // 2 + 1
     expect(order.special).toBe("breach");
   });
@@ -247,7 +270,7 @@ describe("BuildingManager 订单生成（_genTradingOrder）", () => {
     const { manager, mockPlayer } = setup();
     stationChar(mockPlayer, 703, "char_long");
     const draft = draftOf(mockPlayer);
-    (manager as any)._genTradingOrder(draft, draft.building.rooms.TRADING.slot_6, 1);
+    manager["_genTradingOrder"](draft, draft.building.rooms.TRADING.slot_6, 1);
     const order = draft.building.rooms.TRADING.slot_6.stock[0];
     expect(order.delivery[0].count).toBe(4);
     expect(order.gain.count).toBe(4 * 500 + 500);
@@ -257,7 +280,7 @@ describe("BuildingManager 订单生成（_genTradingOrder）", () => {
     const { manager, mockPlayer } = setup();
     const draft = draftOf(mockPlayer);
     draft.building.rooms.TRADING.slot_6.strategy = "O_DIAMOND";
-    (manager as any)._genTradingOrder(draft, draft.building.rooms.TRADING.slot_6, 1);
+    manager["_genTradingOrder"](draft, draft.building.rooms.TRADING.slot_6, 1);
     const order = draft.building.rooms.TRADING.slot_6.stock[0];
     expect(order.type).toBe("O_DIAMOND");
     expect(order.delivery).toEqual([{ id: "3141", type: "MATERIAL", count: 2 }]);
@@ -275,7 +298,7 @@ describe("BuildingManager 加速方案（accelerateSolution 无人机语义）",
     // 时间基准对齐（无既有离线进度）；无干员 → 速率 1 点/秒：
     // 24 架 = 24×180 = 4320 点 = 恰完成 1 批赤金（costPoint 4320 = 官方 72 分钟）
     mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.lastUpdateTime = timeMock.now;
-    await manager.accelerateSolution({ slotId: "slot_5", cost: 24 } as any);
+    await manager.accelerateSolution({ slotId: "slot_5", cost: 24 });
     const room = mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5;
     expect(room.outputSolutionCnt).toBe(1);
     expect(room.remainSolutionCnt).toBe(9);
@@ -284,7 +307,7 @@ describe("BuildingManager 加速方案（accelerateSolution 无人机语义）",
 
   it("cost 缺省：兼容旧行为（立即完成 1 方案）", async () => {
     const { manager, mockPlayer } = setup();
-    await manager.accelerateSolution({ slotId: "slot_5" } as any);
+    await manager.accelerateSolution({ slotId: "slot_5" });
     const room = mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5;
     expect(room.outputSolutionCnt).toBe(1);
     expect(room.remainSolutionCnt).toBe(9);
@@ -293,7 +316,7 @@ describe("BuildingManager 加速方案（accelerateSolution 无人机语义）",
   it("计划耗尽（remain=0）时加速无效（停摆待收取）", async () => {
     const { manager, mockPlayer } = setup();
     mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.remainSolutionCnt = 0;
-    await manager.accelerateSolution({ slotId: "slot_5", cost: 5 } as any);
+    await manager.accelerateSolution({ slotId: "slot_5", cost: 5 });
     const room = mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5;
     expect(room.outputSolutionCnt).toBe(0);
   });

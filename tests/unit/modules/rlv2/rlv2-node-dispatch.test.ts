@@ -1,4 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string }
+/** excel mock 干员行形状（本文件用到的字段即可） */
+interface ExcelCharRowMock {
+  name?: string;
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+  subProfessionId?: string;
+}
 
 // ===== rogue_6（黑流树海）节点分发与主题规则回归 =====
 // 覆盖本轮修复：
@@ -13,11 +23,13 @@ import { describe, it, expect, vi } from "vitest";
 // 7. 误入奇境消耗 MOVE 型（官方 scrapTypeData：MOVE=加工品）
 const excelMock = vi.hoisted(() => ({
   // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
   itemName(id: string): string { return this.getItem(id)?.name ?? id; },
   makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
   charData(charId: string) { return this.CharacterTable?.[charId]; },
   stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+  ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+  StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
   RoguelikeTopicTable: {
     details: {
       rogue_6: {
@@ -88,14 +100,21 @@ const excelMock = vi.hoisted(() => ({
     },
     consts: {},
   },
-  CharacterTable: {},
+  CharacterTable: {} as Record<string, ExcelCharRowMock>,
   GameDataConst: { maxLevel: [[], [], [], [], [], []] },
 }));
 
 vi.mock("@excel/excel", () => ({ default: excelMock }));
 
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
-import { mockPlayerData } from "../../../helpers";
+import type { PlayerSquad } from "@game/kernel/model";
+import type {
+  PlayerRoguelikeNode,
+  PlayerRoguelikeV2,
+  PlayerRoguelikeV2Zone,
+} from "@game/modules/roguelike/rlv2-model";
+import type { RoguelikePendingEvent } from "@game/modules/roguelike/events";
+import { mockPlayerData, asModel } from "../../../helpers";
 import {
   ROGUE6_NODE,
   ROGUE6_NODE_SCENE_PREFIX,
@@ -103,25 +122,56 @@ import {
   isBlackstream,
 } from "@game/modules/roguelike/theme-rules";
 
+/** 开局 game 夹具类型（真实模型 `CurrentData.Game`） */
+type Rlv2Game = NonNullable<PlayerRoguelikeV2["current"]["game"]>;
+
+/**
+ * rlv2 pushMessage 载荷读取视图
+ *
+ * `RoguelikePushMessage.payload` 生产侧类型未收窄（app/game/kernel/http/common.ts），
+ * 各 path 的载荷形状由发送站点确定：rlv2NodeArrive={nodeType}、rlv2NodeChange={nodeList}
+ * （battle-nav.ts / grid-nav.ts）、rlv2NodeTeleport={nodeId}（grid-nav.ts）、
+ * rlv2GotRandScrap={idList}、rlv2LevelUpMaxWeight={count}（modules/scrap.ts）。
+ * 本用例只读取这些字段，故就地声明读取视图，不改任何夹具/生产数据。
+ */
+interface Rlv2PushPayloadView {
+  nodeType?: number;
+  nodeList?: string[];
+  nodeId?: string;
+  idList?: string[];
+  count?: number;
+}
+
+/**
+ * `RoguelikeV2Manager` 上的历史可选入口视图
+ *
+ * 该处历史写法 `rlv2.beginMove?.()` 的方法实际只存在于 gridZone 子管理器
+ * （本文件其余位置均以 `gz.beginMove()` 调用），`?.()` 使其在运行期恒为 no-op。
+ * 为不改运行期行为，仅就地声明该可选入口的读取视图。
+ */
+interface MaybeBeginMoveOnPlayer {
+  beginMove?: () => void;
+}
+
 function makePlayer() {
-  const pd: any = mockPlayerData({
+  const pd = mockPlayerData({
     rlv2: {
-      outer: { rogue_6: {} } as any,
+      outer: { rogue_6: {} },
       current: {},
-      pinned: {},
-    } as any,
-    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } } as any,
+      pinned: {} as string,
+    },
+    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
     mission: {
       missions: { DAILY: {}, ACTIVITY: {} },
       missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} },
-    } as any,
+    },
   });
   const player = new PlayerDataManager(pd._playerdata);
-  (player.rlv2 as any).current.game = {
+  player.rlv2.current.game = asModel<Rlv2Game>({
     theme: "rogue_6",
     mode: "NORMAL",
     modeGrade: 0,
-  } as any;
+  });
   return player;
 }
 
@@ -132,8 +182,8 @@ function makePlayer() {
 async function moveToNodeOfType(
   player: PlayerDataManager,
   kind: number,
-): Promise<{ pending: any[]; state: string }> {
-  const rlv2 = player.rlv2 as any;
+): Promise<{ pending: RoguelikePendingEvent[]; state: string }> {
+  const rlv2 = player.rlv2;
   const gz = rlv2._module.gridZone;
   gz.generate([3]);
   rlv2._status.cursor.zone = 3;
@@ -162,31 +212,31 @@ describe("rogue_6 事件节点分发（gridZoneMoveTo）", () => {
     "%s 节点落地生成 SCENE 事件（原实现退化为空节点）",
     async (_name, kind, scenePattern) => {
       const player = makePlayer();
-      await (player.rlv2 as any)._module.create();
+      await player.rlv2._module.create();
       const { pending, state } = await moveToNodeOfType(player, kind);
       expect(state).toBe("PENDING");
       expect(pending.length).toBeGreaterThan(0);
       expect(pending[0].type).toBe("SCENE");
-      expect(pending[0].content.scene.id).toMatch(scenePattern);
+      expect(pending[0].content.scene!.id).toMatch(scenePattern);
       // 选项非空（客户端需要至少一个可选项才能推进）
       expect(
-        Object.keys(pending[0].content.scene.choices).length,
+        Object.keys(pending[0].content.scene!.choices).length,
       ).toBeGreaterThan(0);
     },
   );
 
   it("先行一步选项含 choice_ro6_scout_1/3（三结局入口可达）", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
+    await player.rlv2._module.create();
     const { pending } = await moveToNodeOfType(player, ROGUE6_NODE.EXPEDITION);
-    const choices = Object.keys(pending[0].content.scene.choices);
+    const choices = Object.keys(pending[0].content.scene!.choices);
     expect(choices).toContain("choice_ro6_scout_1");
     expect(choices).toContain("choice_ro6_scout_3");
   });
 
   it("应急助力按商店语义开 BATTLE_SHOP（官方 subName=商店；含 content 精简形态）", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
+    await player.rlv2._module.create();
     const { pending, state } = await moveToNodeOfType(
       player,
       ROGUE6_NODE.EMERGENCY_AID,
@@ -198,7 +248,7 @@ describe("rogue_6 事件节点分发（gridZoneMoveTo）", () => {
 
   it("不期而遇未触发线人时回退通用场景（normal 幕）", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
+    await player.rlv2._module.create();
     // Math.random=0.9：线人概率判定（<0.4）不通过 → 走通用不期而遇场景
     const spy = vi.spyOn(Math, "random").mockReturnValue(0.9);
     try {
@@ -207,7 +257,7 @@ describe("rogue_6 事件节点分发（gridZoneMoveTo）", () => {
         ROGUE6_NODE.INCIDENT,
       );
       expect(state).toBe("PENDING");
-      expect(pending[0].content.scene.id).toMatch(
+      expect(pending[0].content.scene!.id).toMatch(
         /^scene_ro6_(normal|bat)\d*_enter$/,
       );
     } finally {
@@ -222,7 +272,7 @@ describe("rogue_6 事件节点分发（gridZoneMoveTo）", () => {
       ROGUE6_NODE.RAIN_VIEW,
     ]) {
       const player = makePlayer();
-      await (player.rlv2 as any)._module.create();
+      await player.rlv2._module.create();
       const { state, pending } = await moveToNodeOfType(player, kind);
       expect(state, `kind ${kind}`).toBe("WAIT_MOVE");
       expect(pending.length, `kind ${kind}`).toBe(0);
@@ -233,27 +283,27 @@ describe("rogue_6 事件节点分发（gridZoneMoveTo）", () => {
 describe("rogue_6 节点到达推送（pushMessage）", () => {
   it("gridZone 移动累积 rlv2NodeArrive + rlv2NodeChange（原实现永不下发）", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
+    await player.rlv2._module.create();
     await moveToNodeOfType(player, ROGUE6_NODE.GLADE);
-    const msgs = (player.rlv2 as any).takePushMessages();
-    const paths = msgs.map((m: any) => m.path);
+    const msgs = player.rlv2.takePushMessages();
+    const paths = msgs.map((m) => m.path);
     expect(paths).toContain("rlv2NodeArrive");
     expect(paths).toContain("rlv2NodeChange");
-    const arrive = msgs.find((m: any) => m.path === "rlv2NodeArrive");
-    expect((arrive!.payload as any).nodeType).toBe(ROGUE6_NODE.GLADE);
-    const change = msgs.find((m: any) => m.path === "rlv2NodeChange");
+    const arrive = msgs.find((m) => m.path === "rlv2NodeArrive");
+    expect((arrive!.payload as Rlv2PushPayloadView).nodeType).toBe(ROGUE6_NODE.GLADE);
+    const change = msgs.find((m) => m.path === "rlv2NodeChange");
     expect(
-      Array.isArray((change!.payload as any).nodeList),
+      Array.isArray((change!.payload as Rlv2PushPayloadView).nodeList),
     ).toBe(true);
     // 取走后清空（避免残留累积到下一请求）
-    expect((player.rlv2 as any).takePushMessages().length).toBe(0);
+    expect(player.rlv2.takePushMessages().length).toBe(0);
   });
 
   it("rlv2NodeChange.nodeList 只含发生变化的节点（到达节点+新揭示邻居），非整层全量（官服抓包 R-1786531228496.9993-3674）", async () => {
     // 固定随机：构造模板/关卡/节点类型稳定；用单格 moveTo 直接验证变化节点集合
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const rlv2 = player.rlv2 as any;
+    await player.rlv2._module.create();
+    const rlv2 = player.rlv2;
     const gz = rlv2._module.gridZone;
     gz.beginMove();
     // 手工铺一张平铺网格：0,0 起点（已访问）；目标节点 100 → 到达后按地图边点亮
@@ -275,16 +325,16 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
     // 起点 0 已揭示（visibility=NORMAL），抵达 100 后 200/101 由 HIDE_INVISIBLE → NORMAL，
     // 起点不降级、1/2 非边连接不入列。（变化集 = 视野变化节点；官服 state 仅 0/2，
     // gridZone state 不再产生 0→1 中间态，故邻居必须有 map 节点才能入变化集）
-    (rlv2._map as any).zones["1002"] = {
+    rlv2._map.zones["1002"] = asModel<PlayerRoguelikeV2Zone>({
       nodes: {
         "0": { next: [{ x: 1, y: 0 }], visibility: 0 },
         "100": { next: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 1, y: 1 }], visibility: 1 },
         "101": { next: [], visibility: 1 },
         "200": { next: [], visibility: 1 },
       },
-    };
+    });
     rlv2._status.cursor.zone = 3;
-    rlv2.beginMove?.();
+    (rlv2 as MaybeBeginMoveOnPlayer).beginMove?.();
     gz.moveTo(["100"]);
     const changed = gz.takeChangedNodes();
     expect(changed).toContain("100"); // 到达节点：state 0 → 2
@@ -308,8 +358,8 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
     // 101(距1)、200(距1)、300(距2) 全部揭示；103(距3) 在半径 2 之外保持隐藏——含无边连接。
     // 普通节点 1 跳：沿地图边只点亮直链邻居 200，无边连接的 101/103 与距离 2 的 300 不亮。
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const rlv2 = player.rlv2 as any;
+    await player.rlv2._module.create();
+    const rlv2 = player.rlv2;
     const gz = rlv2._module.gridZone;
     const layer = (zoneKey: string, kind: number) => {
       gz.beginMove();
@@ -327,7 +377,7 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
       };
       // map.zones 邻接：仅直链 0-100-200-300；101/103 无边（next 空）。
       // visibility 官方枚举语义：0=NORMAL 已揭示，1=HIDE_INVISIBLE 未揭示。
-      (rlv2._map as any).zones["1003"] = {
+      rlv2._map.zones["1003"] = asModel<PlayerRoguelikeV2Zone>({
         nodes: {
           "0": { next: [{ x: 1, y: 0 }], visibility: 0 },
           "100": { next: [{ x: 0, y: 0 }, { x: 2, y: 0 }], visibility: 1 },
@@ -336,12 +386,12 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
           "101": { next: [], visibility: 1 },
           "103": { next: [], visibility: 1 },
         },
-      };
+      });
       rlv2._status.cursor.zone = 4;
       gz.beginMove();
       gz.moveTo(["100"]);
     };
-    const mapOf = () => (rlv2._map as any).zones["1003"].nodes;
+    const mapOf = () => rlv2._map.zones["1003"].nodes;
 
     // 羽瞰点：曼哈顿距离 ≤2（101/200 距1、300 距2）全部揭示为 NORMAL(0)；103 距3 保持隐藏
     layer("zone_4", ROGUE6_NODE.RAIN_VIEW);
@@ -369,8 +419,8 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
     // 直接校验 generate 中默认揭示（r=1）：羽瞰点 1 半径内（上下左右）揭示为 NORMAL(0)，
     // 距离 2 节点保持 HIDE_INVISIBLE(1)。
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const rlv2 = player.rlv2 as any;
+    await player.rlv2._module.create();
+    const rlv2 = player.rlv2;
     const gz = rlv2._module.gridZone;
     // 羽瞰点 200(2,0) 居中：左 100(1,0) 距1、上 201(2,1) 距1、右 300(3,0) 距1、远 500(5,0) 距3
     gz.zones = {
@@ -385,7 +435,7 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
       },
     };
     // 羽瞰点在 map.zones 固定为已揭示（visibility=NORMAL），其余保持隐藏
-    (rlv2._map as any).zones["1003"] = {
+    rlv2._map.zones["1003"] = asModel<PlayerRoguelikeV2Zone>({
       nodes: {
         "100": { next: [{ x: 2, y: 0 }], visibility: 1 },
         "200": { next: [{ x: 1, y: 0 }, { x: 2, y: 1 }, { x: 3, y: 0 }], visibility: 0 },
@@ -393,11 +443,11 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
         "300": { next: [{ x: 2, y: 0 }], visibility: 1 },
         "500": { next: [{ x: 4, y: 0 }], visibility: 1 },
       },
-    };
+    });
     // 模拟 generate 中羽瞰点的默认揭示（r=1）
     gz.beginMove();
-    gz.revealManhattan("1003", "zone_4", 2, 0, 1);
-    const mapNodes = (rlv2._map as any).zones["1003"].nodes;
+    gz["revealManhattan"]("1003", "zone_4", 2, 0, 1);
+    const mapNodes = rlv2._map.zones["1003"].nodes;
     expect(mapNodes["100"].visibility).toBe(0); // 左，距1 → NORMAL
     expect(mapNodes["201"].visibility).toBe(0); // 上，距1 → NORMAL
     expect(mapNodes["300"].visibility).toBe(0); // 右，距1 → NORMAL
@@ -406,8 +456,8 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
 
   it("羽瞰点 moveTo 前往后揭示曼哈顿距离 2 并补偿 1 行动力", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const rlv2 = player.rlv2 as any;
+    await player.rlv2._module.create();
+    const rlv2 = player.rlv2;
     const gz = rlv2._module.gridZone;
     gz.zones = {
       zone_3: {
@@ -419,14 +469,14 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
         },
       },
     };
-    (rlv2._map as any).zones["1002"] = {
+    rlv2._map.zones["1002"] = asModel<PlayerRoguelikeV2Zone>({
       nodes: {
         "0": { next: [{ x: 1, y: 0 }], visibility: 0 },
         "100": { next: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 1 }], visibility: 1 },
         "200": { next: [{ x: 1, y: 0 }], visibility: 1 },
         "201": { next: [{ x: 1, y: 0 }], visibility: 1 },
       },
-    };
+    });
     rlv2._status.cursor.zone = 3;
     rlv2._status.cursor.position = { x: 0, y: 0 };
     gz.stepRemain = 5;
@@ -435,16 +485,16 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
     // 前往羽瞰点：+1 行动力（官服"前往该节点后……获得1行动力"）
     expect(gz.stepRemain).toBe(6);
     // 曼哈顿距离 1/2（200 距1、201 距2）均揭示为 NORMAL(0)
-    expect((rlv2._map as any).zones["1002"].nodes["200"].visibility).toBe(0);
-    expect((rlv2._map as any).zones["1002"].nodes["201"].visibility).toBe(0);
+    expect(rlv2._map.zones["1002"].nodes["200"].visibility).toBe(0);
+    expect(rlv2._map.zones["1002"].nodes["201"].visibility).toBe(0);
   });
 });
 
 describe("rogue_6 曲折密道成对传送", () => {
   it("层内两个 TUNNEL 节点成对索引，进入其一返回配对密道目标", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const rlv2 = player.rlv2 as any;
+    await player.rlv2._module.create();
+    const rlv2 = player.rlv2;
     const gz = rlv2._module.gridZone;
     // 手工铺一张恰好含两个 TUNNEL 节点的层，避免 generate 随机抽取额外密道影响成对计数
     gz.zones = {
@@ -466,8 +516,8 @@ describe("rogue_6 曲折密道成对传送", () => {
 
   it("移动进密道节点：服务端位移到配对密道并下发 rlv2NodeTeleport", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const rlv2 = player.rlv2 as any;
+    await player.rlv2._module.create();
+    const rlv2 = player.rlv2;
     const gz = rlv2._module.gridZone;
     gz.zones = {
       zone_3: {
@@ -479,13 +529,13 @@ describe("rogue_6 曲折密道成对传送", () => {
       },
     };
     gz["indexTunnelPairs"](3, gz.zones["zone_3"].nodes);
-    (rlv2._map as any).zones["1002"] = {
+    rlv2._map.zones["1002"] = asModel<PlayerRoguelikeV2Zone>({
       nodes: {
         "0": { next: [{ x: 1, y: 0 }], visibility: 0 },
         "100": { next: [{ x: 0, y: 0 }], visibility: 1 },
         "300": { next: [{ x: 0, y: 0 }], visibility: 1 },
       },
-    };
+    });
     rlv2._status.cursor.zone = 3;
     rlv2._status.cursor.position = { x: 0, y: 0 };
     gz.beginMove();
@@ -494,36 +544,36 @@ describe("rogue_6 曲折密道成对传送", () => {
     // 位置位移到配对密道 300（3,0）
     expect(rlv2._status.cursor.position).toEqual({ x: 3, y: 0 });
     const msgs = rlv2.takePushMessages();
-    const tele = msgs.find((m: any) => m.path === "rlv2NodeTeleport");
+    const tele = msgs.find((m) => m.path === "rlv2NodeTeleport");
     expect(tele).toBeTruthy();
-    expect((tele!.payload as any).nodeId).toBe("300");
+    expect((tele!.payload as Rlv2PushPayloadView).nodeId).toBe("300");
   });
 });
 
 describe("rogue_6 关卡池按节点类型分流（eliteStages 修复）", () => {
   it("紧急作战取 ro6_e_*、险路恶敌取 ro6_b_*、作战取 ro6_n_*", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const gz = (player.rlv2 as any)._module.gridZone;
-    const pools = { normal: ["ro6_n_3_1"], elite: ["ro6_e_3_1"], boss: ["ro6_b_3"] };
+    await player.rlv2._module.create();
+    const gz = player.rlv2._module.gridZone;
+    const pools = { normal: ["ro6_n_3_1"], elite: ["ro6_e_3_1"], boss: ["ro6_b_3"], resident: [] };
     expect(
-      gz.makeContentNode(ROGUE6_NODE.BATTLE_NORMAL, pools).content.savage.stageId,
+      gz.makeContentNode(ROGUE6_NODE.BATTLE_NORMAL, pools).content.savage!.stageId,
     ).toBe("ro6_n_3_1");
     expect(
-      gz.makeContentNode(ROGUE6_NODE.BATTLE_ELITE, pools).content.savage.stageId,
+      gz.makeContentNode(ROGUE6_NODE.BATTLE_ELITE, pools).content.savage!.stageId,
     ).toBe("ro6_e_3_1");
     expect(
-      gz.makeContentNode(ROGUE6_NODE.BATTLE_BOSS, pools).content.savage.stageId,
+      gz.makeContentNode(ROGUE6_NODE.BATTLE_BOSS, pools).content.savage!.stageId,
     ).toBe("ro6_b_3");
   });
 
   it("生成 zone 3 时精英节点的关卡来自 e 池、boss 节点来自 b 池", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const gz = (player.rlv2 as any)._module.gridZone;
+    await player.rlv2._module.create();
+    const gz = player.rlv2._module.gridZone;
     gz.generate([3]);
-    const mapNodes = (player.rlv2 as any)._map.zones["1002"].nodes;
-    for (const n of Object.values(mapNodes) as any[]) {
+    const mapNodes = player.rlv2._map.zones["1002"].nodes;
+    for (const n of Object.values(mapNodes)) {
       if (n.type === ROGUE6_NODE.BATTLE_ELITE) {
         expect(n.stage, `elite ${n.index}`).toMatch(/^ro6_e_3_/);
       }
@@ -540,7 +590,7 @@ describe("rogue_6 关卡池按节点类型分流（eliteStages 修复）", () =>
 describe("rogue_6 重掷节点（rerollNode 键与类型映射修复）", () => {
   it("按 1000+ 键取到节点并写入 rogue_6 节点类型（原实现静默失效）", async () => {
     const player = makePlayer();
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     await rlv2._module.create();
     const gz = rlv2._module.gridZone;
     gz.generate([3]);
@@ -558,22 +608,22 @@ describe("rogue_6 重掷节点（rerollNode 键与类型映射修复）", () => 
 describe("rogue_6 废品估价（官方 sellPrice）", () => {
   it("gain 的废品 value 取官方 sellPrice，而非恒为 1", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const scrap = (player.rlv2 as any)._module.scrap;
-    await (player.rlv2 as any)._trigger.emit("rlv2:scrap:gain", [
+    await player.rlv2._module.create();
+    const scrap = player.rlv2._module.scrap;
+    await player.rlv2._trigger.emit("rlv2:scrap:gain", [
       "rogue_6_scrap_G_02",
     ]);
     const gained = Object.values(scrap.inventory).find(
-      (it: any) => it.id === "rogue_6_scrap_G_02",
-    ) as any;
+      (it) => it.id === "rogue_6_scrap_G_02",
+    );
     expect(gained).toBeTruthy();
-    expect(gained.value).toBe(2); // goodsScrapData.sellPrice
+    expect(gained!.value).toBe(2); // goodsScrapData.sellPrice
   });
 
   it("开局 s_1/s_2 取 moduleConsts.identifyScrapId 与其 sellPrice", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const scrap = (player.rlv2 as any)._module.scrap;
+    await player.rlv2._module.create();
+    const scrap = player.rlv2._module.scrap;
     expect(scrap.inventory["s_1"].id).toBe("rogue_6_scrap_M_01");
     expect(scrap.inventory["s_1"].value).toBe(1); // moveScrapData.sellPrice
   });
@@ -617,61 +667,61 @@ describe("主题规则注册表（theme-rules）", () => {
 describe("rogue_6 新增 pushMessage 类型", () => {
   it("废品 gain → rlv2GotRandScrap{idList}", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
+    await player.rlv2._module.create();
     // 先取走创建期可能累积的推送，保证断言针对本次 gain
-    (player.rlv2 as any).takePushMessages();
-    await (player.rlv2 as any)._trigger.emit("rlv2:scrap:gain", [
+    player.rlv2.takePushMessages();
+    await player.rlv2._trigger.emit("rlv2:scrap:gain", [
       "rogue_6_scrap_G_02",
     ]);
-    const msgs = (player.rlv2 as any).takePushMessages();
-    const scor = msgs.find((m: any) => m.path === "rlv2GotRandScrap");
+    const msgs = player.rlv2.takePushMessages();
+    const scor = msgs.find((m) => m.path === "rlv2GotRandScrap");
     expect(scor).toBeTruthy();
-    expect((scor!.payload as any).idList).toEqual(["rogue_6_scrap_G_02"]);
+    expect((scor!.payload as Rlv2PushPayloadView).idList).toEqual(["rogue_6_scrap_G_02"]);
   });
 
   it("changeVehicle 切载具/回步行 → rlv2VehicleChange{}", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const scrap = (player.rlv2 as any)._module.scrap;
-    (player.rlv2 as any).takePushMessages();
+    await player.rlv2._module.create();
+    const scrap = player.rlv2._module.scrap;
+    player.rlv2.takePushMessages();
     // 开局步行 → 切到已持有的 MOVE 载具
     scrap.changeVehicle("s_1");
-    let msgs = (player.rlv2 as any).takePushMessages();
-    expect(msgs.map((m: any) => m.path)).toContain("rlv2VehicleChange");
+    let msgs = player.rlv2.takePushMessages();
+    expect(msgs.map((m) => m.path)).toContain("rlv2VehicleChange");
     // 切回步行再触发一次
     scrap.changeVehicle("");
-    msgs = (player.rlv2 as any).takePushMessages();
-    expect(msgs.map((m: any) => m.path)).toContain("rlv2VehicleChange");
+    msgs = player.rlv2.takePushMessages();
+    expect(msgs.map((m) => m.path)).toContain("rlv2VehicleChange");
     // 无变化（当前已是该载具，重复切同一载具）不再推送
     scrap.changeVehicle("s_1"); // walk→s_1 有效变更
-    (player.rlv2 as any).takePushMessages(); // 排空
+    player.rlv2.takePushMessages(); // 排空
     scrap.changeVehicle("s_1"); // 已在该载具 → 无变化
-    expect((player.rlv2 as any).takePushMessages().length).toBe(0);
+    expect(player.rlv2.takePushMessages().length).toBe(0);
   });
 
   it("setLimit 扩容 → rlv2LevelUpMaxWeight{count}；缩减 → rlv2WeightWorse{}", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const scrap = (player.rlv2 as any)._module.scrap;
-    (player.rlv2 as any).takePushMessages();
+    await player.rlv2._module.create();
+    const scrap = player.rlv2._module.scrap;
+    player.rlv2.takePushMessages();
     scrap.setLimit(12);
-    let msgs = (player.rlv2 as any).takePushMessages();
-    const up = msgs.find((m: any) => m.path === "rlv2LevelUpMaxWeight");
+    let msgs = player.rlv2.takePushMessages();
+    const up = msgs.find((m) => m.path === "rlv2LevelUpMaxWeight");
     expect(up).toBeTruthy();
-    expect((up!.payload as any).count).toBe(2);
+    expect((up!.payload as Rlv2PushPayloadView).count).toBe(2);
     scrap.setLimit(8);
-    msgs = (player.rlv2 as any).takePushMessages();
-    expect(msgs.map((m: any) => m.path)).toContain("rlv2WeightWorse");
+    msgs = player.rlv2.takePushMessages();
+    expect(msgs.map((m) => m.path)).toContain("rlv2WeightWorse");
     // 容量不变不推送
     scrap.setLimit(8);
-    expect((player.rlv2 as any).takePushMessages().length).toBe(0);
+    expect(player.rlv2.takePushMessages().length).toBe(0);
   });
 
   it("非 rogue_6 主题下 pushMessage 静默跳过（不改污染收集器）", async () => {
     const player = makePlayer();
-    (player.rlv2 as any).current.game.theme = "rogue_5";
+    player.rlv2.current.game!.theme = "rogue_5";
     player.rlv2.pushMessage("rlv2VehicleChange", {});
-    expect((player.rlv2 as any).takePushMessages().length).toBe(0);
+    expect(player.rlv2.takePushMessages().length).toBe(0);
   });
 });
 
@@ -680,8 +730,8 @@ describe("rogue_6 经过后节点衰减为林间空地（decayPassed）", () => 
   // 普通节点被经过 → gridZone/map 均变 GLADE；可反复进入类节点保持不变。
   it("普通节点被移走后变为林间空地（gridZone 与 map 类型同步）", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const rlv2 = player.rlv2 as any;
+    await player.rlv2._module.create();
+    const rlv2 = player.rlv2;
     const gz = rlv2._module.gridZone;
     gz.zones = {
       zone_3: {
@@ -691,23 +741,23 @@ describe("rogue_6 经过后节点衰减为林间空地（decayPassed）", () => 
         },
       },
     };
-    (rlv2._map as any).zones["1002"] = {
+    rlv2._map.zones["1002"] = asModel<PlayerRoguelikeV2Zone>({
       nodes: {
         "100": { next: [{ x: 2, y: 0 }], visibility: 0, type: ROGUE6_NODE.BATTLE_NORMAL },
         "200": { next: [{ x: 1, y: 0 }], visibility: 1, type: ROGUE6_NODE.REST },
       },
-    };
+    });
     expect(gz.decayPassed("1002", "zone_3", "100")).toBe(true);
     expect(gz.zones["zone_3"].nodes["100"].content.kind).toBe(ROGUE6_NODE.GLADE);
-    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.GLADE);
+    expect(rlv2._map.zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.GLADE);
     // decayPassed 不改 visibility；100 已揭示（NORMAL=0）
-    expect((rlv2._map as any).zones["1002"].nodes["100"].visibility).toBe(0);
+    expect(rlv2._map.zones["1002"].nodes["100"].visibility).toBe(0);
   });
 
   it("可反复进入类节点（商店/林间空地/尽头/小径/密道）经过后保持原类型", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const rlv2 = player.rlv2 as any;
+    await player.rlv2._module.create();
+    const rlv2 = player.rlv2;
     const gz = rlv2._module.gridZone;
     const revisit = [
       ROGUE6_NODE.SHOP,
@@ -719,24 +769,24 @@ describe("rogue_6 经过后节点衰减为林间空地（decayPassed）", () => 
       ROGUE6_NODE.TUNNEL,
     ];
     gz.zones = { zone_3: { nodes: {} } };
-    (rlv2._map as any).zones["1002"] = { nodes: {} };
+    rlv2._map.zones["1002"] = asModel<PlayerRoguelikeV2Zone>({ nodes: {} });
     revisit.forEach((kind, i) => {
       const id = String((i + 1) * 100);
       gz.zones["zone_3"].nodes[id] = { content: { kind }, state: 2, show: true };
-      (rlv2._map as any).zones["1002"].nodes[id] = { type: kind, visibility: 0 };
+      rlv2._map.zones["1002"].nodes[id] = asModel<PlayerRoguelikeNode>({ type: kind, visibility: 0 });
     });
     revisit.forEach((kind, i) => {
       const id = String((i + 1) * 100);
       expect(gz.decayPassed("1002", "zone_3", id)).toBe(false);
       expect(gz.zones["zone_3"].nodes[id].content.kind).toBe(kind);
-      expect((rlv2._map as any).zones["1002"].nodes[id].type).toBe(kind);
+      expect(rlv2._map.zones["1002"].nodes[id].type).toBe(kind);
     });
   });
 
   it("gridZoneMoveTo：移动后上一位置普通节点变 GLADE 并进入 nodeList", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const rlv2 = player.rlv2 as any;
+    await player.rlv2._module.create();
+    const rlv2 = player.rlv2;
     const gz = rlv2._module.gridZone;
     // 起点 0 已访问（GLADE）；目标 100 为普通作战；玩家起点在 0 → 移动到 100
     gz.zones = {
@@ -748,20 +798,20 @@ describe("rogue_6 经过后节点衰减为林间空地（decayPassed）", () => 
         },
       },
     };
-    (rlv2._map as any).zones["1002"] = {
+    rlv2._map.zones["1002"] = asModel<PlayerRoguelikeV2Zone>({
       nodes: {
         "0": { next: [{ x: 1, y: 0 }], visibility: 0, type: ROGUE6_NODE.GLADE },
         "100": { next: [{ x: 0, y: 0 }, { x: 2, y: 0 }], visibility: 1, type: ROGUE6_NODE.BATTLE_NORMAL },
         "200": { next: [{ x: 1, y: 0 }], visibility: 1, type: ROGUE6_NODE.GLADE },
       },
-    };
+    });
     rlv2._status.cursor.zone = 3;
     rlv2._status.cursor.position = { x: 0, y: 0 };
     gz.beginMove();
     await rlv2.gridZoneMoveTo({ route: ["100"] });
     // 抵达 100 后，起点 0 为 GLADE（本来就 GLADE，不衰减）；无中途节点 → 无衰减
-    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.BATTLE_NORMAL);
-    expect((rlv2._map as any).zones["1002"].nodes["0"].type).toBe(ROGUE6_NODE.GLADE);
+    expect(rlv2._map.zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.BATTLE_NORMAL);
+    expect(rlv2._map.zones["1002"].nodes["0"].type).toBe(ROGUE6_NODE.GLADE);
   });
 });
 
@@ -770,8 +820,8 @@ describe("rogue_6 居民据点与流窜居民机制", () => {
   /** 构造一张含居民据点的 zone_3（modeGrade 由参数指定），并返回相关句柄 */
   async function residentFixture(modeGrade: number) {
     const player = makePlayer();
-    (player.rlv2 as any).current.game.modeGrade = modeGrade;
-    const rlv2 = player.rlv2 as any;
+    player.rlv2.current.game!.modeGrade = modeGrade;
+    const rlv2 = player.rlv2;
     await rlv2._module.create();
     const gz = rlv2._module.gridZone;
     // gridZone：0 起点 GLADE、100 “居民”据点、200/300 普通节点（可被流窜占领）
@@ -786,14 +836,14 @@ describe("rogue_6 居民据点与流窜居民机制", () => {
       },
     };
     // map：100 边连 200/300（供周边流窜生成）；200/300 visibility 初始隐藏
-    (rlv2._map as any).zones["1002"] = {
+    rlv2._map.zones["1002"] = asModel<PlayerRoguelikeV2Zone>({
       nodes: {
         "0": { next: [{ x: 1, y: 0 }], visibility: 0, type: ROGUE6_NODE.GLADE },
         "100": { next: [{ x: 2, y: 0 }, { x: 3, y: 0 }], visibility: 1, type: ROGUE6_NODE.RESIDENT },
         "200": { next: [], visibility: 1, type: ROGUE6_NODE.BATTLE_NORMAL },
         "300": { next: [], visibility: 1, type: ROGUE6_NODE.INCIDENT },
       },
-    };
+    });
     rlv2._status.cursor.zone = 3;
     return { player, rlv2, gz };
   }
@@ -803,7 +853,7 @@ describe("rogue_6 居民据点与流窜居民机制", () => {
     expect(gz.canSpawnResident(3)).toBe(true);
     expect(gz.canSpawnResident(1)).toBe(false); // I 层
     expect(gz.canSpawnResident(6)).toBe(false); // VI 层
-    (player.rlv2 as any).current.game.modeGrade = 3;
+    player.rlv2.current.game!.modeGrade = 3;
     expect(gz.canSpawnResident(3)).toBe(false); // 保密等级不足
   });
 
@@ -827,7 +877,7 @@ describe("rogue_6 居民据点与流窜居民机制", () => {
     const b200 = gz.banditAt("zone_3", "200");
     const b300 = gz.banditAt("zone_3", "300");
     expect(b200 || b300).toBeTruthy();
-    const mapNodes = (rlv2._map as any).zones["1002"].nodes;
+    const mapNodes = rlv2._map.zones["1002"].nodes;
     for (const nid of ["200", "300"]) {
       if (gz.banditAt("zone_3", nid)) {
         expect(mapNodes[nid].type).toBe(ROGUE6_NODE.BATTLE_NORMAL);
@@ -857,7 +907,7 @@ describe("rogue_6 居民据点与流窜居民机制", () => {
     expect(gz.isResidentNode("zone_3", "100")).toBe(false);
     expect(gz.residentNodeIds("zone_3")).toEqual([]);
     expect(gz.banditAt("zone_3", "200")).toBeUndefined();
-    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.GLADE);
+    expect(rlv2._map.zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.GLADE);
   });
 
   it("驱逐被占领节点后节点被毁为林间空地（其余流窜保留）", async () => {
@@ -880,7 +930,7 @@ describe("rogue_6 居民据点与流窜居民机制", () => {
     // 被驱逐节点毁为林间空地
     expect(gz.banditAt("zone_3", "200")).toBeUndefined();
     expect(gz.zones["zone_3"].nodes["200"].content.kind).toBe(ROGUE6_NODE.GLADE);
-    expect((rlv2._map as any).zones["1002"].nodes["200"].type).toBe(ROGUE6_NODE.GLADE);
+    expect(rlv2._map.zones["1002"].nodes["200"].type).toBe(ROGUE6_NODE.GLADE);
     // 其余流窜居民（若有）保留
     expect(gz.banditAt("zone_3", "300")).toBeTruthy();
   });
@@ -912,12 +962,12 @@ describe("rogue_6 居民据点与流窜居民机制", () => {
     expect(gz.isResidentNode("zone_3", "100")).toBe(false);
     expect(gz.residentNodeIds("zone_3")).toEqual([]);
     expect(gz.zones["zone_3"].nodes["100"].content.kind).toBe(ROGUE6_NODE.GLADE);
-    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.GLADE);
+    expect(rlv2._map.zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.GLADE);
   });
 
   it("流窜居民沿连通路径移动 1 格，不进入可反复进入节点/林间空地（GLADE）", async () => {
     const player = makePlayer();
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     await rlv2._module.create();
     const gz = rlv2._module.gridZone;
     // 流窜居民在 200；可移动邻居 100(作战，合法) 与 300(林间空地，非法)
@@ -931,18 +981,18 @@ describe("rogue_6 居民据点与流窜居民机制", () => {
         },
       },
     };
-    (rlv2._map as any).zones["1002"] = {
+    rlv2._map.zones["1002"] = asModel<PlayerRoguelikeV2Zone>({
       nodes: {
         "0": { next: [{ x: 1, y: 0 }], visibility: 0, type: ROGUE6_NODE.GLADE },
         "200": { next: [{ x: 1, y: 0 }, { x: 3, y: 0 }], visibility: 1, type: ROGUE6_NODE.INCIDENT },
         "100": { next: [{ x: 2, y: 0 }], visibility: 1, type: ROGUE6_NODE.BATTLE_NORMAL },
         "300": { next: [{ x: 2, y: 0 }], visibility: 1, type: ROGUE6_NODE.GLADE },
       },
-    };
+    });
     rlv2._status.cursor.zone = 3;
     rlv2._status.cursor.position = { x: 0, y: 0 }; // 玩家在起点 0，不参与
     // 手工安置一个流窜居民在 200（原始类型 INCIDENT，独立池关卡 ro6_n_3_1）
-    (player.rlv2 as any).current.game.modeGrade = 4;
+    player.rlv2.current.game!.modeGrade = 4;
     gz["spawnBanditAt"]("zone_3", "1002", "200", {
       normal: ["ro6_n_3_1"],
       elite: [],
@@ -961,8 +1011,8 @@ describe("rogue_6 居民据点与流窜居民机制", () => {
     expect(gz.banditAt("zone_3", "200")).toBeUndefined();
     expect(gz.banditAt("zone_3", "100")).toBeTruthy();
     expect(gz.zones["zone_3"].nodes["200"].content.kind).toBe(ROGUE6_NODE.INCIDENT);
-    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.BATTLE_NORMAL);
-    expect((rlv2._map as any).zones["1002"].nodes["100"].stage).toBe("ro6_n_3_1");
+    expect(rlv2._map.zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.BATTLE_NORMAL);
+    expect(rlv2._map.zones["1002"].nodes["100"].stage).toBe("ro6_n_3_1");
   });
 });
 
@@ -970,8 +1020,8 @@ describe("rogue_6 居民据点与流窜居民机制", () => {
 describe("rogue_6 无法携带至下一区域的加工品", () => {
   it("进入新的常规区域时移除 M_04/M_07（无法携带类），保留普通加工品", async () => {
     const player = makePlayer();
-    await (player.rlv2 as any)._module.create();
-    const rlv2 = player.rlv2 as any;
+    await player.rlv2._module.create();
+    const rlv2 = player.rlv2;
     const gz = rlv2._module.gridZone;
     // 手工注入零件箱：不可携带的 M_04/M_07 + 可携带的 M_01/M_05
     rlv2._module.scrap.inventory = {
@@ -982,7 +1032,7 @@ describe("rogue_6 无法携带至下一区域的加工品", () => {
     };
     // 生成常规层（非 portal）→ 移除不可携带类
     gz.generate([3]);
-    const ids = Object.values(rlv2._module.scrap.inventory).map((s: any) => s.id);
+    const ids = Object.values(rlv2._module.scrap.inventory).map((s) => s.id);
     expect(ids).toContain("rogue_6_scrap_M_01");
     expect(ids).toContain("rogue_6_scrap_M_05");
     expect(ids).not.toContain("rogue_6_scrap_M_04");
@@ -995,7 +1045,7 @@ describe("rogue_6 gridZoneMoveAndBattleStart（移动并开战）", () => {
   /** 构造 zone_3 网格：0 起点 GLADE、100 战斗节点（可攻击目标） */
   async function battleMoveFixture() {
     const player = makePlayer();
-    const rlv2 = player.rlv2 as any;
+    const rlv2 = player.rlv2;
     await rlv2._module.create();
     const gz = rlv2._module.gridZone;
     gz.zones = {
@@ -1013,12 +1063,12 @@ describe("rogue_6 gridZoneMoveAndBattleStart（移动并开战）", () => {
         },
       },
     };
-    (rlv2._map as any).zones["1002"] = {
+    rlv2._map.zones["1002"] = asModel<PlayerRoguelikeV2Zone>({
       nodes: {
         "0": { next: [{ x: 1, y: 0 }], visibility: 0, type: ROGUE6_NODE.GLADE },
         "100": { next: [], visibility: 1, type: ROGUE6_NODE.BATTLE_NORMAL, stage: "ro6_n_3_1" },
       },
-    };
+    });
     rlv2._status.cursor.zone = 3;
     rlv2._status.cursor.position = { x: 0, y: 0 };
     return { player, rlv2, gz };
@@ -1029,14 +1079,14 @@ describe("rogue_6 gridZoneMoveAndBattleStart（移动并开战）", () => {
     await rlv2.gridZoneMoveAndBattleStart({
       route: ["100"],
       stageId: "ro6_n_3_1",
-      squad: {},
+      squad: asModel<PlayerSquad>({}),
     });
     // 战斗节点落地 → PENDING + BATTLE 事件（gridZoneMoveTo 内部触发 battle:start）
     expect(rlv2._status.state).toBe("PENDING");
-    expect(rlv2._status.pending.some((e: any) => e.type === "BATTLE")).toBe(true);
+    expect(rlv2._status.pending.some((e) => e.type === "BATTLE")).toBe(true);
     // 与 gridZoneMoveTo 一致累积节点到达/变化推送（客户端地图据此刷新）
     const msgs = rlv2.takePushMessages();
-    const paths = msgs.map((m: any) => m.path);
+    const paths = msgs.map((m) => m.path);
     expect(paths).toContain("rlv2NodeArrive");
     expect(paths).toContain("rlv2NodeChange");
   });
@@ -1047,18 +1097,18 @@ describe("rogue_6 gridZoneMoveAndBattleStart（移动并开战）", () => {
     gz.zones["zone_3"].nodes["100"].content = {
       kind: ROGUE6_NODE.GLADE,
     };
-    (rlv2._map as any).zones["1002"].nodes["100"].type = ROGUE6_NODE.GLADE;
+    rlv2._map.zones["1002"].nodes["100"].type = ROGUE6_NODE.GLADE;
     await rlv2.gridZoneMoveAndBattleStart({
       route: ["100"],
       stageId: "ro6_n_3_1",
-      squad: {},
+      squad: asModel<PlayerSquad>({}),
     });
     // 空节点：gridZoneMoveTo 置 WAIT_MOVE（未进事件），moveAndBattleStart 按客户端
     // stageId 兜底开战（BATTLE）——保持"移动并开战"语义
     expect(rlv2._status.state).toBe("PENDING");
-    expect(rlv2._status.pending.some((e: any) => e.type === "BATTLE")).toBe(true);
+    expect(rlv2._status.pending.some((e) => e.type === "BATTLE")).toBe(true);
     // 兜底仅触发一次 BATTLE，不产生双事件
-    const battles = rlv2._status.pending.filter((e: any) => e.type === "BATTLE");
+    const battles = rlv2._status.pending.filter((e) => e.type === "BATTLE");
     expect(battles.length).toBe(1);
   });
 
@@ -1067,7 +1117,7 @@ describe("rogue_6 gridZoneMoveAndBattleStart（移动并开战）", () => {
     await rlv2.gridZoneMoveTo({ route: ["100"] });
     // 抵达 100 后，起点 0 为 GLADE（本来就 GLADE，不衰减）
     expect(gz.zones["zone_3"].nodes["100"].state).toBe(2);
-    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(
+    expect(rlv2._map.zones["1002"].nodes["100"].type).toBe(
       ROGUE6_NODE.BATTLE_NORMAL,
     );
   });

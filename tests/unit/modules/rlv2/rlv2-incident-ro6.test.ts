@@ -1,4 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string }
+/** excel mock 干员行形状（本文件用到的字段即可） */
+interface ExcelCharRowMock {
+  name?: string;
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+  subProfessionId?: string;
+}
 
 // ===== rogue_6（黑流树海）不期而遇完整事件引擎回归 =====
 // 覆盖（对照 prts.wiki「沉沦者的黑流树海/事件一览」）：
@@ -16,11 +26,13 @@ import { describe, it, expect, vi } from "vitest";
 // 「候选顺序 + 固定随机值」锁定目标事件（候选顺序 = event_choices.json 声明序）。
 const excelMock = vi.hoisted(() => ({
   // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
   itemName(id: string): string { return this.getItem(id)?.name ?? id; },
   makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
   charData(charId: string) { return this.CharacterTable?.[charId]; },
   stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+  ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+  StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
   RoguelikeTopicTable: {
     details: {
       rogue_6: {
@@ -199,46 +211,66 @@ const excelMock = vi.hoisted(() => ({
     },
     consts: {},
   },
-  CharacterTable: {},
+  CharacterTable: {} as Record<string, ExcelCharRowMock>,
   GameDataConst: { maxLevel: [[], [], [], [], [], []] },
 }));
 
 vi.mock("@excel/excel", () => ({ default: excelMock }));
 
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
-import { mockPlayerData } from "../../../helpers";
+import type {
+  PlayerRoguelikePendingEvent,
+  PlayerRoguelikeV2,
+  PlayerRoguelikeV2Zone,
+} from "@game/modules/roguelike/rlv2-model";
+import { asModel, mockPlayerData } from "../../../helpers";
 
-function makePlayer(): any {
-  const pd: any = mockPlayerData({
+/** 开局 game 夹具类型（真实模型 `CurrentData.Game`） */
+type Rlv2Game = NonNullable<PlayerRoguelikeV2["current"]["game"]>;
+
+/**
+ * rogue_6 事件配置增量段视图
+ *
+ * `RoguelikeV2Config.eventChoices` 仅建模各主题公共的 enter/choices 两键，本用例
+ * 用到的 `incidents`（事件池与重复标记）是 data/rlv2/event_choices.json 的增量段
+ * （生产侧 incident.ts 有同名视图）。真实类型可赋给本视图（本视图键全可选），
+ * 故单点断言成立。
+ */
+interface Ro6EventChoicesFixture {
+  incidents?: { [sceneId: string]: { repeat?: boolean } };
+}
+
+function makePlayer(): PlayerDataManager {
+  const pd = mockPlayerData({
     rlv2: {
-      outer: { rogue_6: {} } as any,
+      outer: { rogue_6: {} },
       current: {},
-      pinned: {},
-    } as any,
-    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } } as any,
+      pinned: {} as string,
+    },
+    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
     mission: {
       missions: { DAILY: {}, ACTIVITY: {} },
       missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} },
-    } as any,
+    },
   });
   const player = new PlayerDataManager(pd._playerdata);
-  (player.rlv2 as any).current.game = {
+  player.rlv2.current.game = asModel<Rlv2Game>({
     theme: "rogue_6",
     mode: "NORMAL",
     modeGrade: 0,
-  } as any;
+  });
   return player;
 }
 
-async function setupGame(player: any, zone: number) {
+async function setupGame(player: PlayerDataManager, zone: number) {
   await player.rlv2._module.create();
   await player.rlv2._pool.create();
   player.rlv2._status.cursor.zone = zone;
   player.rlv2._status.cursor.position = { x: 2, y: 1 };
   // 黑流树海常规层地图键为 1000+（与 grid_zone 对齐），供战斗节点 stage 标记
-  player.rlv2._map.zones = {
+  player.rlv2._map.zones = asModel<{ [key: string]: PlayerRoguelikeV2Zone }>({
     [String(1000 + zone - 1)]: { nodes: { 201: { type: 32 } } },
-  };
+  });
   // 初始状态：8 金 / 8 生命（常规行动官方初始）
   player.rlv2._status.property.gold = 8;
   player.rlv2._status.property.hp = { current: 8, max: 8 };
@@ -248,11 +280,13 @@ async function setupGame(player: any, zone: number) {
  * 把事件池里除 target 外的非重复事件全部标记为已遭遇。
  * 可重复事件（res2/res3/res5/bat6）不受排除，调用方需按候选顺序配合固定随机值。
  */
-function forceIncident(player: any, target: string) {
-  const data = player.rlv2._data.eventChoices.rogue_6;
-  const game = player.rlv2.current.game;
-  game.incidentSeen = Object.keys(data.incidents).filter(
-    (id) => id !== target && !data.incidents[id].repeat,
+function forceIncident(player: PlayerDataManager, target: string) {
+  const data = player.rlv2._data.eventChoices
+    .rogue_6 as Ro6EventChoicesFixture;
+  const incidents = data.incidents!;
+  const game = player.rlv2.current.game!;
+  game.incidentSeen = Object.keys(incidents).filter(
+    (id) => id !== target && !incidents[id].repeat,
   );
 }
 
@@ -265,20 +299,20 @@ async function withRandom(v: number, fn: () => Promise<void> | void) {
   }
 }
 
-function pendingScene(player: any): any {
+function pendingScene(player: PlayerDataManager): PlayerRoguelikePendingEvent.SceneContent {
   const p = player.rlv2._status.pending;
   expect(p.length).toBeGreaterThan(0);
   expect(p[0].type).toBe("SCENE");
-  return p[0].content.scene;
+  return p[0].content.scene!;
 }
 
-function relicsOf(player: any): string[] {
-  return Object.values(player.rlv2.inventory.relic).map((r: any) => r.id);
+function relicsOf(player: PlayerDataManager): string[] {
+  return Object.values(player.rlv2.inventory!.relic).map((r) => r.id);
 }
 
-function scrapIds(player: any): string[] {
+function scrapIds(player: PlayerDataManager): string[] {
   return Object.values(player.rlv2._module.scrap.inventory).map(
-    (it: any) => it.id,
+    (it) => it.id,
   );
 }
 
@@ -296,7 +330,7 @@ describe("rogue_6 不期而遇·事件池", () => {
       "choice_ro6_res1_1",
       "choice_ro6_res1_2",
     ]);
-    expect(player.rlv2.current.game.incidentSeen).toContain(
+    expect(player.rlv2.current.game!.incidentSeen).toContain(
       "scene_ro6_res1_enter",
     );
   });
@@ -314,7 +348,7 @@ describe("rogue_6 不期而遇·事件池", () => {
     const player2 = makePlayer();
     await setupGame(player2, 3);
     forceIncident(player2, "scene_ro6_chimera2_enter");
-    player2.rlv2.inventory._relic.relics["r_0"] = {
+    player2.rlv2.inventory!._relic.relics["r_0"] = {
       index: "r_0",
       id: "rogue_6_relic_final_3",
       count: 1,
@@ -333,10 +367,10 @@ describe("rogue_6 不期而遇·事件池", () => {
     // forceIncident 把其余非重复事件（含前置 normal1）全部标记已遭遇；
     // 负向验证需把 normal1 从记录中移除 → normal3 被 requireScene 过滤，
     // 候选仅剩 [res2, res3, res5]，random=0.99 → idx2=res5
-    player.rlv2.current.game.incidentSeen =
-      player.rlv2.current.game.incidentSeen.filter(
-        (s: string) => s !== "scene_ro6_normal1_enter",
-      );
+    const game = player.rlv2.current.game!;
+    game.incidentSeen = game.incidentSeen!.filter(
+      (s) => s !== "scene_ro6_normal1_enter",
+    );
     await withRandom(0.99, async () => {
       expect(await player.rlv2.createIncidentScene()).toBe(true);
     });
@@ -346,7 +380,8 @@ describe("rogue_6 不期而遇·事件池", () => {
     const player2 = makePlayer();
     await setupGame(player2, 2);
     forceIncident(player2, "scene_ro6_normal3_enter");
-    player2.rlv2.current.game.incidentSeen.push("scene_ro6_normal1_enter");
+    const game2 = player2.rlv2.current.game!;
+    game2.incidentSeen!.push("scene_ro6_normal1_enter");
     await withRandom(0.99, async () => {
       expect(await player2.rlv2.createIncidentScene()).toBe(true);
     });
@@ -398,7 +433,7 @@ describe("rogue_6 不期而遇·资源/剧情事件结算", () => {
     await player.rlv2.selectChoice({ choice: "choice_ro6_normal1_1" });
     expect(player.rlv2._status.property.hp.current).toBe(6);
     expect(scrapIds(player)).toContain("rogue_6_scrap_G_12");
-    expect(player.rlv2.current.game.incidentSeen).toContain(
+    expect(player.rlv2.current.game!.incidentSeen).toContain(
       "scene_ro6_normal1_enter",
     );
   });
@@ -427,7 +462,7 @@ describe("rogue_6 不期而遇·资源/剧情事件结算", () => {
     const player = makePlayer();
     await setupGame(player, 3);
     player.rlv2._status.property.gold = 66;
-    player.rlv2.inventory._relic.relics["r_0"] = {
+    player.rlv2.inventory!._relic.relics["r_0"] = {
       index: "r_0",
       id: "rogue_6_relic_final_3",
       count: 1,

@@ -1,12 +1,24 @@
 import { describe, it, expect, vi } from "vitest";
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string }
+/** excel mock 干员行形状（本文件用到的字段即可） */
+interface ExcelCharRowMock {
+  name?: string;
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+  subProfessionId?: string;
+}
 
 const excelMock = vi.hoisted(() => ({
   // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
   itemName(id: string): string { return this.getItem(id)?.name ?? id; },
   makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
   charData(charId: string) { return this.CharacterTable?.[charId]; },
   stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+  ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+  StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
   RoguelikeTopicTable: {
       details: {
         rogue_6: {
@@ -37,28 +49,32 @@ const excelMock = vi.hoisted(() => ({
       },
     consts: {},
   },
-  CharacterTable: {},
+  CharacterTable: {} as Record<string, ExcelCharRowMock>,
   GameDataConst: { maxLevel: [[], [], [], [], [], []] },
 }));
 
 vi.mock("@excel/excel", () => ({ default: excelMock }));
 
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
-import { mockPlayerData } from "../../../helpers";
+import { mockPlayerData, asModel } from "../../../helpers";
 import { BLACKSTREAM_CONSTRUCTIONS } from "@game/modules/roguelike/data/blackstream-data";
+import type { PlayerRoguelikeV2 } from "@game/modules/roguelike/rlv2-model";
+
+/** 开局 game 夹具类型（真实模型 CurrentData.Game） */
+type Rlv2Game = NonNullable<PlayerRoguelikeV2["current"]["game"]>;
 
 function makePlayer() {
-  const pd: any = mockPlayerData({
+  const pd = mockPlayerData({
     rlv2: {
-      outer: { rogue_6: {} } as any,
+      outer: { rogue_6: {} },
       current: {},
-      pinned: {},
-    } as any,
-    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } } as any,
-    mission: { missions: { DAILY: {}, ACTIVITY: {} }, missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} } } as any,
+      pinned: {} as string,
+    },
+    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } },
+    mission: { missions: { DAILY: {}, ACTIVITY: {} }, missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} } },
   });
   const player = new PlayerDataManager(pd._playerdata);
-  (player.rlv2 as any).current.game = { theme: "rogue_6", mode: "NORMAL", modeGrade: 0 } as any;
+  player.rlv2.current.game = asModel<Rlv2Game>({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0 });
   return player;
 }
 
@@ -76,13 +92,13 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
   it("各层生成：节点 ID 为 x*100+y、map/light 对齐、终点 zone_end", async () => {
     await withFixedRandom(async () => {
       const player = makePlayer();
-      await (player.rlv2 as any)._module.create();
-      const gz = (player.rlv2 as any)._module.gridZone;
+      await player.rlv2._module.create();
+      const gz = player.rlv2._module.gridZone;
 
       for (const zone of [1, 2, 3, 4, 5]) {
         gz.generate([zone]);
         const light = gz.toJSON().zones[`zone_${zone}`].nodes;
-        const mapNodes = (player.rlv2 as any)._map.zones[String(1000 + zone - 1)]?.nodes;
+        const mapNodes = player.rlv2._map.zones[String(1000 + zone - 1)]?.nodes;
         expect(mapNodes, `zone ${zone} map.zones`).toBeTruthy();
         expect(Object.keys(mapNodes).length).toBe(Object.keys(light).length);
         for (const id of Object.keys(light)) {
@@ -92,17 +108,17 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
           expect(mapNodes[id].pos).toEqual({ x, y });
         }
         // 起点（唯一 state 2，官服 GLADE）为 GLADE
-        const start = Object.entries(light).find(([, n]: any) => n.state === 2);
+        const start = Object.entries(light).find(([, n]) => n.state === 2);
         expect(start, `zone ${zone} 起点`).toBeTruthy();
-        expect((start![1] as any).content).toEqual({}); // 起点 content 空（官方线格式）
+        expect(start![1].content).toEqual({}); // 起点 content 空（官方线格式）
         // 终点 zone_end ≥1 且 type 为 VISIBLE_END/BATTLE_BOSS
-        const ends = Object.values(mapNodes).filter((n: any) => n.zone_end);
+        const ends = Object.values(mapNodes).filter((n) => n.zone_end);
         expect(ends.length, `zone ${zone} 终点`).toBeGreaterThan(0);
         for (const e of ends) {
           expect([8388608, 4]).toContain(e.type);
         }
         // 战斗节点带 stage
-        const battles = Object.values(mapNodes).filter((n: any) => n.type === 1 || n.type === 2 || n.type === 4);
+        const battles = Object.values(mapNodes).filter((n) => n.type === 1 || n.type === 2 || n.type === 4);
         for (const b of battles) expect(b.stage).toBeTruthy();
       }
     });
@@ -111,8 +127,8 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
   it("1-2 层起点相邻（边距离 1）必为作战", async () => {
     await withFixedRandom(async () => {
       const player = makePlayer();
-      await (player.rlv2 as any)._module.create();
-      const gz = (player.rlv2 as any)._module.gridZone;
+      await player.rlv2._module.create();
+      const gz = player.rlv2._module.gridZone;
       for (const zone of [1, 2]) {
         gz.generate([zone]);
         const t = BLACKSTREAM_CONSTRUCTIONS.find((c) => c.layerIndex === zone - 1)!;
@@ -122,7 +138,7 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
         const zoneNodes = gz.zones[`zone_${zone}`].nodes;
         for (const [id] of Object.entries(zoneNodes)) {
           if (dist.get(id) === 1 && id !== startId) {
-            const mapN = (player.rlv2 as any)._map.zones[String(1000 + zone - 1)]?.nodes?.[id];
+            const mapN = player.rlv2._map.zones[String(1000 + zone - 1)]?.nodes?.[id];
             expect(mapN?.type, `zone ${zone} 相邻 ${id}`).toBe(1);
           }
         }
@@ -133,8 +149,8 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
   it("非战斗节点类型必须落在层 5 距离规则内（沿边距离）", async () => {
     await withFixedRandom(async () => {
       const player = makePlayer();
-      await (player.rlv2 as any)._module.create();
-      const gz = (player.rlv2 as any)._module.gridZone;
+      await player.rlv2._module.create();
+      const gz = player.rlv2._module.gridZone;
       gz.generate([5]);
       const zoneNodes = gz.zones["zone_5"].nodes;
       const t5 = BLACKSTREAM_CONSTRUCTIONS.find((c) => c.layerIndex === 4)!;
@@ -158,10 +174,10 @@ describe("GRID_ZONE 物品发放类型兜底（fix funcs[type] 崩溃）", () =>
   it("rogue_6 各物品类型 getItem 不抛错（SCRAP/LEGACY/NODE_BUOY/CHARACTER 等）", async () => {
     await withFixedRandom(async () => {
       const player = makePlayer();
-      await (player.rlv2 as any)._module.create();
-      const inv = (player.rlv2 as any).inventory;
+      await player.rlv2._module.create();
+      const inv = player.rlv2.inventory;
       // 触发 immediate_reward 同路径：rlv2:get:items → inventory.getItem
-      await (player.rlv2 as any)._trigger.emit("rlv2:get:items", [[
+      await player.rlv2._trigger.emit("rlv2:get:items", [[
         { id: "rogue_6_scrap_G_07", count: 1, sub: 0 },
         { id: "rogue_6_legacy_01", count: 1, sub: 0 },
         { id: "rogue_6_ap", count: 1, sub: 0 },
@@ -170,7 +186,7 @@ describe("GRID_ZONE 物品发放类型兜底（fix funcs[type] 崩溃）", () =>
       ]]);
       // 各类型 getItem 不再抛错（修复 funcs[type] is not a function 500）
       // SCRAP 型应进入 SCRAP 模块库存
-      const scrapInv = (player.rlv2 as any)._module.scrap?.inventory || {};
+      const scrapInv = player.rlv2._module.scrap?.inventory || {};
       expect(Object.keys(scrapInv).length).toBeGreaterThan(0);
     });
   });
@@ -178,10 +194,12 @@ describe("GRID_ZONE 物品发放类型兜底（fix funcs[type] 崩溃）", () =>
   it("CHARACTER 型干员应触发招募（rlv2:recruit:initial_char）", async () => {
     await withFixedRandom(async () => {
       const player = makePlayer();
-      await (player.rlv2 as any)._module.create();
+      await player.rlv2._module.create();
       const recv: string[] = [];
-      (player.rlv2 as any)._trigger.on("rlv2:recruit:initial_char", ([id]: [string]) => recv.push(id));
-      await (player.rlv2 as any)._trigger.emit("rlv2:get:items", [[
+      player.rlv2._trigger.on("rlv2:recruit:initial_char", ([id]: [string]) => {
+        recv.push(id);
+      });
+      await player.rlv2._trigger.emit("rlv2:get:items", [[
         { id: "char_508_aguard", count: 1, sub: 0 },
       ]]);
       expect(recv).toContain("char_508_aguard");

@@ -17,9 +17,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *   （CONTROL 无 state 字段）的 lastUpdateTime ← ts
  */
 
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock { name?: string; rarity?: string }
+
 // Excel BuildingData 精简样本（相位/配方/技能）
 const excelMock = vi.hoisted(() => ({
   default: {
+    // —— 本文件不提供的表（占位，保持门面方法的 `this.XxxTable` 读取路径）——
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -89,7 +95,7 @@ const excelMock = vi.hoisted(() => ({
     CharacterTable: {
       char_497_ctable: { rarity: "TIER_5" },
       char_4087_ines: { rarity: "TIER_6" },
-    },
+    } as Record<string, ExcelRowMock>,
   },
 }));
 vi.mock("@excel/excel", () => excelMock);
@@ -102,11 +108,66 @@ vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  mockPlayerData,
+  mockTypedEventEmitter,
+  asPlayerManager,
+  type MockPlayerDataManager,
+  type MockPlayerDataSeed,
+  type MockSeed,
+  type MockUpdateRecipe,
+} from "../../helpers";
+import type { Draft } from "mutative";
+import type {
+  PlayerBuilding,
+  PlayerBuildingMeeting,
+  PlayerBuildingWorkshop,
+  PlayerDataModel,
+} from "@game/kernel/playerdata";
+import type { MeetingRoom, RoomTimestamp } from "@game/modules/building/logic/ext-types";
 import { BuildingManager } from "@game/modules/building/logic";
 
+/**
+ * 基建夹具视图
+ *
+ * 与 {@link MockPlayerDataSeed} 的 building 子树同形，唯一差异：服务端存档的
+ * `rooms.WORKSHOP[slot]` 带 `state`（生成模型 `PlayerBuildingWorkshop` 只有 buff/statistic，
+ * 读取侧按 {@link RoomTimestamp} 处理），故 WORKSHOP 槽位按该视图表达。
+ */
+type BuildingFixture = MockSeed<Omit<PlayerBuilding, "rooms">> & {
+  rooms?: MockSeed<Omit<PlayerBuilding["rooms"], "WORKSHOP">> & {
+    WORKSHOP?: Record<string, MockSeed<PlayerBuildingWorkshop> & RoomTimestamp>;
+  };
+};
+
+/**
+ * 会客室槽位夹具视图
+ *
+ * 生成模型两处与 2222 存档实态不符：
+ * - `dailyReward` 声明为必填线索对象，服务端以 `null` 表示「今日免费线索未领」
+ *   （见 `logic/ext-types.ts` 偏差清单 1）；
+ * - `mustgetClue`/`startApCounter` 声明为 `number`，真实存档分别是数组与计数字典
+ *   （生产侧不读这两键，仅为夹具保真）。
+ *
+ * 故按 {@link MeetingRoom} 视图收窄后装入，再适配回种子视图（字段名/字段类型仍受
+ * 真实模型约束，仅放宽必填、`dailyReward` 的 null 与上述两键的历史形状）。
+ */
+type MeetingSlotFixture = MockSeed<Omit<MeetingRoom, "mustgetClue" | "startApCounter">> & {
+  mustgetClue?: number[];
+  startApCounter?: Record<string, number>;
+};
+
+/**
+ * 把会客室槽位夹具适配为种子视图。
+ * @param seed - 会客室槽位的深可选夹具
+ * @returns 同一对象，视作生成模型的会客室槽位种子
+ */
+function meetingSlot(seed: MeetingSlotFixture): MockSeed<PlayerBuildingMeeting> {
+  return seed as MockSeed<PlayerBuildingMeeting>;
+}
+
 /** 基于 2222 真实结构构造 building（裁剪到相关房间） */
-function archiveBuilding(): any {
+function archiveBuilding(): BuildingFixture {
   const BASE = 1786589894; // 2222 存档中 CONTROL/TRADING/MEETING/HIRE 的 lastUpdateTime
   return {
     status: {
@@ -153,12 +214,12 @@ function archiveBuilding(): any {
       WORKSHOP: {},
       DORMITORY: {},
       MEETING: {
-        slot_36: {
+        slot_36: meetingSlot({
           buff: { weight: {} }, state: 1, speed: 227, processPoint: 5403813,
           ownStock: [], receiveStock: [], board: {}, dailyReward: null,
           socialReward: { daily: 0, search: 0 }, infoShare: { ts: 0, reward: 0 },
           lastUpdateTime: BASE, completeWorkTime: -1, mustgetClue: [], startApCounter: {},
-        },
+        }),
       },
       HIRE: {
         slot_23: {
@@ -184,8 +245,8 @@ function archiveBuilding(): any {
 }
 
 describe("2222 存档基建时间戳更新修复", () => {
-  let mockPlayer: any;
-  let mockTrigger: any;
+  let mockPlayer: MockPlayerDataManager;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
   let manager: BuildingManager;
 
   beforeEach(() => {
@@ -211,16 +272,14 @@ describe("2222 存档基建时间戳更新修复", () => {
     mockTrigger = mockTypedEventEmitter();
     mockPlayer._trigger = mockTrigger;
     mockPlayer.update = vi
-      .fn()
-      .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-          const result = await recipe(draft);
-          Object.assign(mockPlayer._playerdata, draft);
-          return result;
-        },
-      );
-    manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+      .fn<(recipe: MockUpdateRecipe) => Promise<void>>()
+      .mockImplementation(async (recipe) => {
+        const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
+        const result = await recipe(draft);
+        Object.assign(mockPlayer._playerdata, draft);
+        return result;
+      });
+    manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
   });
 
   it("统一时间戳：CONTROL/MEETING/HIRE/TRAINING/TRADING lastUpdateTime 全部推进到当前", async () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AccountManager } from "@game/modules/account/AccountManager";
 import { writeFile, rename } from "fs/promises";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData, asPlayerManager } from "../../helpers";
 
 vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();
@@ -15,7 +15,7 @@ describe("AccountManager 保存优化（原子写 + 防抖）", () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
     manager = new AccountManager();
-    (manager as any).data = { "1": mockPlayerData({}) };
+    manager.data = { "1": asPlayerManager(mockPlayerData({})) };
   });
 
   it("savePlayerData 应原子写（临时文件 + rename）", async () => {
@@ -23,7 +23,7 @@ describe("AccountManager 保存优化（原子写 + 防抖）", () => {
     const renameMock = vi.mocked(rename);
     await manager.savePlayerData("1");
     // 写临时文件
-    const tmpWrite = writeMock.mock.calls.find((c: any) => String(c[0]).includes(".tmp"));
+    const tmpWrite = writeMock.mock.calls.find((c) => String(c[0]).includes(".tmp"));
     expect(tmpWrite).toBeDefined();
     // rename 到最终路径
     expect(renameMock).toHaveBeenCalledWith(
@@ -33,18 +33,18 @@ describe("AccountManager 保存优化（原子写 + 防抖）", () => {
   });
 
   it("flushSave 应原子写并保存配置", async () => {
-    const saveConfigSpy = vi.spyOn(manager, "saveUserConfig").mockResolvedValue(undefined as any);
+    const saveConfigSpy = vi.spyOn(manager, "saveUserConfig").mockResolvedValue(undefined);
     await manager.flushSave("1");
     expect(saveConfigSpy).toHaveBeenCalled();
   });
 
   it("scheduleSave 500ms 内多次调用只 flush 一次（防抖合并）", async () => {
     vi.useFakeTimers();
-    const flushSpy = vi.spyOn(manager, "flushSave").mockResolvedValue(undefined as any);
+    const flushSpy = vi.spyOn(manager, "flushSave").mockResolvedValue(undefined);
     // 模拟 3 次 save 事件
-    (manager as any).scheduleSave("1");
-    (manager as any).scheduleSave("1");
-    (manager as any).scheduleSave("1");
+    manager["scheduleSave"]("1");
+    manager["scheduleSave"]("1");
+    manager["scheduleSave"]("1");
     expect(flushSpy).not.toHaveBeenCalled();
     vi.advanceTimersByTime(499);
     expect(flushSpy).not.toHaveBeenCalled();
@@ -55,9 +55,9 @@ describe("AccountManager 保存优化（原子写 + 防抖）", () => {
 
   it("不同 uid 的保存互不影响（独立防抖）", async () => {
     vi.useFakeTimers();
-    const flushSpy = vi.spyOn(manager, "flushSave").mockResolvedValue(undefined as any);
-    (manager as any).scheduleSave("1");
-    (manager as any).scheduleSave("2");
+    const flushSpy = vi.spyOn(manager, "flushSave").mockResolvedValue(undefined);
+    manager["scheduleSave"]("1");
+    manager["scheduleSave"]("2");
     vi.advanceTimersByTime(500);
     expect(flushSpy).toHaveBeenCalledTimes(2);
     vi.useRealTimers();

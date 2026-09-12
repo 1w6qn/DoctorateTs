@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 
 /**
  * 回溯插曲解锁（unlockRetroBlock）
@@ -9,12 +9,8 @@ import { describe, it, expect, vi } from "vitest";
  * 「消耗 {1} 个【事相结晶】，可解锁 1 个【插曲】」，{1} = retroUnlockCost。
  */
 // excel 数据端口替身:RetroManager 经 `player.excel` 取表(不再是模块级 mock)
-const excelMock: any = {
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
-    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
-    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+// 以 mockExcelWith 的空表底座（含门面方法）承载，只覆盖被测分支读到的表
+const excelMock = mockExcelWith({
     // 故意取 2 以验证「读数据而非写死 1」；其余常量取真实数据值
     // （data/excel/retro_table.json：initRetroCoin 2 / retroCoinPerWeek 3 /
     //  retroCoinMaxOfLevels {"60":3}）
@@ -25,24 +21,31 @@ const excelMock: any = {
       retroCoinMaxOfLevels: { "60": 3 },
     },
     ActivityTable: { activity: {} },
-};
+});
 
+import type { PlayerDataModel } from "@game/kernel/playerdata";
 import { RetroManager } from "@game/modules/retro/RetroManager";
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  asPlayerManager,
+  mockExcelWith,
+  mockPlayerData,
+  mockTypedEventEmitter,
+  type MockSeed,
+} from "../../helpers";
 
-function makePlayer(retro: any, level = 1) {
-  const pd: any = mockPlayerData({
+function makePlayer(retro: MockSeed<PlayerDataModel["retro"]>, level = 1) {
+  const pd = mockPlayerData({
     retro,
-    status: { level } as any,
-    pushFlags: {} as any,
-  } as any);
+    status: { level },
+    pushFlags: {},
+  });
   // excel 数据端口替身注入
   pd.excel = excelMock;
   return pd;
 }
 
 /** 时间 mock 基准（本文件不 mock @utils/time，故只断言变化而非具体值） */
-const NOW_IS_NUMBER = (v: any) => typeof v === "number" && v > 0;
+const NOW_IS_NUMBER = (v: number) => typeof v === "number" && v > 0;
 
 describe("RetroManager.unlockRetroBlock（消耗事相结晶）", () => {
   it("结晶充足时按 retroUnlockCost 扣费并开放插曲", async () => {
@@ -52,10 +55,10 @@ describe("RetroManager.unlockRetroBlock（消耗事相结晶）", () => {
       trail: {},
       rewardPerm: [],
     });
-    const mgr = new RetroManager(player as any, mockTypedEventEmitter() as any);
+    const mgr = new RetroManager(asPlayerManager(player), mockTypedEventEmitter());
     const ok = await mgr.unlockRetroBlock({ retroId: "r1" });
     expect(ok).toBe(true);
-    const r = player._playerdata.retro as any;
+    const r = player._playerdata.retro;
     expect(r.coin).toBe(3); // 5 - 2（retroUnlockCost）
     expect(r.block.r1).toEqual({ locked: 0, open: 1 });
   });
@@ -67,9 +70,9 @@ describe("RetroManager.unlockRetroBlock（消耗事相结晶）", () => {
       trail: {},
       rewardPerm: [],
     });
-    const mgr = new RetroManager(player as any, mockTypedEventEmitter() as any);
+    const mgr = new RetroManager(asPlayerManager(player), mockTypedEventEmitter());
     expect(await mgr.unlockRetroBlock({ retroId: "r1" })).toBe(false);
-    const r = player._playerdata.retro as any;
+    const r = player._playerdata.retro;
     expect(r.coin).toBe(1);
     expect(r.block.r1).toEqual({ locked: 1, open: 0 });
   });
@@ -81,16 +84,16 @@ describe("RetroManager.unlockRetroBlock（消耗事相结晶）", () => {
       trail: {},
       rewardPerm: [],
     });
-    const mgr = new RetroManager(player as any, mockTypedEventEmitter() as any);
+    const mgr = new RetroManager(asPlayerManager(player), mockTypedEventEmitter());
     expect(await mgr.unlockRetroBlock({ retroId: "r1" })).toBe(false);
-    expect((player._playerdata.retro as any).coin).toBe(5); // 原实现会扣到 4
+    expect(player._playerdata.retro.coin).toBe(5); // 原实现会扣到 4
   });
 
   it("未知插曲不扣费（不 500）", async () => {
     const player = makePlayer({ coin: 5, block: {}, trail: {}, rewardPerm: [] });
-    const mgr = new RetroManager(player as any, mockTypedEventEmitter() as any);
+    const mgr = new RetroManager(asPlayerManager(player), mockTypedEventEmitter());
     expect(await mgr.unlockRetroBlock({ retroId: "nope" })).toBe(false);
-    expect((player._playerdata.retro as any).coin).toBe(5);
+    expect(player._playerdata.retro.coin).toBe(5);
   });
 });
 
@@ -109,9 +112,9 @@ describe("RetroManager.ensureWeeklySupplement（事相结晶周期补充）", ()
       { coin: 2, supplement: 1, block: {}, trail: {}, rewardPerm: [], lst: 0 },
       112,
     );
-    const mgr = new RetroManager(player as any, mockTypedEventEmitter() as any);
+    const mgr = new RetroManager(asPlayerManager(player), mockTypedEventEmitter());
     expect(await mgr.ensureWeeklySupplement()).toBe(1);
-    const r = player._playerdata.retro as any;
+    const r = player._playerdata.retro;
     expect(r.coin).toBe(3); // cap = retroCoinMaxOfLevels["60"] = 3
     expect(r.supplement).toBe(0); // 机会已消耗
     expect(NOW_IS_NUMBER(r.lst)).toBe(true);
@@ -122,9 +125,9 @@ describe("RetroManager.ensureWeeklySupplement（事相结晶周期补充）", ()
       { coin: 0, supplement: 1, block: {}, trail: {}, rewardPerm: [], lst: 0 },
       30,
     );
-    const mgr = new RetroManager(player as any, mockTypedEventEmitter() as any);
+    const mgr = new RetroManager(asPlayerManager(player), mockTypedEventEmitter());
     expect(await mgr.ensureWeeklySupplement()).toBe(2);
-    expect((player._playerdata.retro as any).coin).toBe(2);
+    expect(player._playerdata.retro.coin).toBe(2);
   });
 
   it("已达储存上限时不发放且**保留**本周机会", async () => {
@@ -132,9 +135,9 @@ describe("RetroManager.ensureWeeklySupplement（事相结晶周期补充）", ()
       { coin: 3, supplement: 1, block: {}, trail: {}, rewardPerm: [] },
       112,
     );
-    const mgr = new RetroManager(player as any, mockTypedEventEmitter() as any);
+    const mgr = new RetroManager(asPlayerManager(player), mockTypedEventEmitter());
     expect(await mgr.ensureWeeklySupplement()).toBe(0);
-    const r = player._playerdata.retro as any;
+    const r = player._playerdata.retro;
     expect(r.coin).toBe(3);
     expect(r.supplement).toBe(1); // 机会未消耗（文本：未达上限时才自动领取）
   });
@@ -144,9 +147,9 @@ describe("RetroManager.ensureWeeklySupplement（事相结晶周期补充）", ()
       { coin: 0, supplement: 0, block: {}, trail: {}, rewardPerm: [] },
       112,
     );
-    const mgr = new RetroManager(player as any, mockTypedEventEmitter() as any);
+    const mgr = new RetroManager(asPlayerManager(player), mockTypedEventEmitter());
     expect(await mgr.ensureWeeklySupplement()).toBe(0);
-    expect((player._playerdata.retro as any).coin).toBe(0);
+    expect(player._playerdata.retro.coin).toBe(0);
   });
 
   it("weeklyRefresh 重置领取机会（不可累计 → 恒置 1）", async () => {
@@ -154,8 +157,8 @@ describe("RetroManager.ensureWeeklySupplement（事相结晶周期补充）", ()
       { coin: 3, supplement: 0, block: {}, trail: {}, rewardPerm: [] },
       112,
     );
-    const mgr = new RetroManager(player as any, mockTypedEventEmitter() as any);
+    const mgr = new RetroManager(asPlayerManager(player), mockTypedEventEmitter());
     await mgr.weeklyRefresh();
-    expect((player._playerdata.retro as any).supplement).toBe(1);
+    expect(player._playerdata.retro.supplement).toBe(1);
   });
 });

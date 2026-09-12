@@ -3,6 +3,8 @@ import type { AddressInfo } from "node:net";
 import express from "express";
 import bodyParser from "body-parser";
 import httpContext from "express-http-context2";
+import type { JsonValue } from "@excel/json-value";
+import type { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import { openDatabase, closeDatabase } from "@core/db/database";
 import excel from "@game/excel/excel";
 import { accountManager } from "@game/modules/account/AccountManager";
@@ -19,10 +21,18 @@ import rlv2Router from "@game/modules/roguelike/handler";
  * 一个 HTTP 请求的响应封装
  * @property status - HTTP 状态码
  * @property body - 解析后的 JSON（非 JSON 响应时为空对象）
+ * @typeParam TBody - 响应体形状（各端点不同，由调用点按被测契约显式给出）
  */
-export interface ApiResponse {
+export interface ApiResponse<TBody extends JsonValue = JsonValue> {
   status: number;
-  body: any;
+  /**
+   * 解析后的 JSON（非 JSON 响应时为空对象）
+   *
+   * 各端点响应体形状不同且测试按端点做深层断言（`body.playerDataDelta.modified…`），
+   * 故此处按调用点显式给出的响应契约参数化（`fx.post<LoginResponse>(…)`），缺省为
+   * JSON 域（`JsonValue`）。这样既不再用 `any`，也不把深层断言压成不可读的收窄代码。
+   */
+  body: TBody;
 }
 
 /**
@@ -39,8 +49,12 @@ export interface ApiResponse {
 export interface ApiFixture {
   baseUrl: string;
   register: (account: string, password: string) => Promise<{ uid: string; secret: string }>;
-  post: (path: string, body?: unknown, secret?: string) => Promise<ApiResponse>;
-  getPlayerData: (uid: string) => any;
+  post: <TBody extends JsonValue = JsonValue>(
+    path: string,
+    body?: JsonValue,
+    secret?: string,
+  ) => Promise<ApiResponse<TBody>>;
+  getPlayerData: (uid: string) => PlayerDataManager;
   close: () => Promise<void>;
 }
 
@@ -92,7 +106,11 @@ export async function startApiFixture(): Promise<ApiFixture> {
       }
       return { uid: String(body.uid), secret: String(body.token) };
     },
-    post: async (path, body = {}, secret) => {
+    post: async <TBody extends JsonValue = JsonValue>(
+      path: string,
+      body: JsonValue = {},
+      secret?: string,
+    ): Promise<ApiResponse<TBody>> => {
       const headers: Record<string, string> = { "content-type": "application/json" };
       if (secret) headers["secret"] = secret;
       const res = await fetch(`${baseUrl}${path}`, {
@@ -101,13 +119,16 @@ export async function startApiFixture(): Promise<ApiFixture> {
         body: JSON.stringify(body),
       });
       const text = await res.text();
-      let parsed: any = {};
+      let parsed: JsonValue = {};
       try {
         parsed = JSON.parse(text);
       } catch {
         parsed = { raw: text };
       }
-      return { status: res.status, body: parsed };
+      // I/O 边界：HTTP 响应体是未建模 JSON（JsonValue），端点契约由调用点经 `TBody` 给出
+      // （`fx.post<LoginResponse>(…)`），此处按该契约收窄——TBody 受 `extends JsonValue` 约束，
+      // 断言方向合法且运行期值是同一个已解析对象。
+      return { status: res.status, body: parsed as TBody };
     },
     getPlayerData: (uid) => accountManager.data[uid],
     close: async () => {

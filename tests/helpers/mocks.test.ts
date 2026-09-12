@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { MissionData } from "@excel/types_excel_gen";
 import {
   mockEventBus,
   mockTypedEventEmitter,
@@ -76,7 +77,7 @@ describe("MockPlayerData", () => {
 
   it("应该可以使用 update 修改数据", async () => {
     const pd = mockPlayerData();
-    await pd.update((draft: any) => {
+    await pd.update((draft) => {
       draft.status.nickName = "UpdatedName";
     });
     const json = pd.toJSON();
@@ -91,7 +92,7 @@ describe("MockPlayerData", () => {
 
   it("应该可以提供自定义初始数据", () => {
     const pd = mockPlayerData({
-      status: { uid: 9999, nickName: "Custom", nickNumber: 1, level: 10, exp: 0 } as any,
+      status: { uid: 9999, nickName: "Custom", nickNumber: 1, level: 10, exp: 0 },
     });
     expect(pd.uid).toBe(9999);
   });
@@ -141,7 +142,7 @@ describe("MockExcel", () => {
 
   it("应该允许测试修改 mock 数据", () => {
     const excel = mockExcel();
-    excel.MissionTable.missions["test-mission"] = { id: "test-mission" } as any;
+    excel.MissionTable.missions["test-mission"] = { id: "test-mission" } as MissionData;
     expect(excel.MissionTable.missions["test-mission"]).toBeDefined();
   });
 });

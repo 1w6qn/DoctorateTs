@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import type { MockInstance } from "vitest";
 // registerUser 现在会加载玩家（_loadPlayer 构造 PlayerDataManager，mission.init 需要 Immer Patches 插件）
 
 const configMock = vi.hoisted(() => ({ default: { authMode: "real" } }));
 vi.mock("@core/config/index", () => configMock);
 
 import { accountManager } from "@game/modules/account/AccountManager";
-import { mockPlayerData } from "../../helpers";
+import type { UserConfig } from "@game/modules/account/AccountManager";
+import { mockPlayerData, asPlayerManager, asModel } from "../../helpers";
 import { hashPassword, verifyPassword } from "@utils/crypt";
 
 vi.mock("fs/promises", async (importOriginal) => {
@@ -21,21 +23,21 @@ vi.mock("fs", async (importOriginal) => {
 });
 
 describe("AccountManager 创建新用户", () => {
-  let saveUserConfigSpy: any;
+  let saveUserConfigSpy: MockInstance<() => Promise<void>>;
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    (accountManager as any).configs = {
-      "1": {
+    accountManager.configs = {
+      "1": asModel<UserConfig>({
         uid: "1",
         password: "pwd1",
         auth: { phone: "13800000000" },
-      },
+      }),
     };
-    (accountManager as any).data = { "1": mockPlayerData({}) };
+    accountManager.data = { "1": asPlayerManager(mockPlayerData({})) };
     saveUserConfigSpy = vi
       .spyOn(accountManager, "saveUserConfig")
-      .mockResolvedValue(undefined as any);
+      .mockResolvedValue(undefined);
   });
 
   it("registerUser 应创建新用户（uid 递增并写存档）", async () => {
@@ -43,12 +45,12 @@ describe("AccountManager 创建新用户", () => {
     expect(uid).toBe("2");
     // 存档写入（databases/2.json）
     const writeMock = vi.mocked((await import("fs/promises")).writeFile);
-    const dbWrite = writeMock.mock.calls.find((c: any) => String(c[0]).includes("2.json"));
+    const dbWrite = writeMock.mock.calls.find((c) => String(c[0]).includes("2.json"));
     expect(dbWrite).toBeDefined();
     // 内存配置更新（密码哈希存储——不落明文）
-    expect((accountManager as any).configs["2"].auth.phone).toBe("13900000000");
-    expect(verifyPassword((accountManager as any).configs["2"].password, "pwd2")).toBe(true);
-    expect((accountManager as any).configs["2"].password).toMatch(/^sha256\$/);
+    expect(accountManager.configs["2"].auth.phone).toBe("13900000000");
+    expect(verifyPassword(accountManager.configs["2"].password, "pwd2")).toBe(true);
+    expect(accountManager.configs["2"].password).toMatch(/^sha256\$/);
     expect(saveUserConfigSpy).toHaveBeenCalled();
   });
 
@@ -65,17 +67,17 @@ describe("AccountManager 创建新用户", () => {
   it("tokenByPhonePassword 账号不存在应自动注册", async () => {
     const token = await accountManager.tokenByPhonePassword("13911112222", "pwd3");
     // 自动注册返回新账号的 secret 作为 token（参考 DoctoratePy token=secret 模型）
-    expect(token).toBe((accountManager as any).configs["2"].secret);
-    expect((accountManager as any).configs["2"].auth.phone).toBe("13911112222");
+    expect(token).toBe(accountManager.configs["2"].secret);
+    expect(accountManager.configs["2"].auth.phone).toBe("13911112222");
     // 密码哈希存储
-    expect(verifyPassword((accountManager as any).configs["2"].password, "pwd3")).toBe(true);
-    expect((accountManager as any).configs["2"].password).toMatch(/^sha256\$/);
+    expect(verifyPassword(accountManager.configs["2"].password, "pwd3")).toBe(true);
+    expect(accountManager.configs["2"].password).toMatch(/^sha256\$/);
   });
 
   it("tokenByPhonePassword 账号存在应返回原 token（不重复创建）", async () => {
-    const before = Object.keys((accountManager as any).configs).length;
+    const before = Object.keys(accountManager.configs).length;
     const token = await accountManager.tokenByPhonePassword("13800000000", "pwd1");
     expect(token).toBe("1");
-    expect(Object.keys((accountManager as any).configs).length).toBe(before);
+    expect(Object.keys(accountManager.configs).length).toBe(before);
   });
 });

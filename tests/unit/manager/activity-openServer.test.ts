@@ -1,7 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ItemTable } from "@excel/excel";
+import type { CharacterData, StageTable } from "@excel/types_excel_gen";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
 
 vi.mock("@excel/excel", () => ({
   default: {
+    // 门面方法读取的三张表显式声明为空表（工厂对象无上下文类型，`this` 即字面量自身）；
+    // 与「键不存在的旧 mock」运行期等价（`?.` 链同样取到 undefined）
+    ItemTable: {} as ItemTable,
+    CharacterTable: {} as CharacterData,
+    StageTable: {} as StageTable,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -34,8 +42,13 @@ vi.mock("@utils/time", () => ({
   checkBetween: (ts: number, start: number, end: number) => ts >= start && ts <= end,
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import { asPlayerManager, mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { OpenServerManager } from "@game/modules/activities/checkin/openServer";
+
+/** `@excel/excel` 端口在本用例只被读写 schedule 的窗口字段（窄视图，避免 cast） */
+interface OpenServerExcelView {
+  OpenServerTable: { schedule: { id: string; startTs: number; endTs: number }[] };
+}
 
 describe("OpenServerManager", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
@@ -49,88 +62,85 @@ describe("OpenServerManager", () => {
         // 第 2 天已达成未领取（history[1] = 1）；累计签到第 2 档可领取
         chainLogin: { isAvailable: true, nowIndex: 1, history: [0, 1] },
         checkIn: { isAvailable: true, history: [1, 1, 1] },
-      } as any,
+      },
     });
     mockPlayer._trigger = mockTrigger;
-    mockPlayer.update = vi
-      .fn()
-      .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-          const result = await recipe(draft);
-          Object.assign(mockPlayer._playerdata, draft);
-          return result;
-        }
-      );
+    // 覆写替身默认 update：与 helper 实现等价（JSON 深拷贝 draft → recipe → 回写）
+    mockPlayer.update.mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   });
 
   it("dailyRefresh 应推进连续登录并记录签到", async () => {
-    const manager = new OpenServerManager(mockPlayer as any, mockTrigger as any);
+    const manager = new OpenServerManager(asPlayerManager(mockPlayer), mockTrigger);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     await manager.dailyRefresh([1234567800]);
     expect(emitSpy).toHaveBeenCalledWith("openserver:chain:login", [1234567800]);
     // 累计签到逐日推进一档（history[i]=1 表示可领取）
-    expect(mockPlayer._playerdata.openServer!.checkIn.history).toEqual([1, 1, 1, 1]);
+    expect(mockPlayer._playerdata.openServer!.checkIn!.history).toEqual([1, 1, 1, 1]);
   });
 
   it("getChainLogInReward 应发放奖励并清除历史", async () => {
-    const manager = new OpenServerManager(mockPlayer as any, mockTrigger as any);
+    const manager = new OpenServerManager(asPlayerManager(mockPlayer), mockTrigger);
     const items = await manager.getChainLogInReward({ index: 1 });
     expect(items).toEqual([{ id: "4001", count: 100 }]);
-    expect(mockPlayer._playerdata.openServer!.chainLogin.history[1]).toBe(0);
+    expect(mockPlayer._playerdata.openServer!.chainLogin!.history[1]).toBe(0);
   });
 
   it("getChainLogInFinalRewards 应发放第 7 档终奖并标记已领", async () => {
-    mockPlayer._playerdata.openServer!.chainLogin.history = [0, 0, 0, 0, 0, 0, 1];
-    const manager = new OpenServerManager(mockPlayer as any, mockTrigger as any);
+    mockPlayer._playerdata.openServer!.chainLogin!.history = [0, 0, 0, 0, 0, 0, 1];
+    const manager = new OpenServerManager(asPlayerManager(mockPlayer), mockTrigger);
     const items = await manager.getChainLogInFinalRewards();
     expect(items).toEqual([{ id: "char_001", count: 1 }]);
     // 已领取标记为 0（isAvailable 是活动开关，不再被领取动作关闭）
-    expect(mockPlayer._playerdata.openServer!.chainLogin.history[6]).toBe(0);
+    expect(mockPlayer._playerdata.openServer!.chainLogin!.history[6]).toBe(0);
   });
 
   it("getCheckInReward 应发放签到奖励并标记已领", async () => {
-    const manager = new OpenServerManager(mockPlayer as any, mockTrigger as any);
+    const manager = new OpenServerManager(asPlayerManager(mockPlayer), mockTrigger);
     const items = await manager.getCheckInReward({ index: 1 });
     expect(items).toEqual([{ id: "30011", count: 3 }]);
-    expect(mockPlayer._playerdata.openServer!.checkIn.history[1]).toBe(0);
+    expect(mockPlayer._playerdata.openServer!.checkIn!.history[1]).toBe(0);
   });
 
   // ===== Round 26：重复领取与达成度校验（原实现无条件发奖，可无限刷） =====
 
   it("getChainLogInReward：同一档重复领取被拒（原实现可无限刷）", async () => {
-    const manager = new OpenServerManager(mockPlayer as any, mockTrigger as any);
+    const manager = new OpenServerManager(asPlayerManager(mockPlayer), mockTrigger);
     expect(await manager.getChainLogInReward({ index: 1 })).toHaveLength(1);
     expect(await manager.getChainLogInReward({ index: 1 })).toEqual([]);
     expect(await manager.getChainLogInReward({ index: 1 })).toEqual([]);
   });
 
   it("getChainLogInReward：未达成档位被拒（history 非 1）", async () => {
-    mockPlayer._playerdata.openServer!.chainLogin.history = [0, 0];
-    const manager = new OpenServerManager(mockPlayer as any, mockTrigger as any);
+    mockPlayer._playerdata.openServer!.chainLogin!.history = [0, 0];
+    const manager = new OpenServerManager(asPlayerManager(mockPlayer), mockTrigger);
     expect(await manager.getChainLogInReward({ index: 1 })).toEqual([]);
   });
 
   it("getChainLogInFinalRewards：未达成第 7 档时被拒，且不可重复领取", async () => {
-    const manager = new OpenServerManager(mockPlayer as any, mockTrigger as any);
+    const manager = new OpenServerManager(asPlayerManager(mockPlayer), mockTrigger);
     // 仅到第 2 天 → 终奖不可领
     expect(await manager.getChainLogInFinalRewards()).toEqual([]);
-    mockPlayer._playerdata.openServer!.chainLogin.history = [0, 0, 0, 0, 0, 0, 1];
+    mockPlayer._playerdata.openServer!.chainLogin!.history = [0, 0, 0, 0, 0, 0, 1];
     expect(await manager.getChainLogInFinalRewards()).toHaveLength(1);
     expect(await manager.getChainLogInFinalRewards()).toEqual([]);
   });
 
   it("getCheckInReward：同一档重复领取被拒", async () => {
-    const manager = new OpenServerManager(mockPlayer as any, mockTrigger as any);
+    const manager = new OpenServerManager(asPlayerManager(mockPlayer), mockTrigger);
     expect(await manager.getCheckInReward({ index: 0 })).toHaveLength(1);
     expect(await manager.getCheckInReward({ index: 0 })).toEqual([]);
   });
 
   it("活动窗口外一律不可领取", async () => {
-    const excel = (await import("@excel/excel")).default as any;
+    const excel: OpenServerExcelView = (await import("@excel/excel")).default;
     const backup = excel.OpenServerTable.schedule;
     excel.OpenServerTable.schedule = [{ id: "sched_1", startTs: 1, endTs: 2 }];
-    const manager = new OpenServerManager(mockPlayer as any, mockTrigger as any);
+    const manager = new OpenServerManager(asPlayerManager(mockPlayer), mockTrigger);
     expect(await manager.getChainLogInReward({ index: 1 })).toEqual([]);
     expect(await manager.getCheckInReward({ index: 0 })).toEqual([]);
     expect(await manager.getChainLogInFinalRewards()).toEqual([]);
@@ -138,13 +148,13 @@ describe("OpenServerManager", () => {
   });
 
   it("openServer 状态缺失时兜底初始化（原实现直接 500）", async () => {
-    delete (mockPlayer._playerdata as any).openServer;
-    const manager = new OpenServerManager(mockPlayer as any, mockTrigger as any);
+    delete (mockPlayer._playerdata as Partial<PlayerDataModel>).openServer;
+    const manager = new OpenServerManager(asPlayerManager(mockPlayer), mockTrigger);
     await expect(manager.dailyRefresh([1234567800])).resolves.not.toThrow();
     const os = mockPlayer._playerdata.openServer!;
-    expect(os.chainLogin.history).toEqual([1]);
-    expect(os.chainLogin.nowIndex).toBe(0);
-    expect(os.checkIn.history).toEqual([1]);
-    expect(os.chainLogin.isAvailable).toBe(true); // 活动窗口内
+    expect(os.chainLogin!.history).toEqual([1]);
+    expect(os.chainLogin!.nowIndex).toBe(0);
+    expect(os.checkIn!.history).toEqual([1]);
+    expect(os.chainLogin!.isAvailable).toBe(true); // 活动窗口内
   });
 });

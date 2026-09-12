@@ -12,6 +12,13 @@
  * - unlockActivity 播种后自愈（迁移存档场景）+ 过期活动有进度不修剪
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { Draft } from "mutative";
+import type { ItemBundle, ItemTable } from "@excel/excel";
+import type { CharacterData } from "@excel/types_excel_gen";
+import type { PlayerActivity } from "@excel/types-playerdata";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
+import type { UserConfig } from "@game/modules/account/AccountManager";
+import type { MockSeed } from "../../helpers";
 
 vi.mock("@excel/excel", () => {
   return {
@@ -104,7 +111,7 @@ vi.mock("@excel/excel", () => {
             stageDropInfo: { displayDetailRewards: [] },
             unlockCondition: [{ stageId: "act44side_tr01", completeState: "PASS" }],
           },
-        },
+        } as Record<string, StageView>,
         runeStageGroups: {},
         mapThemes: {},
         tileInfo: {},
@@ -135,8 +142,8 @@ vi.mock("@excel/excel", () => {
       },
       GachaTable: {},
       GameDataConst: {},
-      CharacterTable: {},
-      ItemTable: { items: {}, expItems: {} },
+      CharacterTable: {} as CharacterData,
+      ItemTable: { items: {}, expItems: {} } as ItemTable,
       ShopClientTable: {},
       SkillDataBundle: {},
     },
@@ -148,7 +155,7 @@ vi.mock("@game/kernel/PlayerDataManager", () => ({
 }));
 
 vi.mock("@game/modules/account/AccountManager", () => {
-  const mockAccountConfigs: any = {
+  const mockAccountConfigs: Record<string, MockAccountBattleConfig> = {
     "10000": {
       battle: {
         infos: {
@@ -164,7 +171,7 @@ vi.mock("@game/modules/account/AccountManager", () => {
   return {
     accountManager: {
       configs: mockAccountConfigs,
-      saveBattleInfo: vi.fn().mockImplementation(async (uid: string, battleId: string, info: any) => {
+      saveBattleInfo: vi.fn().mockImplementation(async (uid: string, battleId: string, info: MockBattleInfoView) => {
         if (!mockAccountConfigs[uid]) {
           mockAccountConfigs[uid] = { battle: { infos: {}, replays: {} } };
         }
@@ -194,11 +201,77 @@ vi.mock("@utils/crypt", () => ({
 
 
 import config from "@core/config/index";
-import { mockPlayerData } from "../../helpers";
+import { asPlayerManager, mockPlayerData } from "../../helpers";
 import { BattleManager } from "@game/modules/battle/battle";
 import { unlockActivity } from "@game/modules/activities/shared/unlockActivity";
 import { syncAct44SideEntry } from "@game/modules/activities/act44side/informant";
 import { accountManager } from "@game/modules/account/AccountManager";
+
+/** 关卡窄视图（工厂 StageTable.stages 只声明用例读到的窗口/解锁字段） */
+interface StageView {
+  stageId: string;
+  stageType: string;
+  unlockCondition: { stageId: string; completeState: string }[];
+  zoneId?: string;
+  apCost?: number;
+  apFailReturn?: number;
+  stageDropInfo?: { displayDetailRewards: ItemBundle[] };
+}
+
+/** mock 账号战斗信息（真实 UserConfig.battle 已不含 infos，回放/结算迁移至 battle_infos 表） */
+interface MockBattleInfoView {
+  stageId: string;
+  isPractice?: boolean;
+}
+
+/** mock 注入的账号配置视图 */
+interface MockAccountBattleConfig {
+  battle: { infos: Record<string, MockBattleInfoView>; replays: Record<string, never> };
+}
+
+/**
+ * `@excel/excel` 端口在本文件只读写 `ActivityTable.basicInfo` 的窗口字段
+ * （窄视图：真实表项还有 displayOnHome 等十余个必填字段，用例不关心）。
+ */
+interface ActivityBasicInfoView {
+  id: string;
+  type: string;
+  name: string;
+  startTime: number;
+  endTime: number;
+  rewardEndTime: number;
+  medalGroupId?: string;
+}
+interface ExcelActivityView {
+  ActivityTable: { basicInfo: Record<string, ActivityBasicInfoView> };
+}
+
+/** mock 账号配置读取点（accountManager.configs 的真实类型不含 infos，故按交集视图读） */
+function accountConfigs(): Record<string, UserConfig & MockAccountBattleConfig> {
+  return accountManager.configs as Record<string, UserConfig & MockAccountBattleConfig>;
+}
+
+/** act44side 单活动存档条目（取自生成模型） */
+type Act44Entry = NonNullable<PlayerActivity["TYPE_ACT44SIDE"]>[string];
+
+/**
+ * 用例 draft：真实 draft 交集上把 TYPE_ACT44SIDE 声明为必填（入口函数 setdefault 自愈），
+ * 并把 dungeon.stages 换成深可选视图，以便只写被测分支会读到的关卡字段。
+ */
+type Act44Draft = Draft<PlayerDataModel> & {
+  activity: { TYPE_ACT44SIDE: { [actId: string]: Act44Entry } };
+  dungeon: {
+    stages: { [stageId: string]: MockSeed<Draft<PlayerDataModel>["dungeon"]["stages"][string]> };
+  };
+};
+
+/**
+ * 构造最小 draft（与旧 `const draft: any = {...}` 运行期等价）；
+ * 断言两侧仍受真实模型约束，仅「必填」被放宽。
+ */
+function newDraft(): Act44Draft {
+  return { activity: {}, dungeon: { stages: {} } } as Act44Draft;
+}
 
 /** 构造一个已解锁/已通关的关卡条目 */
 function stageEntry(state: number) {
@@ -215,7 +288,7 @@ function stageEntry(state: number) {
 
 describe("syncAct44SideEntry（按关卡进度自愈情报屋状态）", () => {
   it("命中活动 id 前缀的关卡时创建默认状态（官服形状）", () => {
-    const draft: any = { activity: {}, dungeon: { stages: {} } };
+    const draft = newDraft();
     syncAct44SideEntry(draft, "act44side_tr01");
     const state = draft.activity.TYPE_ACT44SIDE.act44side;
     expect(state).toBeDefined();
@@ -227,16 +300,14 @@ describe("syncAct44SideEntry（按关卡进度自愈情报屋状态）", () => {
   });
 
   it("已有条目时 setdefault 不覆盖玩家数据", () => {
-    const draft: any = {
-      activity: { TYPE_ACT44SIDE: { act44side: { coin: 5 } } },
-      dungeon: { stages: {} },
-    };
+    const draft = newDraft();
+    draft.activity.TYPE_ACT44SIDE = { act44side: { coin: 5 } };
     syncAct44SideEntry(draft, "act44side_tr01");
     expect(draft.activity.TYPE_ACT44SIDE.act44side.coin).toBe(5);
   });
 
   it("非 TYPE_ACT44SIDE 活动关卡为 no-op", () => {
-    const draft: any = { activity: {}, dungeon: { stages: {} } };
+    const draft = newDraft();
     syncAct44SideEntry(draft, "main_01-07");
     expect(draft.activity.TYPE_ACT44SIDE).toBeUndefined();
   });
@@ -245,7 +316,7 @@ describe("syncAct44SideEntry（按关卡进度自愈情报屋状态）", () => {
     // live 客户端 activityId=act44sre（抓包 tmp/act44side-captures.json 实证），
     // excel basicInfo 仅收录 act44side——原实现只匹配 act44side_ 前缀，复刻玩家
     // 通关 act44sre_tr01 后 TYPE_ACT44SIDE["act44sre"] 缺失 → 小游戏入口不解锁。
-    const draft: any = { activity: {}, dungeon: { stages: {} } };
+    const draft = newDraft();
     syncAct44SideEntry(draft, "act44sre_tr01");
     const state = draft.activity.TYPE_ACT44SIDE.act44sre;
     expect(state).toBeDefined();
@@ -255,40 +326,26 @@ describe("syncAct44SideEntry（按关卡进度自愈情报屋状态）", () => {
   });
 
   it("复刻活动关卡在缺省 stageId 扫描模式下同样自愈", () => {
-    const draft: any = {
-      activity: {},
-      dungeon: {
-        stages: {
-          act44sre_tr01: { ...stageEntry(3), stageId: "act44sre_tr01" },
-        },
-      },
-    };
+    const draft = newDraft();
+    draft.dungeon.stages.act44sre_tr01 = { ...stageEntry(3), stageId: "act44sre_tr01" };
     syncAct44SideEntry(draft);
     expect(draft.activity.TYPE_ACT44SIDE.act44sre).toBeDefined();
   });
 
   it("缺省 stageId 时扫描 dungeon.stages 全部键（播种后自愈迁移存档）", () => {
-    const draft: any = {
-      activity: {},
-      dungeon: {
-        stages: {
-          act44side_tr01: { ...stageEntry(3), stageId: "act44side_tr01" },
-        },
-      },
-    };
+    const draft = newDraft();
+    draft.dungeon.stages.act44side_tr01 = { ...stageEntry(3), stageId: "act44side_tr01" };
     syncAct44SideEntry(draft);
     expect(draft.activity.TYPE_ACT44SIDE.act44side).toBeDefined();
   });
 
   it("basicInfo 无 TYPE_ACT44SIDE 活动时安全跳过", async () => {
-    const excelRef = (await import("@excel/excel")).default as any;
+    const excelRef: ExcelActivityView = (await import("@excel/excel")).default;
     const saved = excelRef.ActivityTable.basicInfo;
     excelRef.ActivityTable.basicInfo = { act_other: saved.act_other };
     try {
-      const draft: any = {
-        activity: {},
-        dungeon: { stages: { act44side_tr01: stageEntry(3) } },
-      };
+      const draft = newDraft();
+      draft.dungeon.stages.act44side_tr01 = stageEntry(3);
       syncAct44SideEntry(draft);
       expect(draft.activity.TYPE_ACT44SIDE).toBeUndefined();
     } finally {
@@ -318,35 +375,43 @@ describe("battle 结算接线（通关即自愈）", () => {
       },
       troop: { chars: {}, addon: {} },
       dexNav: { enemy: { stage: {} }, character: {} },
-      recruit: { normal: { slots: [] } },
+      recruit: { normal: {} },
       status: { mainStageProgress: "", uid: "10000" },
-      pushFlags: { status: {} },
+      pushFlags: {},
       inventory: {},
     });
+    // 夹具把 recruit.normal.slots 写成空数组、pushFlags.status 写成空对象，
+    // 与模型声明（字典 / number）不同但都是空值；按「真实类型 ∪ 夹具值」的窄视图就地写回，
+    // 运行期值与写进种子完全一致（避免改断言/改行为）。
+    const recruitView = mockPlayer._playerdata.recruit.normal as {
+      slots: PlayerDataModel["recruit"]["normal"]["slots"] | [];
+    };
+    recruitView.slots = [];
+    const pushFlagsView = mockPlayer._playerdata.pushFlags as { status: number | Record<string, never> };
+    pushFlagsView.status = {};
   });
 
   it("finishStoryStage 通关 act44side_st01 后创建 TYPE_ACT44SIDE 状态并解锁 tr01", async () => {
-    const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+    const manager = new BattleManager(asPlayerManager(mockPlayer), mockTrigger);
     await manager.finishStoryStage({ stageId: "act44side_st01" });
 
     // 官服语义状态已存在 → 客户端入口 Status 可随 tr01 通关翻转为 UNLOCK
-    const state = (mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE?.act44side;
+    const state = mockPlayer._playerdata.activity?.TYPE_ACT44SIDE?.act44side;
     expect(state).toBeDefined();
-    expect(state.game).toBeNull();
+    expect(state!.game).toBeNull();
     // 原有关卡链推进不受影响
     expect(mockPlayer._playerdata.dungeon!.stages!.act44side_tr01).toBeDefined();
   });
 
   it("finish 胜利通关 act44side_tr01 后创建 TYPE_ACT44SIDE 状态并解锁 act44side_01", async () => {
-    (accountManager.configs as any)["10000"].battle.infos["1"].stageId =
-      "act44side_tr01";
-    const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+    accountConfigs()["10000"].battle.infos["1"].stageId = "act44side_tr01";
+    const manager = new BattleManager(asPlayerManager(mockPlayer), mockTrigger);
     await manager.finish({
       data: "encrypted_battle_data",
       battleData: { isCheat: "0", completeTime: 100 },
-    } as any);
+    });
 
-    const state = (mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE?.act44side;
+    const state = mockPlayer._playerdata.activity?.TYPE_ACT44SIDE?.act44side;
     expect(state).toBeDefined();
     // 胜利后关卡链继续推进
     expect(mockPlayer._playerdata.dungeon!.stages!.act44side_01).toBeDefined();
@@ -355,13 +420,13 @@ describe("battle 结算接线（通关即自愈）", () => {
 
   it("胜利通关无关关卡（main_01-07）不创建情报屋状态", async () => {
     // 前一用例可能改写过 battleId→stageId 映射，显式归位
-    (accountManager.configs as any)["10000"].battle.infos["1"].stageId = "main_01-07";
-    const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+    accountConfigs()["10000"].battle.infos["1"].stageId = "main_01-07";
+    const manager = new BattleManager(asPlayerManager(mockPlayer), mockTrigger);
     await manager.finish({
       data: "encrypted_battle_data",
       battleData: { isCheat: "0", completeTime: 100 },
-    } as any);
-    expect((mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE).toBeUndefined();
+    });
+    expect(mockPlayer._playerdata.activity?.TYPE_ACT44SIDE).toBeUndefined();
   });
 });
 
@@ -395,20 +460,20 @@ describe("unlockActivity 联动（过期活动自愈与修剪豁免）", () => {
       },
     });
 
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
 
     // 自愈创建（act44side 窗口已过期、未强制开启——旧逻辑下永远缺失）
-    const state = (mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE?.act44side;
+    const state = mockPlayer._playerdata.activity?.TYPE_ACT44SIDE?.act44side;
     expect(state).toBeDefined();
-    expect(state.milestone).toEqual({ point: 0, got: [] });
+    expect(state!.milestone).toEqual({ point: 0, got: [] });
     // 可达关卡照常播种；已通关进度保持
     expect(mockPlayer._playerdata.dungeon!.stages!.act44side_st01).toBeDefined();
     expect(mockPlayer._playerdata.dungeon!.stages!.act44side_01).toBeDefined();
     expect(mockPlayer._playerdata.dungeon!.stages!.act44side_tr01.state).toBe(3);
 
     // 二次登录：修剪阶段因「存在关卡进度」豁免，状态不再被清空
-    await unlockActivity(mockPlayer as any);
-    expect((mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE?.act44side).toBeDefined();
+    await unlockActivity(asPlayerManager(mockPlayer));
+    expect(mockPlayer._playerdata.activity?.TYPE_ACT44SIDE?.act44side).toBeDefined();
   });
 
   it("从未接触该活动的玩家不被塞入状态（fresh 存档无 act44side 关卡）", async () => {
@@ -417,7 +482,7 @@ describe("unlockActivity 联动（过期活动自愈与修剪豁免）", () => {
       mission: { missions: { ACTIVITY: {} } },
       dungeon: { stages: {} },
     });
-    await unlockActivity(mockPlayer as any);
-    expect((mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE).toBeUndefined();
+    await unlockActivity(asPlayerManager(mockPlayer));
+    expect(mockPlayer._playerdata.activity?.TYPE_ACT44SIDE).toBeUndefined();
   });
 });

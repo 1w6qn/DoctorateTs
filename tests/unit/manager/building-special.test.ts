@@ -12,10 +12,39 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *   心情特殊（control_mp_cost_double/reset 与关键词干员同驻）
  */
 
-const excelMock = vi.hoisted(() => ({
-  default: {
-    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+/** excel mock 的行形状（本文件只读取 name） */
+interface ExcelRowMock { name?: string }
+
+const excelMock = vi.hoisted(() => {
+  /** 干员表（charData 以 string 索引，抽成带索引签名的 const 以满足索引检查） */
+  const CharacterTable: Record<string, ExcelRowMock> = {
+    "char_4098_vvana": { name: "薇薇安娜" },
+    "char_1014_nearl2": { name: "耀骑士临光" },
+    "char_148_nearl": { name: "临光" },
+    "char_1029_yato2": { name: "麒麟R夜刀" },
+    "char_1030_noirc2": { name: "火龙S黑角" },
+    "char_107_liskam": { name: "雷蛇" },
+    "char_1034_jesca2": { name: "涤火杰西卡" },
+    "char_002_amiya": { name: "阿米娅" },
+    "char_4182_oblvns": { name: "丰川祥子" },
+    "char_4134_cetsyr": { name: "魔王" },
+    "char_4183_mortis": { name: "若叶睦" },
+    "char_497_ctable": { name: "晓歌" },
+    "char_4091_ulika": { name: "U-Official" },
+    "char_4058_pepe": { name: "佩佩" },
+    "char_4228_closur": { name: "可露希尔" },
+    "char_285_medic2": { name: "Lancet-2" },
+    "char_286_cast3": { name: "Castle-3" },
+    "char_391_rosmon": { name: "迷迭香" },
+  };
+  return {
+    default: {
+      // —— 本文件不提供的表（占位，与「键不存在」在 ?. 读取下等价）——
+      ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+      StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
+      CharacterTable,
+      // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+      getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
     charData(charId: string) { return this.CharacterTable?.[charId]; },
@@ -78,7 +107,7 @@ const excelMock = vi.hoisted(() => ({
           buffId: "manu_prod_spd[000]", roomType: "MANUFACTURE", efficiency: 15, targets: ["F_GOLD", "F_EXP", "F_DIAMOND"],
           description: "进驻制造站时，生产力<@cc.vup>+15%</>",
         },
-      },
+      } satisfies Record<string, BuildingBuffLike>,
       chars: {
         "char_4098_vvana": { charId: "char_4098_vvana", buffChar: [{ buffData: [{ buffId: "control_prod_fraction[000]", cond: { level: 1 } }] }] },
         "char_4004_pudd": { charId: "char_4004_pudd", buffChar: [{ buffData: [{ buffId: "control_token_prod_spd[000]", cond: { level: 1 } }] }] },
@@ -116,26 +145,6 @@ const excelMock = vi.hoisted(() => ({
       },
       meetingData: { phases: [{ friendSlotInc: 10, maxVisitorNum: 10, gatheringSpeed: 100 }] },
     },
-    CharacterTable: {
-      "char_4098_vvana": { name: "薇薇安娜" },
-      "char_1014_nearl2": { name: "耀骑士临光" },
-      "char_148_nearl": { name: "临光" },
-      "char_1029_yato2": { name: "麒麟R夜刀" },
-      "char_1030_noirc2": { name: "火龙S黑角" },
-      "char_107_liskam": { name: "雷蛇" },
-      "char_1034_jesca2": { name: "涤火杰西卡" },
-      "char_002_amiya": { name: "阿米娅" },
-      "char_4182_oblvns": { name: "丰川祥子" },
-      "char_4134_cetsyr": { name: "魔王" },
-      "char_4183_mortis": { name: "若叶睦" },
-      "char_497_ctable": { name: "晓歌" },
-      "char_4091_ulika": { name: "U-Official" },
-      "char_4058_pepe": { name: "佩佩" },
-      "char_4228_closur": { name: "可露希尔" },
-      "char_285_medic2": { name: "Lancet-2" },
-      "char_286_cast3": { name: "Castle-3" },
-      "char_391_rosmon": { name: "迷迭香" },
-    },
     GameDataConst: {
       termDescriptionDict: {
         "cc.tag.knight": { termId: "cc.tag.knight", termName: "骑士", description: "包含以下干员\n耀骑士临光、临光、瑕光、鞭刃、焰尾、远牙、灰毫、野鬃、正义骑士号、砾、薇薇安娜" },
@@ -145,7 +154,8 @@ const excelMock = vi.hoisted(() => ({
       },
     },
   },
-}));
+  };
+});
 vi.mock("@excel/excel", () => excelMock);
 
 const timeMock = vi.hoisted(() => ({ now: 1234567890 }));
@@ -155,7 +165,16 @@ vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  mockPlayerData,
+  mockTypedEventEmitter,
+  asPlayerManager,
+  asModel,
+  type MockPlayerDataManager,
+  type MockPlayerDataSeed,
+  type MockSeed,
+  type MockUpdateRecipe,
+} from "../../helpers";
 import {
   parseConditionTerms,
   isConditionSkill,
@@ -167,6 +186,9 @@ import {
   roomSpeedBonus,
   controlGlobalBonus,
 } from "@game/modules/building/buff";
+import type { BuildingBuffLike } from "@game/modules/building/buff-parse";
+import type { MeetingRoom, TradingRoom } from "@game/modules/building/logic/ext-types";
+import type { PlayerBuildingChar, PlayerBuildingTrading, PlayerCharacter } from "@game/kernel/playerdata";
 import { BuildingManager } from "@game/modules/building/logic";
 
 /** 干员 buff 源便捷构造 */
@@ -258,7 +280,10 @@ describe("buff.ts 集成：特殊技能加成进房间/控制中枢计算", () =
 
 describe("BuildingManager 特殊技能集成", () => {
   /** 构造带指定 building 的 mock 玩家 */
-  function makePlayer(building: any, extra: any = {}) {
+  function makePlayer(
+    building: MockPlayerDataSeed["building"],
+    extra: Omit<MockPlayerDataSeed, "building"> = {},
+  ) {
     const mockPlayer = mockPlayerData({
       building,
       event: { building: 0 },
@@ -268,20 +293,18 @@ describe("BuildingManager 特殊技能集成", () => {
     const mockTrigger = mockTypedEventEmitter();
     mockPlayer._trigger = mockTrigger;
     mockPlayer.update = vi
-      .fn()
-      .mockImplementation(
-        async (recipe: (draft: any) => Promise<any> | any) => {
-          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-          const result = await recipe(draft);
-          Object.assign(mockPlayer._playerdata, draft);
-          return result;
-        },
-      );
+      .fn<(recipe: MockUpdateRecipe) => Promise<void>>()
+      .mockImplementation(async (recipe) => {
+        const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+        const result = await recipe(draft);
+        Object.assign(mockPlayer._playerdata, draft);
+        return result;
+      });
     return { mockPlayer, mockTrigger };
   }
 
   /** 基础 building（控制中枢/制造站/贸易站/会客室/发电站槽位） */
-  function baseBuilding(): any {
+  function baseBuilding(): MockPlayerDataSeed["building"] {
     return {
       status: {
         labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 1000, maxValue: 225 },
@@ -323,15 +346,15 @@ describe("BuildingManager 特殊技能集成", () => {
   }
 
   /** 进驻干员辅助：槽位 + building.chars + troop.chars */
-  function station(mockPlayer: any, slotId: string, entries: Array<[number, string]>) {
+  function station(mockPlayer: MockPlayerDataManager, slotId: string, entries: Array<[number, string]>) {
     const slot = mockPlayer._playerdata.building.roomSlots[slotId];
     slot.charInstIds = entries.map(([instId]) => instId);
     for (const [instId, charId] of entries) {
-      mockPlayer._playerdata.building.chars[String(instId)] = {
+      mockPlayer._playerdata.building.chars[String(instId)] = asModel<PlayerBuildingChar>({
         charId, ap: 8640000, lastApAddTime: timeMock.now, roomSlotId: slotId, index: 0,
         changeScale: 0, bubble: {}, workTime: 0, privateRooms: [],
-      };
-      mockPlayer._playerdata.troop.chars[String(instId)] = { charId, level: 1, evolvePhase: 0 };
+      });
+      mockPlayer._playerdata.troop.chars[String(instId)] = asModel<PlayerCharacter>({ charId, level: 1, evolvePhase: 0 });
     }
   }
 
@@ -350,7 +373,7 @@ describe("BuildingManager 特殊技能集成", () => {
     });
     station(mockPlayer, "slot_34", [[901, "char_4098_vvana"]]);
     station(mockPlayer, "slot_5", [[101, "char_1014_nearl2"], [102, "char_148_nearl"]]);
-    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
     await manager.sync();
     const room = mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5;
     // capacity 基础 54；buff.speed = 进驻干员 0.15（耀骑士临光 manu）+ 控制中枢 0.14（2 骑士 × 7%）
@@ -370,7 +393,7 @@ describe("BuildingManager 特殊技能集成", () => {
     });
     station(mockPlayer, "slot_34", [[901, "char_4004_pudd"]]);
     station(mockPlayer, "slot_24", [[951, "char_285_medic2"], [952, "char_286_cast3"]]);
-    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
     await manager.sync();
     const room = mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5;
     expect(room.buff.speed).toBeCloseTo(0.02);
@@ -387,12 +410,13 @@ describe("BuildingManager 特殊技能集成", () => {
       troop: { chars: {}, charGroup: {} },
     });
     station(mockPlayer, "slot_6", [[951, "char_4058_pepe"]]);
-    mockPlayer._playerdata.building.rooms.TRADING.slot_6 = {
+    mockPlayer._playerdata.building.rooms.TRADING.slot_6 = asModel<PlayerBuildingTrading>({
       state: 1, stock: [], stockLimit: 2, strategy: "O_GOLD", lastUpdateTime: 1000,
-    };
-    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    });
+    const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
     await manager.sync();
-    const room = mockPlayer._playerdata.building.rooms.TRADING.slot_6;
+    // 服务端扩展字段 `special`（独占订单来源）经 TradingRoom 视图读取
+    const room = mockPlayer._playerdata.building.rooms.TRADING.slot_6 as TradingRoom;
     expect(room.stock).toHaveLength(2);
     // 独占订单：赤金交付 0、收益恒定（rate×2=1000）
     expect(room.stock[0].delivery).toEqual([]);
@@ -407,14 +431,18 @@ describe("BuildingManager 特殊技能集成", () => {
       troop: { chars: {}, charGroup: {} },
     });
     station(mockPlayer, "slot_36", [[961, "char_497_ctable"]]);
-    mockPlayer._playerdata.building.rooms.MEETING.room_001 = {
+    // 会客室夹具：dailyReward=null 为服务端「今日未领」形状（生成模型声明为必填），
+    // 经 ext-types 的 MeetingRoom 视图写入
+    const meetingRooms: Record<string, MockSeed<MeetingRoom>> =
+      mockPlayer._playerdata.building.rooms.MEETING;
+    meetingRooms.room_001 = {
       ownStock: [], receiveStock: [], board: { RHINE: "x", PENGUIN: "y" }, dailyReward: null,
       socialReward: { daily: 0, search: 0 }, infoShare: { ts: 0, reward: 0 },
     };
-    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
     // random 固定 0.9：加权后大概率落未上板阵营（上板 w=1 × 2，未上板 w=2 × 5）
     const spy = vi.spyOn(Math, "random").mockReturnValue(0.9);
-    await manager.getDailyClue({} as any);
+    await manager.getDailyClue({});
     const room = mockPlayer._playerdata.building.rooms.MEETING.room_001;
     expect(room.ownStock).toHaveLength(1);
     // 未上板阵营（非 RHINE/PENGUIN）
@@ -429,7 +457,7 @@ describe("BuildingManager 特殊技能集成", () => {
       troop: { chars: {}, charGroup: {} },
     });
     station(mockPlayer, "slot_34", [[901, "char_4134_cetsyr"], [902, "char_002_amiya"]]);
-    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
     await manager.sync();
     // 0.05 点/小时 × 100 = +5 AP/秒
     expect(mockPlayer._playerdata.building.chars["901"].changeScale).toBe(5);
@@ -442,7 +470,7 @@ describe("BuildingManager 特殊技能集成", () => {
       troop: { chars: {}, charGroup: {} },
     });
     station(mockPlayer, "slot_34", [[901, "char_4183_mortis"], [902, "char_4182_oblvns"]]);
-    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
     await manager.sync();
     expect(mockPlayer._playerdata.building.chars["901"].changeScale).toBe(0);
   });

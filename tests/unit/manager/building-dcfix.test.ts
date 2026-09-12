@@ -13,8 +13,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *    - 贸易站：速度 = 1+当前加成（每次重算，禁止 next.speed 复利回写）
  */
 
+/**
+ * excel mock 的行形状
+ *
+ * 本文件只需要 `name`（`itemName` 回退读取）；三张表在本文件均不提供，
+ * 但门面方法经 `this.XxxTable` 读取，故显式声明为 `undefined` 占位 ——
+ * 与「键不存在」在 `?.` 读取下运行时等价，同时让 `this` 推断有据。
+ */
+interface ExcelRowMock { name?: string }
+
 const excelMock = vi.hoisted(() => ({
   default: {
+    // —— 本文件不提供的表（占位，保持门面方法的 `this` 读取路径）——
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    CharacterTable: undefined as Record<string, ExcelRowMock> | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -51,14 +64,58 @@ vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import {
+  mockPlayerData,
+  mockTypedEventEmitter,
+  asPlayerManager,
+  type MockPlayerDataSeed,
+  type MockSeed,
+  type MockUpdateRecipe,
+} from "../../helpers";
 import {
   workshopSynthesisSchema,
   deliveryOrderSchema,
 } from "@game/modules/building/schemas";
 import { BuildingManager } from "@game/modules/building/logic";
+import type { BuildingWithExt, RoomTimestamp } from "@game/modules/building/logic/ext-types";
+import type {
+  PlayerBuilding,
+  PlayerBuildingWorkshop,
+  PlayerDataModel,
+} from "@game/kernel/playerdata";
+import type { Draft } from "mutative";
 
-function makePlayer(building: any, extra: any = {}) {
+/**
+ * BuildingManager 私有内部方法访问面
+ *
+ * 用例需直接驱动推进逻辑（`_accrueManufacture`/`_accrueTrading`）才能精确控制时间步长；
+ * 签名与被测实现一致（见 `logic/accrue.ts`、`logic/trading.ts` 的类内私有包装）。
+ */
+interface BuildingInternals {
+  /** 制造站产出推进 */
+  _accrueManufacture(draft: Draft<PlayerDataModel>, roomSlotId: string, ts: number): void;
+  /** 贸易站订单推进 */
+  _accrueTrading(draft: Draft<PlayerDataModel>, ts: number): void;
+}
+
+/**
+ * 基建夹具视图
+ *
+ * 与 {@link MockPlayerDataSeed} 的 building 子树同形，唯一差异：服务端存档的
+ * `rooms.WORKSHOP[slot]` 带 `state`（生成模型 `PlayerBuildingWorkshop` 只有 buff/statistic，
+ * 读取侧按 `RoomTimestamp` 处理，见 `logic/accrue.ts#_touchActiveRooms`），
+ * 故 WORKSHOP 槽位按 `MockSeed<PlayerBuildingWorkshop> & RoomTimestamp` 表达。
+ */
+type BuildingFixture = MockSeed<Omit<PlayerBuilding, "rooms">> & {
+  rooms?: MockSeed<Omit<PlayerBuilding["rooms"], "WORKSHOP">> & {
+    WORKSHOP?: Record<string, MockSeed<PlayerBuildingWorkshop> & RoomTimestamp>;
+  };
+};
+
+function makePlayer(
+  building: BuildingFixture,
+  extra: Omit<MockPlayerDataSeed, "building"> = {},
+) {
   const mockPlayer = mockPlayerData({
     building,
     event: { building: 0 },
@@ -68,20 +125,18 @@ function makePlayer(building: any, extra: any = {}) {
   const mockTrigger = mockTypedEventEmitter();
   mockPlayer._trigger = mockTrigger;
   mockPlayer.update = vi
-    .fn()
-    .mockImplementation(
-      async (recipe: (draft: any) => Promise<any> | any) => {
-        const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
-        const result = await recipe(draft);
-        Object.assign(mockPlayer._playerdata, draft);
-        return result;
-      },
-    );
+    .fn<(recipe: MockUpdateRecipe) => Promise<void>>()
+    .mockImplementation(async (recipe) => {
+      const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
+      const result = await recipe(draft);
+      Object.assign(mockPlayer._playerdata, draft);
+      return result;
+    });
   return { mockPlayer, mockTrigger };
 }
 
 /** 旧存档形态：无 maxLevelReached、制造站 lv3、贸易站带 next 进度 */
-function baseBuilding(): any {
+function baseBuilding(): BuildingFixture {
   return {
     status: {
       labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: timeMock.now, maxValue: 225 },
@@ -124,7 +179,7 @@ function setup() {
     inventory: { "3112": 10 },
     troop: { chars: {}, charGroup: {} },
   });
-  const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+  const manager = new BuildingManager(asPlayerManager(mockPlayer), mockTrigger);
   return { mockPlayer, manager };
 }
 
@@ -149,13 +204,13 @@ describe("dc-fix #1/#2：协议请求体校验（CS 字段形态）", () => {
 
   it("deliveryOrder：数字 orderId 命中订单（manager 按 String(instId) 匹配）", async () => {
     const { mockPlayer, manager } = setup();
-    const room = mockPlayer._playerdata.building.rooms.TRADING.slot_24 as any;
+    const room = mockPlayer._playerdata.building.rooms.TRADING.slot_24;
     room.stock = [
       { instId: 28207, delivery: [], type: "O_GOLD", gain: { id: "4001", type: "GOLD", count: 1000 }, buff: [] },
     ];
-    await manager.deliveryOrder({ slotId: "slot_24", orderId: 28207 } as any);
+    await manager.deliveryOrder({ slotId: "slot_24", orderId: 28207 });
     // update 深拷贝回写后 重新读取（原引用已陈旧）
-    const roomAfter = (mockPlayer._playerdata.building.rooms.TRADING as any).slot_24;
+    const roomAfter = mockPlayer._playerdata.building.rooms.TRADING.slot_24;
     expect(roomAfter.stock).toHaveLength(0);
     expect(mockPlayer._playerdata.status!.gold).toBe(11000); // 10000 + 1000 收益
   });
@@ -168,12 +223,12 @@ describe("dc-fix #3：旧存档补货（曾达等级含当前房间等级）", (
 
   it("无 maxLevelReached 记录：lv3 制造站可换配方/补货到 99", async () => {
     const { mockPlayer, manager } = setup();
-    expect((mockPlayer._playerdata.building as any).maxLevelReached).toBeUndefined();
+    expect((mockPlayer._playerdata.building as BuildingWithExt).maxLevelReached).toBeUndefined();
     await manager.changeManufactureSolution({
       roomSlotId: "slot_25",
       targetFormulaId: "4",
       solutionCount: 99,
-    } as any);
+    });
     const room = mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_25;
     expect(room.formulaId).toBe("4");
     expect(room.remainSolutionCnt).toBe(99); // 补到 99
@@ -187,31 +242,33 @@ describe("dc-fix #4：生产速率官方校准（2222 真存档实测）", () =>
 
   it("制造站：速率 = 1×(1+加成) 点/秒——赤金一批恰需 costPoint 秒（无加成 4320s=72 分钟）", () => {
     const { mockPlayer, manager } = setup();
-    const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+    const internals = manager as BuildingInternals;
+    const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
     const room = draft.building.rooms.MANUFACTURE.slot_25;
     room.remainSolutionCnt = 5;
-    (manager as any)._accrueManufacture(draft, "slot_25", timeMock.now + 4320);
+    internals._accrueManufacture(draft, "slot_25", timeMock.now + 4320);
     expect(room.outputSolutionCnt).toBe(26 + 1); // 产出 1 批
     expect(room.processPoint).toBe(0);
     // 半程不产出（原实现按容量 54 点/秒，80 秒一批，快约 54 倍）
-    const draft2 = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+    const draft2 = JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
     const room2 = draft2.building.rooms.MANUFACTURE.slot_25;
     room2.remainSolutionCnt = 5;
-    (manager as any)._accrueManufacture(draft2, "slot_25", timeMock.now + 2000);
+    internals._accrueManufacture(draft2, "slot_25", timeMock.now + 2000);
     expect(room2.outputSolutionCnt).toBe(26);
     expect(room2.processPoint).toBe(2000);
   });
 
   it("贸易站：速度 = 1+当前加成，多次推进不复利（存档 speed 1.78 不被当乘数）", () => {
     const { mockPlayer, manager } = setup();
-    const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+    const internals = manager as BuildingInternals;
+    const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata)) as Draft<PlayerDataModel>;
     const room = draft.building.rooms.TRADING.slot_24;
     // 无进驻干员时 加成 0 → 速度重算 1.0（不是 1.78×(1+0) 再回写复利）
-    (manager as any)._accrueTrading(draft, timeMock.now + 3600);
+    internals._accrueTrading(draft, timeMock.now + 3600);
     expect(room.next.speed).toBeCloseTo(1.0);
     const pp1 = room.next.processPoint;
     expect(pp1).toBeCloseTo(775.46 + 3600); // < maxPoint 12600，不出单
-    (manager as any)._accrueTrading(draft, timeMock.now + 7200);
+    internals._accrueTrading(draft, timeMock.now + 7200);
     expect(room.next.speed).toBeCloseTo(1.0); // 第二次推进速度不变（无复利）
     expect(room.next.processPoint).toBeCloseTo(775.46 + 7200);
   });

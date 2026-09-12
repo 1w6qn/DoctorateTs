@@ -8,6 +8,30 @@ import { describe, beforeAll, afterAll, it, expect } from "vitest";
 import { startApiFixture, type ApiFixture } from "../../helpers/apiServer";
 import excel from "@game/excel/excel";
 
+/** `/user/checkIn` 响应（用例断言到的字段） */
+type CheckInBody = {
+  signInRewards: { id: string; count: number; type: string }[];
+  playerDataDelta: { modified: Record<string, number> };
+};
+/** `/shop/getLowGoodList` 响应（用例断言到的字段） */
+type LowGoodListBody = { groups: { groupId: string }[]; goodList: { goodId: string; price: number }[] };
+/** `/shop/buyLowGood` 响应（用例断言到的字段） */
+type BuyLowGoodBody = {
+  result: number;
+  items: { id: string; count: number; type: string }[];
+  playerDataDelta: { modified: Record<string, number> };
+};
+/** `/gacha/advancedGacha` 响应（用例断言到的字段，含增量中的凭证余额） */
+type AdvancedGachaBody = {
+  result: number;
+  charGet: { charId: string };
+  playerDataDelta: { modified: { status: { gachaTicket: number } } };
+};
+/** `/mail/listMailBox` 响应（用例断言到的字段） */
+type MailListBody = { mailList: { mailId: string }[] };
+/** 校验失败响应（validateBody 统一形状） */
+type ErrorBody = { result: number; message: string };
+
 describe("游戏 API 独立端点：输入 → 输出", () => {
   let fx: ApiFixture;
   /** 测试账号 id */
@@ -22,9 +46,9 @@ describe("游戏 API 独立端点：输入 → 输出", () => {
     secret = acc.secret;
     // 注入通用货币/可签到状态（等价于账号已通过签到/充值/任务获得资源）
     // status 子树未被冻结，直接经 manager.update 配方写入（真实生效路径）
-    await fx.getPlayerData(uid).update((draft: any) => {
+    await fx.getPlayerData(uid).update(async (draft) => {
       draft.checkIn.canCheckIn = 1;
-      const groups: any = excel.CheckinTable?.groups ?? {};
+      const groups = excel.CheckinTable?.groups ?? {};
       draft.checkIn.checkInGroupId = Object.keys(groups)[0];
       draft.checkIn.checkInRewardIndex = 0;
       draft.status.gachaTicket = 100;
@@ -38,7 +62,7 @@ describe("游戏 API 独立端点：输入 → 输出", () => {
   });
 
   it("签到 /user/checkIn：注入可签到状态后应发放签到奖励与增量", async () => {
-    const res = await fx.post("/user/checkIn", {}, secret);
+    const res = await fx.post<CheckInBody>("/user/checkIn", {}, secret);
     expect(res.status).toBe(200);
     expect(res.body.signInRewards).toEqual([
       expect.objectContaining({ id: expect.any(String), count: expect.any(Number), type: "GOLD" }),
@@ -48,7 +72,7 @@ describe("游戏 API 独立端点：输入 → 输出", () => {
   });
 
   it("商店列表 /shop/getLowGoodList：应返回分组与商品明细", async () => {
-    const res = await fx.post("/shop/getLowGoodList", {}, secret);
+    const res = await fx.post<LowGoodListBody>("/shop/getLowGoodList", {}, secret);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.groups)).toBe(true);
     // 商品需包含唯一 goodId 与价格等可购买要素
@@ -58,7 +82,7 @@ describe("游戏 API 独立端点：输入 → 输出", () => {
   });
 
   it("商店购买 /shop/buyLowGood：合法商品应返回命中物品与增量", async () => {
-    const res = await fx.post(
+    const res = await fx.post<BuyLowGoodBody>(
       "/shop/buyLowGood",
       { goodId: "LS_lggShdShopnumber19_1", count: 1 }, // 寻访凭证
       secret,
@@ -75,7 +99,7 @@ describe("游戏 API 独立端点：输入 → 输出", () => {
 
   it("抽卡单抽 /gacha/advancedGacha：给定寻访凭证应抽到干员并扣费", async () => {
     const before = await fx.getPlayerData(uid)._playerdata.status.gachaTicket;
-    const res = await fx.post(
+    const res = await fx.post<AdvancedGachaBody>(
       "/gacha/advancedGacha",
       { poolId: "NORM_0_1_1", useTkt: 1, itemId: null },
       secret,
@@ -89,7 +113,7 @@ describe("游戏 API 独立端点：输入 → 输出", () => {
   });
 
   it("邮件列表 /mail/listMailBox：应返回邮件数组与增量", async () => {
-    const res = await fx.post(
+    const res = await fx.post<MailListBody>(
       "/mail/listMailBox",
       { mailIdList: [], sysMailIdList: [], surveyMailIdList: [] },
       secret,
@@ -99,7 +123,7 @@ describe("游戏 API 独立端点：输入 → 输出", () => {
   });
 
   it("rlv2 /rlv2/createGame：缺失必填参数返回 HTTP 422（zod 格式校验，非 500）", async () => {
-    const res = await fx.post("/rlv2/createGame", {}, secret);
+    const res = await fx.post<ErrorBody>("/rlv2/createGame", {}, secret);
     expect(res.status).toBe(422);
     expect(res.body.result).toBe(-1);
     expect(res.body.message).toBeTruthy();

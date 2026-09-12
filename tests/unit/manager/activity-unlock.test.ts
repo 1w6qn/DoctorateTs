@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { ItemTable } from "@excel/excel";
+import type { CharacterData } from "@excel/types_excel_gen";
 
 vi.mock("@excel/excel", () => {
   return {
     default: {
+    // 门面方法读取的表显式声明（工厂对象 `this` 即字面量自身）；
+    // 空表与「键不存在的旧 mock」运行期等价（`?.` 链同样取到 undefined）
+    ItemTable: {} as ItemTable,
+    CharacterTable: {} as CharacterData,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -96,7 +102,7 @@ vi.mock("@excel/excel", () => {
           main_00_02: {
             unlockCondition: [{ stageId: "main_00_01", completeState: "COMPLETE" }],
           },
-        },
+        } as Record<string, { unlockCondition: { stageId: string; completeState: string }[] }>,
       },
       CharWordTable: {
         startTimeWithTypeDict: {
@@ -111,8 +117,49 @@ vi.mock("@excel/excel", () => {
 });
 
 import config from "@core/config/index";
-import { mockPlayerData } from "../../helpers";
+import type { PlayerMedal } from "@game/excel/types-playerdata";
+import type { ServerPayload, ServerPayloadLeaf } from "@excel/json-value";
+import { asModel, asPlayerManager, mockPlayerData } from "../../helpers";
 import { unlockActivity } from "@game/modules/activities/shared/unlockActivity";
+
+/**
+ * `@excel/excel` 端口在本用例只读写 `ActivityTable.basicInfo` 的窗口字段
+ * （窄视图：真实表项还有 displayOnHome 等十余个必填字段，用例不关心）。
+ */
+interface ActivityBasicInfoView {
+  id: string;
+  type: string;
+  name: string;
+  startTime: number;
+  endTime: number;
+  rewardEndTime: number;
+  medalGroupId?: string;
+}
+interface ExcelActivityView {
+  ActivityTable: { basicInfo: Record<string, ActivityBasicInfoView> };
+}
+
+/** 未登记活动键（TYPE_ACT9D0 等）的兜底第三层视图 */
+type ServerPayloadRecord = { [key: string]: ServerPayloadLeaf | ServerPayloadLeaf[] };
+
+/**
+ * 泛型 TYPE_ACT 存档条目（TYPE_ACT5D0/TYPE_ACT9D0 未在生成模型具名登记，
+ * 兜底 `ServerPayload` 只有两层，装不下 `news` 这类嵌套对象）
+ */
+interface LegacyActEntry {
+  coin: number;
+  favorList?: string[];
+  news: Record<string, number>;
+}
+
+/**
+ * `ServerPayload` → 第三层对象成员（生成模型对未登记的活动键只有两层兜底，
+ * 业务字段如 `actCoin`/`coin` 落在这层对象里）。`typeof`/`Array.isArray` 就地收窄，
+ * 不新增 unknown；运行期仅做判定、不改变数据。
+ */
+function asPayloadRecord(value: ServerPayload | undefined): ServerPayloadRecord | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : undefined;
+}
 
 describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
@@ -125,21 +172,23 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPlayer = mockPlayerData({
-      status: { uid: 1, nickName: "T", nickNumber: 0, level: 1, exp: 0 } as any,
-      activity: {
-        // 已过期活动条目——冻结播种时应被修剪
-        TYPE_ACT5D0: { act_expired: { coin: 1, news: {} } },
-        // 未在 basicInfo 的活动——应保持不动
-        TYPE_ACT9D0: { act40side: { coin: 131, favorList: [], news: {} } },
-      },
+      status: { uid: 1, nickName: "T", nickNumber: 0, level: 1, exp: 0 },
+      activity: {},
       mission: { missions: { ACTIVITY: {} } },
       dungeon: { stages: {} },
     });
+    // 未具名登记的泛型 TYPE_ACT 键按本地窄视图就地写入（运行期与写进种子等价）
+    Object.assign(mockPlayer._playerdata.activity, {
+      // 已过期活动条目——冻结播种时应被修剪
+      TYPE_ACT5D0: { act_expired: { coin: 1, news: {} } },
+      // 未在 basicInfo 的活动——应保持不动
+      TYPE_ACT9D0: { act40side: { coin: 131, favorList: [], news: {} } },
+    } satisfies Record<string, Record<string, LegacyActEntry>>);
   });
 
   it("真实时间模式（timestamp -1）按当前时间播种窗口内活动 + 修剪过期", async () => {
     config.developer = { timestamp: -1 };
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
     // 修复：原真实模式 no-op → 当前窗口活动（奇象巡展 TYPE_ACT53SIDE/ARK_HUB）永不
     // 播种 → 客户端教程卡死；现 userTimestamp()=now()，按窗口播种
     expect(mockPlayer._playerdata.activity?.TYPE_ACT53SIDE?.act53side).toBeDefined();
@@ -156,7 +205,7 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
 
   it("复刻活动开始：重置未完成的活动蚀刻章进度（已获得保留、幂等不重复）", async () => {
     // 注入已开始的复刻活动 act49sre（复用 act49side 的 medalGroup）
-    const excelRef = (await import("@excel/excel")).default as any;
+    const excelRef: ExcelActivityView = (await import("@excel/excel")).default;
     const savedBasic = excelRef.ActivityTable.basicInfo;
     excelRef.ActivityTable.basicInfo = {
       ...savedBasic,
@@ -168,15 +217,15 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
     };
     try {
       config.developer = { timestamp: -1 }; // 真实时间（2026-08 → 复刻早已开始）
-      mockPlayer._playerdata.medal = {
+      mockPlayer._playerdata.medal = asModel<PlayerMedal>({
         medals: {
           // 未完成章：进度 5/11（复刻应清零重新收集）
           "medal_activity_49side_04": { id: "medal_activity_49side_04", val: [[5, 11]], fts: 0, rts: -1 },
           // 已获得章（rts>0）：复刻保留
           "medal_activity_49side_01": { id: "medal_activity_49side_01", val: [[1, 0]], fts: 1750000000, rts: 1750000000 },
-        } as any,
-      };
-      await unlockActivity(mockPlayer as any);
+        },
+      });
+      await unlockActivity(asPlayerManager(mockPlayer));
       const medals = mockPlayer._playerdata.medal.medals;
       // 未完成章进度清零（target 按模板推导：PassStageSome param[2]=11）
       expect(medals["medal_activity_49side_04"].val).toEqual([[0, 11]]);
@@ -186,7 +235,7 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
       expect(medals["medal_activity_49side_01"].rts).toBe(1750000000);
       // 幂等：二次播种（复刻中玩家新进度）不被再次清空
       medals["medal_activity_49side_04"].val = [[3, 11]];
-      await unlockActivity(mockPlayer as any);
+      await unlockActivity(asPlayerManager(mockPlayer));
       expect(medals["medal_activity_49side_04"].val).toEqual([[3, 11]]);
     } finally {
       excelRef.ActivityTable.basicInfo = savedBasic;
@@ -196,7 +245,7 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
   it("冻结到 TYPE_ACT 窗口：播种默认状态 + 任务 + 修剪过期 + 解锁无条件关卡", async () => {
 
     config.developer = { timestamp: 1597132800 };
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
 
     // TYPE_ACT 默认状态（coin/favorList 来自 charword startTimeWithTypeDict/news）
     expect(mockPlayer._playerdata.activity?.TYPE_ACT5D0?.act5d0).toEqual({
@@ -220,15 +269,15 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
 
   it("冻结到 BOSS_RUSH 窗口：播种遗物/里程碑结构", async () => {
     config.developer = { timestamp: 1766692800 };
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
 
-    const br = mockPlayer._playerdata.activity?.BOSS_RUSH?.act6bossrush as any;
+    const br = mockPlayer._playerdata.activity!.BOSS_RUSH!.act6bossrush!;
     expect(br).toBeDefined();
     expect(br.milestone).toEqual({ point: 0, got: [] });
-    expect(br.relic.token).toEqual({ current: 0, total: 0 });
+    expect(br.relic!.token).toEqual({ current: 0, total: 0 });
     // 默认遗物来自 activity.bOSS_RUSH[id].relicList[0].relicId
-    expect(br.relic.unlockedRelicLevelDic).toEqual({ act6bossrush_relic_01: 1 });
-    expect(br.relic.selectingRelicId).toBe("");
+    expect(br.relic!.unlockedRelicLevelDic).toEqual({ act6bossrush_relic_01: 1 });
+    expect(br.relic!.selectingRelicId).toBe("");
     expect(br.bestWaveDic).toEqual({});
   });
 
@@ -245,8 +294,8 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
         bestWaveDic: { "1": 3 },
       },
     };
-    await unlockActivity(mockPlayer as any);
-    expect((mockPlayer._playerdata.activity!.BOSS_RUSH!.act6bossrush as any).milestone.point).toBe(50);
+    await unlockActivity(asPlayerManager(mockPlayer));
+    expect(mockPlayer._playerdata.activity!.BOSS_RUSH!.act6bossrush!.milestone!.point).toBe(50);
   });
 
   it("冻结模式：前置关卡完成后联动解锁", async () => {
@@ -254,15 +303,15 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
     mockPlayer._playerdata.dungeon!.stages = {
       main_00_01: { stageId: "main_00_01", state: 3, completeTimes: 1, startTimes: 1, practiceTimes: 0, hasBattleReplay: 0, noCostCnt: 1 },
     };
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
     expect(mockPlayer._playerdata.dungeon!.stages!.main_00_02).toBeDefined();
   });
 
   it("冻结到 ARK_HUB 窗口：播种奇象巡展方舟枢纽默认状态", async () => {
     config.developer = { timestamp: 1786176000 };
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
 
-    const hub = mockPlayer._playerdata.activity?.ARK_HUB?.act1arkhub as any;
+    const hub = mockPlayer._playerdata.activity!.ARK_HUB!.act1arkhub!;
     expect(hub).toBeDefined();
     expect(hub.coin).toBe(0);
     expect(hub.secretary).toBe("");
@@ -271,27 +320,27 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
     expect(hub.globalBan).toBe(false);
     // 4 个空队伍槽（客户端展示可用编队位）
     expect(hub.squads).toHaveLength(4);
-    expect(hub.squads[0]).toEqual({ slots: [] });
+    expect(hub.squads![0]).toEqual({ slots: [] });
   });
 
   it("冻结到 TYPE_ACT53SIDE 窗口：播种官方形状（actCoin/campaignCnt/favorList）", async () => {
     config.developer = { timestamp: 1785538800 };
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
 
-    const act53 = mockPlayer._playerdata.activity?.TYPE_ACT53SIDE?.act53side as any;
+    const act53 = asPayloadRecord(mockPlayer._playerdata.activity?.TYPE_ACT53SIDE?.act53side);
     expect(act53).toBeDefined();
     // 官方形状：actCoin/campaignCnt/favorList（非通用 TYPE_ACT 的 coin/news）
-    expect(act53.actCoin).toBe(0);
-    expect(act53.campaignCnt).toBe(0);
-    expect(Array.isArray(act53.favorList)).toBe(true);
-    expect(act53.coin).toBeUndefined();
+    expect(act53!.actCoin).toBe(0);
+    expect(act53!.campaignCnt).toBe(0);
+    expect(Array.isArray(act53!.favorList)).toBe(true);
+    expect(act53!.coin).toBeUndefined();
   });
 
   it("冻结到 ODC 窗口：播种 arkodc 主题（ODC 地图状态）", async () => {
     config.developer = { timestamp: 1785538800 };
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
 
-    const topic = mockPlayer._playerdata.arkodc?.topics?.["ark_odc_act53side"] as any;
+    const topic = mockPlayer._playerdata.arkodc!.topics!["ark_odc_act53side"];
     expect(topic).toBeDefined();
     expect(topic.varSeqs).toEqual({});
     expect(topic.rewards).toEqual({});
@@ -301,7 +350,7 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
   it("已播种的 ARK_HUB/arkodc 不覆盖（setdefault 语义）", async () => {
     config.developer = { timestamp: 1786176000 };
     mockPlayer._playerdata.activity!.ARK_HUB = {
-      act1arkhub: { coin: 25, secretary: "char_1012_skadi2", squads: [] } as any,
+      act1arkhub: { coin: 25, secretary: "char_1012_skadi2", squads: [] },
     };
     mockPlayer._playerdata.arkodc = {
       topics: {
@@ -312,12 +361,12 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
         },
       },
     };
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
 
-    const hub = mockPlayer._playerdata.activity!.ARK_HUB!.act1arkhub as any;
+    const hub = mockPlayer._playerdata.activity!.ARK_HUB!.act1arkhub!;
     expect(hub.coin).toBe(25);
     expect(hub.secretary).toBe("char_1012_skadi2");
-    const topic = mockPlayer._playerdata.arkodc!.topics!["ark_odc_act53side"] as any;
+    const topic = mockPlayer._playerdata.arkodc!.topics!["ark_odc_act53side"];
     expect(topic.varSeqs).toEqual({ q001_end: 1 });
     expect(topic.position).toEqual({ x: 1, y: 2, z: 3 });
   });
@@ -338,9 +387,9 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
         },
       },
     };
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
 
-    const topic = mockPlayer._playerdata.arkodc!.topics!["ark_odc_act53side"] as any;
+    const topic = mockPlayer._playerdata.arkodc!.topics!["ark_odc_act53side"];
     expect(topic.varSeqs.bool_end_guide_done).toBe(1);
     // 其他 varSeq 不被覆盖
     expect(topic.varSeqs.q003_prog).toBe(4);
@@ -357,20 +406,20 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
         },
       },
     };
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
 
-    const topic = mockPlayer._playerdata.arkodc!.topics!["ark_odc_act53side"] as any;
+    const topic = mockPlayer._playerdata.arkodc!.topics!["ark_odc_act53side"];
     expect(topic.varSeqs.bool_end_guide_done).toBeUndefined();
   });
 
   it("强制开启（forceOpen）播种窗口外 TYPE_ACT 活动 + 泛化播种其奖章组（含进阶章）", async () => {
     config.activities = { ...(config.activities ?? {}), forceOpen: ["act49side"] };
     config.developer = { timestamp: 1786176000 };
-    await unlockActivity(mockPlayer as any);
+    await unlockActivity(asPlayerManager(mockPlayer));
 
     // TYPE_ACT 通用默认状态（coin/favorList/news）
     expect(mockPlayer._playerdata.activity?.TYPE_ACT9D0?.act49side).toBeDefined();
-    expect((mockPlayer._playerdata.activity?.TYPE_ACT9D0?.act49side as any).coin).toBe(0);
+    expect(asPayloadRecord(mockPlayer._playerdata.activity?.TYPE_ACT9D0?.act49side)!.coin).toBe(0);
     // 活动任务播种（CompleteAnyStage → target 1，value 0 走事件驱动）
     expect(mockPlayer._playerdata.mission?.missions?.ACTIVITY?.["49sideActivity_1"]).toEqual({
       state: 2, progress: [{ value: 0, target: 1 }],

@@ -36,20 +36,22 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
-import { VoucherDataManager } from "@game/modules/depot/routes";
+import excel from "@excel/excel";
+import { voucherService } from "@game/modules/depot/voucher";
 import depotRouter from "@game/modules/depot/routes";
 import httpContext from "express-http-context2";
+import { mockGainItem } from "../../helpers";
 
-describe("VoucherDataManager", () => {
+describe("VoucherService", () => {
   it("getVoucher 应从 voucher.json 命中干员兑换券", () => {
-    const info = VoucherDataManager.getVoucher("voucher_pick_1");
+    const info = voucherService.getVoucher("voucher_pick_1", excel as any);
     expect(info).not.toBeNull();
     expect(info!.voucherType).toBe("CHAR_VOUCHER");
     expect(info!.itemList).toHaveLength(1);
   });
 
   it("getVoucher 应从 item_table 反向构建材料凭证", () => {
-    const info = VoucherDataManager.getVoucher("voucher_mat_1");
+    const info = voucherService.getVoucher("voucher_mat_1", excel as any);
     expect(info).not.toBeNull();
     expect(info!.voucherType).toBe("MATERIAL_VOUCHER");
     // 按 sortId 排序：30011(5) 在前，30012(10) 在后
@@ -57,16 +59,16 @@ describe("VoucherDataManager", () => {
   });
 
   it("getVoucher 不存在的凭证应返回 null", () => {
-    expect(VoucherDataManager.getVoucher("not_exist")).toBeNull();
+    expect(voucherService.getVoucher("not_exist", excel as any)).toBeNull();
   });
 
   it("findRelatedItems 应按 sortId 排序返回关联物品", () => {
-    const items = VoucherDataManager.findRelatedItems("voucher_mat_1");
+    const items = voucherService.findRelatedItems("voucher_mat_1", excel as any);
     expect(items.map((i) => i.itemId)).toEqual(["30011", "30012"]);
   });
 
   it("findRelatedItems 无关联物品应返回空数组", () => {
-    expect(VoucherDataManager.findRelatedItems("nothing")).toEqual([]);
+    expect(voucherService.findRelatedItems("nothing", excel as any)).toEqual([]);
   });
 });
 
@@ -87,7 +89,7 @@ describe("depot 路由", () => {
   }
 
   it("getVoucherDetail 应返回凭证详情与 delta", async () => {
-    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: { modified: {} } });
+    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: { modified: {} }, excel });
     const res = mockRes();
     await call({ method: "POST", url: "/getVoucherDetail", body: { itemId: "voucher_pick_1" } }, res);
     expect(res.send).toHaveBeenCalledWith(
@@ -96,7 +98,7 @@ describe("depot 路由", () => {
   });
 
   it("getMaterialVoucherDetail 应返回材料凭证池", async () => {
-    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: {} });
+    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: {}, excel });
     const res = mockRes();
     await call({ method: "POST", url: "/getMaterialVoucherDetail", body: { itemId: "voucher_mat_1" } }, res);
     const arg = res.send.mock.calls[0][0];
@@ -112,26 +114,28 @@ describe("depot 路由", () => {
   });
 
   it("useMaterialVoucher 材料池为空时不应消耗凭证（防白扣）", async () => {
-    const emit = vi.fn();
-    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: {}, _trigger: { emit } });
+    const player = { delta: {}, excel, gainItem: mockGainItem() };
+    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
     const res = mockRes();
     await call(
       { method: "POST", url: "/useMaterialVoucher", body: { itemId: "no_pool_voucher", instId: 1, count: 1 } },
       res,
     );
     expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ itemGet: [] }));
-    // 不消耗（无 items:use 调用）
-    expect(emit).not.toHaveBeenCalledWith("items:use", expect.anything());
+    // 不消耗（管道无任何入队/执行）
+    expect(player.gainItem.use).not.toHaveBeenCalled();
+    expect(player.gainItem.add).not.toHaveBeenCalled();
   });
 
   it("useMaterialVoucher 有池时应扣凭证并发放材料", async () => {
-    const emit = vi.fn();
-    (vi.mocked(httpContext.get) as any).mockReturnValue({
+    const player = {
       delta: {},
-      _trigger: { emit },
+      excel,
+      gainItem: mockGainItem(),
       // 修复：使用凭证前需持有足量 consumable 实例
       _playerdata: { consumable: { voucher_mat_1: { 1: { count: 2 } } } },
-    });
+    };
+    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
     const res = mockRes();
     await call(
       { method: "POST", url: "/useMaterialVoucher", body: { itemId: "voucher_mat_1", instId: 1, count: 2 } },
@@ -139,47 +143,52 @@ describe("depot 路由", () => {
     );
     const arg = res.send.mock.calls[0][0];
     expect(arg.itemGet).toHaveLength(2);
-    expect(emit).toHaveBeenCalledWith("items:use", [[{ id: "voucher_mat_1", count: 2, instId: 1 }]]);
+    expect(player.gainItem.add).toHaveBeenCalledWith({ id: "voucher_mat_1", count: 2, instId: 1 });
+    expect(player.gainItem.use).toHaveBeenCalled();
   });
 
   // 修复（2026-09-09）：count 必须为正整数 —— 原实现 `count || 1` 直接透传负数，
   // 而 items:use 对负数走反向入账分支（items:get 发放 -count 个）→ 凭空复制凭证。
   it("useMaterialVoucher 负数 count 应拒绝（防凭证复制）", async () => {
-    const emit = vi.fn();
-    (vi.mocked(httpContext.get) as any).mockReturnValue({
+    const player = {
       delta: {},
-      _trigger: { emit },
+      excel,
+      gainItem: mockGainItem(),
       _playerdata: { consumable: { voucher_mat_1: { 1: { count: 5 } } } },
-    });
+    };
+    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
     const res = mockRes();
     await call(
       { method: "POST", url: "/useMaterialVoucher", body: { itemId: "voucher_mat_1", instId: 1, count: -5 } },
       res,
     );
     expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ itemGet: [] }));
-    // 全程无消耗、无发放（原实现会 emit items:use(count:-5) → 反向发放 5 张）
-    expect(emit).not.toHaveBeenCalled();
+    // 全程无消耗、无发放（原实现会走 items:use(count:-5) → 反向发放 5 张）
+    expect(player.gainItem.use).not.toHaveBeenCalled();
+    expect(player.gainItem.add).not.toHaveBeenCalled();
   });
 
   it("useMaterialVoucher 非整数 count（1.5）应拒绝", async () => {
-    const emit = vi.fn();
-    (vi.mocked(httpContext.get) as any).mockReturnValue({
+    const player = {
       delta: {},
-      _trigger: { emit },
+      excel,
+      gainItem: mockGainItem(),
       _playerdata: { consumable: { voucher_mat_1: { 1: { count: 5 } } } },
-    });
+    };
+    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
     const res = mockRes();
     await call(
       { method: "POST", url: "/useMaterialVoucher", body: { itemId: "voucher_mat_1", instId: 1, count: 1.5 } },
       res,
     );
     expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ itemGet: [] }));
-    expect(emit).not.toHaveBeenCalled();
+    expect(player.gainItem.use).not.toHaveBeenCalled();
+    expect(player.gainItem.add).not.toHaveBeenCalled();
   });
 
   it("useOptionVoucher 非法 choices（负数/不在凭证列表）应拒绝发放", async () => {
-    const emit = vi.fn();
-    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: {}, _trigger: { emit } });
+    const player = { delta: {}, excel, gainItem: mockGainItem() };
+    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
     const res = mockRes();
     // 负数数量
     await call(
@@ -194,17 +203,19 @@ describe("depot 路由", () => {
     );
     expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ itemGet: [] }));
     // 全程无消耗、无发放
-    expect(emit).not.toHaveBeenCalled();
+    expect(player.gainItem.use).not.toHaveBeenCalled();
+    expect(player.gainItem.add).not.toHaveBeenCalled();
   });
 
   it("useOptionVoucher 合法 choices 应消耗并发放", async () => {
-    const emit = vi.fn();
-    (vi.mocked(httpContext.get) as any).mockReturnValue({
+    const player = {
       delta: {},
-      _trigger: { emit },
+      excel,
+      gainItem: mockGainItem(),
       // 修复：使用凭证前需持有足量 consumable 实例
       _playerdata: { consumable: { voucher_pick_1: { 1: { count: 1 } } } },
-    });
+    };
+    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
     const res = mockRes();
     await call(
       { method: "POST", url: "/useOptionVoucher", body: { itemId: "voucher_pick_1", instId: 1, choices: [{ id: "char_001", count: 1 }] } },
@@ -212,6 +223,7 @@ describe("depot 路由", () => {
     );
     const arg = res.send.mock.calls[0][0];
     expect(arg.itemGet).toEqual([{ id: "char_001", count: 1 }]);
-    expect(emit).toHaveBeenCalledWith("items:use", [[{ id: "voucher_pick_1", count: 1, instId: 1 }]]);
+    expect(player.gainItem.add).toHaveBeenCalledWith({ id: "voucher_pick_1", count: 1, instId: 1 });
+    expect(player.gainItem.use).toHaveBeenCalled();
   });
 });

@@ -1,5 +1,5 @@
 /**
- * 仓库路由模块
+ * 仓库路由模块（薄壳）
  *
  * 处理仓库相关的 HTTP 请求，包括凭证详情获取、凭证使用等功能。
  * 支持的凭证类型包括：
@@ -9,11 +9,13 @@
  * - MATERIAL_ISSUE_VOUCHER：材料提货券（自选材料）
  * - OPTIONAL_VOUCHER_PICK：可选兑换券（芯片等自选）
  * - VOUCHER_FULL_POTENTIAL：满潜能道具（干员满潜能）
+ *
+ * 领域逻辑（凭证表加载/查询、持有量校验）在 ./voucher（voucherService），
+ * 物品增减统一经 player.gainItem 管道（不再直发 items:* 事件）。
  */
 
 import { Router } from "express";
-import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";
-import { PlayerDataManager } from "../../kernel/PlayerDataManager";
+import { getPlayer } from "../../kernel/http/request-context";
 import { validateBody } from "../../kernel/http/validate-body";
 import {
   getVoucherDetailSchema,
@@ -25,11 +27,11 @@ import {
   useFullPotentialItemSchema,
   useOptionVoucherSchema,
 } from "./depot.schema";
-import { readJsonSync } from "@utils/file";
 import { ItemBundle, ItemType } from "@excel/excel";
 import { randomChoice } from "@utils/random";
 import { logger } from "@utils/logger";
 import excel from "@excel/excel";
+import { voucherService, hasVoucherStock } from "./voucher";
 import {
   BoostPotentialRequest,
   BoostPotentialResponse,
@@ -49,45 +51,6 @@ import {
   VoucherItemDetailResponse,
 } from "./depot";
 
-/**
- * 校验凭证持有量（consumable 实例）
- *
- * 修复（2026-09-09）：原实现不校验持有量——凭证实例不存在或数量不足时，
- * `items:use` 的消耗分支只 warn 跳过，随后仍照常发放奖励（可零成本刷任意凭证奖励）。
- * @param player - 玩家管理器
- * @param itemId - 凭证物品 id
- * @param instId - consumable 实例 id（客户端传入）
- * @param count - 本次需要的数量
- * @returns 是否持有足量
- */
-function hasVoucherStock(
-  player: PlayerDataManager,
-  itemId: string,
-  instId: unknown,
-  count: number,
-): boolean {
-  const entry = ((player as any)?._playerdata?.consumable as any)?.[itemId]?.[
-    Number(instId)
-  ];
-  return !!entry && (entry.count ?? 0) >= count;
-}
-
-/** 凭证信息接口（对应 voucher.json 中的数据结构） */
-interface VoucherInfo {
-  /** 凭证类型（如 CHAR_VOUCHER、MATERIAL_VOUCHER） */
-  voucherType: string;
-  /** 可选择数量 */
-  pickNum: number;
-  /** 凭证背景描述 */
-  voucherBgDec: string | null;
-  /** 额外数据字典 */
-  extraDataDic: object;
-  /** 可选物品列表 */
-  itemList: ItemBundle[];
-  /** 有效时间信息 */
-  validTimeInfo: { startTs: number; endTs: number };
-}
-
 /** 材料凭证池条目接口（对应 getMaterialVoucherDetail 响应中的 pool 结构） */
 interface MaterialVoucherPoolEntry {
   /** 物品ID */
@@ -100,95 +63,6 @@ interface MaterialVoucherPoolEntry {
   groupId: string;
   /** 排序序号 */
   sortId: number;
-}
-
-/**
- * 凭证数据管理器
- *
- * 负责懒加载并缓存凭证数据表，提供凭证查询功能。
- * 支持两种数据来源：
- * 1. voucher.json：存储干员兑换券（VOUCHER_PICK）的可选干员列表
- * 2. item_table 的 voucherRelateList：反向查找材料凭证关联的物品列表
- */
-export class VoucherDataManager {
-  /** 凭证数据表缓存（voucher.json） */
-  private static _voucherTable: { [key: string]: VoucherInfo } | null = null;
-
-  /**
-   * 加载凭证数据表（懒加载）
-   * 首次调用时从 data/depot/voucher.json 读取，后续直接返回缓存。
-   * @returns 凭证数据表
-   */
-  private static loadVoucherTable(): { [key: string]: VoucherInfo } {
-    if (VoucherDataManager._voucherTable === null) {
-      VoucherDataManager._voucherTable = readJsonSync<{
-        [key: string]: VoucherInfo;
-      }>("./data/depot/voucher.json");
-    }
-    return VoucherDataManager._voucherTable;
-  }
-
-  /**
-   * 根据物品ID获取凭证信息
-   *
-   * 优先从 voucher.json 查找（干员兑换券），
-   * 若未找到则尝试从 item_table 的 voucherRelateList 反向构建材料凭证信息。
-   * @param itemId - 物品ID
-   * @returns 凭证信息，不存在则返回 null
-   */
-  static getVoucher(itemId: string): VoucherInfo | null {
-    const table = VoucherDataManager.loadVoucherTable();
-    if (itemId in table) {
-      return table[itemId];
-    }
-    // 尝试从 item_table 的 voucherRelateList 反向查找关联物品
-    const relatedItems = VoucherDataManager.findRelatedItems(itemId);
-    if (relatedItems.length > 0) {
-      return {
-        voucherType: "MATERIAL_VOUCHER",
-        pickNum: 1,
-        voucherBgDec: null,
-        extraDataDic: {},
-        itemList: relatedItems.map((item) => ({
-          id: item.itemId,
-          count: 1,
-          type: item.itemType as ItemType,
-        })),
-        validTimeInfo: { startTs: -1, endTs: -1 },
-      };
-    }
-    return null;
-  }
-
-  /**
-   * 从 item_table 反向查找与指定凭证关联的物品列表
-   *
-   * 遍历 item_table 中所有物品的 voucherRelateList 字段，
-   * 找出关联到指定凭证ID的物品，按 sortId 排序返回。
-   * @param voucherId - 凭证ID
-   * @returns 关联物品列表（包含 itemId、itemType、sortId）
-   */
-  static findRelatedItems(
-    voucherId: string,
-  ): { itemId: string; itemType: string; sortId: number }[] {
-    const result: { itemId: string; itemType: string; sortId: number }[] = [];
-    const items = excel.ItemTable.items;
-    for (const itemId in items) {
-      const item = items[itemId];
-      if (item.voucherRelateList) {
-        for (const relate of item.voucherRelateList) {
-          if (relate.voucherId === voucherId) {
-            result.push({
-              itemId: itemId,
-              itemType: relate.voucherItemType,
-              sortId: item.sortId,
-            });
-          }
-        }
-      }
-    }
-    return result.sort((a, b) => a.sortId - b.sortId);
-  }
 }
 
 const router = Router();
@@ -206,7 +80,7 @@ const router = Router();
 router.post("/getVoucherDetail", validateBody(getVoucherDetailSchema), async (req, res) => {
   const player = getPlayer();
   const { itemId } = req.body as GetVoucherDetailRequest;
-  const voucherInfo = VoucherDataManager.getVoucher(itemId);
+  const voucherInfo = voucherService.getVoucher(itemId, player.excel);
   res.send({
     ...voucherInfo,
     ...player.delta,
@@ -245,7 +119,7 @@ router.post("/voucherGacha", validateBody(voucherGachaSchema), async (req, res) 
 router.post("/getCharGachaVoucherDetail", validateBody(getCharGachaVoucherDetailSchema), async (req, res) => {
   const player = getPlayer();
   const { itemId } = req.body as VoucherCharDetailRequest;
-  const voucherInfo = VoucherDataManager.getVoucher(itemId);
+  const voucherInfo = voucherService.getVoucher(itemId, player.excel);
   res.send({
     ...voucherInfo,
     ...player.delta,
@@ -264,7 +138,7 @@ router.post("/getCharGachaVoucherDetail", validateBody(getCharGachaVoucherDetail
 router.post("/getMaterialVoucherDetail", validateBody(getMaterialVoucherDetailSchema), async (req, res) => {
   const player = getPlayer();
   const { itemId } = req.body as VoucherItemDetailRequest;
-  const relatedItems = VoucherDataManager.findRelatedItems(itemId);
+  const relatedItems = voucherService.findRelatedItems(itemId, player.excel);
   const pool: MaterialVoucherPoolEntry[] = relatedItems.map((item, index) => ({
     itemId: item.itemId,
     itemType: item.itemType,
@@ -294,7 +168,7 @@ router.post("/getMaterialVoucherDetail", validateBody(getMaterialVoucherDetailSc
  * @route POST /depot/useCharGachaVoucher
  * @param req.body.itemId - 物品ID
  * @param (req.body as any).instId - 实例ID
- * @returns 玩家增量数据
+ * @returns 结果状态和玩家增量数据
  */
 router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), async (req, res) => {
   const player = getPlayer();
@@ -302,7 +176,7 @@ router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), asy
   // 修复：原实现只扣凭证不发干员（凭证消耗但无结果——数据丢失）。
   // 有可发干员池（voucher.json itemList / voucherRelateList）时随机发一个；
   // 无池数据时不消耗凭证（避免白扣），保持可重试
-  const voucherInfo = VoucherDataManager.getVoucher(itemId);
+  const voucherInfo = voucherService.getVoucher(itemId, player.excel);
   const pool =
     voucherInfo?.itemList?.filter((i) => i.type === "CHAR") ?? [];
   if (pool.length === 0) {
@@ -321,18 +195,12 @@ router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), asy
     return res.send({ ...player.delta } satisfies UseCharGachaVoucherResponse);
   }
   // 消耗凭证物品（consumable 类型，需要 instId 定位具体实例）
-  await player._trigger.emit("items:use", [
-    [
-      {
-        id: itemId,
-        count: 1,
-        instId: Number(instId),
-      } as unknown as ItemBundle,
-    ],
-  ]);
+  await player.gainItem
+    .add({ id: itemId, count: 1, instId: Number(instId) } as unknown as ItemBundle)
+    .use();
   // 发放随机干员（CHAR → char:get 入账）
   const chosen = randomChoice(pool);
-  await player._trigger.emit("items:get", [[chosen]]);
+  await player.gainItem.add(chosen).handle();
   res.send({
     ...player.delta,
   } satisfies UseCharGachaVoucherResponse);
@@ -346,7 +214,7 @@ router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), asy
  * 材料池来源为 item_table 的 voucherRelateList 反向查找结果。
  * @route POST /depot/useMaterialVoucher
  * @param req.body.itemId - 物品ID
- * @param (req.body as any).instId - 实例ID
+ * @param req.body.instId - 实例ID
  * @param req.body.count - 使用次数
  * @returns 获得物品列表和玩家增量数据
  */
@@ -370,7 +238,7 @@ router.post("/useMaterialVoucher", validateBody(useMaterialVoucherSchema), async
   }
   // 修复：材料池为空时不再消耗凭证（原实现先扣证后 findRelatedItems 可能为空 →
   // 凭证白扣无发放，数据丢失；与 useCharGachaVoucher 的防白扣守卫一致）
-  const relatedItems = VoucherDataManager.findRelatedItems(itemId);
+  const relatedItems = voucherService.findRelatedItems(itemId, player.excel);
   if (relatedItems.length === 0) {
     logger.warn(
       "depot",
@@ -393,15 +261,9 @@ router.post("/useMaterialVoucher", validateBody(useMaterialVoucherSchema), async
     } satisfies UseMaterialVoucherResponse);
   }
   // 消耗凭证物品
-  await player._trigger.emit("items:use", [
-    [
-      {
-        id: itemId,
-        count: useCount,
-        instId: Number(instId),
-      } as unknown as ItemBundle,
-    ],
-  ]);
+  await player.gainItem
+    .add({ id: itemId, count: useCount, instId: Number(instId) } as unknown as ItemBundle)
+    .use();
   // 从关联材料池中随机选取材料
   const itemGet: ItemBundle[] = [];
   for (let i = 0; i < useCount; i++) {
@@ -413,7 +275,8 @@ router.post("/useMaterialVoucher", validateBody(useMaterialVoucherSchema), async
     });
   }
   // 发放选中的材料到玩家背包
-  await player._trigger.emit("items:get", [itemGet]);
+  for (const it of itemGet) player.gainItem.add(it);
+  await player.gainItem.handle();
   // 注意：VOUCHER_MGACHA 类型（如 randomMaterial_10）的材料池数据
   // 未存储在 item_table 的 voucherRelateList 中，itemGet 可能为空。
   // 完整实现需要从额外数据源获取材料池定义。
@@ -494,7 +357,7 @@ router.post("/useOptionVoucher", validateBody(useOptionVoucherSchema), async (re
       ...player.delta,
     } satisfies UseOptionalVoucherResponse);
   }
-  const voucherInfo = VoucherDataManager.getVoucher(itemId);
+  const voucherInfo = voucherService.getVoucher(itemId, player.excel);
   // 修复（2026-09-09）：凭证数据缺失时白名单校验整段被跳过 → 任意 itemId 均可发任意
   // 物品（含源石）。凭证必须存在于凭证表且带可选项列表，否则拒绝。
   if (!voucherInfo) {
@@ -527,18 +390,13 @@ router.post("/useOptionVoucher", validateBody(useOptionVoucherSchema), async (re
     } satisfies UseOptionalVoucherResponse);
   }
   // 消耗凭证物品
-  await player._trigger.emit("items:use", [
-    [
-      {
-        id: itemId,
-        count: consumeCount,
-        instId: Number(instId),
-      } as unknown as ItemBundle,
-    ],
-  ]);
+  await player.gainItem
+    .add({ id: itemId, count: consumeCount, instId: Number(instId) } as unknown as ItemBundle)
+    .use();
   // 发放玩家选择的物品
   const itemGet: ItemBundle[] = choices as unknown as ItemBundle[];
-  await player._trigger.emit("items:get", [itemGet]);
+  for (const it of itemGet) player.gainItem.add(it);
+  await player.gainItem.handle();
   res.send({
     itemGet: itemGet,
     ...player.delta,

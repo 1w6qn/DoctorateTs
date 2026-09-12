@@ -50,6 +50,8 @@
     "schema:check": "tsx scripts/cs2schema.ts --check",
     "schema:write": "tsx scripts/cs2schema.ts --write",
     "schema:diff": "tsx scripts/cs2schema.ts --check --diff 20",
+    "schema:crosscheck": "tsx scripts/fbs-crosscheck.ts",
+    "schema:audit": "tsx scripts/schema-audit.ts",
     "pack:mod": "tsx scripts/pack-mod.ts",
     "inject:lua": "tsx scripts/inject-lua-inplace.ts",
     "apk:lua": "tsx scripts/apk-lua.ts",

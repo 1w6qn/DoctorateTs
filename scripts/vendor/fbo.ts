@@ -24,9 +24,19 @@ function truncateFloat(value: number): number {
   return parseFloat(s);
 }
 
+/**
+ * 可选的**报文真值审计钩子**：每读到一个表对象就回调一次
+ *
+ * 用途见 `scripts/schema-audit.ts`：vtable 声明的字段数 = 官方写入方的表结构字段数，
+ * 与本地 schema 的字段数比对即可发现「本地缺字段/多字段」。默认未设置，零开销。
+ */
+export type TableObserver = (cls: string, vtableFields: number, present: (field: string) => boolean) => void;
+
 export class FBO {
   private buf: Uint8Array;
   private depth = 0;
+  /** 审计钩子（可选） */
+  static observer: TableObserver | null = null;
 
   constructor(buf: Uint8Array, private schema: Schema) {
     this.buf = buf;
@@ -104,6 +114,17 @@ export class FBO {
     }
     // 完整对象
     const out: any = {};
+    if (FBO.observer) {
+      const soffset0 = this.u32(pos);
+      const vpos0 = (pos - soffset0) >>> 0;
+      if (soffset0 !== 0 && vpos0 < this.buf.length) {
+        const vsize = (this.buf[vpos0] | (this.buf[vpos0 + 1] << 8)) >>> 0;
+        FBO.observer(cls, vsize / 2 - 2, (name: string) => {
+          const f = fields.find((x) => x.name === name);
+          return f ? this.fieldOffset(pos, f.slot) !== 0 : false;
+        });
+      }
+    }
     for (const f of fields) {
       const off = this.fieldOffset(pos, f.slot);
       if (off === 0) {
@@ -131,6 +152,10 @@ export class FBO {
       case "long":
       case "float":
       case "double":
+      case "ubyte":
+      case "sbyte":
+      case "short":
+      case "ushort":
         return 0;
       case "string":
         return null;
@@ -140,7 +165,8 @@ export class FBO {
           t.startsWith("vec:") ||
           t.startsWith("clz_") ||
           t.startsWith("dict__") ||
-          t.startsWith("kvp__")
+          t.startsWith("kvp__") ||
+          t.startsWith("hg__internal__")
         ) {
           return null;
         }
@@ -159,6 +185,15 @@ export class FBO {
       case "int":
       case "enum":
         return this.i32(off);
+      // 窄整型：FBO 线上就是 1/2 字节（CS 的 Byte/Int16 等），按 i32 读会越读相邻字节
+      case "ubyte":
+        return this.buf[off];
+      case "sbyte":
+        return (this.buf[off] << 24) >> 24;
+      case "short":
+        return off + 2 <= this.buf.length ? ((this.buf[off] | (this.buf[off + 1] << 8)) << 16) >> 16 : null;
+      case "ushort":
+        return off + 2 <= this.buf.length ? this.buf[off] | (this.buf[off + 1] << 8) : null;
       case "long":
         // i64 低位读取（Arknights 数据无超 2^53 场景）
         return off + 8 <= this.buf.length ? this.u32(off) + this.u32(off + 4) * 4294967296 : null;
@@ -170,8 +205,8 @@ export class FBO {
         if (t.startsWith("vec:")) {
           return this.readVector(t.slice(4), off);
         }
-        // 子表
-        if (t.startsWith("clz_") || t.startsWith("dict__") || t.startsWith("kvp__")) {
+        // 子表（clz_ 类表 / dict__/kvp__ 键值对表 / hg__internal__* 报文内建表）
+        if (t.startsWith("clz_") || t.startsWith("dict__") || t.startsWith("kvp__") || t.startsWith("hg__internal__")) {
           if (off + 4 > this.buf.length) return null;
           const childPos = off + this.u32(off);
           if (childPos >= this.buf.length) return null;
@@ -188,9 +223,10 @@ export class FBO {
     const len = this.u32(vecPos); // 长度在 vecPos（元素区从 vecPos+4 起）
     if (len > this.buf.length / 4) return null; // 防御：长度不合理
     const base = vecPos + 4;
-    // 标量元素步长（bool=1, long/double=8, 其余 4）
+    // 标量元素步长（bool/ubyte/sbyte=1, short/ushort=2, long/double=8, 其余 4）
     let stride = 4;
-    if (elemType === "bool") stride = 1;
+    if (elemType === "bool" || elemType === "ubyte" || elemType === "sbyte") stride = 1;
+    else if (elemType === "short" || elemType === "ushort") stride = 2;
     else if (elemType === "long" || elemType === "double") stride = 8;
     // 元素为纯 KV 表 → 折叠为 dict（同 fbo.py 的 vector 分支）
     const elemFields = this.schema.tables[elemType];
@@ -220,6 +256,14 @@ export class FBO {
         out.push(this.buf[childPos] !== 0);
       } else if (elemType === "int" || elemType === "enum") {
         out.push(this.i32(childPos));
+      } else if (elemType === "ubyte") {
+        out.push(this.buf[childPos]);
+      } else if (elemType === "sbyte") {
+        out.push((this.buf[childPos] << 24) >> 24);
+      } else if (elemType === "short") {
+        out.push(childPos + 2 <= this.buf.length ? ((this.buf[childPos] | (this.buf[childPos + 1] << 8)) << 16) >> 16 : null);
+      } else if (elemType === "ushort") {
+        out.push(childPos + 2 <= this.buf.length ? this.buf[childPos] | (this.buf[childPos + 1] << 8) : null);
       } else if (elemType === "long") {
         out.push(childPos + 8 <= this.buf.length ? this.u32(childPos) + this.u32(childPos + 4) * 4294967296 : null);
       } else if (elemType === "float") {

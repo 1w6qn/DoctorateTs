@@ -22,6 +22,7 @@ import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { RoguelikePushMessage } from "../../kernel/http/common";
 import { Draft } from "mutative";
 import { ItemBundle } from "@excel/excel";
+import { logger } from "@utils/logger";
 import { Rogue6IncidentEngine } from "./incident";
 
 export class RoguelikeV2Config {
@@ -64,10 +65,10 @@ import { generateShopGoods, buildShopContent, buyGoods, refreshShop, leaveShop, 
 import { bankPut, bankWithdraw } from "./bank";
 import { applyBandUpgradeVisibility, initModeGradeStates, maxClearedGrade, buildSettlement, exploreBreakdown, exploreScoreFactor, exploreScore, lifeGameNodes, blackstreamEfficiency, canEvolveOperators, blackstreamAwards, gameSettle, buildSettleResponse } from "./settle";
 import { rerollNode, upgradeNode, gridZoneMoveTo, createRogue6NodeScene, createPortalScene, enterPortalZone, consumePortalScrap, startChaosSourceBattle, gainPreciousScrap, gainRandomScrap, isBeakUnlocked, createFateScene, createIncidentScene, gridZoneMoveAndBattleStart, gridZoneEmptyStep, gridZoneReadStepZero } from "./grid-nav";
-import { _normalizeMutablePlayerdata, setPinned, giveUpGame, createGame, ensureOuterTheme, refreshMission, chooseInitialRelic, chooseInitialRecruitSet, chooseInitialExploreTool } from "./game-init";
+import { _normalizeMutablePlayerdata, setPinned, giveUpGame, createGame, ensureOuterTheme, refreshMission, chooseInitialRelic, chooseInitialRecruitSet, chooseInitialExploreTool, setSeed } from "./game-init";
 
 import { finishEvent, hasReachedZone3, locateStartNode, zoneKey, isZoneEnd, checkZoneEnd, hasRelic, emitSpecialOperatorZone, nodeTypeCounts, emitSpecialOperatorSettle, selectChoice, readEndingChange } from "./event";
-import { moveAndBattleStart, moveTo, createNodeScene, confirmZoneReward, confirmTraderReturn, specialZoneLeave, battlePassGetReward } from "./battle-nav";
+import { moveAndBattleStart, moveTo, createNodeScene, confirmZoneReward, confirmTraderReturn, specialZoneLeave, battlePassGetReward, battlePassBuyReward } from "./battle-nav";
 import { chooseBattleReward, finishBattleReward } from "./reward";
 import { activeRecruitTicket, recruitChar, closeRecruitTicket, getTicketAssistList, recruitAssistChar, stashRecruitTicket, useStashedTicket } from "./recruit-flow";
 import { random } from "../../kernel/util/random";
@@ -615,6 +616,34 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     return ret;
   }
 
+  /**
+   * 更换铜钱（客户端 /rlv2/copper/change，CS: RoguelikeChangeCopperRequest { index }）
+   *
+   * 该端点用于结算 CHANGE_COPPER 挂起事件（客户端从铜钱界面上报所选 index）。
+   * 本地不产生 CHANGE_COPPER 挂起（copper 模块为简化实现，仅 gild/redraw），
+   * 故与参考实现（ODPY CopperChange 返回 202 空操作）保持一致：仅收敛状态机，
+   * 不改铜钱袋，避免凭空改写袋内铜钱。index 存在时记 debug 日志便于后续对齐。
+   * @param args - { index } 客户端所选铜钱袋键
+   */
+  async copperChange(args: { index?: string }): Promise<void> {
+    const index = args?.index ?? "";
+    if (index) {
+      logger.debug("rlv2", `copper/change index=${index}（铜钱袋未改动，保持 ODPY 空操作语义）`);
+    }
+    this._status.state = "WAIT_MOVE";
+  }
+
+  /**
+   * 确认抽铜钱（客户端 /rlv2/copper/confirmDraw，CS: RoguelikeConfirmDrawCopperRequest）
+   *
+   * 对齐参考实现（ODPY CopperConfirmDraw）：弹出当前挂起事件并回到 WAIT_MOVE，
+   * 铜钱袋状态（bag/redrawFreezeCnt）由 copper 模块在抽取时已写入，此处不重复写。
+   */
+  async copperConfirmDraw(): Promise<void> {
+    this._status._pending._pending.length = 0;
+    this._status.state = "WAIT_MOVE";
+  }
+
   setTroopCarry(args: { troopCarry: string[] }) {
     this._trigger.emit("rlv2:fragment:set_troop_carry", [args.troopCarry]);
   }
@@ -834,15 +863,28 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
 
   _gameSeed: string | null = null;
 
+  /**
+   * 待消费的自定义种子（/rlv2/setSeed 写入，下一局结算时一次性用掉）
+   *
+   * 官方 PlayerRoguelikeV2 存档无种子字段（种子只出现在 GAME_SETTLE 的 brief.seed），
+   * 故与 _gameSeed 一致存于控制器内存：单进程私服下「设种子 → 开局 → 结算」同会话完成。
+   * 服务重启后未消费的种子丢失（回退随机），不影响已开始的局。
+   */
+  _pendingSeed: string | null = null;
+
   gameSeed(): string {
     if (!this._gameSeed) {
       const theme = this.current.game?.theme ?? "";
       const grade = this.current.game?.modeGrade ?? 0;
       const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      const rand = Array.from(
-        { length: 18 },
-        () => chars[Math.floor(random() * chars.length)],
-      ).join("");
+      // 自定义种子优先（setSeed 下发），一次性消费；否则随机 18 位（与官服种子长度一致）
+      const rand =
+        this._pendingSeed ??
+        Array.from(
+          { length: 18 },
+          () => chars[Math.floor(random() * chars.length)],
+        ).join("");
+      this._pendingSeed = null;
       this._gameSeed = `${rand},${theme},${grade}`;
     }
     return this._gameSeed;
@@ -1086,6 +1128,11 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     return refreshMission(this, args);
   }
 
+  /** 委派至 {@link setSeed}（game-init.ts）：设置自定义种子，返回 CS ResultCode */
+  async setSeed(args: { seed: string }) : Promise<{ result: number }> {
+    return setSeed(this, args);
+  }
+
   async chooseInitialRelic(args: { select: string }) {
     return chooseInitialRelic(this, args);
   }
@@ -1198,6 +1245,12 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
   async battlePassGetReward(theme: string,
     rewards: string[],) : Promise<{ items: ItemBundle[] }> {
     return battlePassGetReward(this, theme, rewards);
+  }
+
+  /** 委派至 {@link battlePassBuyReward}（battle-nav.ts）：战令直购（扣点数发奖） */
+  async battlePassBuyReward(theme: string, reward: string,
+    cost: number,) : Promise<{ items: ItemBundle[] }> {
+    return battlePassBuyReward(this, theme, reward, cost);
   }
   /** 委派至 {@link chooseBattleReward}（reward.ts） */
   async chooseBattleReward(args: { index: number; sub: number }) {

@@ -279,6 +279,58 @@ export interface RoguelikeBattlePassGetRewardResponse extends PlayerDeltaRespons
   items: { type?: string; id: string; count: number }[];
 }
 
+/** 战令直购奖励请求（CS: RoguelikeTopicBattlePassPurchaseRequest { theme, reward, cost }） */
+export interface RoguelikeBattlePassBuyRewardRequest {
+  theme: string;
+  reward: string;
+  cost: number;
+}
+
+/** 战令直购奖励响应（CS: RoguelikeTopicBattlePassPurchaseResponse：PlayerDeltaResponse + items） */
+export interface RoguelikeBattlePassBuyRewardResponse extends PlayerDeltaResponse {
+  items: { type?: string; id: string; count: number }[];
+}
+
+/** 设置自定义种子请求（CS: RoguelikeTopicSetSeedRequest { theme, activityId, seed }） */
+export interface RoguelikeSetSeedRequest {
+  theme?: string;
+  activityId?: string;
+  seed: string;
+}
+
+/**
+ * 设置自定义种子响应（CS: RoguelikeTopicSetSeedResponse { result }）
+ *
+ * ResultCode 取值顺序（CS 枚举）：0 SUCCESS / 1 INVALID_LENGTH / 2 INVALID_CHARSET /
+ * 3 SENSITIVE_WORD / 4 FUNCTION_CLOSE / 5 USER_BANNED / 6 FAIL。
+ */
+export interface RoguelikeSetSeedResponse extends PlayerDeltaResponse {
+  result: number;
+}
+
+/** 解锁科技树节点请求（CS: RoguelikeTopicUnlockBuffRequest { theme, buff }） */
+export interface RoguelikeUnlockBuffRequest {
+  theme: string;
+  buff: string;
+}
+
+/** 解锁科技树节点响应（CS: RoguelikeTopicUnlockBuffResponse：纯增量） */
+export type RoguelikeUnlockBuffResponse = PlayerDeltaResponse;
+
+/** 更换铜钱请求（CS: RoguelikeChangeCopperRequest { index }） */
+export interface RoguelikeChangeCopperRequest {
+  index?: string;
+}
+
+/** 更换铜钱响应（CS: RoguelikeChangeCopperResponse：纯增量） */
+export type RoguelikeChangeCopperResponse = PlayerDeltaResponse;
+
+/** 确认抽铜钱请求（CS: RoguelikeConfirmDrawCopperRequest，无字段） */
+export interface RoguelikeConfirmDrawCopperRequest {}
+
+/** 确认抽铜钱响应（CS: RoguelikeConfirmDrawCopperResponse：纯增量） */
+export type RoguelikeConfirmDrawCopperResponse = PlayerDeltaResponse;
+
 /** 银行存钱请求（CS: RoguelikeBankInvestRequest，无字段） */
 export interface RoguelikeBankInvestRequest {}
 

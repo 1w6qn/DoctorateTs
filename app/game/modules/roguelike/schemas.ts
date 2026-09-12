@@ -184,6 +184,26 @@ export const battlePassGetRewardSchema = z.object({
   rewards: z.array(z.string()).optional(),
 });
 
+/** 战令直购奖励（CS: RoguelikeTopicBattlePassPurchaseRequest { theme, reward, cost }） */
+export const battlePassBuyRewardSchema = z.object({
+  theme: z.string(),
+  reward: z.string(),
+  cost: z.number().int().nonnegative(),
+});
+
+/** 设置自定义种子（CS: RoguelikeTopicSetSeedRequest { theme, activityId, seed }） */
+export const setSeedSchema = z.object({
+  theme: z.string().optional(),
+  activityId: z.string().optional(),
+  seed: z.string(),
+});
+
+/** 解锁科技树节点（CS: RoguelikeTopicUnlockBuffRequest { theme, buff }） */
+export const unlockBuffSchema = z.object({
+  theme: z.string(),
+  buff: z.string(),
+});
+
 /** 银行存钱（CS: RoguelikeBankInvestRequest，无字段） */
 export const bankPutSchema = z.object({});
 
@@ -229,6 +249,14 @@ export const gildSchema = z.object({
 
 /** 铜币重抽（COPPER 模块，无字段） */
 export const copperRedrawSchema = z.object({});
+
+/** 更换铜钱（CS: RoguelikeChangeCopperRequest { index }） */
+export const copperChangeSchema = z.object({
+  index: z.string().optional(),
+});
+
+/** 确认抽铜钱（CS: RoguelikeConfirmDrawCopperRequest，无字段） */
+export const copperConfirmDrawSchema = z.object({});
 
 /** 商店战斗开始（CS: RoguelikeShopBattleRequest，无字段） */
 export const shopBattleStartSchema = z.object({});

@@ -45,6 +45,8 @@ import {
   RoguelikeBankInvestResponse,
   RoguelikeBankWithdrawRequest,
   RoguelikeBankWithdrawResponse,
+  RoguelikeBattlePassBuyRewardRequest,
+  RoguelikeBattlePassBuyRewardResponse,
   RoguelikeBattlePassGetRewardRequest,
   RoguelikeBattlePassGetRewardResponse,
   RoguelikeBuyGoodsRequest,
@@ -53,6 +55,10 @@ import {
   RoguelikeCloseTicketResponse,
   RoguelikeConfirmNodeMissionRequest,
   RoguelikeConfirmNodeMissionResponse,
+  RoguelikeChangeCopperRequest,
+  RoguelikeChangeCopperResponse,
+  RoguelikeConfirmDrawCopperRequest,
+  RoguelikeConfirmDrawCopperResponse,
   RoguelikeCopperRedrawRequest,
   RoguelikeCopperRedrawResponse,
   RoguelikeDiceChoiceRequest,
@@ -128,12 +134,16 @@ import {
   RoguelikeStashedTicketUseResponse,
   RoguelikeStepMoveToAndStartBattleRequest,
   RoguelikeStepMoveToAndStartBattleResponse,
+  RoguelikeSetSeedRequest,
+  RoguelikeSetSeedResponse,
   RoguelikeTopicCreateGameRequest,
   RoguelikeTopicCreateGameResponse,
   RoguelikeTopicGiveUpGameRequest,
   RoguelikeTopicGiveUpGameResponse,
   RoguelikeTraderReturnRequest,
   RoguelikeTraderReturnResponse,
+  RoguelikeUnlockBuffRequest,
+  RoguelikeUnlockBuffResponse,
   RoguelikeUpgradeNodeRequest,
   RoguelikeUpgradeNodeResponse,
   RoguelikeZoneRewardRequest,
@@ -504,6 +514,56 @@ router.post("/battlePass_getReward", validateBody(ReqSchema.battlePassGetRewardS
   res.send(
     rlv2Response(player, { items }) satisfies RoguelikeBattlePassGetRewardResponse,
   );
+});
+
+/** 战令直购奖励（CS: RoguelikeTopicBattlePassPurchaseRequest { theme, reward, cost }） */
+router.post("/battlePass/buyReward", validateBody(ReqSchema.battlePassBuyRewardSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as RoguelikeBattlePassBuyRewardRequest;
+  const { items } = await player.modules.rlv2.battlePassBuyReward(
+    body.theme,
+    body.reward,
+    body.cost,
+  );
+  res.send(
+    rlv2Response(player, { items }) satisfies RoguelikeBattlePassBuyRewardResponse,
+  );
+});
+
+/** 设置自定义种子（CS: RoguelikeTopicSetSeedRequest { theme, activityId, seed }） */
+router.post("/setSeed", validateBody(ReqSchema.setSeedSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as RoguelikeSetSeedRequest;
+  const { result } = await player.modules.rlv2.setSeed({ seed: body.seed });
+  res.send(rlv2Response(player, { result }) satisfies RoguelikeSetSeedResponse);
+});
+
+/** 解锁科技树节点（CS: RoguelikeTopicUnlockBuffRequest { theme, buff }） */
+router.post("/normal/unlockBuff", validateBody(ReqSchema.unlockBuffSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as RoguelikeUnlockBuffRequest;
+  const { success, reason } = await player.modules.rlv2.unlockBuff(body.theme, body.buff);
+  // 解锁失败（前置未解锁/点数不足等）不改数据：仅回增量，reason 记日志便于排障
+  if (!success && reason) {
+    logger.info("rlv2", `normal/unlockBuff 未生效：${body.buff}（${reason}）`);
+  }
+  res.send(rlv2Response(player) satisfies RoguelikeUnlockBuffResponse);
+});
+
+/** 更换铜钱（CS: RoguelikeChangeCopperRequest { index }） */
+router.post("/copper/change", validateBody(ReqSchema.copperChangeSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as RoguelikeChangeCopperRequest;
+  await player.modules.rlv2.copperChange(body);
+  res.send(rlv2Response(player) satisfies RoguelikeChangeCopperResponse);
+});
+
+/** 确认抽铜钱（CS: RoguelikeConfirmDrawCopperRequest，无字段） */
+router.post("/copper/confirmDraw", validateBody(ReqSchema.copperConfirmDrawSchema), async (req, res) => {
+  const player = getPlayer();
+  req.body as RoguelikeConfirmDrawCopperRequest;
+  await player.modules.rlv2.copperConfirmDraw();
+  res.send(rlv2Response(player) satisfies RoguelikeConfirmDrawCopperResponse);
 });
 
 /** 银行存钱（CS: RoguelikeBankInvestRequest） */

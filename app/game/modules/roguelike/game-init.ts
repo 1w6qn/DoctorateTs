@@ -43,6 +43,43 @@ export async function setPinned(mgr: RoguelikeV2Manager, args: { id: string }) :
     });
 }
 
+/** 官服自定义种子长度（ODPY 同源：os.urandom(9).hex() = 18 位；本地随机种子亦为 18 位） */
+export const RLV2_SEED_LENGTH = 18;
+
+/** 官服自定义种子字符集（数字 + 大小写字母） */
+const RLV2_SEED_CHARSET = /^[0-9A-Za-z]+$/;
+
+/**
+ * 设置自定义种子（客户端 /rlv2/setSeed，CS: RoguelikeTopicSetSeedRequest）
+ *
+ * 种子不落存档（官方 PlayerRoguelikeV2 无该字段，种子仅出现在 GAME_SETTLE 的 brief.seed），
+ * 写入控制器内存 `_pendingSeed`，由下一局 gameSeed() 一次性消费。
+ *
+ * 返回值对齐 CS RoguelikeTopicSetSeedResponse.ResultCode：
+ * 0 SUCCESS / 1 INVALID_LENGTH / 2 INVALID_CHARSET（3 SENSITIVE_WORD、4 FUNCTION_CLOSE、
+ * 5 USER_BANNED 由官方风控/运营开关决定，私服不触发；6 FAIL 为服务端异常）。
+ *
+ * 注意：地图生成未按种子确定性重放（map.ts 依 random() 生成 zone 布局，对齐官服算法
+ * 的资料不足），当前种子影响 GAME_SETTLE 的 brief.seed（战绩分享/复现串）。
+ * @param mgr - 肉鸽管理器
+ * @param args - { seed } 客户端下发种子
+ * @returns ResultCode 结果码
+ */
+export async function setSeed(
+  mgr: RoguelikeV2Manager,
+  args: { seed: string },
+): Promise<{ result: number }> {
+  const seed = (args.seed ?? "").trim();
+  if (seed.length !== RLV2_SEED_LENGTH) {
+    return { result: 1 };
+  }
+  if (!RLV2_SEED_CHARSET.test(seed)) {
+    return { result: 2 };
+  }
+  mgr._pendingSeed = seed;
+  return { result: 0 };
+}
+
 export async function giveUpGame(mgr: RoguelikeV2Manager) : Promise<void> {
     // 放弃结算：清空进行中残留事件，生成唯一 GAME_SETTLE（展示放弃结算页），保留游戏态直至 gameSettle 确认
     mgr.clearPending();
@@ -73,6 +110,10 @@ export async function createGame(mgr: RoguelikeV2Manager, args: {
     const theme = args.theme;
     // 开新局：清除上一把结算的置空标志（否则 toJSON 继续输出 current 全空）
     mgr._settled = false;
+    // 修复：开新局必须清空种子缓存——原实现 _gameSeed 只在首次生成后缓存，
+    // 第二局起沿用它 → 每局结算 brief.seed 相同（自定义种子 setSeed 也会被上一局缓存吃掉）。
+    // 清空后由 gameSeed() 重新取用 _pendingSeed 或随机生成。
+    mgr._gameSeed = null;
     // 清空上一请求的残留推送（控制器为持久实例），并收集本局创建的入场推送。
     // 官服 createGame 必带 {path:"rlv2ScrapLimit",payload:{}}（黑流树海抓包 2026-08-11）。
     mgr._pushMessages = [];

@@ -4,11 +4,11 @@
   "offline": false,
   "majorVersion": "446",
   "version": {
-    "clientVersion": "2.7.61",
-    "resVersion": "26-08-17-11-25-42_dbc172",
+    "clientVersion": "2.7.71",
+    "resVersion": "26-09-09-07-16-57_d4e461",
     "windows": {
-      "clientVersion": "2.7.61",
-      "resVersion": "26-08-17-11-22-14_59d37d"
+      "clientVersion": "2.7.71",
+      "resVersion": "26-09-09-08-18-15_d25676"
     }
   },
   "assets": {
@@ -77,17 +77,37 @@
   },
   "activities": {
     "forceOpen": [
-      "act49side", "act33side", "act30side", "act31side", "act34side",
-      "act35side", "act37side", "act38side", "act39side", "act40side",
-      "act41side", "act46side", "act27side", "act21side", "act17side",
-      "act14side", "act15side", "act16side", "act18side", "act19side",
-      "act22side", "act23side", "act25side", "act26side", "act28side"
+      "act49side",
+      "act33side",
+      "act30side",
+      "act31side",
+      "act34side",
+      "act35side",
+      "act37side",
+      "act38side",
+      "act39side",
+      "act40side",
+      "act41side",
+      "act46side",
+      "act27side",
+      "act21side",
+      "act17side",
+      "act14side",
+      "act15side",
+      "act16side",
+      "act18side",
+      "act19side",
+      "act22side",
+      "act23side",
+      "act25side",
+      "act26side",
+      "act28side"
     ],
     "crisisV1": "cc1",
     "crisisV2": "cc1",
     "autoBackfill": true
   },
-  "_lastVersionSyncTs": 1787048092873,
+  "_lastVersionSyncTs": 1789135229344,
   "autoUpdate": false,
   "pay": {
     "mode": "fake",

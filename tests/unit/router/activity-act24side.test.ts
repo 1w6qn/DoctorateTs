@@ -171,11 +171,9 @@ describe("act24side（怪猎）路由", () => {
       0,
     );
     expect(totalDrawn).toBe(2);
-    // 奖励发放事件
-    expect(player._trigger.emit).toHaveBeenCalledWith(
-      "items:get",
-      [sent.rewards],
-    );
+    // 奖励发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+    expect(player.gainItem.add).toHaveBeenCalledWith(sent.rewards[0]);
+    expect(player.gainItem.handle).toHaveBeenCalled();
   });
 
   it("POST /act24side/alchemy 转换箱按 gachaCost=40 计算且 UNLIMITED 池可抽", async () => {
@@ -210,6 +208,8 @@ describe("act24side（怪猎）路由", () => {
       player._playerdata.activity.TYPE_ACT24SIDE.act50side.alchemy.item
         .act24side_melding_6,
     ).toBe(200); // 未被消耗
+    // 未被消耗 → 不发奖励；领奖相关领域事件也不派发
+    expect(player.gainItem.add).not.toHaveBeenCalled();
     expect(player._trigger.emit).not.toHaveBeenCalled();
   });
 
@@ -262,10 +262,13 @@ describe("act24side（怪猎）路由", () => {
     expect(typeof meal.day).toBe("string"); // 服务端每日限次标记
     // mealCost=200 → 龙门币 1000-200
     expect(player._playerdata.status.gold).toBe(800);
-    // mealRewardAP=20 → 理智入账事件
-    expect(player._trigger.emit).toHaveBeenCalledWith("items:get", [
-      [{ id: "", type: "AP_GAMEPLAY", count: 20 }],
-    ]);
+    // mealRewardAP=20 → 理智经物品管道入账（不再直发 items:get）
+    expect(player.gainItem.add).toHaveBeenCalledWith({
+      id: "",
+      type: "AP_GAMEPLAY",
+      count: 20,
+    });
+    expect(player.gainItem.handle).toHaveBeenCalled();
   });
 
   it("POST /act24side/eat 当日重复用餐应拒绝（mealDayTimesLimit=1）", async () => {

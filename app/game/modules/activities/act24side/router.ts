@@ -329,7 +329,8 @@ router.post("/act24side/alchemy", validateBody(ReqSchema.act24sideAlchemySchema)
   });
 
   if (rewards.length > 0) {
-    await player._trigger.emit("items:get", [rewards]);
+    for (const it of rewards) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   res.send({
     ...player.delta,
@@ -401,7 +402,8 @@ router.post("/act24side/battleFinish", validateBody(ReqSchema.act24sideBattleFin
   });
   allRewards.push(...mealMeldingRewards);
   if (allRewards.length > 0) {
-    await player._trigger.emit("items:get", [allRewards]);
+    for (const it of allRewards) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   res.send({
     ...result,
@@ -450,9 +452,9 @@ router.post("/act24side/eat", validateBody(ReqSchema.act24sideEatSchema), async 
     apGain = mealCfg?.mealRewardAP ?? 0;
   });
   if (apGain > 0) {
-    await player._trigger.emit("items:get", [
-      [{ id: "", type: "AP_GAMEPLAY" as ItemType, count: apGain }],
-    ]);
+    await player.gainItem
+      .add({ id: "", type: "AP_GAMEPLAY" as ItemType, count: apGain })
+      .handle();
   }
   res.send(player.delta satisfies Act24sideEatResponse);
 });

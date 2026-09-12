@@ -217,9 +217,13 @@ describe("act44side（情报屋）路由", () => {
       });
       const ms = player._playerdata.activity.TYPE_ACT44SIDE.act44sre.milestone;
       expect(ms.got).toEqual(["mileStone_1"]);
-      expect(player._trigger.emit).toHaveBeenCalledWith("items:get", [
-        [{ id: "4001", count: 20000, type: "GOLD" }],
-      ]);
+      // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      expect(player.gainItem.add).toHaveBeenCalledWith({
+        id: "4001",
+        count: 20000,
+        type: "GOLD",
+      });
+      expect(player.gainItem.handle).toHaveBeenCalled();
       expect(res.send).toHaveBeenCalledWith(
         expect.objectContaining({
           item: [{ id: "4001", count: 20000, type: "GOLD" }],
@@ -234,10 +238,8 @@ describe("act44side（情报屋）路由", () => {
       });
       const ms = player._playerdata.activity.TYPE_ACT44SIDE.act44sre.milestone;
       expect(ms.got).toEqual([]);
-      expect(player._trigger.emit).not.toHaveBeenCalledWith(
-        "items:get",
-        expect.anything(),
-      );
+      expect(player.gainItem.add).not.toHaveBeenCalled();
+      expect(player.gainItem.handle).not.toHaveBeenCalled();
     });
 
     it("重复领取应幂等", async () => {

@@ -270,7 +270,7 @@ async function grantSeal(player: PlayerDataManager, reward: ItemBundle): Promise
     const shop = (draft.tshop as any)?.["shop_act1arkhub"];
     if (shop) shop.coin = (shop.coin ?? 0) + reward.count;
   });
-  await player._trigger.emit("items:get", [[reward]]);
+  await player.gainItem.add(reward).handle();
 }
 
 /**

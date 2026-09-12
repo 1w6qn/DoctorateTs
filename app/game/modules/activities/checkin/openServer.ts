@@ -124,7 +124,8 @@ export class OpenServerManager {
     });
     if (!granted) return [];
     const reward = [excel.makeItem(item.itemId, item.count)];
-    await this._trigger.emit("items:get", [reward]);
+    for (const it of reward) this._player.gainItem.add(it);
+    await this._player.gainItem.handle();
     return reward;
   }
 
@@ -153,7 +154,8 @@ export class OpenServerManager {
     });
     if (!item) return [];
     const reward = [excel.makeItem(item.itemId, item.count)];
-    await this._trigger.emit("items:get", [reward]);
+    for (const it of reward) this._player.gainItem.add(it);
+    await this._player.gainItem.handle();
     return reward;
   }
 
@@ -187,7 +189,8 @@ export class OpenServerManager {
     });
     if (!granted) return [];
     const reward = [excel.makeItem(item.itemId, item.count)];
-    await this._trigger.emit("items:get", [reward]);
+    for (const it of reward) this._player.gainItem.add(it);
+    await this._player.gainItem.handle();
     return reward;
   }
 }

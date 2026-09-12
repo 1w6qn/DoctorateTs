@@ -288,9 +288,10 @@ export async function handleRewardMilestone(player: PlayerDataManager, body: Rew
     if (!store[body.activityId]) store[body.activityId] = {};
     if (milestoneId) store[body.activityId][milestoneId] = 0;
   });
-  // 奖励入账（与既有领奖路由一致：emit items:get 落库存）
+  // 奖励入账（与既有领奖路由一致：经物品管道落库存）
   if (rewards.length > 0) {
-    await player._trigger.emit("items:get", [rewards]);
+    for (const it of rewards) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   return {
     ...player.delta,
@@ -328,7 +329,8 @@ export async function handleRewardAllMilestone(player: PlayerDataManager, body: 
     }
   });
   if (rewards.length > 0) {
-    await player._trigger.emit("items:get", [rewards]);
+    for (const it of rewards) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   return {
     ...player.delta,
@@ -387,7 +389,8 @@ export async function handleConfirmActivityMissionGroup(player: PlayerDataManage
         count: r.count,
         type: ItemTypeToString(r.type) as ItemType,
       }));
-      await player._trigger.emit("items:get", [rewards]);
+      for (const it of rewards) player.gainItem.add(it);
+      await player.gainItem.handle();
     }
     await player.update(async (draft) => {
       draft.mission.missionGroups[body.missionGroupId] = 1;
@@ -407,7 +410,8 @@ export async function handleAutoConfirmMissions(player: PlayerDataManager, body:
   if (body.type === "ACTIVITY") {
     allRewards.push(...(await autoConfirmActivityMissionsIn(player, "ACTIVITY")));
     if (allRewards.length > 0) {
-      await player._trigger.emit("items:get", [allRewards]);
+      for (const it of allRewards) player.gainItem.add(it);
+      await player.gainItem.handle();
     }
   } else {
     try {
@@ -421,7 +425,8 @@ export async function handleAutoConfirmMissions(player: PlayerDataManager, body:
         ...(await autoConfirmActivityMissionsIn(player, body.type)),
       );
       if (allRewards.length > 0) {
-        await player._trigger.emit("items:get", [allRewards]);
+        for (const it of allRewards) player.gainItem.add(it);
+        await player.gainItem.handle();
       }
     }
   }
@@ -462,7 +467,7 @@ export async function handleExchangeActivityShopItem(player: PlayerDataManager, 
     recordPurchase(shop.info, body.goodId, count);
   });
    if (rewardItem) {
-    await player._trigger.emit("items:get", [[rewardItem]]);
+    await player.gainItem.add(rewardItem).handle();
   }
    return {
     ...player.delta,
@@ -522,7 +527,8 @@ export async function handleGetActivityCollectionReward(player: PlayerDataManage
     }
   });
    if (!claimed && rewards.length > 0) {
-    await player._trigger.emit("items:get", [rewards]);
+    for (const it of rewards) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
    return {
     ...player.delta,

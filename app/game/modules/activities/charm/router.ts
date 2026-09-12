@@ -202,7 +202,8 @@ router.post("/tryGetCharmFirstReward", validateBody(ReqSchema.tryGetCharmFirstRe
   });
 
   if (rewards.length > 0) {
-    await player._trigger.emit("items:get", [rewards]);
+    for (const it of rewards) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
 
   res.send({

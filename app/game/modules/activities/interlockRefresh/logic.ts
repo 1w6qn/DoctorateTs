@@ -194,7 +194,8 @@ async function confirmOneActivityMission(
       if (shop) shop.coin = (shop.coin ?? 0) + seal.count;
     }
   });
-  await player._trigger.emit("items:get", [rewards]);
+  for (const it of rewards) player.gainItem.add(it);
+  await player.gainItem.handle();
   return rewards;
 }
 

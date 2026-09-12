@@ -202,6 +202,6 @@ export class StatusManager {
       draft.collectionReward.team[rewardId] = 1;
     });
     if (claimed) return;
-    await this._trigger.emit("items:get", [[teamMission.item]]);
+    await this._player.gainItem.add(teamMission.item).handle();
   }
 }

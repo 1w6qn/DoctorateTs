@@ -652,7 +652,8 @@ router.post("/settleGame", validateBody(settleGameSchema), async (req, res) => {
   });
 
   if (grantedItems.length > 0) {
-    await player._trigger.emit("items:get", [grantedItems]);
+    for (const it of grantedItems) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
 
   res.send({
@@ -696,7 +697,8 @@ router.post("/layerReward", validateBody(layerRewardSchema), async (req, res) =>
     grantedItems = claimTowerLayerRewards(draft, towerId, sorts, isHard).granted;
   });
   if (grantedItems.length > 0) {
-    await player._trigger.emit("items:get", [grantedItems]);
+    for (const it of grantedItems) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   res.send(player.delta satisfies ClimbTowerLayerFirstPassRewardResponse);
 });
@@ -715,7 +717,8 @@ router.post("/seasonMissionsAward", validateBody(seasonMissionsAwardSchema), asy
   const body = req.body as ClimbTowerSeasonMissionAwardRequest;
   const grantedItems = await claimTowerSeasonMissions(player, body);
   if (grantedItems.length > 0) {
-    await player._trigger.emit("items:get", [grantedItems]);
+    for (const it of grantedItems) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   res.send(player.delta satisfies ClimbTowerSeasonMissionAwardResponse);
 });
@@ -732,7 +735,8 @@ router.post("/seasonMissonsAward", validateBody(seasonMissionsAwardSchema), asyn
   const body = req.body as ClimbTowerSeasonMissionAwardRequest;
   const grantedItems = await claimTowerSeasonMissions(player, body);
   if (grantedItems.length > 0) {
-    await player._trigger.emit("items:get", [grantedItems]);
+    for (const it of grantedItems) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   res.send(player.delta satisfies ClimbTowerSeasonMissionAwardResponse);
 });
@@ -780,7 +784,8 @@ router.post("/sweepGame", validateBody(sweepGameSchema), async (req, res) => {
     return;
   }
   if (grantedItems.length > 0) {
-    await player._trigger.emit("items:get", [grantedItems]);
+    for (const it of grantedItems) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   res.send(player.delta satisfies ClimbTowerSweepResponse);
 });

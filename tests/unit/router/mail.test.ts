@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { mockGainItem } from "../../helpers";
 
 vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
@@ -34,7 +35,8 @@ describe("mail 路由", () => {
     (vi.mocked(httpContext.get) as any).mockReturnValue({
       uid: "10000",
       status: { uid: "10000" },
-      // receiveMail/receiveAllMail 领奖后经 _trigger.emit("items:get") 入账
+      // receiveMail/receiveAllMail 领奖后经 player.gainItem 管道入账
+      gainItem: mockGainItem(),
       _trigger: { emit: vi.fn().mockResolvedValue(undefined) },
       delta: { modified: {} },
     });

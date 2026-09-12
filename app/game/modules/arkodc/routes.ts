@@ -369,7 +369,8 @@ router.post("/triggerInteraction", validateBody(arkOdcTriggerActionSchema), asyn
 
   // 宝箱奖励真实发放（响应 items 仅客户端展示用，物品进背包经 items:get）
   if (items.length > 0) {
-    await player._trigger.emit("items:get", [items]);
+    for (const it of items) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
 
   res.send({

@@ -105,13 +105,13 @@ describe("arkodc（act53side「直到大地变成一颗酸橙」安洁莉娜的�
     });
     const topic = player._playerdata.arkodc?.topics?.["ark_odc_act53side"];
     expect(topic.rewards["ark_odc_act53side_reward_q001"]).toBe(1);
-    // 奖励真实发放（经 items:get 进背包）
-    const emitted = player._trigger.emit.mock.calls.filter((c: any[]) => c[0] === "items:get");
-    expect(emitted).toHaveLength(1);
-    expect(emitted[0][1][0]).toEqual([
+    // 奖励真实发放（经 player.gainItem 管道进背包，不再直发 items:get）
+    const added = (player.gainItem.add as any).mock.calls.map((c: any[]) => c[0]);
+    expect(added).toEqual([
       { id: "30044", count: 1, type: "MATERIAL" },
       { id: "4001", count: 20000, type: "GOLD" },
     ]);
+    expect(player.gainItem.handle).toHaveBeenCalled();
     // 响应 items 供客户端展示
     const response = res.send.mock.calls[0][0];
     expect(response.items).toHaveLength(2);

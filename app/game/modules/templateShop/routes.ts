@@ -293,7 +293,8 @@ router.post("/buyGood", validateBody(templateBuyGoodSchema), async (req, res) =>
 
   // 物品经 items:get 发放（干员走 char 入账，皮肤走 skin，其余走 inventory）
   if (items.length > 0) {
-    await player._trigger.emit("items:get", [items]);
+    for (const it of items) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   res.send({
     itemList: items,

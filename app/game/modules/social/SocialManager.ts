@@ -196,9 +196,9 @@ export class SocialManager {
       reward.canReceive = 0;
     });
     if (point > 0) {
-      await this._trigger.emit("items:get", [
-        [{ id: "", type: "SOCIAL_PT", count: point }],
-      ]);
+      await this._player.gainItem
+        .add({ id: "", type: "SOCIAL_PT", count: point })
+        .handle();
       await this._trigger.emit("ReceiveSocialPoint", [{ socialPoint: point }]);
     }
     return point;

@@ -114,10 +114,10 @@ describe("tower（保全派驻）奖励与记录落盘", () => {
     expect(inv.mod_update_token_1).toBe(5); // 2 + 3
     expect(inv.mod_update_token_2).toBe(1); // 0 + 1
     expect(player._playerdata.tower.outer.towers.tower_n_17.reward).toEqual([1, 2]);
-    expect(player._trigger.emit).toHaveBeenCalledWith("items:get", [[
-      { id: "mod_update_token_1", count: 5, type: "MATERIAL" },
-      { id: "mod_update_token_2", count: 1, type: "MATERIAL" },
-    ]]);
+    // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+    expect(player.gainItem.add).toHaveBeenCalledWith({ id: "mod_update_token_1", count: 5, type: "MATERIAL" });
+    expect(player.gainItem.add).toHaveBeenCalledWith({ id: "mod_update_token_2", count: 1, type: "MATERIAL" });
+    expect(player.gainItem.handle).toHaveBeenCalled();
   });
 
   it("layerReward：同一层不重复发放", async () => {
@@ -148,9 +148,8 @@ describe("tower（保全派驻）奖励与记录落盘", () => {
     await call("/seasonMissionsAward", {});
     expect(res.sendStatus).not.toHaveBeenCalled();
     expect(player._playerdata.tower.season.missions.tower_season1_1.hasRecv).toBe(true);
-    expect(player._trigger.emit).toHaveBeenCalledWith("items:get", [[
-      { id: "30104", count: 2, type: "MATERIAL" },
-    ]]);
+    expect(player.gainItem.add).toHaveBeenCalledWith({ id: "30104", count: 2, type: "MATERIAL" });
+    expect(player.gainItem.handle).toHaveBeenCalled();
   });
 
   it("settleGame：写 best/unlockHard/canSweep/hasTowerPass 并结算首通奖励", async () => {

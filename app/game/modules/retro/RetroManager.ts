@@ -126,7 +126,7 @@ export class RetroManager {
       // 修复：已领取过的不再发放（原实现无幂等 → 可无限刷）
       if (trail[retroId][rewardId]) return [];
       trail[retroId][rewardId] = 1;
-      await this._trigger.emit("items:get", [[reward]]);
+      await this._player.gainItem.add(reward).handle();
       return [reward];
     });
   }
@@ -160,7 +160,8 @@ export class RetroManager {
         draft.retro.rewardPerm.push(retroId);
       }
     });
-    await this._trigger.emit("items:get", [rewards]);
+    for (const it of rewards) this._player.gainItem.add(it);
+    await this._player.gainItem.handle();
     return rewards;
   }
 }

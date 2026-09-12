@@ -648,7 +648,8 @@ export class MissionManager {
     // 兑换/发放产生的 items 常含重复 id 条目（如 autoConfirm 多个 reward 都含 GOLD
     // 4001），不合并则客户端"获得物品"提示按多条拆分、计数错乱/重复弹窗。
     const merged = this.mergeItemBundles(items);
-    await this._trigger.emit("items:get", [merged]);
+    for (const it of merged) this._player.gainItem.add(it);
+    await this._player.gainItem.handle();
     return merged;
   }
 
@@ -737,7 +738,8 @@ export class MissionManager {
       await this._trigger.emit("MissionCompleteSome", [{ count: 1 }]);
     }
     if (items.length > 0) {
-      await this._trigger.emit("items:get", [items]);
+      for (const it of items) this._player.gainItem.add(it);
+      await this._player.gainItem.handle();
     }
     return items;
   }
@@ -802,7 +804,8 @@ export class MissionManager {
       );
       return;
     }
-    await this._trigger.emit("items:get", [group.rewards]);
+    for (const it of group.rewards) this._player.gainItem.add(it);
+    await this._player.gainItem.handle();
     await this._player.update(async (draft) => {
       draft.mission.missionGroups[missionGroupId] = 1;
     });
@@ -860,7 +863,8 @@ export class MissionManager {
       missionRewards.rewards[type][targetRewardsId] = 1;
       rewards.push(...periodicalReward.rewards);
     });
-    await this._trigger.emit("items:get", [rewards]);
+    for (const it of rewards) this._player.gainItem.add(it);
+    await this._player.gainItem.handle();
     return rewards;
   }
 }

@@ -42,9 +42,9 @@ export class StoryreviewManager {
       if (!group) return; // 防御：未知 group 跳过
       if (group.stories.some((s) => s.id === storyId)) return; // 已解锁
       group.stories.push({ id: storyId, uts: now(), rc: 0 });
-      await this._trigger.emit("items:use", [
-        [this._player.excel.makeItem("STORY_REVIEW_COIN", 1)],
-      ]);
+      await this._player.gainItem
+        .add(this._player.excel.makeItem("STORY_REVIEW_COIN", 1))
+        .use();
     });
   }
 
@@ -68,7 +68,8 @@ export class StoryreviewManager {
       group.rts = now();
       const items = this._player.excel.StoryReviewTable[groupId]?.rewards ?? [];
       if (items.length > 0) {
-        await this._trigger.emit("items:get", [items]);
+        for (const it of items) this._player.gainItem.add(it);
+        await this._player.gainItem.handle();
       }
       return items;
     });
@@ -102,7 +103,8 @@ export class StoryreviewManager {
       );
       const items = rewardList.map((reward) => reward.item);
       if (items.length > 0) {
-        await this._trigger.emit("items:get", [items]);
+        for (const it of items) this._player.gainItem.add(it);
+        await this._player.gainItem.handle();
         if (!groupData.trailRewards) groupData.trailRewards = [];
         groupData.trailRewards.push(...rewardList.map((r) => r.trialRewardId));
       }

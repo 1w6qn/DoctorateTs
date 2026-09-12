@@ -129,9 +129,7 @@ export class RecruitManager {
         durationInSec: duration,
         tags: await RecruitTools.refreshTagList(),
       };
-      await this._trigger.emit("items:use", [
-        [{ id: "7001", count: 1, type: "TKT_RECRUIT" }],
-      ]);
+      await this._player.gainItem.setTarget("7001", "TKT_RECRUIT", 1).use();
       await this._trigger.emit("NormalGacha", []);
     });
   }
@@ -208,9 +206,7 @@ export class RecruitManager {
       slot.realFinishTs = now();
       slot.state = 3; // 立即完成 → 可领取（与 sync() 同口径）
       await this._trigger.emit("BoostNormalGacha", []);
-      await this._trigger.emit("items:use", [
-        [{ id: "7002", count: 1, type: "TKT_INST_FIN" }],
-      ]);
+      await this._player.gainItem.setTarget("7002", "TKT_INST_FIN", 1).use();
     });
   }
 }

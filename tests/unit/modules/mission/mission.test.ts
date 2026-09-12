@@ -461,10 +461,8 @@ describe("MissionManager", () => {
 
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:get",
-        expect.any(Array)
-      );
+      // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     });
 
     it("应该确认每周任务", async () => {
@@ -531,18 +529,15 @@ describe("MissionManager", () => {
         missionId: "act_repeat_001",
       });
       expect(first).toEqual([rewardGold]);
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [[rewardGold]]);
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith(rewardGold);
 
       // 再次确认：已领取 → 返回空奖励，不再发放/触发 items:get
-      emitSpy.mockClear();
+      (mockPlayer.gainItem.add as any).mockClear();
       const second = await manager.confirmMission({
         missionId: "act_repeat_001",
       });
       expect(second).toEqual([]);
-      const itemsCalls = emitSpy.mock.calls.filter(
-        (call) => call[0] === "items:get"
-      );
-      expect(itemsCalls.length).toBe(0);
+      expect(mockPlayer.gainItem.add).not.toHaveBeenCalled();
     });
   });
 
@@ -578,7 +573,11 @@ describe("MissionManager", () => {
       const emitSpy = vi.spyOn(mockTrigger, "emit");
       await manager.confirmMissionGroup({ missionGroupId: "group_001" });
 
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [testRewards]);
+      // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      for (const r of testRewards) {
+        expect(mockPlayer.gainItem.add).toHaveBeenCalledWith(r);
+      }
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     });
 
     it("当奖励为 undefined 时不应该触发 items:get", async () => {
@@ -604,10 +603,9 @@ describe("MissionManager", () => {
       const emitSpy = vi.spyOn(mockTrigger, "emit");
       await manager.confirmMissionGroup({ missionGroupId: "group_empty" });
 
-      const itemsGetCalls = emitSpy.mock.calls.filter(
-        (call) => call[0] === "items:get"
-      );
-      expect(itemsGetCalls.length).toBe(0);
+      // 无奖励 → 管道无任何入队/执行
+      expect(mockPlayer.gainItem.add).not.toHaveBeenCalled();
+      expect(mockPlayer.gainItem.handle).not.toHaveBeenCalled();
     });
 
     it("组内任务未全部完成时不应发放组奖励（防凭空领取）", async () => {
@@ -783,7 +781,7 @@ describe("MissionManager", () => {
   });
 
   describe("exchangeMissionRewards", () => {
-    it("应该兑换任务奖励并触发 items:get", async () => {
+    it("应该兑换任务奖励并经物品管道发放", async () => {
       const manager = new MissionManager(
         mockPlayer as any,
         mockTrigger as any
@@ -795,13 +793,16 @@ describe("MissionManager", () => {
         rewards,
       };
 
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       const result = await manager.exchangeMissionRewards({
         targetRewardsId: "reward_exchange",
       });
 
       expect(result).toEqual(rewards);
-      expect(emitSpy).toHaveBeenCalledWith("items:get", [rewards]);
+      // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+      for (const r of rewards) {
+        expect(mockPlayer.gainItem.add).toHaveBeenCalledWith(r);
+      }
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     });
   });
 

@@ -117,9 +117,9 @@ export class CheckInManager {
         );
       }
       draft.checkIn.checkInHistory.push(0);
-      await this._trigger.emit("items:get", [
-        subscriptionRewards.concat(signInRewards),
-      ]);
+      const granted = subscriptionRewards.concat(signInRewards);
+      for (const it of granted) this._player.gainItem.add(it);
+      await this._player.gainItem.handle();
       // 修复：勋章 TotalCheckinCount 事件从未 emit → 累计签到勋章永不推进
       await this._trigger.emit("TotalCheckinCount", []);
       return { signInRewards, subscriptionRewards };

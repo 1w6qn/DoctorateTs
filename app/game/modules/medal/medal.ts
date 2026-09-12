@@ -90,7 +90,7 @@ export class MedalManager implements PlayerMedal {
    * 
    * 勋章奖励通常包括：家具、头像框、名片装饰等
    */
-  rewardMedal(args: { medalId: string; group: string }) {
+  async rewardMedal(args: { medalId: string; group: string }): Promise<ItemBundle[]> {
     // 已领取（rts != -1）不重复发放
     const current =
       this.medals[args.medalId] ?? this._playerdata.medal.medals[args.medalId];
@@ -127,7 +127,12 @@ export class MedalManager implements PlayerMedal {
     }
     // 绕过 update() 的原地写回不产生 Immer 补丁，显式标记脏以触发条件落盘
     this._player.markDirty();
-    this._trigger.emit("items:get", [items]);
+    // 必须 await：管道 handle() 内部 emit("items:get") 是异步事件，其监听器
+    // （InventoryManager 入账）在下一个 microtask 才完成。若不 await，奖励发放会与
+    // 响应读取 player.delta 竞态——客户端收到「已领取」但物品未进本次 delta。
+    // 修复前本方法未声明 async，调用方写的 await 作用在非 Promise 上是空操作。
+    for (const it of items) this._player.gainItem.add(it);
+    await this._player.gainItem.handle();
     // 勋章完成推送（对齐官服 medalFinish pushMessage，payload 为 idList）：
     // 随本次响应下发，客户端据此刷新勋章界面
     this._player.pushMessage("medalFinish", { idList: [args.medalId] });

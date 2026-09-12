@@ -44,7 +44,8 @@ router.post("/receiveAllMail", validateBody(receiveAllMailSchema), async (req, r
   const items = await mailManager.receiveAllMail(player.uid, body);
   // 修复：附件发放（原实现只回显 items，从不入账 → 邮件奖励服务器端丢失）
   if (items.length > 0) {
-    await player._trigger.emit("items:get", [items]);
+    for (const it of items) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   res.send({ items, ...player.delta } satisfies ReceiveAllMailResponse);
 });
@@ -66,7 +67,8 @@ router.post("/receiveMail", validateBody(receiveMailSchema), async (req, res) =>
   const items = await mailManager.receiveMail(player.status.uid, body);
   // 修复：附件发放（原实现只回显 items，从不入账 → 邮件奖励服务器端丢失）
   if (items.length > 0) {
-    await player._trigger.emit("items:get", [items]);
+    for (const it of items) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   res.send({ result: 0, items, ...player.delta } satisfies ReceiveMailResponse);
 });

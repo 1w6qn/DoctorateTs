@@ -1108,7 +1108,8 @@ rootRouter.post("/gallery/getCollectionRewards", validateBody(getCollectionRewar
     });
     // 发放移到 recipe 外（避免嵌套 update → revoked proxy/慢）
     if (granted) {
-      await player._trigger.emit("items:get", [rewards]);
+      for (const it of rewards) player.gainItem.add(it);
+      await player.gainItem.handle();
     } else {
       rewards.length = 0;
     }

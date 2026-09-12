@@ -77,9 +77,13 @@ describe("templateShop 路由", () => {
       { id: "act53side_2", count: 1 },
     ]);
     expect(player._playerdata.tshop["shop_act53side"].coin).toBe(99999 - 500);
-    expect(player._trigger.emit).toHaveBeenCalledWith("items:get", [
-      [{ id: "char_337_utage@summer#4", type: "CHAR_SKIN", count: 1 }],
-    ]);
+    // 物品发放已收敛到 player.gainItem 管道（不再直发 items:get 事件）
+    expect(player.gainItem.add).toHaveBeenCalledWith({
+      id: "char_337_utage@summer#4",
+      type: "CHAR_SKIN",
+      count: 1,
+    });
+    expect(player.gainItem.handle).toHaveBeenCalled();
   });
 
   it("buyGood 枢纽店（shop_act1arkhub）应扣 ARK_HUB.coin", async () => {

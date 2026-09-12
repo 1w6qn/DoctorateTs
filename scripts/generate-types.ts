@@ -8,6 +8,7 @@ import {
   EXCEL_INDEX_SIGNATURES,
   EXCEL_ENUM_ADDITIONS,
 } from "./excel-server-adapt";
+import { requireCsFile } from "./lib/cs-source";
 import { reconcileExcelJsonKeys } from "./excel-json-keys";
 
 /**
@@ -22,22 +23,12 @@ import { reconcileExcelJsonKeys } from "./excel-json-keys";
  */
 const args = process.argv.slice(2);
 
-function resolveCsFile(): string {
-  const flagIdx = args.indexOf("--cs");
-  if (flagIdx >= 0 && args[flagIdx + 1]) return args[flagIdx + 1];
-  if (process.env.GENERATE_CS) return process.env.GENERATE_CS;
-  const dir = path.join(__dirname, "../reference");
-  if (fs.existsSync(dir)) {
-    const candidates = fs
-      .readdirSync(dir)
-      .filter((f) => /^com\.hypergryph\.arknights_.+\.cs$/.test(f))
-      .sort();
-    if (candidates.length > 0) return path.join(dir, candidates[candidates.length - 1]);
-  }
-  return path.join(dir, "com.hypergryph.arknights_2.7.61.cs");
-}
-
-const CS_FILE = resolveCsFile();
+const CS_FILE = requireCsFile({
+  explicit: args.indexOf("--cs") >= 0 ? args[args.indexOf("--cs") + 1] : process.env.GENERATE_CS,
+});
+// 溯源标注：从实际选中的源文件名取版本，避免把版本号硬编码进生成文件头
+const CS_BASENAME = path.basename(CS_FILE);
+const CS_RELATIVE = `reference/${CS_BASENAME}`;
 const PLAYERDATA_OUT = path.join(__dirname, "../app/game/excel/types-playerdata.ts");
 const EXCEL_OUT = path.join(__dirname, "../app/game/excel/types_excel_gen.ts");
 
@@ -45,9 +36,11 @@ function buildPlayerdataTypes(content: string): string {
   const result = buildTypes(content, {
     roots: ["PlayerDataModel"],
     adapt: (classes, enumNames) => applyWireFormat(applyServerAdapt(classes), enumNames),
+    importLines: ['import type { ServerPayload } from "./json-value";'],
+    jsonTypeName: "ServerPayload",
     headerLines: [
       "自动生成的玩家数据类型定义文件",
-      "从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成",
+      `从 ${CS_RELATIVE} 反编译文件生成`,
       "（客户端闭包 + 服务端协议适配 + 线格式适配，见 scripts/playerdata-server-adapt.ts）",
       "生成命令: pnpm run generate:types",
     ],
@@ -63,9 +56,10 @@ function buildExcelTypes(content: string): string {
       reconcileExcelJsonKeys(applyExcelAdapt(classes, enumNames)),
     enumAdditions: EXCEL_ENUM_ADDITIONS,
     indexSignatures: EXCEL_INDEX_SIGNATURES,
+    importLines: ['import type { JsonValue } from "./json-value";'],
     headerLines: [
       "自动生成的 excel 表类型定义文件",
-      "从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成",
+      `从 ${CS_RELATIVE} 反编译文件生成`,
       "（客户端表类闭包 + excel 协议适配 + JSON 实际键对照，见 scripts/excel-server-adapt.ts / excel-json-keys.ts）",
       "生成命令: pnpm run generate:types",
     ],
@@ -82,9 +76,13 @@ function main(): void {
 
   if (!fs.existsSync(CS_FILE)) {
     console.error(`输入文件不存在: ${CS_FILE}`);
-    console.error("请将官服反编译文件放到 reference/com.hypergryph.arknights_2.7.61.cs");
+    console.error(
+      "请将官服反编译文件放到 reference/com.hypergryph.arknights_<版本>.cs" +
+        "（或运行 `pnpm run decompile` / 用 --cs 显式指定）",
+    );
     process.exit(1);
   }
+  console.log(`CS 源: ${CS_RELATIVE}`);
 
   // 增量跳过：输出比（CS 源 + 最新 excel 数据 + 适配表）都新 → 无需重新生成（启动提速）
   if (!force) {

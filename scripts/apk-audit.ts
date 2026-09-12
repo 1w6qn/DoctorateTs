@@ -9,8 +9,8 @@
  *   C. 暗桩 / 埋点 —— EventLogSDK 事件上报、CrashSight 崩溃上报、OneChannel、
  *      硬编码外联域名
  *
- * 数据源：客户端反编译 C# 源码目录（reference/arknights-2.7.61-csharp，含方法体），
- * 可加 --apk 对 APK 本体做签名方案检测。
+ * 数据源：客户端反编译 C# 源码目录（reference/arknights-<版本>-csharp，含方法体，
+ * 自动探测最新版本；也可用 --src 显式指定），可加 --apk 对 APK 本体做签名方案检测。
  *
  * 用法：
  *   pnpm run apk:audit                                        # 默认源码目录 → docs/apk-security-audit.md
@@ -24,8 +24,28 @@ import * as path from "path";
 import yauzl from "yauzl";
 
 const ROOT = path.join(__dirname, "..");
+
+/**
+ * 探测最新的反编译源码目录（`reference/arknights-<版本>-csharp`）。
+ *
+ * 历史缺陷：此处曾硬编码 `arknights-2.7.61-csharp`，客户端升到 2.7.71 后
+ * 目录改名 → 默认路径失效（审查会退化为空结果）。改为按目录名排序取最新。
+ */
+function resolveDecompiledSrcDir(): string {
+  const refDir = path.join(ROOT, "reference");
+  if (!fs.existsSync(refDir)) return path.join(refDir, "arknights-2.7.61-csharp");
+  const cands = fs
+    .readdirSync(refDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && /^arknights-.+-csharp$/.test(e.name))
+    .map((e) => e.name)
+    .sort();
+  return cands.length > 0
+    ? path.join(refDir, cands[cands.length - 1])
+    : path.join(refDir, "arknights-2.7.61-csharp");
+}
+
 /** 默认反编译源码目录（含方法体的 C# 项目） */
-const DEFAULT_SRC = path.join(ROOT, "reference", "arknights-2.7.61-csharp");
+const DEFAULT_SRC = resolveDecompiledSrcDir();
 /** 默认报告输出 */
 const DEFAULT_OUT = path.join(ROOT, "docs", "apk-security-audit.md");
 /** APK 签名块魔数（V2/V3） */

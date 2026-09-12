@@ -9,8 +9,34 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CS_PATH = os.path.join(ROOT, "reference/com.hypergryph.arknights_2.7.61.cs")
 OUT_DIR = os.path.join(ROOT, "scripts/vendor/fbs/CN")
+
+
+def resolve_cs_path():
+    """探测 reference/ 下最新的 com.hypergryph.arknights_*.cs。
+
+    历史缺陷：此处曾硬编码 _2.7.61.cs，客户端升版改名后脚本直接读不到源。
+    与 scripts/lib/cs-source.ts 保持同一探测策略（按文件名排序取最新），
+    可用环境变量 GENERATE_CS 显式覆盖。
+    """
+    env = os.environ.get("GENERATE_CS")
+    if env and os.path.exists(env):
+        return env
+    ref_dir = os.path.join(ROOT, "reference")
+    if os.path.isdir(ref_dir):
+        cands = sorted(
+            f for f in os.listdir(ref_dir)
+            if re.match(r"^com\.hypergryph\.arknights_.+\.cs$", f)
+        )
+        if cands:
+            return os.path.join(ref_dir, cands[-1])
+    raise SystemExit(
+        "未找到 CS 反编译源：reference/ 下不存在 com.hypergryph.arknights_*.cs"
+        "（请先运行 pnpm run decompile，或设置 GENERATE_CS）"
+    )
+
+
+CS_PATH = resolve_cs_path()
 
 # 表名 → C# 根类（SimpleKVTable 根 = SimpleKVTable<T, X> 基类）
 TABLE_ROOTS = {

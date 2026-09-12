@@ -654,7 +654,10 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
               boxInfo: {},
               tmpChar: [],
               sanity: 0,
-              unKeepBuff: [],
+              // 修复（2026-09-11）：本路径原固定下发空数组 → 事件触发的战斗丢失全部藏品/难度
+              // 增益（"进入战斗关卡会获得对应藏品的 buff/debuff 加成"在事件战斗不生效）。
+              // 对齐 ODPY SelectChoice：unKeepBuff = getBuffs(rlv2, stage_id)。
+              unKeepBuff: mgr._buff.getBuffs(),
             },
           ]);
         }

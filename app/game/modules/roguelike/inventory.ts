@@ -5,6 +5,19 @@ import { RoguelikeV2Manager } from "./logic";
 import excel from "@excel/excel";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { logger } from "@utils/logger";
+import { now } from "@utils/time";
+
+/** 探索工具条目（官方线格式含 index/count；生成的 ExploreTool 仅声明 id/ts，故此处显式声明） */
+export interface ExploreToolEntry {
+  /** 实例键（e_N） */
+  index: string;
+  /** 工具 id（rogue_3_explore_tool_N 等） */
+  id: string;
+  /** 数量 */
+  count: number;
+  /** 获取时间 */
+  ts: number;
+}
 
 export class RoguelikeInventoryManager
   implements PlayerRoguelikeV2.CurrentData.Inventory
@@ -63,6 +76,52 @@ export class RoguelikeInventoryManager
     this.exploreTool = {};
     this.stashRecruit = [];
     this.stashRecruitLimit = 3;
+  }
+
+  /**
+   * 探索工具库存的可写视图（结构 { index, id, count, ts }）
+   *
+   * 类字段按接口声明为 `{}`（见 implements），此处收敛为具体条目类型，
+   * 免去调用点的 any 转换。
+   * @returns 工具条目字典（原地可写）
+   */
+  exploreTools(): Record<string, ExploreToolEntry> {
+    return this.exploreTool as Record<string, ExploreToolEntry>;
+  }
+
+  /**
+   * 探索工具 id 列表（战斗增益汇总 / 结算 record 用）
+   * @returns 工具 id 数组（保持索引顺序）
+   */
+  exploreToolIds(): string[] {
+    return Object.values(this.exploreTools())
+      .map((tool) => tool.id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+  }
+
+  /**
+   * 陷阱 id（本局是否布置了陷阱；无陷阱返回 null）
+   * @returns 陷阱 id 或 null
+   */
+  trapId(): string | null {
+    const trap = this.trap as { id?: string } | null;
+    return trap?.id ?? null;
+  }
+
+  /**
+   * 下一个探索工具实例键（e_N，官方 getNextExploreToolIndex 同构）
+   *
+   * @returns 未被占用的 e_N 键
+   */
+  nextExploreToolIndex(): string {
+    const used = new Set<number>();
+    for (const key of Object.keys(this.exploreTools())) {
+      const n = parseInt(key.slice(2), 10);
+      if (Number.isFinite(n)) used.add(n);
+    }
+    let i = 0;
+    while (used.has(i)) i += 1;
+    return `e_${i}`;
   }
 
   async getItem(item: RoguelikeItemBundle) {
@@ -233,7 +292,20 @@ export class RoguelikeInventoryManager
           void this._trigger.emit("rlv2:recruit:initial_char", [item.id]);
         }
       },
-      EXPLORE_TOOL: (item: RoguelikeItemBundle) => {},
+      EXPLORE_TOOL: (item: RoguelikeItemBundle) => {
+        // rogue_3 初始探索工具（祭坛式雷达等）：入 inventory.exploreTool，键为 e_N
+        // （对齐 ODPY _rlv2.getNextExploreToolIndex 与官服结构 {index,id,count,ts}）。
+        // 原实现为空操作 → 工具既不出现在库存（客户端"探索工具"栏空白），结算 record 的
+        // activeToolList/exploreToolList 也恒为空。工具本身的战斗内携带效果由客户端按库存渲染，
+        // 其 relics 登记 buff（若有）由 RoguelikeBuffManager.getBuffs 的 exploreTool 分支计入。
+        const index = this.nextExploreToolIndex();
+        this.exploreTools()[index] = {
+          index,
+          id: item.id,
+          count: item.count ?? 1,
+          ts: now(),
+        };
+      },
       FRAGMENT: (item: RoguelikeItemBundle) => {
         this._trigger.emit("rlv2:fragment:gain", [item.id]);
       },

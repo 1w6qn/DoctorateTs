@@ -419,7 +419,9 @@ export function startChaosSourceBattle(mgr: RoguelikeV2Manager) : void {
         boxInfo: {},
         tmpChar: [],
         sanity: 0,
-        unKeepBuff: [],
+        // 修复（2026-09-11）：首领战原固定空数组 → 丢失藏品/难度增益
+        // （对齐 ODPY gridZone/moveAndBattleStart 的 unKeepBuff = getBuffs）。
+        unKeepBuff: mgr._buff.getBuffs(),
       },
     ]);
     mgr._status.state = "PENDING";

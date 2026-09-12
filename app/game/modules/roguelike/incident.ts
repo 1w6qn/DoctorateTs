@@ -372,7 +372,8 @@ export class Rogue6IncidentEngine {
         boxInfo: {},
         tmpChar: [],
         sanity: 0,
-        unKeepBuff: [],
+        // 修复（2026-09-11）：遭遇战原固定空数组 → 丢失藏品/难度增益
+        unKeepBuff: player._buff.getBuffs(),
       },
     ]);
   }

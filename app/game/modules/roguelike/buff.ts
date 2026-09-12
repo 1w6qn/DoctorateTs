@@ -213,11 +213,32 @@ export class RoguelikeBuffManager {
   }
 
   /**
-   * 全部生效 buff 只读快照（battle 存档序列化用，不直接读 _buffs）
-   * @returns 当前全部 buff 数组（引用，调用方不得修改）
+   * 全部生效 buff 只读快照（battle 存档序列化 / 战斗入口 unKeepBuff 用）
+   *
+   * 组成 = 本局累积 buff（`_buffs`：科技树 outbuff、难度 modebuff、进区/藏品入选等
+   * 经 rlv2:buff:apply 的并集）+ 探索工具/陷阱在 relics 表登记的 buff。
+   *
+   * 后两类不走 `rlv2:relic:gain`（工具与陷阱由 inventory 单独管理），故不会被 `_buffs`
+   * 重复计入——对齐 ODPY `_rlv2.getBuffs` 的 trap/exploreTool 分支；藏品 buff 不在此处
+   * 二次展开（`_buffs` 已含），否则会重复叠加。
+   * @returns 当前全部 buff 数组（新数组，调用方可安全持有）
    */
   getBuffs(): RoguelikeBuff[] {
-    return this._buffs;
+    const buffs = [...this._buffs];
+    const theme = this._player.current.game?.theme;
+    if (!theme) return buffs;
+    const relics = excel.RoguelikeTopicTable.details[theme]?.relics ?? {};
+    const inv = this._player.inventory;
+    const toolIds: string[] = [...(inv?.exploreToolIds() ?? [])];
+    const trapId = inv?.trapId();
+    if (trapId) toolIds.push(trapId);
+    for (const id of toolIds) {
+      const registered = relics[id]?.buffs;
+      if (registered && registered.length > 0) {
+        buffs.push(...registered);
+      }
+    }
+    return buffs;
   }
 
   generateBuff(key: string, id: string, value: number): RoguelikeBuff {

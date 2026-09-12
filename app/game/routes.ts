@@ -110,6 +110,8 @@ export const routes: RouteRegistration[] = [
   { prefix: "/charm", module: "./modules/charm/routes" },
   { prefix: "/charRotation", module: "./modules/character/charRotation.routes" },
   { prefix: "/depot", module: "./modules/depot/routes" },
+  // 保险库（物品存入/移出；客户端 /reslock/{lock,unlock}{Inventory,Consumable}）
+  { prefix: "/reslock", module: "./modules/reslock/routes" },
   { prefix: "/sandbox", module: "./modules/sandbox/routes" },
   { prefix: "/templateShop", module: "./modules/templateShop/routes" },
   { prefix: "/mailCollection", module: "./modules/mail/mailCollection.routes" },

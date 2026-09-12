@@ -437,7 +437,8 @@ export class BattleManager {
         });
       }
     });
-    await this._trigger.emit("items:get", [rewards]);
+    for (const it of rewards) this._player.gainItem.add(it);
+    await this._player.gainItem.handle();
     return {
       result: 0,
       alert: [],
@@ -577,20 +578,21 @@ export class BattleManager {
     if (!isPractice) {
       // 修复（2026-09-09）：理智扣除已移至 battleStart（此处不再重复扣），
       // 失败返还仍由 _settleStageState 按 apCharged 上限发放。
-      await this._trigger.emit("items:get", [
-        [
-          {
-            type: "EXP_PLAYER" as ItemType,
-            id: "",
-            count: expGain * expScale,
-          },
-          {
-            type: "GOLD" as ItemType,
-            id: "4001",
-            count: goldGain * goldScale,
-          },
-        ],
-      ]);
+      for (const it of [
+        {
+          type: "EXP_PLAYER" as ItemType,
+          id: "",
+          count: expGain * expScale,
+        },
+        {
+          type: "GOLD" as ItemType,
+          id: "4001",
+          count: goldGain * goldScale,
+        },
+      ]) {
+        this._player.gainItem.add(it);
+      }
+      await this._player.gainItem.handle();
     }
     await this._player.update(async (draft) => {
       await this._settleStageState(draft, {
@@ -752,15 +754,9 @@ export class BattleManager {
       // （演习/免体力/apProtect 期间 apCharged=0 → 不返还）
       const charged = (battleInfo as { apCharged?: number }).apCharged ?? 0;
       ctx.apFailReturn = Math.max(0, Math.min(ctx.apFailReturn, charged));
-      await this._trigger.emit("items:get", [
-        [
-          {
-            type: "AP_GAMEPLAY" as ItemType,
-            id: "",
-            count: ctx.apFailReturn,
-          },
-        ],
-      ]);
+      await this._player.gainItem
+        .add({ type: "AP_GAMEPLAY" as ItemType, id: "", count: ctx.apFailReturn })
+        .handle();
     } else {
       let firstClear = false;
       if (
@@ -811,15 +807,9 @@ export class BattleManager {
               id: item.id,
               count: 1,
             });
-            await this._trigger.emit("items:get", [
-              [
-                {
-                  type: item.type as ItemType,
-                  id: item.id,
-                  count: 1,
-                },
-              ],
-            ]);
+            await this._player.gainItem
+              .add({ type: item.type as ItemType, id: item.id, count: 1 })
+              .handle();
           }
         }
       }
@@ -1003,15 +993,9 @@ export class BattleManager {
         campaignsSave as { instances?: Record<string, { maxKills?: number; rewardStatus?: number[] } | undefined> },
       ]);
       if (campaignGained > 0) {
-        await this._trigger.emit("items:get", [
-          [
-            {
-              id: "4003",
-              type: "DIAMOND_SHD" as ItemType,
-              count: campaignGained,
-            },
-          ],
-        ]);
+        await this._player.gainItem
+          .add({ id: "4003", type: "DIAMOND_SHD" as ItemType, count: campaignGained })
+          .handle();
       }
     }
     await this._trigger.emit("CostAp", [{ ap: apCost }]);
@@ -1120,7 +1104,7 @@ export class BattleManager {
    *   completeTimes/state/startTime），客户端据此展示干员密录悖论模拟的完成状态。
    *
    * 该方法须在 `player.update` 配方内调用（draft 为可变代理，写入会记录补丁）；
-   * 奖励发放经 `_trigger.emit("items:get")` 在配方内同步入账。
+   * 奖励发放经 `player.gainItem` 管道在配方内同步入账。
    *
    * @param draft - player.update 配方内的可变草稿（dungeon/troop.addon 写入口）
    * @param opts.stageId - 当前结算的关卡 id（mem_ 前缀悖论模拟关）
@@ -1147,7 +1131,7 @@ export class BattleManager {
     if (firstClear && meta.rewardItem.length) {
       for (const item of meta.rewardItem) {
         opts.pushFirstReward(item);
-        await this._trigger.emit("items:get", [[item]]);
+        await this._player.gainItem.add(item).handle();
       }
     }
     // 密录进度：写入 troop.addon.<charID>.stage.<memStageId>
@@ -1565,9 +1549,10 @@ export class BattleManager {
         return this.dropReward(displayDetailRewards, completeState, stageId, depth + 1);
       }
     }
-    await this._trigger.emit("items:get", [
-      additionalRewards.concat(unusualRewards, furnitureRewards, rewards),
-    ]);
+    for (const it of additionalRewards.concat(unusualRewards, furnitureRewards, rewards)) {
+      this._player.gainItem.add(it);
+    }
+    await this._player.gainItem.handle();
     return [additionalRewards, unusualRewards, furnitureRewards, rewards];
   }
 

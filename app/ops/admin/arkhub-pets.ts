@@ -165,7 +165,7 @@ export async function applyArkhubDocs(
   let dexAdded = 0;
   let bagAdded = 0;
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hub = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hub) return;
     // 图鉴合并
     hub.dex = hub.dex ?? {};

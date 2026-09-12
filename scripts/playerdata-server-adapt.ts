@@ -114,9 +114,10 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   PlayerTroop: {
     charGroup: "{ [key: string]: { favorPoint: number } }",
   },
-  PlayerCharPatch: {
-    skills: "PlayerSkill[]",
-  },
+  // 说明（2026-09-11）：此处原有第二份 `PlayerCharPatch: { skills: "PlayerSkill[]" }`，
+  // 与下方（原 177 行）的线格式内联声明同名——JS 语义「后者胜」，前者静默失效，
+  // 且 tsc 因跨行同名字面量报 TS1117。已删除陈旧声明，保留线格式版本
+  // （并有 SERVER_FIELD_TYPE_OVERRIDES["PlayerCharPatch.skills"] 兜底）。
   PlayerNpcWithAudio: {
     npcShowAudioInfoFlag: "string",
   },
@@ -289,9 +290,55 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
 
 /** 结构差异覆盖：接口名 → { 字段名: 完整 TS 类型 }（"[server]" 表示整接口覆盖） */
 export const SERVER_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
-  // 服务端 activity = { [类型key]: { [actId]: 活动数据 } } 字典（客户端是 60 个分列表字段）
+  // 服务端 activity = { [类型key]: { [actId]: 活动数据 } } 字典（客户端是 60 个分列表字段）。
+  //
+  // 具名类型键给出**精确形状**（这些字段的真相在服务端，客户端模型里没有），
+  // 其余键回落到 `ServerPayload`（非递归两层，Draft 安全）。兜底索引签名必须用
+  // **交叉类型**挂载：具名成员与索引签名写在同一对象字面量里会触发 TS2411
+  // （具名值类型不可赋给索引签名值类型），交叉写法绕开该检查。
+  //
+  // 新增具名键时：只声明服务端真正读写的字段，保持非递归（禁止 JsonValue）；
+  // **具名键一律写作可选（`?:`）**——索引签名语义下键本就不保证存在（存档惰性建键），
+  // 写成必填会让 `draft.activity = {}` 之类的赋值直接报错，访问侧也因此必须 `?.`。
   PlayerActivity: {
-    "[server]": "{ [typeKey: string]: { [actId: string]: object } }",
+    "[server]":
+      "{" +
+      // 尖灭（BOSS_RUSH，见 modules/activities/bossRush）：milestone 进度 / relic 遗物 / bestWaveDic 波次
+      " BOSS_RUSH?: { [actId: string]: { milestone?: { point?: number; got?: string[] }; relic?: { token?: { current?: number; total?: number }; unlockedRelicLevelDic?: { [key: string]: number }; selectingRelicId?: string }; bestWaveDic?: { [key: string]: number } } }" +
+      // 奇象巡展（ARK_HUB，见 modules/activities/arkhub）：
+      //   官服快照字段（coin/secretary/squads 等）形状自 arkhub/logic.ts + unlockActivity.ts 播种反推；
+      //   私服扩展计数（duelCount…pixelPublished）与 ARKDEX/交换站/网关状态形状自 arkhub.ts、arkdex.ts、
+      //   gateway 回调（server.ts）与 ops/admin/arkhub-pets.ts 的读写点反推。
+      //   注：secretarySkinSp/globalBan 播种写布尔 false，客户端模型为 number → 两者都声明。
+      " ; ARK_HUB?: { [actId: string]: {" +
+      " coin?: number; secretary?: string; secretarySkinId?: string; secretarySkinSp?: number | boolean; protectTs?: number; squads?: PlayerSquad[]; globalBan?: number | boolean;" +
+      " duelCount?: number; dailySupplyDays?: number; dailySupplyLastDay?: string; creatureCollected?: number; activeCreatureCollected?: number; alterCollected?: number; pixelCollected?: number; pixelPublished?: number;" +
+      " pixelCollectedIds?: number[]; reviewedPixelArts?: { [key: string]: ServerPayload };" +
+      " dex?: { [key: string]: { numId?: number; isAlter?: boolean; alterOf?: number; active?: boolean } };" +
+      " scanBag?: { id: number; numId: number; isAlter?: boolean; alterOf?: number; fav?: boolean; sourceUid?: string }[];" +
+      " scanSeq?: number; props?: { [key: string]: { count: number; uses: number } }; propSoldToday?: { date: string; sold: { [key: string]: number } };" +
+      " shopToday?: { date?: string; ids?: number[] }; trade?: { wantSpecies?: number | null; offerNumIds?: number[]; ts?: number }; unlockedAreas?: { [key: string]: number };" +
+      " stateMask?: number; settledDuels?: string[]; claimedRewards?: { [key: string]: number }; guideFlags?: { [key: string]: number | undefined };" +
+      " arkdexState?: { activeLure?: number; activeEncounter?: { id?: string; areaId?: number | string; habitat?: string; isProtected?: boolean; cluster?: boolean; lureNumId?: number; creatures?: { numId?: number; name?: string; rarity?: number; isAlter?: boolean; active?: boolean; collected?: boolean }[] } }" +
+      " } }" +
+      // 特别战线（VEC_BREAK_V2，见 modules/vecbreak/routes.ts）：activatedBuff / defendStages 驻防 /
+      //   milestone 里程碑 / bestShowTs 最佳记录时间；squads 为官服快照透传（服务端只读不写）。
+      //   recvTimeLimited/recvNormal 结算写 0/1，setDefend 建键写布尔 false → 两者都声明。
+      " ; VEC_BREAK_V2?: { [actId: string]: { activatedBuff: string[]; defendStages: { [stageId: string]: { stageId: string; defendSquad: { charInstId?: number; currentTmpl?: string | null }[]; recvTimeLimited: number | boolean; recvNormal: number | boolean } }; milestone: { point: number; got: string[] }; bestShowTs?: number; squads?: ServerPayload[] } }" +
+      // 签到族（见 modules/activities/checkin/logic.ts）：
+      //   CHECKIN_ONLY / CHECKIN_ALL_PLAYER = { lastTs 上次签到秒, history[index]=0 已领标记 }
+      " ; CHECKIN_ONLY?: { [actId: string]: { lastTs: number; history: number[] } }" +
+      " ; CHECKIN_ALL_PLAYER?: { [actId: string]: { lastTs: number; history: number[] } }" +
+      //   CHECKIN_VS 甜咸投票签到（canVote 播种写布尔 false，客户端模型为 number）
+      " ; CHECKIN_VS?: { [actId: string]: { sweetVote: number; saltyVote: number; canVote: number | boolean; todayVoteState: number; voteRewardState: number; signedCnt: number; availSignCnt: number; socialState: number; actDay: number } }" +
+      //   CHECKIN_ACCESS 访问签到（rewardsCount 领取次数 / currentStatus 状态位 / lastTs 上次领取秒）
+      " ; CHECKIN_ACCESS?: { [actId: string]: { rewardsCount: number; currentStatus: number; lastTs: number } }" +
+      //   LOGIN_ONLY 登录奖励（reward=0 已领）；SWITCH_ONLY 开关奖励（rewards[rewardId]=0 已领）
+      " ; LOGIN_ONLY?: { [actId: string]: { reward: number } }" +
+      " ; SWITCH_ONLY?: { [actId: string]: { [rewardId: string]: number } }" +
+      //   BLESS_ONLY 祝福签到（festivalHistory 节日干员槽；history 服务端只建空数组，保持未建模）
+      " ; BLESS_ONLY?: { [actId: string]: { festivalHistory?: { charId?: string; state?: number }[]; history?: ServerPayload[]; lastTs?: number } }" +
+      " } & { [typeKey: string]: { [actId: string]: ServerPayload } }",
   },
   // 服务端 shop = LS/HS/ES/CASH/GP/FURNI/SOCIAL/EPGS/REP/CLASSIC/SKIN 缩写 key 字典
   // （缩写 ↔ 客户端完整名：LS=lowQCShop、HS=highQCShop、ES=extraQCShop、CASH=cashShop、

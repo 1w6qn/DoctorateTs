@@ -91,6 +91,12 @@ export const EXCEL_RENAME_FIELDS: Record<string, Record<string, string>> = {
   // unlockCond→initialUnlockCond），JSON 键与 CS 字段名一致，无需再重命名。
   // 历史：旧 schema 冻结在旧名上，故此处曾把 CS 新名反向映射回旧 JSON key；
   // schema 修正后该映射会把正确字段名改回已不存在的旧名，必须移除。
+  //
+  // roguelike_topic_table 的 bandRef：CS 类/FBS schema 写作 `itemId`，而该表是
+  // **AES-CBC 加密 JSON（非 FBS 解码）**，`details.*.bandRef[*]` 实际键为 `itemID`
+  // （已用 data/excel/roguelike_topic_table.json 核对：`{"itemID": "...", "bandLevel": ..., "normalBandId": ...}`）。
+  // 不重命名则按生成类型读 `.itemId` 恒 undefined（消费侧此前靠 `as any` 读 itemID 未爆）。
+  RoguelikeBandRefData: { itemId: "itemID" },
 };
 
 export const EXCEL_ADD_FIELDS: Record<string, Record<string, string>> = {

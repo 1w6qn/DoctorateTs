@@ -52,8 +52,7 @@ function buildExcelTypes(content: string): string {
   const result = buildTypes(content, {
     roots: allTableRoots(),
     // excel 协议适配 + JSON 实际键对照（CS 字段名与 JSON 键大小写不一致时以 JSON 为准）
-    adapt: (classes, enumNames) =>
-      reconcileExcelJsonKeys(applyExcelAdapt(classes, enumNames)),
+    adapt: (classes) => reconcileExcelJsonKeys(applyExcelAdapt(classes)),
     enumAdditions: EXCEL_ENUM_ADDITIONS,
     indexSignatures: EXCEL_INDEX_SIGNATURES,
     importLines: ['import type { JsonValue } from "./json-value";'],

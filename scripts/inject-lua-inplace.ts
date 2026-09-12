@@ -390,7 +390,8 @@ export function buildUnityFSCompressed(sf: Uint8Array, cabName: string): Uint8Ar
   const comps = chunks.map((c) => compressLz4ak(c));
   // 2. 块信息明文体（大端）：hash + blockCount + (u,c,fl) + nodeCount + node
   const biParts: number[] = [];
-  const push = (...arr: Uint8Array[] | number[]) => {
+  // 每个实参可以是单个字节值，也可以是字节序列（number[] / Uint8Array），逐个展开追加
+  const push = (...arr: (number | Uint8Array | number[])[]) => {
     for (const a of arr) {
       if (typeof a === "number") biParts.push(a);
       else for (const b of a) biParts.push(b);

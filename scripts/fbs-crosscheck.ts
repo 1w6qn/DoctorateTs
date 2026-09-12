@@ -345,7 +345,7 @@ interface Report {
   /** 本地 slot 与字段序不自洽（slot ≠ 4 + 2×index） */
   slotAnomalies: { file: string; table: string; field: string; slot: number; expected: number }[];
   enumUndefined: { file: string; name: string; usedBy: string }[];
-  enumBaseWidths: { file: string; name: string; base: string };
+  enumBaseWidths: { file: string; name: string; base: string }[];
 }
 
 /**

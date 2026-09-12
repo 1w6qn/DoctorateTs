@@ -177,7 +177,7 @@ router.post("/arkhub/savePixelArt", async (req, res) => {
     return;
   }
   // 发布上限 50 次（攻略）
-  const hub = (player._playerdata.activity as any)?.ARK_HUB?.act1arkhub;
+  const hub = player._playerdata.activity?.ARK_HUB?.act1arkhub;
   if ((hub?.pixelPublished ?? 0) >= ARKPIXEL_MAX_PUBLISH) {
     res.status(400).json({ error: "publish limit reached", ...player.delta });
     return;
@@ -187,7 +187,7 @@ router.post("/arkhub/savePixelArt", async (req, res) => {
     // token 阶段（网关 RequestPixelArtUploadToken）预分配的 id——客户端上传成功后用该 id
     // 调 getPixelArt 加载画像，落盘必须沿用此 id（否则"上传成功但无法加载"）；消费一次性。
     const pending = consumePixelUploadToken(brief?.token ?? "");
-    pixelArtId = savePixel(String((player._playerdata.status as any)?.uid ?? ""), pixelData, pending?.id);
+    pixelArtId = savePixel(String(player._playerdata.status?.uid ?? ""), pixelData, pending?.id);
   } catch (e) {
     res.status(400).json({ error: (e as Error).message, ...player.delta });
     return;

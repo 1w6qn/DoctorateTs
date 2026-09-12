@@ -338,26 +338,21 @@ export async function main(): Promise<void> {
       // 引导推进广播（38b36462）的 f2.f1 需携带玩家当前奇象兑换券数（官服实锤 f2={1:155,...}）
       resolveArkDexGold: (uid: string) => {
         const player = accountManager.data[uid];
-        return (
-          (player?._playerdata?.activity as { ARK_HUB?: { act1arkhub?: { coin?: number } } } | undefined)
-            ?.ARK_HUB?.act1arkhub?.coin ?? 0
-        );
+        return player?._playerdata?.activity?.ARK_HUB?.act1arkhub?.coin ?? 0;
       },
       // 户籍裁剪：场景帧 PlayerSyncData f5-f9（生物图鉴/道具/像素/状态/功能位）数据源——
       // 从 ARK_HUB.act1arkhub 读 dex(图鉴收录)/scanBag(持有个体)/coin(券)/props(道具箱)。
       // 客户端没有这些字段时"数据库等功能"显示未解锁。返回 undefined 则维持现状。
       resolveArkdexDocs: (uid: string) => {
         const player = accountManager.data[uid];
-        const hub =
-          (player?._playerdata?.activity as { ARK_HUB?: { act1arkhub?: any } } | undefined)
-            ?.ARK_HUB?.act1arkhub;
+        const hub = player?._playerdata?.activity?.ARK_HUB?.act1arkhub;
         if (!hub) return undefined;
         // dex：{ [numId字符串]: {...} } → 收录种类集（key=numId，value 计 1 → CreatureCollection）
         const dex: Record<string, number> = {};
         for (const key of Object.keys(hub.dex ?? {})) dex[String(key)] = 1;
         // scanBag：持有个体 → Creature（id→unique_id，numId→template_id，isAlter→persona，
         // sourceUid→source）
-        const scanBag = (hub.scanBag ?? []).map((b: any) => ({
+        const scanBag = (hub.scanBag ?? []).map((b) => ({
           id: b.id,
           numId: b.numId,
           ...(b.isAlter ? { persona: 1 } : {}),
@@ -365,8 +360,8 @@ export async function main(): Promise<void> {
         }));
         // props：{ [itemNumId字符串]: {count, uses} } → itemData.items
         const items = Object.entries(hub.props ?? {})
-          .filter(([, v]: [string, any]) => (v as any)?.count > 0)
-          .map(([k, v]: [string, any]) => ({ itemId: Number(k), count: (v as any).count }));
+          .filter(([, v]) => (v?.count ?? 0) > 0)
+          .map(([k, v]) => ({ itemId: Number(k), count: v?.count ?? 0 }));
         return { dex, scanBag, coin: hub.coin ?? 0, items };
       },
       // 草丛遭遇闭环（StartCaptureReq b7c267d7，捕获区）：**同步**返回本轮遭遇——读上一轮
@@ -376,14 +371,12 @@ export async function main(): Promise<void> {
       onScanStart: (uid: string, areaId: number | string) => {
         const player = accountManager.data[uid];
         if (!player) return undefined;
-        const hub = (
-          player._playerdata?.activity as { ARK_HUB?: Record<string, any> } | undefined
-        )?.ARK_HUB?.[ARKHUB_ACT_ID];
+        const hub = player._playerdata?.activity?.ARK_HUB?.[ARKHUB_ACT_ID];
         const enc = hub?.arkdexState?.activeEncounter;
         const current =
           enc && Array.isArray(enc.creatures) && enc.creatures.length > 0
             ? {
-                creatures: (enc.creatures as Array<{ numId?: number }>)
+                creatures: enc.creatures
                   .map((c) => Number(c?.numId))
                   .filter((n) => Number.isFinite(n) && n > 0),
                 ...(enc.lureNumId != null ? { lureNumId: Number(enc.lureNumId) } : {}),
@@ -450,9 +443,7 @@ export async function main(): Promise<void> {
       resolveTrade: (uid: string) => {
         const player = accountManager.data[uid];
         if (!player) return undefined;
-        const hub = (
-          player._playerdata?.activity as { ARK_HUB?: Record<string, any> } | undefined
-        )?.ARK_HUB?.[ARKHUB_ACT_ID];
+        const hub = player._playerdata?.activity?.ARK_HUB?.[ARKHUB_ACT_ID];
         const trade = hub?.trade;
         if (trade?.wantSpecies == null) return undefined;
         return {
@@ -478,10 +469,7 @@ export async function main(): Promise<void> {
       // 玩家当前奇象兑换券数（购买响应 f6 剩余券数；与 resolveArkDexGold 同源）
       resolveCoin: (uid: string) => {
         const player = accountManager.data[uid];
-        return (
-          (player?._playerdata?.activity as { ARK_HUB?: { act1arkhub?: { coin?: number } } } | undefined)
-            ?.ARK_HUB?.act1arkhub?.coin ?? 0
-        );
+        return player?._playerdata?.activity?.ARK_HUB?.act1arkhub?.coin ?? 0;
       },
       // 网关状态恢复（登录/重连）：存档 ARK_HUB 的 stateMask/settledDuels/activeEncounter
       // → 连接状态（重连与重启后掩码/对局去重/捕捉会话不丢）
@@ -517,9 +505,7 @@ export async function main(): Promise<void> {
         const player = accountManager.data[uid];
         if (!player) return true;
         if (arkhubIsRewardClaimed(player, claimKey)) return false;
-        const hub = (
-          player._playerdata?.activity as { ARK_HUB?: Record<string, any> } | undefined
-        )?.ARK_HUB?.[ARKHUB_ACT_ID];
+        const hub = player._playerdata?.activity?.ARK_HUB?.[ARKHUB_ACT_ID];
         if (hub) {
           hub.claimedRewards = hub.claimedRewards ?? {};
           hub.claimedRewards[claimKey] = Date.now(); // 同步内存标记，防并发重领
@@ -532,9 +518,7 @@ export async function main(): Promise<void> {
       // 每日物资今日是否已领（交互广播券数修正用）
       resolveDailyClaimed: (uid: string) => {
         const player = accountManager.data[uid];
-        const hub = (
-          player?._playerdata?.activity as { ARK_HUB?: Record<string, any> } | undefined
-        )?.ARK_HUB?.[ARKHUB_ACT_ID];
+        const hub = player?._playerdata?.activity?.ARK_HUB?.[ARKHUB_ACT_ID];
         return hub?.dailySupplyLastDay === new Date().toDateString();
       },
     });

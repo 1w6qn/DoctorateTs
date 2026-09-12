@@ -12,9 +12,18 @@
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
 import { ItemBundle } from "@excel/excel";
 import { logger } from "@utils/logger";
+import type { PlayerActivity } from "../../../kernel/playerdata";
 
 /** ARK_HUB 活动 id（activity.basicInfo.act1arkhub） */
 export const ARKHUB_ACT_ID = "act1arkhub";
+
+/**
+ * ARK_HUB 活动状态（draft.activity.ARK_HUB[actId]）
+ *
+ * 形状登记在 scripts/playerdata-server-adapt.ts 的 SERVER_OVERRIDE_FIELDS
+ * （生成类型 PlayerActivity.ARK_HUB 的条目即本别名），本模块不再需要任何 cast。
+ */
+export type ArkhubState = NonNullable<NonNullable<PlayerActivity["ARK_HUB"]>[string]>;
 
 /** 每日物资奖励：巡展纪念章 ×100（与网关 HUB_REWARD_MAP daily_task 对齐） */
 export const ARKHUB_DAILY_SUPPLY_REWARD: ItemBundle = {
@@ -74,8 +83,8 @@ export const ARKHUB_ERR = {
 } as const;
 
 /** 读 ARK_HUB 状态（防缺省；非 update 配方内只读用） */
-function hubState(player: PlayerDataManager): any {
-  return (player._playerdata.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+function hubState(player: PlayerDataManager): ArkhubState | undefined {
+  return player._playerdata.activity?.ARK_HUB?.[ARKHUB_ACT_ID];
 }
 
 /** 自然日键（本地时区；每日物资/每日限次用） */
@@ -89,9 +98,9 @@ async function grantTokenSeal(
   reward: ItemBundle,
 ): Promise<void> {
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hub = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (hub) hub.coin = (hub.coin ?? 0) + reward.count;
-    const shop = (draft.tshop as any)?.["shop_act1arkhub"];
+    const shop = draft.tshop?.["shop_act1arkhub"];
     if (shop) shop.coin = (shop.coin ?? 0) + reward.count;
   });
   await player.gainItem.add(reward).handle();
@@ -107,7 +116,7 @@ export async function arkhubOnDuelSettle(
   win = true,
 ): Promise<void> {
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hub = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hub) return;
     hub.duelCount = (hub.duelCount ?? 0) + 1;
   });
@@ -130,7 +139,7 @@ export async function arkhubOnDailySupply(
 ): Promise<void> {
   let claimed = false;
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hub = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hub) return;
     const today = dayKey(Date.now());
     if (hub.dailySupplyLastDay === today) return; // 今日已领
@@ -160,7 +169,7 @@ export async function arkhubCreatureCollected(
   args: { count: number; activeCount: number; alterCount: number },
 ): Promise<void> {
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hub = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hub) return;
     hub.creatureCollected = args.count;
     hub.activeCreatureCollected = args.activeCount;
@@ -204,7 +213,7 @@ export async function arkhubPixelPublished(
   count: number,
 ): Promise<void> {
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hub = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hub) return;
     hub.pixelPublished = count;
   });
@@ -219,7 +228,7 @@ export async function arkhubPixelCollected(
   count: number,
 ): Promise<void> {
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hub = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hub) return;
     hub.pixelCollected = count;
   });
@@ -309,7 +318,7 @@ export async function arkhubSetStateMask(
   mask: number,
 ): Promise<void> {
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hub = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (hub) hub.stateMask = Number(mask) || 0;
   });
 }
@@ -327,7 +336,7 @@ export async function arkhubRecordSettledDuel(
 ): Promise<void> {
   if (!battleId || battleId === "unknown") return;
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hub = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hub) return;
     const list: string[] = Array.isArray(hub.settledDuels) ? hub.settledDuels : [];
     if (list.includes(battleId)) return;
@@ -354,7 +363,7 @@ export async function arkhubMarkRewardClaimed(
   claimKey: string,
 ): Promise<void> {
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hub = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hub) return;
     hub.claimedRewards = hub.claimedRewards ?? {};
     hub.claimedRewards[claimKey] = Date.now();
@@ -374,7 +383,7 @@ export function arkhubReadGatewayState(player: PlayerDataManager): {
   const hub = hubState(player);
   const enc = hub?.arkdexState?.activeEncounter;
   const creatures = Array.isArray(enc?.creatures)
-    ? (enc.creatures as Array<{ numId?: number }>)
+    ? enc.creatures
         .map((c) => Number(c?.numId))
         .filter((n) => Number.isFinite(n) && n > 0)
     : [];
@@ -456,7 +465,7 @@ export async function arkhubAdvanceGuide(
   }
   let changed: string[] = [];
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hub = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hub) return;
     hub.guideFlags = hub.guideFlags ?? {};
     for (const [key, value] of Object.entries(flags)) {

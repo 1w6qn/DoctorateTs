@@ -5,7 +5,9 @@
  * 类侧保留同名薄委派（见 logic.ts）。
  */
 import type { RoguelikeV2Manager } from "./logic";
+import type { PlayerRoguelikeV2 } from "./rlv2-model";
 import excel from "@excel/excel";
+import { isJsonArray, isJsonObject, type JsonObject } from "@excel/json-value";
 import { now } from "@utils/time";
 import {
   ROGUE6_BATTLE_NODES,
@@ -20,6 +22,49 @@ import {
   isBlackstream,
 } from "./theme-rules";
 
+/**
+ * 分队升级引用条目（`details[theme].bandRef` 的值）。
+ *
+ * 线格式键为 `itemID`（CS 字段名，data/excel 实测），生成模型
+ * `RoguelikeBandRefData` 写作 `itemId`，故此处按实际数据显式声明；
+ * `normalBandId` 缺省回落 itemID 的判定保持原样。
+ */
+interface RoguelikeBandRefEntry {
+  bandLevel?: number;
+  normalBandId?: string;
+  itemID?: string;
+}
+
+/** 废品库存条目（黑流树海 `scrap.inventory` 的值，仅声明结算消费的 id） */
+interface ScrapInventoryEntry {
+  id?: string;
+}
+
+/** 局外主题数据字典（配方外传 mgr.outer，配方内传 draft.outer） */
+type OuterThemeMap = { [theme: string]: PlayerRoguelikeV2.OuterData };
+
+/**
+ * `customizeData[theme]` 的科技树节点字典。
+ *
+ * customizeData 为未建模线格式 JSON（生成类型 `RoguelikeTopicCustomizeData` = JsonValue），
+ * 按原逻辑取值：`developments`（非数组）优先，否则回落 `commonDevelopment.developments`。
+ * @param theme - 肉鸽主题 id
+ * @returns 节点 id → 节点数据的字典（无该主题/无节点时 undefined）
+ */
+function developmentNodes(theme: string): JsonObject | undefined {
+  const customize = excel.RoguelikeTopicTable.customizeData?.[theme];
+  if (customize === undefined || !isJsonObject(customize)) return undefined;
+  const own = customize.developments;
+  const common = customize.commonDevelopment;
+  const devs =
+    own && !isJsonArray(own)
+      ? own
+      : isJsonObject(common)
+        ? common.developments
+        : undefined;
+  return devs !== undefined && isJsonObject(devs) ? devs : undefined;
+}
+
   /**
    * 分队升级可见性同步（科技树解锁 → collect.band state）。
    * 规则：bandRef 中 bandLevel>0 的升级变体（unlockCondDesc 提到科技树节点名，
@@ -31,18 +76,17 @@ import {
 export function applyBandUpgradeVisibility(mgr: RoguelikeV2Manager, theme: string,
     buffId: string,
     collectBand: { [key: string]: { state: number } },) : void {
-    const detail = excel.RoguelikeTopicTable.details[theme] as any;
-    const bandRef = (detail?.bandRef || {}) as Record<
-      string,
-      { bandLevel?: number; normalBandId?: string; itemID?: string }
-    >;
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    const bandRef = (detail?.bandRef || {}) as Record<string, RoguelikeBandRefEntry>;
     // 刚解锁节点名（buffName，用于匹配 unlockCondDesc 中的"激活XXX"）
-    const customize = (excel.RoguelikeTopicTable.customizeData as any)?.[theme];
-    const devs =
-      customize?.developments && !Array.isArray(customize.developments)
-        ? customize.developments
-        : customize?.commonDevelopment?.developments;
-    const devName = devs?.[buffId]?.buffName || "";
+    const devs = developmentNodes(theme);
+    const devNode = devs?.[buffId];
+    const devName =
+      devNode !== undefined &&
+      isJsonObject(devNode) &&
+      typeof devNode.buffName === "string"
+        ? devNode.buffName
+        : "";
     const upgradeVariants = Object.entries(bandRef).filter(
       ([, r]) => (r.bandLevel ?? 0) > 0,
     );
@@ -51,7 +95,11 @@ export function applyBandUpgradeVisibility(mgr: RoguelikeV2Manager, theme: strin
       // 升级条件提到该节点名（分裂/卵生/胎生/顶冠/角/鳍）→ 该升级已解锁
       const matched = devName !== "" && cond.includes(`“${devName}”`);
       if (!matched) continue;
-      collectBand[upgradeId] = { state: 1, progress: null as any } as any;
+      const info: { state: number; progress: number[] | null } = {
+        state: 1,
+        progress: null,
+      };
+      collectBand[upgradeId] = info;
       const baseId = ref.normalBandId || ref.itemID;
       if (baseId && baseId !== upgradeId && collectBand[baseId]) {
         collectBand[baseId].state = 0;
@@ -65,22 +113,24 @@ export function applyBandUpgradeVisibility(mgr: RoguelikeV2Manager, theme: strin
    * 否则 state 1（可见未解锁）。客户端按 state 决定难度可选性。
    */
 export function initModeGradeStates(mgr: RoguelikeV2Manager, theme: string,
-    map?: any,
-    game?: any,) : {
+    map?: OuterThemeMap,
+    game?: PlayerRoguelikeV2.CurrentData.Game | null,) : {
     [mode: string]: { [grade: string]: { state: number; progress: number[] | null } };
   } {
-    const detail = excel.RoguelikeTopicTable.details[theme] as any;
-    const difficulties: any[] = (detail?.difficulties || []).filter(
-      (x: any) => (x.modeDifficulty ?? "NORMAL") === "NORMAL",
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    const difficulties = (detail?.difficulties || []).filter(
+      (x) => (x.modeDifficulty ?? "NORMAL") === "NORMAL",
     );
     const states: {
       [grade: string]: { state: number; progress: number[] | null };
     } = {};
     // 已通关难度（record.modeGrade[mode] 各难度通关计数 > 0）
-    const rec = ((map ?? mgr.outer)?.[theme]?.record as any) || {};
+    const rec: PlayerRoguelikeV2.OuterData.Record =
+      (map ?? mgr.outer)?.[theme]?.record ||
+      ({} as PlayerRoguelikeV2.OuterData.Record);
     const cleared = new Set<number>();
     const mode = (game ?? mgr.current.game)?.mode || "NORMAL";
-    const clearedGrades = (rec.modeGrade?.[mode] || {}) as { [g: string]: number };
+    const clearedGrades: { [g: string]: number } = rec.modeGrade?.[mode] || {};
     for (const [g, cnt] of Object.entries(clearedGrades)) {
       if (cnt > 0) cleared.add(parseInt(g, 10));
     }
@@ -107,7 +157,7 @@ export function maxClearedGrade(mgr: RoguelikeV2Manager, cleared: Set<number>) :
 
 export function buildSettlement(mgr: RoguelikeV2Manager, over: boolean,
     success: number,
-    ending: string,) : { brief: any; record: any; buffBankPut: number } {
+    ending: string,) {
     const game = mgr.current.game!;
     const theme = game.theme;
     // endTs 用秒（now() 秒级），与 game.start（now() 秒级）保持一致
@@ -133,11 +183,11 @@ export function buildSettlement(mgr: RoguelikeV2Manager, over: boolean,
       else if (type === 4) cntBattleBoss++;
     }
     const recruitChars = Object.values(mgr.inventory!.recruit || {}).filter(
-      (t) => (t as any).result,
+      (t) => t.result,
     );
     const cntRecruitChar = recruitChars.length;
     const troopChars = Object.values(mgr.troop.chars).map((c) => {
-      const char: any = { ...(c as any) };
+      const char = { ...c };
       return {
         instId: String(char.instId),
         charId: char.charId,
@@ -184,15 +234,19 @@ export function buildSettlement(mgr: RoguelikeV2Manager, over: boolean,
     // 官方键为职业名（TANK/CASTER/SNIPER…），值 = 该职业干员数。
     const cntRecruitProfession: { [key: string]: number } = {};
     for (const t of troopChars) {
-      const prof = (excel.CharacterTable as any)?.[t.charId]?.profession;
+      const prof = excel.CharacterTable?.[t.charId]?.profession;
       if (prof) cntRecruitProfession[prof] = (cntRecruitProfession[prof] ?? 0) + 1;
     }
     // 废品/零件箱各 id 持有数（黑流树海 record.scrapCounter）
     const scrapCounter: { [key: string]: number } = {};
-    const scrapInv = (mgr._module as any)?.scrap?.inventory;
+    const scrapInv = (
+      mgr._module.scrap as
+        | { inventory?: Record<string, ScrapInventoryEntry> }
+        | undefined
+    )?.inventory;
     if (scrapInv) {
       for (const it of Object.values(scrapInv)) {
-        const id = (it as any)?.id;
+        const id = it?.id;
         if (id) scrapCounter[id] = (scrapCounter[id] ?? 0) + 1;
       }
     }
@@ -216,19 +270,19 @@ export function buildSettlement(mgr: RoguelikeV2Manager, over: boolean,
       troopChars,
       cntArrivedNodeType,
       relicList: Object.values(mgr.inventory!.relic || {}).map(
-        (r) => (r as any).id,
+        (r) => r.id,
       ),
       capsuleList: [],
-      activeToolList: Object.values(mgr.inventory?.exploreTool || {}).map(
-        (t) => (t as any).id,
+      activeToolList: Object.values(mgr.inventory?.exploreTools() || {}).map(
+        (t) => t.id,
       ),
-      exploreToolList: Object.values(mgr.inventory?.exploreTool || {}).map(
-        (t) => (t as any).id,
+      exploreToolList: Object.values(mgr.inventory?.exploreTools() || {}).map(
+        (t) => t.id,
       ),
       // 官服 record.zones 为区域数组 [{index, zoneId, variation}]（黑流树海无相地图，
       // 由 grid_zone 模块生成）；原实现误写为层数数字 → 客户端合并结构错误。改从
       // _map.zones 值构造（每个值即含 id/index/variation）。
-      zones: Object.values(mgr._map.zones).map((z: any) => ({
+      zones: Object.values(mgr._map.zones).map((z) => ({
         index: z.index,
         zoneId: z.id, // 形如 "zone_1"
         variation: Array.isArray(z.variation) ? z.variation : [],
@@ -252,7 +306,7 @@ export function buildSettlement(mgr: RoguelikeV2Manager, over: boolean,
     };
 
     // 本局银行余额（GAME_SETTLE.result.buffBankPut，官服 giveUpGame/gameSettle 结算携带）
-    const buffBankPut = (mgr.outer as any)?.[theme]?.bank?.current ?? 0;
+    const buffBankPut = mgr.outer[theme]?.bank?.current ?? 0;
     return { brief, record, buffBankPut };
 }
 
@@ -281,7 +335,7 @@ export function exploreBreakdown(mgr: RoguelikeV2Manager) : { detail: number[][]
       else if (type === 4) bossCount++;
     }
     const recruitCount = Object.values(mgr.inventory!.recruit || {}).filter(
-      (t) => (t as any).result,
+      (t) => t.result,
     ).length;
     const itemCount =
       Object.keys(mgr.inventory!.relic || {}).length +
@@ -302,9 +356,9 @@ export function exploreBreakdown(mgr: RoguelikeV2Manager) : { detail: number[][]
   /** 当前难度对应的探索分数倍率（difficulty.scoreFactor，无则默认 1） */
 export function exploreScoreFactor(mgr: RoguelikeV2Manager) : number {
     const theme = mgr.current.game!.theme;
-    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const detail = excel.RoguelikeTopicTable.details[theme];
     const difficulty = detail?.difficulties?.find(
-      (d: any) => d.modeDifficulty === mgr.current.game!.mode && d.grade === mgr.current.game!.modeGrade,
+      (d) => d.modeDifficulty === mgr.current.game!.mode && d.grade === mgr.current.game!.modeGrade,
     );
     return difficulty?.scoreFactor ?? 1;
 }
@@ -325,11 +379,7 @@ export function exploreScore(mgr: RoguelikeV2Manager) : number {
    * @returns 节点 id 数组
    */
 export function lifeGameNodes(mgr: RoguelikeV2Manager, theme: string) : string[] {
-    const customize = (excel.RoguelikeTopicTable.customizeData as any)?.[theme];
-    const devs =
-      customize?.developments && !Array.isArray(customize.developments)
-        ? customize.developments
-        : customize?.commonDevelopment?.developments;
+    const devs = developmentNodes(theme);
     const all = devs ? Object.keys(devs) : [];
     return all.filter(
       (id) =>
@@ -408,7 +458,7 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
     // update 之后，读到的 nodeTypeCounts() 与 troop.chars 全为空（胜利/作战/干员数恒 0）。
     // 故在结算前取快照并显式下传给各 emitter。
     const runSnapshot = {
-      charIds: Object.keys((mgr.troop as any)?.chars ?? {}),
+      charIds: Object.keys(mgr.troop.chars ?? {}),
       nodeCounts: mgr.nodeTypeCounts(),
       bandId: mgr._bandId || "",
       mode: mgr.current.game?.mode || "NORMAL",
@@ -425,8 +475,9 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
     const { sourceScore } = mgr.blackstreamAwards();
     await mgr.update(async (draft) => {
       draft.current.record = { brief, record };
-      const outerTheme = draft.outer[theme] ?? (draft.outer[theme] = {} as any);
-      const buff: any =
+      const outerTheme =
+        draft.outer[theme] ?? (draft.outer[theme] = {} as PlayerRoguelikeV2.OuterData);
+      const buff =
         outerTheme.buff ??
         (outerTheme.buff = {
           pointOwned: 0,
@@ -434,7 +485,7 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
           unlocked: {},
           score: 0,
           sourceStack: 0,
-        } as any);
+        });
       // 累计探索分数 = 探索分数（dorothinights 对齐：不放大；生命游戏加成走演化算子）
       buff.score = (buff.score || 0) + exploreScore;
       if (themeBlackstream && mgr.canEvolveOperators(theme)) {
@@ -451,32 +502,34 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
 
       // 记录本把到达的最深层——官服 record 无 lastZone 键（8-11/8-18 抓包对照），
       // 支援选项判定改由 stageCnt 3 层关卡存在性承载；lastZone 仅为旧存档兼容读取。
-      const rec = (outerTheme.record ?? (outerTheme.record = {} as any)) as any;
+      const rec =
+        outerTheme.record ??
+        (outerTheme.record = {} as PlayerRoguelikeV2.OuterData.Record);
       // 上次结束时间用秒（now()）——原实现 Date.now() 为毫秒（13 位），与本局
       // startTs/endTs（秒、10 位）与 record 其余时间字段值域不一致。
       rec.last = now();
       // 难度通关记录（进阶式解锁：通关 grade N 解锁 N+1）——record.modeGrade[mode][grade]++
       const mode = mgr.current.game?.mode || "NORMAL";
       const grade = mgr.current.game?.modeGrade ?? 0;
-      const recMode = (rec.modeGrade ?? (rec.modeGrade = {} as any)) as any;
-      const recGrades = (recMode[mode] ?? (recMode[mode] = {} as any)) as any;
+      const recMode = rec.modeGrade ?? (rec.modeGrade = {});
+      const recGrades = recMode[mode] ?? (recMode[mode] = {});
       recGrades[grade] = (recGrades[grade] || 0) + 1;
       // 特勤干员任务数据源：成功结算记录「分队×结局」「分队×难度」（Rlv2BandGradeCnt /
       // Rlv2EndingBandGradeCnt / Rlv2EndingModeGrade 模板按此统计累计分队数）。
       // bandCnt[bandId][endingId]++、bandGrade[bandId][gradeId]++。
       // 仅常规行动（NORMAL 模式）计入——MONTH_TEAM 等特殊模式不参与特勤干员任务。
       if (success === 1 && ending && mgr._bandId && mode === "NORMAL") {
-        const soBandCnt = (rec.bandCnt ?? (rec.bandCnt = {} as any)) as any;
+        const soBandCnt = rec.bandCnt ?? (rec.bandCnt = {});
         const perEnding =
-          (soBandCnt[mgr._bandId] ?? (soBandCnt[mgr._bandId] = {} as any)) as any;
+          soBandCnt[mgr._bandId] ?? (soBandCnt[mgr._bandId] = {});
         perEnding[ending] = (perEnding[ending] || 0) + 1;
-        const soBandGrade = (rec.bandGrade ?? (rec.bandGrade = {} as any)) as any;
+        const soBandGrade = rec.bandGrade ?? (rec.bandGrade = {});
         const perGrade =
-          (soBandGrade[mgr._bandId] ?? (soBandGrade[mgr._bandId] = {} as any)) as any;
+          soBandGrade[mgr._bandId] ?? (soBandGrade[mgr._bandId] = {});
         perGrade[String(grade)] = (perGrade[String(grade)] || 0) + 1;
       }
       // 同步 collect.modeGrade 解锁状态（当前难度 + 下一级可解锁）
-      const collect = outerTheme.collect as any;
+      const collect = outerTheme.collect;
       if (collect?.modeGrade?.[mode]) {
         collect.modeGrade[mode][String(grade)] = { state: 2, progress: null };
         const next = String(grade + 1);
@@ -488,8 +541,8 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
       // collect.endBook 此前**从不写入**——结局类勋章（Rlv2EndingCollect「达成 N 种结局」）
       // 因此无数据可依。history 形状对齐 types-playerdata
       // PlayerRoguelikeV2_OuterData_Record_History；仅保留最近 100 局避免无限增长。
-      if (!Array.isArray(rec.history)) rec.history = [];
-      rec.history.push({
+      const history = Array.isArray(rec.history) ? rec.history : (rec.history = []);
+      history.push({
         seed: mgr.gameSeed(),
         bandId: mgr._bandId ?? "",
         mode,
@@ -499,22 +552,24 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
         result: success,
         endTs: now(),
       });
-      if (rec.history.length > 100) {
-        rec.history.splice(0, rec.history.length - 100);
+      if (history.length > 100) {
+        history.splice(0, history.length - 100);
       }
       // 结局图鉴（collect.endBook）：达成过的结局去重记录 —— Rlv2EndingCollect 计数来源
       // （collect 可能尚未初始化——旧存档/测试现场只有 buff 时先补建）
       if (success === 1 && ending) {
-        if (!outerTheme.collect) (outerTheme as any).collect = {} as any;
-        const collectRef = outerTheme.collect as any;
-        const endBook = (collectRef.endBook ?? (collectRef.endBook = {})) as any;
+        if (!outerTheme.collect) {
+          outerTheme.collect = {} as PlayerRoguelikeV2.OuterData.Collection;
+        }
+        const collectRef = outerTheme.collect;
+        const endBook = collectRef.endBook ?? (collectRef.endBook = {});
         endBook[ending] = { state: 2, progress: null };
       }
       // 黑流树海襁褓类藏品（LEGACY 型：局内获得 → 下一局增益）持久化到 record.legacy
       const legacy = Object.values(mgr.inventory?.relic || {})
-        .map((r) => (r as any).id)
+        .map((r) => r.id)
         .filter((id) => {
-          const def = (excel.RoguelikeTopicTable.details[theme] as any)?.items?.[id];
+          const def = excel.RoguelikeTopicTable.details[theme]?.items?.[id];
           return def?.type === "LEGACY" || id.includes("legacy");
         });
       if (legacy.length > 0) {
@@ -533,17 +588,20 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
       // 分队升级隐藏（使用分队通关解锁其升级变体）：本把所选分队（_bandId）若有升级变体
       // （bandRef bandLevel>0 且 normalBandId == _bandId）→ 升级变体 state 1、旧分队隐藏。
       const usedBand = mgr._bandId;
-      const bandRef = (excel.RoguelikeTopicTable.details[theme] as any)?.bandRef || {};
+      const bandRef = (excel.RoguelikeTopicTable.details[theme]?.bandRef || {}) as Record<
+        string,
+        RoguelikeBandRefEntry
+      >;
       const collectBand = outerTheme.collect?.band;
       if (usedBand && collectBand && typeof collectBand === "object") {
         const upgradeVariant = Object.entries(bandRef).find(
-          ([, r]: any) =>
+          ([, r]) =>
             (r.bandLevel ?? 0) > 0 && (r.normalBandId ?? r.itemID) === usedBand,
         );
         if (upgradeVariant) {
           const [upgradeId, ref] = upgradeVariant;
-          collectBand[upgradeId] = { state: 1, progress: null } as any;
-          const baseId = (ref as any).normalBandId || (ref as any).itemID;
+          collectBand[upgradeId] = { state: 1, progress: null };
+          const baseId = ref.normalBandId || ref.itemID;
           if (baseId && collectBand[baseId]) collectBand[baseId].state = 0;
         }
       }
@@ -579,9 +637,13 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
       // 修复（2026-09-09，S2）：补发「完成并结算集成战略」任务事件——原实现全仓无
       // emit 站点，soWeekTask_3（Rlv2SettleGame，指定主题）与 soWeekTask_3_rogue6
       // （Rlv2SettleGameTimes，任意主题）永久无法完成。
-      await mgr._trigger.emit("Rlv2SettleGame", [
-        { data: (mgr as any)._player._playerdata.rlv2 },
-      ]);
+      // 载荷为 rlv2 存档三键（mgr 的 live getter：current/outer 即存档引用，模板只读 game.theme）。
+      const rlv2State: PlayerRoguelikeV2 = {
+        current: mgr.current,
+        outer: mgr.outer,
+        pinned: mgr.pinned,
+      };
+      await mgr._trigger.emit("Rlv2SettleGame", [{ data: rlv2State }]);
       await mgr._trigger.emit("Rlv2SettleGameTimes", []);
     }
 
@@ -605,9 +667,9 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
    * game = { brief, record, score }；outer = 局外结算快照（mission before/after、BP、解锁、spOperatorInfo）。
    * 客户端在 gameSettle 响应里读取该结构渲染结算页；缺失即"点了放弃没反应"。
    */
-export function buildSettleResponse(mgr: RoguelikeV2Manager) : { game: any; outer: any } {
+export function buildSettleResponse(mgr: RoguelikeV2Manager) {
     const theme = mgr.current.game!.theme;
-    const { brief, record } = mgr.current.record as any;
+    const { brief, record } = mgr.current.record;
     // dorothinights gameSettle 对齐：score 仅按难度单次放大；生命游戏/难度 bump 的效率
     // （extra_grow_point → buff=1+extra、bp.cnt=floor(score×buff)）不放大 score 本体。
     const efficiency = mgr.blackstreamEfficiency(theme, mgr.current.game?.modeGrade ?? 0);
@@ -615,7 +677,8 @@ export function buildSettleResponse(mgr: RoguelikeV2Manager) : { game: any; oute
     const { detail, raw } = mgr.exploreBreakdown();
     const score = Math.floor(raw * scoreFactor); // 探索分数
     const boosted = Math.floor(score * efficiency); // bp.cnt（源流样本，含生命游戏加成）
-    const outerTheme = (mgr.outer as any)[theme] ?? {};
+    const outerTheme =
+      mgr.outer[theme] ?? ({} as PlayerRoguelikeV2.OuterData);
     const bp = (from: number) => ({ cnt: 0, from, to: from });
     const missionList = Array.isArray(outerTheme.mission?.list)
       ? outerTheme.mission.list

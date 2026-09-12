@@ -11724,7 +11724,7 @@ export interface RoguelikeGameItemData {
 }
 
 export interface RoguelikeBandRefData {
-    itemId: string;
+    itemID: string;
     bandLevel: number;
     normalBandId: string;
 }

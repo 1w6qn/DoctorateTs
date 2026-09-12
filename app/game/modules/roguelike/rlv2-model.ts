@@ -424,6 +424,30 @@ export namespace PlayerRoguelikeV2 {
             stageCnt: { [key: string]: number }
             bandCnt: { [key: string]: { [key: string]: number } }
             bandGrade: { [key: string]: { [key: string]: number } }
+            /**
+             * 难度通关记录（record.modeGrade[mode][grade] = 通关次数）：
+             * 进阶式扩展难度解锁依据，结算时写入（见 settle.ts）
+             */
+            modeGrade?: { [mode: string]: { [grade: string]: number } }
+            /**
+             * 对局历史（官服 outer[theme].record.history，仅保留最近 100 局；
+             * 结局图鉴/结局类勋章的计数来源，结算时写入）
+             */
+            history?: RecordHistory[]
+            /** 襁褓类藏品（LEGACY：局内获得 → 下一局增益）跨局携带列表 */
+            legacy?: string[]
+        }
+
+        /** 对局历史条目（record.history 元素） */
+        export interface RecordHistory {
+            seed: string
+            bandId: string
+            mode: string
+            modeGrade: number
+            ending: string
+            failEnding: string
+            result: number
+            endTs: number
         }
 
         export interface BattlePass {
@@ -479,10 +503,13 @@ export namespace PlayerRoguelikeV2 {
         export namespace Collection {
             export interface ItemUnlockInfo {
                 state: number
-                progress: number[]
+                /** 进度（服务端结算写入恒为 null，按运行时形态放宽） */
+                progress: number[] | null
             }
             export interface DifficultyUnlockInfo {
                 state: number
+                /** 难度解锁进度（同 ItemUnlockInfo.progress，结算写入恒为 null） */
+                progress?: number[] | null
             }
         }
 
@@ -503,6 +530,11 @@ export namespace PlayerRoguelikeV2 {
             pointCost: number
             unlocked: { [key: string]: number }
             score: number
+            /**
+             * 跨局源流堆栈余数（黑流树海：每满 200 点源流样本 → 1 点演化算子，
+             * 不足 200 的余数保留到后续探索；结算时写入，见 settle.ts）
+             */
+            sourceStack?: number
         }
         export interface MonthTeam {
             reward: { [key: string]: number }

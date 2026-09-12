@@ -187,12 +187,12 @@ export async function handleArkhubgetFriendUidList(player: PlayerDataManager, bo
 export async function handleArkhubgetPixelArt(player: PlayerDataManager, body: any) {
   const ids = Array.isArray(body.pixelArtIds) ? body.pixelArtIds : [];
   // 收集计数：非本人发布且未收集过的画像（computeNewCollects 去重）
-  const hub = (player._playerdata.activity as any)?.ARK_HUB?.act1arkhub;
+  const hub = player._playerdata.activity?.ARK_HUB?.act1arkhub;
   const collectedIds: number[] = Array.isArray(hub?.pixelCollectedIds) ? hub.pixelCollectedIds : [];
-  const fresh = computeNewCollects(String((player._playerdata.status as any)?.uid ?? ""), ids, collectedIds);
+  const fresh = computeNewCollects(String(player._playerdata.status?.uid ?? ""), ids, collectedIds);
   if (fresh.length > 0) {
     await player.update(async (draft) => {
-      const h = (draft.activity as any)?.ARK_HUB?.act1arkhub;
+      const h = draft.activity.ARK_HUB?.act1arkhub;
       if (!h) return;
       h.pixelCollectedIds = [...collectedIds, ...fresh];
     });
@@ -206,7 +206,7 @@ export async function handleArkhubgetPixelArt(player: PlayerDataManager, body: a
 
 export async function handleArkhubsetSecretary(player: PlayerDataManager, body: any) {
   await player.update(async (draft) => {
-    const act = draft.activity as any;
+    const act = draft.activity;
     if (!act.ARK_HUB) act.ARK_HUB = {};
     const hub = (act.ARK_HUB["act1arkhub"] = act.ARK_HUB["act1arkhub"] ?? {
       coin: 0,
@@ -225,7 +225,7 @@ export async function handleArkhubsetSecretary(player: PlayerDataManager, body: 
 
 export async function handleArkhubsetSquad(player: PlayerDataManager, body: any) {
   await player.update(async (draft) => {
-    const act = draft.activity as any;
+    const act = draft.activity;
     if (!act.ARK_HUB) act.ARK_HUB = {};
     const hub = (act.ARK_HUB["act1arkhub"] = act.ARK_HUB["act1arkhub"] ?? {
       coin: 0,
@@ -248,7 +248,7 @@ export async function handleArkhubsyncInfo(player: PlayerDataManager, body: Acti
   // 用 forcePatch 强制推送（纯读请求不产生 Immer 补丁，直接 res.delta 为空）。
   // 进度真实化（2026-08-17）：不再把未完成任务强制 [{1,1}]——任务模板监听事件
   // 驱动真实进度（播种 value:0/target:N），此处仅防御性保证 progress 为数组。
-  const pd = player._playerdata as any;
+  const pd = player._playerdata;
   await player.update(async (draft) => {
     const actMissions = (draft.mission as any)?.missions?.["ACTIVITY"];
     for (const id of Object.keys(actMissions ?? {})) {

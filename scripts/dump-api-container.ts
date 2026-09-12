@@ -51,6 +51,7 @@ async function readBundleBytes(file: string): Promise<Uint8Array> {
   if (ext === ".dat") {
     const zip = await JSZip.loadAsync(fs.readFileSync(file));
     const entries = Object.keys(zip.files).find((n) => !zip.files[n].dir);
+    if (entries === undefined) throw new Error(`.dat bundle 内无文件条目: ${file}`);
     const inner = await zip.files[entries].async("uint8array");
     return new Uint8Array(inner);
   }
@@ -60,7 +61,6 @@ async function readBundleBytes(file: string): Promise<Uint8Array> {
 /** 解析 UnityFS → 返回 CAB 与块信息 */
 function toCab(uf: Uint8Array): Uint8Array {
   let off = 0;
-  cstr(uf, off).split?.length;
   let e = 0;
   while (uf[e] !== 0) e++;
   off = e + 1;

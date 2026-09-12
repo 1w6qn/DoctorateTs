@@ -109,7 +109,9 @@ function resolveTarget(args: CliArgs): DatabaseOptions {
   const configured = resolveDatabaseOptions();
   const backend = args.to ?? configured.backend;
   if (backend === "sqlite") {
-    return { backend: "sqlite", file: args.file ?? configured.file };
+    // configured.file 只存在于 sqlite 后端对象上；非 sqlite 配置里它本就取不到值（undefined）
+    const file = configured.backend === "sqlite" ? configured.file : undefined;
+    return { backend: "sqlite", file: args.file ?? file };
   }
   const base = configured.backend === backend ? configured : undefined;
   return {

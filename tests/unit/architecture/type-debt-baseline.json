@@ -1,6 +1,6 @@
 {
   "totals": {
-    "any": 6792,
+    "any": 6545,
     "unknown": 517,
     "object": 57
   },
@@ -205,16 +205,6 @@
       "unknown": 2,
       "object": 0
     },
-    "app/game/modules/activities/arkhub/arkdex.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/activities/arkhub/arkhub.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/activities/arkhub/arkpixel.ts": {
       "any": 0,
       "unknown": 1,
@@ -236,12 +226,12 @@
       "object": 0
     },
     "app/game/modules/activities/arkhub/logic.ts": {
-      "any": 7,
+      "any": 5,
       "unknown": 1,
       "object": 0
     },
     "app/game/modules/activities/arkhub/router.ts": {
-      "any": 1,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
@@ -586,7 +576,7 @@
       "object": 0
     },
     "app/game/modules/medal/medal.ts": {
-      "any": 179,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
@@ -780,11 +770,6 @@
       "unknown": 2,
       "object": 0
     },
-    "app/game/modules/roguelike/settle.ts": {
-      "any": 62,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/roguelike/shop.ts": {
       "any": 11,
       "unknown": 0,
@@ -906,7 +891,7 @@
       "object": 0
     },
     "app/ops/admin/arkhub-pets.ts": {
-      "any": 3,
+      "any": 2,
       "unknown": 0,
       "object": 0
     },

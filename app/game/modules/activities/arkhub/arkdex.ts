@@ -15,10 +15,12 @@
  */
 import fs from "node:fs";
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
-import { ItemBundle } from "@excel/excel";
+import { ArkdexCreature, ItemBundle } from "@excel/excel";
 import excel from "@excel/excel";
+import { isJsonArray, isJsonObject, type JsonValue } from "@excel/json-value";
 import { logger } from "@utils/logger";
 import { ARKHUB_ACT_ID, arkhubCreatureCollected, ARKHUB_ERR } from "./arkhub";
+import type { ArkhubState } from "./arkhub";
 
 /** 扫描仪内存上限（ArkdexConstData.arkdexCreatureBagMaxNum） */
 export const ARKDEX_BAG_MAX = 400;
@@ -105,7 +107,7 @@ export function arkdexDamageScale(attack: string, defend: string): number {
 
 /** 伤害倍率（真实属性 id：arkdex_advantage_A/B/C；从 advantageTypeData.damageScaleMap 读） */
 export function arkdexDamageScaleById(attackId: string, defendId: string): number {
-  const types = (excel.ArkhubCreatureTable as any)?.advantageTypeData;
+  const types = excel.ArkhubCreatureTable?.advantageTypeData;
   const scale = types?.[attackId]?.damageScaleMap?.[defendId];
   if (typeof scale === "number") return scale;
   return 1.0;
@@ -143,19 +145,20 @@ export function arkdexSixStatsToCombat(stats: {
 /* ---------- arkdexModule 数据访问（excel.ArkhubCreatureTable = data/arkhub/arkdex.json） ---------- */
 
 /** 生物数据（按 creatureNumId；不存在返回 undefined） */
-export function arkdexCreature(numId: number): any {
-  return (excel.ArkhubCreatureTable as any)?.creatureData?.[String(numId)];
+export function arkdexCreature(numId: number): ArkdexCreature | undefined {
+  return excel.ArkhubCreatureTable?.creatureData?.[String(numId)];
 }
 
 /** 全部生物列表 */
-export function arkdexCreatures(): any[] {
-  return Object.values((excel.ArkhubCreatureTable as any)?.creatureData ?? {});
+export function arkdexCreatures(): ArkdexCreature[] {
+  return Object.values(excel.ArkhubCreatureTable?.creatureData ?? {});
 }
 
 /** 生物属性中文名（advantageType id → 奇术/本能/百变；未知返回原 id） */
 export function arkdexAdvantageName(numId: number): string {
   const c = arkdexCreature(numId);
-  return ARKDEX_ADVANTAGE_ID_NAMES[c?.advantageType] ?? c?.advantageType ?? "";
+  const advantageType = c?.advantageType ?? "";
+  return ARKDEX_ADVANTAGE_ID_NAMES[advantageType] ?? c?.advantageType ?? "";
 }
 
 /**
@@ -169,13 +172,13 @@ export function arkdexModeRules(modeId: string): {
   isMatching: boolean;
   isMultiplayer: boolean;
 } {
-  const m = (excel.ArkhubCreatureTable as any)?.modeData?.[modeId] ?? {};
+  const m = excel.ArkhubCreatureTable?.modeData?.[modeId];
   return {
-    numPlayers: m.numMax ?? 2,
-    rounds: m.maxRoundNumber ?? 1,
-    npcCount: m.battleNpcCount ?? 0,
-    isMatching: !!m.isMatching,
-    isMultiplayer: !!m.isMultiplayer,
+    numPlayers: m?.numMax ?? 2,
+    rounds: m?.maxRoundNumber ?? 1,
+    npcCount: m?.battleNpcCount ?? 0,
+    isMatching: !!m?.isMatching,
+    isMultiplayer: !!m?.isMultiplayer,
   };
 }
 
@@ -188,29 +191,48 @@ export function arkdexModeRules(modeId: string): {
  * @returns [{creatureNumId, traitMask}]；未知策略组返回空数组
  */
 export function arkdexEnemySquad(strategyGroupId: string): Array<{ creatureNumId: number; traitMask: number }> {
-  const group = (excel.ArkhubCreatureTable as any)?.npcDuelStrategyData?.[strategyGroupId];
+  const group = excel.ArkhubCreatureTable?.npcDuelStrategyData?.[strategyGroupId];
   if (!group) return [];
-  const data = findCreatureDataDeep(group);
-  return Array.isArray(data) ? data : [];
+  return toEnemySquad(findCreatureDataDeep(group));
 }
 
-/** 深度优先查找对象树中第一个 creatureData 数组（兼容多层解码包装） */
-function findCreatureDataDeep(node: unknown): unknown {
-  if (Array.isArray(node)) return node;
-  if (node && typeof node === "object") {
-    for (const v of Object.values(node as Record<string, unknown>)) {
-      if (v && typeof v === "object") {
+/** 深度优先查找对象树中第一个 JSON 数组（兼容多层解码包装） */
+function findCreatureDataDeep(node: JsonValue): JsonValue[] | undefined {
+  if (isJsonArray(node)) return node;
+  if (isJsonObject(node)) {
+    for (const v of Object.values(node)) {
+      if (typeof v === "object" && v !== null) {
         const found = findCreatureDataDeep(v);
-        if (Array.isArray(found)) return found;
+        if (found) return found;
       }
     }
   }
   return undefined;
 }
 
+/**
+ * 把深层查找到的 JSON 数组收窄为敌队列表
+ *
+ * 官方数据每项形如 `{ creatureNumId, traitMask }`；形状不符的项丢弃
+ * （traitMask 非数值按 0）。
+ */
+function toEnemySquad(data: JsonValue[] | undefined): Array<{ creatureNumId: number; traitMask: number }> {
+  if (!data) return [];
+  const out: Array<{ creatureNumId: number; traitMask: number }> = [];
+  for (const entry of data) {
+    if (!isJsonObject(entry)) continue;
+    const numId = entry.creatureNumId;
+    if (typeof numId !== "number") continue;
+    const mask = entry.traitMask;
+    out.push({ creatureNumId: numId, traitMask: typeof mask === "number" ? mask : 0 });
+  }
+  return out;
+}
+
 /** ARKDEX 常量（dexConstData，如 bag 上限/队伍大小/稀有度上限） */
 export function arkdexConst(key: string): number {
-  return (excel.ArkhubCreatureTable as any)?.dexConstData?.[key] ?? 0;
+  const v = excel.ArkhubCreatureTable?.dexConstData?.[key];
+  return typeof v === "number" ? v : 0;
 }
 
 /**
@@ -220,12 +242,12 @@ export function arkdexConst(key: string): number {
  * @returns [{traitId, name, description, traitMask}] 按 key 排序
  */
 export function arkdexTraits(): Array<{ traitId: string; name: string; description: string; traitMask: number }> {
-  const td = (excel.ArkhubCreatureTable as any)?.traitData ?? {};
-  return Object.values(td).map((v: any) => ({
-    traitId: v?.traitId ?? "",
-    name: v?.name ?? "",
-    description: v?.description ?? "",
-    traitMask: v?.traitMask ?? 0,
+  const td = excel.ArkhubCreatureTable?.traitData ?? {};
+  return Object.values(td).map((v) => ({
+    traitId: v.traitId ?? "",
+    name: v.name ?? "",
+    description: v.description ?? "",
+    traitMask: v.traitMask ?? 0,
   }));
 }
 
@@ -248,26 +270,26 @@ export const ARKDEX_HABITATS = ["密林外沿", "晦光林地", "奇生保护区
 export type ArkdexHabitat = (typeof ARKDEX_HABITATS)[number];
 
 /** 按栖息地筛选生物（obtainApproach 形如"生息于密林外沿"，前缀匹配；供扫描遭遇按区域选生物池） */
-export function arkdexCreaturesByHabitat(habitat: string): any[] {
+export function arkdexCreaturesByHabitat(habitat: string): ArkdexCreature[] {
   return arkdexCreatures().filter((c) => (c?.obtainApproach ?? "").includes(habitat));
 }
 
 /** 按珍奇度筛选生物（普通栖息地 1-2★；保护区含 3★） */
-export function arkdexCreaturesByRarity(rarity: number): any[] {
+export function arkdexCreaturesByRarity(rarity: number): ArkdexCreature[] {
   return arkdexCreatures().filter((c) => c?.rarity === rarity);
 }
 
 /** 读 ARK_HUB 状态（update 配方外只读） */
-function hub(player: PlayerDataManager): any {
-  return (player._playerdata.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+function hub(player: PlayerDataManager): ArkhubState | undefined {
+  return player._playerdata.activity?.ARK_HUB?.[ARKHUB_ACT_ID];
 }
 
 /** 发放 token_seal（入背包 + coin/tshop 同步，复用 arkhub.ts 内部形状） */
 async function grantSeal(player: PlayerDataManager, reward: ItemBundle): Promise<void> {
   await player.update(async (draft) => {
-    const h = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const h = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (h) h.coin = (h.coin ?? 0) + reward.count;
-    const shop = (draft.tshop as any)?.["shop_act1arkhub"];
+    const shop = draft.tshop?.["shop_act1arkhub"];
     if (shop) shop.coin = (shop.coin ?? 0) + reward.count;
   });
   await player.gainItem.add(reward).handle();
@@ -286,7 +308,7 @@ export async function arkhubDexRecount(player: PlayerDataManager): Promise<void>
   const alterCount = entries.filter((e) => e.isAlter).length;
   const activeCount = entries.filter((e) => e.active).length;
   await player.update(async (draft) => {
-    const h = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const h = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!h) return;
     h.creatureCollected = count;
     h.activeCreatureCollected = activeCount;
@@ -317,7 +339,7 @@ export async function arkhubScanSucceed(
   }
   await grantSeal(player, ARKDEX_SCAN_REWARD);
   await player.update(async (draft) => {
-    const h = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const h = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!h) return;
     h.dex = h.dex ?? {};
     h.scanBag = h.scanBag ?? [];
@@ -340,7 +362,7 @@ export async function arkhubScanSucceed(
         isAlter: !!args.alterOf?.[numId],
         ...(args.alterOf?.[numId] ? { alterOf: args.alterOf[numId] } : {}),
         fav: false,
-        sourceUid: (draft.status as any)?.uid ?? "",
+        sourceUid: draft.status?.uid ?? "",
       });
     }
   });
@@ -386,27 +408,27 @@ export async function arkhubBuyProp(
   let ok = false;
   let stockShort = false;
   await player.update(async (draft) => {
-    const hh = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hh = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hh) return;
     const stockKey = `${itemNumId}`;
-    const sold = hh.propSoldToday ?? {};
-    if (sold.date !== today) {
-      // 新的一天：重置每日售出记录
-      hh.propSoldToday = { date: today, sold: {} };
+    // 每日售出记录：跨日重置（sold 与 hh.propSoldToday 始终指向同一对象）
+    let sold = hh.propSoldToday;
+    if (sold?.date !== today) {
+      sold = hh.propSoldToday = { date: today, sold: {} };
     }
-    const soldCount = hh.propSoldToday?.sold?.[stockKey] ?? 0;
+    const soldCount = sold.sold?.[stockKey] ?? 0;
     if (soldCount + count > def.dailyStock) {
       stockShort = true; // 库存不足（共享库存每日刷新，官码 SHOP_ITEM_NOT_ENOUGH）
       return;
     }
     hh.coin = (hh.coin ?? 0) - totalPrice;
-    const shop = (draft.tshop as any)?.["shop_act1arkhub"];
+    const shop = draft.tshop?.["shop_act1arkhub"];
     if (shop) shop.coin = Math.max(0, (shop.coin ?? 0) - totalPrice);
     hh.props = hh.props ?? {};
     const p = (hh.props[stockKey] = hh.props[stockKey] ?? { count: 0, uses: 0 });
     p.count += count;
     p.uses += count; // 诱引剂/信息素：每次使用消耗 1 次生效次数
-    hh.propSoldToday.sold[stockKey] = soldCount + count;
+    sold.sold[stockKey] = soldCount + count;
     ok = true;
   });
   if (ok) {
@@ -436,7 +458,7 @@ export async function arkhubUseProp(
   const key = String(itemNumId);
   let ok = false;
   await player.update(async (draft) => {
-    const hh = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hh = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     const p = hh?.props?.[key];
     if (!p || (p.uses ?? 0) < 1) return;
     p.uses -= 1;
@@ -463,7 +485,7 @@ export async function arkhubSetTrade(
   offerNumIds: number[] = [],
 ): Promise<void> {
   await player.update(async (draft) => {
-    const h = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const h = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!h) return;
     h.trade = {
       wantSpecies: wantSpecies === null ? null : Number(wantSpecies),
@@ -531,7 +553,7 @@ export async function arkhubPersistShopToday(
 ): Promise<void> {
   const dateKey = new Date().toISOString().slice(0, 10);
   await player.update(async (draft) => {
-    const h = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const h = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!h) return;
     h.shopToday = { date: dateKey, ids: ids.map(Number) };
   });
@@ -556,7 +578,7 @@ export async function arkhubUnlockArea(
   areaId: number | string,
 ): Promise<void> {
   await player.update(async (draft) => {
-    const h = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const h = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!h) return;
     h.unlockedAreas = h.unlockedAreas ?? {};
     h.unlockedAreas[String(areaId)] = 1;
@@ -642,7 +664,7 @@ export function arkdexCaptureAreaToHabitat(areaIdOrMapId: number | string): Arkd
 /**
  * 按栖息地构建遭遇物种池（普通区域仅 1-2★；保护区解锁后含 3★——攻略明文）
  */
-export function arkdexBuildEncounterPool(habitat: ArkdexHabitat, isProtected: boolean): any[] {
+export function arkdexBuildEncounterPool(habitat: ArkdexHabitat, isProtected: boolean): ArkdexCreature[] {
   return arkdexCreaturesByHabitat(habitat).filter(
     (c) => isProtected || (c?.rarity ?? 0) <= 2,
   );
@@ -659,9 +681,9 @@ export function arkdexActiveLure(player: PlayerDataManager): number | undefined 
 }
 
 /** 加权随机选 count 个生物（3★ 权重 0.3 实现保护区"有概率出现"） */
-function pickWeighted(pool: any[], count: number): any[] {
+function pickWeighted(pool: ArkdexCreature[], count: number): ArkdexCreature[] {
   const remaining = [...pool];
-  const picked: any[] = [];
+  const picked: ArkdexCreature[] = [];
   for (let n = 0; n < count && remaining.length > 0; n++) {
     const weights = remaining.map((c) => ((c?.rarity ?? 1) >= 3 ? 0.3 : 1));
     const total = weights.reduce((a, b) => a + b, 0);
@@ -703,13 +725,16 @@ export async function arkhubStartEncounter(
   const lureNumId = opts.lureNumId ?? arkdexActiveLure(player);
   const def = lureNumId ? ARKDEX_PROPS[lureNumId] : undefined;
 
-  let pool: any[];
+  let pool: ArkdexCreature[];
   if (opts.forceNumIds && opts.forceNumIds.length > 0) {
-    pool = opts.forceNumIds.map((id) => arkdexCreature(id)).filter(Boolean);
+    pool = opts.forceNumIds
+      .map((id) => arkdexCreature(id))
+      .filter((c): c is ArkdexCreature => c !== undefined);
   } else {
     pool = arkdexBuildEncounterPool(habitat, isProtected);
     // 珍奇度诱引剂/信息素：定向遭遇池到目标稀有度
-    if (def?.targetRarity) pool = pool.filter((c) => c.rarity === def.targetRarity);
+    const targetRarity = def?.targetRarity;
+    if (targetRarity) pool = pool.filter((c) => c.rarity === targetRarity);
     // 特质定向（targetTraitMask）：生物数据无 trait 字段，无法过滤——保持池不变（记录道具）
     if (pool.length === 0) pool = arkdexBuildEncounterPool(habitat, isProtected);
   }
@@ -748,7 +773,7 @@ export async function arkhubRecordEncounter(
   encounter: ArkdexEncounter,
 ): Promise<void> {
   await player.update(async (draft) => {
-    const hh = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hh = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hh) return;
     hh.arkdexState = hh.arkdexState ?? {};
     hh.arkdexState.activeEncounter = encounter;
@@ -831,7 +856,9 @@ export async function arkhubEndScan(
   capturedNumIds: number[],
 ): Promise<{ success: boolean; encounter?: ArkdexEncounter }> {
   const h = hub(player);
-  const enc = h?.arkdexState?.activeEncounter;
+  // 玩家存档里的 arkdexState 是未建模 JSON 槽位（ServerPayload 域）——写入方
+  // arkhubRecordEncounter 存的是 ArkdexEncounter，读回时按该形状收窄。
+  const enc = h?.arkdexState?.activeEncounter as ArkdexEncounter | undefined;
   const ids = Array.isArray(capturedNumIds)
     ? capturedNumIds.map(Number).filter((n) => Number.isFinite(n))
     : [];
@@ -841,7 +868,7 @@ export async function arkhubEndScan(
   }
   // 清除扫描会话（遭遇为一次性）
   await player.update(async (draft) => {
-    const hh = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    const hh = draft.activity.ARK_HUB?.[ARKHUB_ACT_ID];
     if (hh?.arkdexState) delete hh.arkdexState.activeEncounter;
   });
   if (ids.length === 0) {

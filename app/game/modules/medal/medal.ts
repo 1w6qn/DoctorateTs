@@ -27,6 +27,7 @@ import { now } from "@utils/time";
 import moment from "moment";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import type { EventMap } from "../../kernel/events";
+import type { PassStageStats } from "../../kernel/events/medal";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { PlayerCharacter } from "../../kernel/model";
 import { rarityToIndex } from "@utils/rarity";
@@ -242,8 +243,6 @@ export class MedalManager implements PlayerMedal {
  * - reward: 奖励领取状态
  */
 export class MedalProgress implements PlayerPerMedal {
-  [key: string]: any;
-
   val: number[][];
   id: string;
   rts: number;
@@ -382,13 +381,15 @@ export class MedalProgress implements PlayerPerMedal {
     if (!medalInfo) {
       return;
     }
-    const template = medalInfo.template as string;
+    const template = medalInfo.template;
     if (!template) {
       this.val = [];
       return;
     }
     this.param = medalInfo.unlockParam;
-    if (!(template in this)) {
+    // 模板名 → 处理函数（显式表）。表里没有 = 未实现模板，语义等价于原 `template in this`。
+    const handler = MedalTemplateHandlers[template];
+    if (!handler) {
       // 未实现模板（数据版本新增 / 活动模板）——降级为不追踪进度，避免整服崩溃
       logger.debug(
         "MedalManager",
@@ -398,7 +399,7 @@ export class MedalProgress implements PlayerPerMedal {
       return;
     }
 
-    (this as any)[template]({}, "init");
+    handler(this, {} as never, "init");
 
     const target = this.val[0][1];
     // 存档侧目标位修复（2026-09-09）：旧实现在危机合约等模板上把目标算成 NaN，
@@ -418,8 +419,12 @@ export class MedalProgress implements PlayerPerMedal {
       return;
     }
 
-    const func = async (args: any[]) => {
-      (this as any)[template](args[0], "update");
+    // 模板名即事件名。已声明模板直接命中 EventMap 键；历史模板名（无 emit 侧）
+    // 不在 EventMap 中，但运行时仍是同一个字符串键，订阅/退订语义不变。
+    const eventName = template as keyof EventMap;
+    const func = async (data: EventMap[keyof EventMap]) => {
+      // data 为事件载荷元组（Emittery 单参约定），首元素即模板载荷
+      handler(this, data[0] as never, "update");
       // 进度更新显式写回持久态 + 标记脏（A1——不依赖共享引用隐式落盘）
       this._syncToPersist();
       if (this.val[0][0] >= target) {
@@ -427,7 +432,7 @@ export class MedalProgress implements PlayerPerMedal {
         // 修复：完成时记录首次获得时间戳（原实现从不设 fts，完成态判定仅靠进度）
         this.fts = now();
         this._syncToPersist();
-        this._trigger.off(template as any, func);
+        this._trigger.off(eventName, func);
         // 修复：await 完成事件——Emittery.emit 并行执行监听器，原 fire-and-forget
         // 的 medal:complete 与同批任务监听器的 update() 并发竞争共享 Immer draft，
         // 可触发 "proxy revoked"（与 mission.ts 同源交错问题）
@@ -435,7 +440,7 @@ export class MedalProgress implements PlayerPerMedal {
       }
     };
 
-    this._trigger.on(template as any, func);
+    this._trigger.on(eventName, func);
   }
 
   /**
@@ -449,13 +454,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标等级
    */
   PlayerLevel(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { level: number }) => {
         this.val[0][0] = args.level;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -464,13 +469,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标天数
    */
   JoinGameDays(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -479,7 +484,7 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标干员数量
    */
   CharNum(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { curCharInstId: number }) => {
         // 修复：实际干员数 = curCharInstId - 1（instId 从 1 递增，与
@@ -487,7 +492,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] = Math.max(0, (args.curCharInstId ?? 1) - 1);
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -496,13 +501,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标招募次数
    */
   RecruitCount(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: {}) => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -513,7 +518,7 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[2] 目标通关数量
    */
   PassStageSome(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[2])),
       update: (args: PlayerDataManager) => {
         const stages: string[] = this.param[1].split(";");
@@ -529,7 +534,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] = count;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -538,13 +543,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标花费数量
    */
   CampaignsDiamondLimit(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: PlayerCampaign) => {
         this.val[0][0] = args.campaignTotalFee;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -553,7 +558,7 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 剿灭作战ID
    */
   CampaignsComplete(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, 1),
       update: (args: PlayerCampaign) => {
         if (args.instances[this.param[0]].maxKills != 400) {
@@ -565,7 +570,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -577,7 +582,7 @@ export class MedalProgress implements PlayerPerMedal {
     // 修复（2026-09-09）：数据里 param[0] 是保全派驻关卡 id（tower_n_01…）、param[2] 为
     // 困难标记（0/1）——原实现 `parseInt(param[0])` 恒 NaN（目标 NaN 永不完成），
     // 且把「通关数量」当累加值。现改为「通关指定副本即完成」。
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: () => this.val[0].push(0, 1),
       update: (args: { stageId?: string; count?: number; isHard?: boolean }) => {
         const want = this.param[0];
@@ -588,7 +593,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += args?.count ?? 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -598,7 +603,7 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[1] 精英化阶段要求（默认为2，即精英二）
    */
   CharEvolveCount(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { char: PlayerCharacter }) => {
         if (args.char.evolvePhase >= parseInt(this.param[1] || "2")) {
@@ -606,7 +611,7 @@ export class MedalProgress implements PlayerPerMedal {
         }
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -615,13 +620,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标技能等级累加值
    */
   CharSkillCount(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { targetLevel: number }) => {
         this.val[0][0] += args.targetLevel;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -631,7 +636,7 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[1] 专精等级要求（默认为3）
    */
   CharSkillSpecCount(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { targetLevel: number }) => {
         if (args.targetLevel >= parseInt(this.param[1] || "3")) {
@@ -639,7 +644,7 @@ export class MedalProgress implements PlayerPerMedal {
         }
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -649,7 +654,7 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[1] 信赖度百分比要求（默认为200%）
    */
   CharFavorCount(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { favorPoint: number }) => {
         let percent: number;
@@ -669,7 +674,7 @@ export class MedalProgress implements PlayerPerMedal {
         }
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -679,7 +684,7 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[1] 干员稀有度要求（默认为5星）
    */
   GotChars(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => {
         // 修复：param[0] 可能是分号分隔的干员列表（medal_growth_char_*）——
         // parseInt 得 NaN → 目标永远无法达成；列表形式目标 = 列表长度
@@ -706,7 +711,7 @@ export class MedalProgress implements PlayerPerMedal {
         }
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -716,7 +721,7 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[1] 潜能等级要求（默认为6）
    */
   CharPotential(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => {
         // 修复：param[0] 可能是分号分隔的干员列表（medal_growth_potential_*）——
         // parseInt 得 NaN → 目标永不可达成；列表形式目标 = 列表长度
@@ -732,7 +737,7 @@ export class MedalProgress implements PlayerPerMedal {
         }
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -741,13 +746,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标解锁数量
    */
   CharStoryUnlock(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -761,13 +766,13 @@ export class MedalProgress implements PlayerPerMedal {
     // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
     // param[1]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -782,13 +787,13 @@ export class MedalProgress implements PlayerPerMedal {
     // [[1,1]]（达成标志），param[1] 是**条件 id 而非数值**——原实现 parseInt(param[0])
     //（主题 id）→ NaN → 永不可得。故目标恒为 1，条件满足时置 1。
     const target = 1;
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -802,13 +807,13 @@ export class MedalProgress implements PlayerPerMedal {
     // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
     // param[2]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
     const target = this._paramNum(2);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -822,13 +827,13 @@ export class MedalProgress implements PlayerPerMedal {
     // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
     // param[1]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -843,13 +848,13 @@ export class MedalProgress implements PlayerPerMedal {
     // [[1,1]]（达成标志），param[1] 是**条件 id 而非数值**——原实现 parseInt(param[0])
     //（主题 id）→ NaN → 永不可得。故目标恒为 1，条件满足时置 1。
     const target = 1;
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -864,13 +869,13 @@ export class MedalProgress implements PlayerPerMedal {
     // [[1,1]]（达成标志），param[1] 是**条件 id 而非数值**——原实现 parseInt(param[0])
     //（主题 id）→ NaN → 永不可得。故目标恒为 1，条件满足时置 1。
     const target = 1;
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -884,13 +889,13 @@ export class MedalProgress implements PlayerPerMedal {
     // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
     // param[1]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -904,13 +909,13 @@ export class MedalProgress implements PlayerPerMedal {
     // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
     // param[1]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -924,13 +929,13 @@ export class MedalProgress implements PlayerPerMedal {
     // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
     // param[1]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -944,13 +949,13 @@ export class MedalProgress implements PlayerPerMedal {
     // 目标位修复（2026-09-09）：unlockParam[0] 是主题 id（sandbox_1），数值目标在
     // param[2]（官服存档 val[0][1] 反推）——原实现 parseInt(param[0]) → NaN → 永不可得。
     const target = this._paramNum(2);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -965,13 +970,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -984,7 +989,7 @@ export class MedalProgress implements PlayerPerMedal {
     // 目标位修复（2026-09-09）：unlockParam = [主题, 目标节点数]（官服 getMethod
     // 「在集成战略：XX主题中通过 N 个节点」，官服存档 val[0][1] 反推目标位 = param[1]）。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 事件由 roguelike battle-nav 在抵达节点时发射（载荷带 theme）
       update: (args: { theme?: string }) => {
@@ -992,7 +997,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1005,7 +1010,7 @@ export class MedalProgress implements PlayerPerMedal {
     // unlockParam = [主题, 目标等级]（官服 getMethod「在集成战略：XX主题的源流堆栈中解锁至 N 级」）。
     // 目标位修复（2026-09-09）：原实现取 parseInt(param[0])（主题 id）→ NaN → 永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 载荷为当前等级（由 bp.point 按官方 milestones 门槛换算）——等级单调递增，
       // 覆盖写入即可；补主题门控（args.theme），避免别主题的等级覆盖本章进度。
@@ -1014,7 +1019,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] = Math.max(this.val[0][0], args.level ?? 0);
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1024,13 +1029,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标次数
    */
   PermUpgrade(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1040,13 +1045,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标次数
    */
   UseAlchemy(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1059,7 +1064,7 @@ export class MedalProgress implements PlayerPerMedal {
     // 目标位修复（2026-09-09）：unlockParam = [主题, 目标招募次数]（官服 getMethod
     // 「在集成战略：XX主题中招募或应急雇佣干员 N 次」）。原实现取 parseInt(param[0]) → NaN。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 事件由 roguelike recruit.ts 在招募确认时发射（载荷带 theme）
       update: (args: { theme?: string }) => {
@@ -1067,7 +1072,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1081,13 +1086,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1100,7 +1105,7 @@ export class MedalProgress implements PlayerPerMedal {
     // unlockParam = [主题, 目标结局种数]（官服 getMethod「在集成战略：XX主题中达成 N 种结局」）。
     // 目标位修复（2026-09-09）：原实现取 parseInt(param[0])（主题 id）→ NaN → 永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 载荷为当前**已达成结局种数**（collect.endBook 条目数，settle 写入）——取 max 幂等；
       // 原实现逐条 ending 事件 +1，无去重、也无事件派发。
@@ -1109,7 +1114,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] = Math.max(this.val[0][0], args.count ?? 0);
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1123,7 +1128,7 @@ export class MedalProgress implements PlayerPerMedal {
     // unlockParam = [主题, 目标收藏品数]（官服 getMethod「XX主题中的拟造物质编目已持有 N 个收藏品」）。
     // 目标位修复（2026-09-09）：原实现取 parseInt(param[0])（主题 id）→ NaN → 永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 载荷为**当前累计收藏数**（roguelike 局外 collect.relic 已获得条目数，非增量）——
       // 取 max 保证幂等；原实现为 registerTs 天数占位逻辑。
@@ -1132,7 +1137,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] = Math.max(this.val[0][0], args.count ?? 0);
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1149,7 +1154,7 @@ export class MedalProgress implements PlayerPerMedal {
     //（主题 id）→ NaN，且 update 为 registerTs 天数占位逻辑。
     const target = this._paramNum(3);
     const wantChars = [...this._paramList(1), ...this._paramList(2)];
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 载荷由 settle 在结算时发出：本局参战干员 + 本局作战胜利数
       update: (args: {
@@ -1164,7 +1169,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += args.battleWinCount ?? 0;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1175,13 +1180,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标结局次数
    */
   Rlv2EndingWithModeGrade(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1195,7 +1200,7 @@ export class MedalProgress implements PlayerPerMedal {
     // unlockParam = [主题, 目标分队数]（官服 getMethod「在集成战略：XX主题中解锁 N 个分队」）。
     // 目标位修复（2026-09-09）：原实现取 parseInt(param[0])（主题 id）→ NaN → 永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 载荷为当前**已解锁分队数**（collect.band state ≥ 1，见 events.ts「state 1 = 已解锁」）
       update: (args: { theme?: string; count?: number }) => {
@@ -1203,7 +1208,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] = Math.max(this.val[0][0], args.count ?? 0);
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1214,13 +1219,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标共鸣数
    */
   Rlv2TotemResonance(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1231,13 +1236,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标任务数
    */
   Rlv2CompleteNodeMission(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1248,13 +1253,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标胶囊数
    */
   Rlv2GainCapsule(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1263,7 +1268,7 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标主题数量
    */
   BuildingGotFurnitureThemeCount(args: { count?: number }, mode: string = "update") {
-    const funcs: { [key: string]: (args: { count?: number }) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       // 修复：原实现复制 JoinGameDays（按注册天数）——主题数恒为注册天数；
       // 现按家具主题去重计数（args.count 由 inventory FURN 发放时下发）
@@ -1271,7 +1276,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] = Math.max(this.val[0][0], args.count ?? 0);
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1280,7 +1285,7 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标制造次数
    */
   BuildingManufactureProductTimes(args: { count?: number }, mode: string = "update") {
-    const funcs: { [key: string]: (args: { count?: number }) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       // 修复：原实现复制 JoinGameDays——制造次数恒为注册天数；
       // 现按 settleManufacture 实际产出方案数累加
@@ -1288,7 +1293,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += args.count ?? 0;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1298,7 +1303,7 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[1] 配方类型过滤（formulaType）
    */
   BuildingWorkshopSynthesisGroupByID(args: { groupId?: string }, mode: string = "update") {
-    const funcs: { [key: string]: (args: { groupId?: string }) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       // 修复：原实现复制 JoinGameDays——合成次数恒为注册天数；
       // 现按 workshopSynthesis 配方类型匹配 param[1] 累加
@@ -1308,7 +1313,7 @@ export class MedalProgress implements PlayerPerMedal {
         }
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1318,15 +1323,15 @@ export class MedalProgress implements PlayerPerMedal {
    * 干员入账处发射。
    */
   GotCharsBeforeTime(args: { charId: string }, mode: string = "update") {
-    const funcs: { [key: string]: (args: { charId: string }) => void } = {
-      init: (args) => this.val[0].push(0, 1),
-      update: (args) => {
+    const funcs = {
+      init: (_args: {}) => this.val[0].push(0, 1),
+      update: (args: { charId: string }) => {
         if (args.charId !== this.param[0]) return;
         if (now() > parseInt(this.param[1])) return;
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1336,16 +1341,16 @@ export class MedalProgress implements PlayerPerMedal {
    * ActivityCoinCost:[{coinType, cost}] 由活动商店扣币处发射。
    */
   ActivityCoinCost(args: { coinType: string; cost: number }, mode: string = "update") {
-    const funcs: { [key: string]: (args: { coinType: string; cost: number }) => void } = {
-      init: (args) => this.val[0].push(0, parseInt(this.param[2])),
-      update: (args) => {
+    const funcs = {
+      init: (_args: {}) => this.val[0].push(0, parseInt(this.param[2])),
+      update: (args: { coinType: string; cost: number }) => {
         if (typeof args?.coinType === "string" && !String(args.coinType).includes(this.param[0])) {
           return;
         }
         this.val[0][0] += args.cost ?? 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1355,17 +1360,17 @@ export class MedalProgress implements PlayerPerMedal {
    * MissionCompleteSome:[{count}] 在活动任务成功领取后发射（每完成一个 +1）。
    */
   MissionCompleteSome(args: { count: number }, mode: string = "update") {
-    const funcs: { [key: string]: (args: { count?: number }) => void } = {
+    const funcs = {
       init: () => {
         const p0 = String(this.param[0] ?? "");
         const target = p0.includes(";") ? p0.split(";").length : parseInt(p0) || 0;
         this.val[0].push(0, target);
       },
-      update: (args) => {
+      update: (args: { count?: number }) => {
         this.val[0][0] += args?.count ?? 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1376,13 +1381,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标代币数量
    */
   ActivityPassStageWithSimpleTokenCountMore(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1397,13 +1402,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1414,22 +1419,12 @@ export class MedalProgress implements PlayerPerMedal {
    * PassStageWithSimpleCountMore:[{stageId, completeState, enemyStats}] 由 battle 结算发射。
    */
   PassStageWithSimpleCountMore(
-    args: {
-      stageId: string;
-      completeState: number;
-      enemyStats?: { Key: { enemyId: string; counterType: string }; Value: number }[];
-    },
+    args: PassStageStats,
     mode: string = "update",
   ) {
-    const funcs: {
-      [key: string]: (args: {
-        stageId: string;
-        completeState: number;
-        enemyStats?: { Key: { enemyId: string; counterType: string }; Value: number }[];
-      }) => void;
-    } = {
-      init: (args) => this.val[0].push(0, parseInt(this.param[4])),
-      update: (args) => {
+    const funcs = {
+      init: (_args: {}) => this.val[0].push(0, parseInt(this.param[4])),
+      update: (args: PassStageStats) => {
         if (args.stageId !== this.param[1]) return;
         if ((args.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
         const stats = args.enemyStats ?? [];
@@ -1443,7 +1438,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1454,13 +1449,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标等级
    */
   PassStageWithDetailDiffCountMore(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1470,19 +1465,19 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    * @param param[1] 代币数量上限
    */
-  PassStageWithSimpleTokenCountLess(args: any, mode: string = "update") {
+  PassStageWithSimpleTokenCountLess(args: PassStageStats, mode: string = "update") {
     // 修复（2026-09-09）：数据实参为 [completeState, stageId, token 名, 目标场次]，
     // 原实现读 args.tokenCount/param[1]（stageId）→ 恒不成立。
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: () => this.val[0].push(0, parseInt(this.param[3] ?? "1") || 1),
-      update: (args: any) => {
+      update: (args: PassStageStats) => {
         if (args?.stageId !== this.param[1]) return;
         if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
         if (this._tokenStatValue(args, this.param[2]) > 0) return;
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1491,12 +1486,12 @@ export class MedalProgress implements PlayerPerMedal {
    * 每场累计击杀数 killCnt 累加，达 param[0] 完成。
    * @param param[0] 目标击杀总数
    */
-  PassStageKilledTotal(args: any, mode: string = "update") {
+  PassStageKilledTotal(args: PassStageStats, mode: string = "update") {
     // 修复（2026-09-09）：数据实参为 [completeState, 关卡列表(;), 敌人 id, 目标击杀数]，
     // 原实现读 args.killCnt/param[0]（completeState）→ 恒错。
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: () => this.val[0].push(0, parseInt(this.param[3] ?? "1") || 1),
-      update: (args: any) => {
+      update: (args: PassStageStats) => {
         const stages = String(this.param[1] ?? "").split(";").filter(Boolean);
         if (stages.length && !stages.includes(args?.stageId)) return;
         if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
@@ -1505,7 +1500,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] = Math.min(this.val[0][1], this.val[0][0] + killed);
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1516,13 +1511,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标总分
    */
   ActMultiplayVerify2StageTotalScore(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1537,13 +1532,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(2);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1554,13 +1549,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标点数
    */
   ActivityMilestonePoint(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1576,7 +1571,7 @@ export class MedalProgress implements PlayerPerMedal {
     // param[0]=目标数量、param[1]=物品 id（如时装 char_264_f12yin@marthe#13）、param[2]=截止时间戳（秒）。
     // 事件由物品管道（InventoryManager items:get）补发。
     const target = parseInt(this.param[0] ?? "1") || 1;
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: () => this.val[0].push(0, target),
       update: (args: { itemId?: string }) => {
         const wantItem = this.param[1];
@@ -1586,7 +1581,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1649,18 +1644,18 @@ export class MedalProgress implements PlayerPerMedal {
    * 通关时场内置放/使用代币数不低于 param[1] 即 +1，达 param[0] 完成。
    * （注：数据实参布局为 [completeState, stageId, token, 目标场次]，见下方实现）
    */
-  PassStageWithSimpleTokenCountMore(args: any, mode: string = "update") {
+  PassStageWithSimpleTokenCountMore(args: PassStageStats, mode: string = "update") {
     // 修复（2026-09-09）：同 TokenCountLess——按 [completeState, stageId, token, 目标场次] 解析
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: () => this.val[0].push(0, parseInt(this.param[3] ?? "1") || 1),
-      update: (args: any) => {
+      update: (args: PassStageStats) => {
         if (args?.stageId !== this.param[1]) return;
         if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
         if (this._tokenStatValue(args, this.param[2]) < 1) return;
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1677,7 +1672,7 @@ export class MedalProgress implements PlayerPerMedal {
     const target = 1;
     const need = this._paramNum(3);
     const wantMap = String(this.param?.[1] ?? "").replace(/^level_/, "");
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { seasonId?: string; mapId?: string; score?: number }) => {
         if (!this._seasonMatch(args.seasonId)) return;
@@ -1685,7 +1680,7 @@ export class MedalProgress implements PlayerPerMedal {
         if ((args.score ?? 0) >= need) this.val[0][0] = 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1699,7 +1694,7 @@ export class MedalProgress implements PlayerPerMedal {
     // "crisis_v2_05-01^pack_1" / "crisis_v2_03-03_b^keypoint_1"）
     const target = this._paramNum(2);
     const wantNodes = this._paramList(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { seasonId?: string; nodeIds?: string[] }) => {
         if (!this._seasonMatch(args.seasonId)) return;
@@ -1715,7 +1710,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] = Math.max(this.val[0][0], hit);
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1732,7 +1727,7 @@ export class MedalProgress implements PlayerPerMedal {
     const target = 1;
     const need = this._paramNum(3);
     const wantMap = String(this.param?.[1] ?? "").replace(/^level_/, "");
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { seasonId?: string; mapId?: string; score?: number }) => {
         if (!this._seasonMatch(args.seasonId)) return;
@@ -1740,7 +1735,7 @@ export class MedalProgress implements PlayerPerMedal {
         if ((args.score ?? 0) >= need) this.val[0][0] = 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1753,7 +1748,7 @@ export class MedalProgress implements PlayerPerMedal {
   CrisisV2UseAssist(args: {}, mode: string = "update") {
     // unlockParam: [赛季, 目标场次]（官服文案「使用助战并通关任意作战不小于5次」）
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 携带助战通关次数（battleFinish 按是否用助战发 used）
       update: (args: { seasonId?: string; used?: number }) => {
@@ -1761,7 +1756,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += args.used ?? 0;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1776,13 +1771,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(2);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1792,19 +1787,19 @@ export class MedalProgress implements PlayerPerMedal {
    * 注：当前为占位实现（未接入玩法真实状态）。
    * @param param[0] 目标场次
    */
-  PassStageWithSimpleCountLess(args: any, mode: string = "update") {
+  PassStageWithSimpleCountLess(args: PassStageStats, mode: string = "update") {
     // 修复（2026-09-09）：原为「注册后天数」占位实现；数据实参为
     // [completeState, stageId, 敌人 id, 计数器类型, 目标场次]，语义＝通关且该计数器**未触发**。
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: () => this.val[0].push(0, parseInt(this.param[4] ?? "1") || 1),
-      update: (args: any) => {
+      update: (args: PassStageStats) => {
         if (args?.stageId !== this.param[1]) return;
         if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
         if (this._enemyStatValue(args, this.param[2], this.param[3]) > 0) return;
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1814,16 +1809,16 @@ export class MedalProgress implements PlayerPerMedal {
    * 由 inventory items:get 处对获得的每个物品发射。
    */
   TotalSimpleTokenCount(args: { itemId: string; count: number }, mode: string = "update") {
-    const funcs: { [key: string]: (args: { itemId: string; count: number }) => void } = {
-      init: (args) => this.val[0].push(0, parseInt(this.param[2])),
-      update: (args) => {
+    const funcs = {
+      init: (_args: {}) => this.val[0].push(0, parseInt(this.param[2])),
+      update: (args: { itemId: string; count: number }) => {
         if (typeof args?.itemId !== "string") return;
         const ids = String(this.param[3] ?? "").split(";");
         if (!ids.includes(args.itemId)) return;
         this.val[0][0] += args.count ?? 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1834,13 +1829,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithSimpleTokenCountMax(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1851,13 +1846,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标调查数
    */
   Act29SideInvestigateDailyNPC(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1868,13 +1863,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标代币总数
    */
   SimpleTokenCountMoreInManyStages(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1889,13 +1884,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1906,13 +1901,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标区域数
    */
   Act42D0UnlockArea(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1923,13 +1918,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   Act42D0UseAssistPassStage(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1944,13 +1939,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1961,13 +1956,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithTrapSurvivedLess(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1978,13 +1973,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标总分
    */
   ActivityAct38d1DimScoreTotal(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -1995,13 +1990,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标得分
    */
   ActivityAct38d1DimScoreSome(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2012,13 +2007,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标节点数
    */
   ActivityAct38d1UnlockNodeSome(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2029,13 +2024,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   ActivityAct38d1UseAssist(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2050,13 +2045,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2067,13 +2062,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标事件数
    */
   Act25SideSimpleEventAtLeast(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2084,13 +2079,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标调查数
    */
   Act25SideFinInvestigation(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2108,7 +2103,7 @@ export class MedalProgress implements PlayerPerMedal {
     // 即**目标恒为 1**（达成标志），param[2] = 达成时写入的进度值（1 = S 评价），
     // param[3] = 所需危机等级门槛。故进度 = 「该关卡危机等级 ≥ 门槛」→ param[2]。
     const target = 1;
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { seasonId?: string; stageId?: string; score?: number }) => {
         if (!this._seasonMatch(args.seasonId)) return;
@@ -2121,7 +2116,7 @@ export class MedalProgress implements PlayerPerMedal {
         }
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2134,7 +2129,7 @@ export class MedalProgress implements PlayerPerMedal {
   CrisisTempClearSome(args: {}, mode: string = "update") {
     // unlockParam: [赛季, 轮替任务组列表(rg1;..;rg13), 目标天数]
     const target = this._paramNum(2);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 完成并领取全部轮替挑战任务的天数（每日 +1）
       update: (args: { seasonId?: string; count?: number }) => {
@@ -2142,7 +2137,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += args.count ?? 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2156,7 +2151,7 @@ export class MedalProgress implements PlayerPerMedal {
     // unlockParam: [赛季, 常驻任务 id 列表(normalTask_1;..), 目标任务数]
     const target = this._paramNum(2);
     const wantTasks = this._paramList(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 完成并领取挑战任务数（challengeRewardTask 首次领取 +1）
       update: (args: { seasonId?: string; taskId?: string; count?: number }) => {
@@ -2165,7 +2160,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += args.count ?? 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2179,7 +2174,7 @@ export class MedalProgress implements PlayerPerMedal {
     // unlockParam: [赛季, 3 级词条 id 列表, 目标词条数]（官服文案「解锁4个3级合约」）
     const target = this._paramNum(2);
     const wantRunes = this._paramList(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 解锁永久词条数（unlockRune 首次解锁 +1）
       update: (args: { seasonId?: string; runeId?: string; count?: number }) => {
@@ -2188,7 +2183,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += args.count ?? 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2201,7 +2196,7 @@ export class MedalProgress implements PlayerPerMedal {
   CrisisUseAssist(args: {}, mode: string = "update") {
     // unlockParam: [赛季, 目标场次]（官服文案「使用助战并通关任意行动地点不小于5次」）
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 携带助战通关次数（battleFinish 按是否用助战发 used）
       update: (args: { seasonId?: string; used?: number }) => {
@@ -2209,7 +2204,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += args.used ?? 0;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2220,13 +2215,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithKillSurvive(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2237,13 +2232,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标陷阱数
    */
   PassStageWithTrapSurvived(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2254,13 +2249,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标残留数
    */
   PassStageWithReedResidue(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2271,13 +2266,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标点赞数
    */
   ActivityLikeOperaComment(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2288,13 +2283,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标任务数
    */
   ActivityFinishCharCardTask(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2305,13 +2300,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标区域数
    */
   ActivityUnlockSiracusaArea(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2326,13 +2321,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2343,10 +2338,10 @@ export class MedalProgress implements PlayerPerMedal {
    * 通关且该敌人击杀数达标即计 1 场，累计 1 场完成。
    * 事件 PassStageKilled:[{stageId, completeState, enemyStats}] 由 battle 结算发射。
    */
-  PassStageKilled(args: any, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+  PassStageKilled(args: PassStageStats, mode: string = "update") {
+    const funcs = {
       init: () => this.val[0].push(0, 1),
-      update: (args: any) => {
+      update: (args: PassStageStats) => {
         const stages = String(this.param[1] ?? "").split(";").filter(Boolean);
         if (stages.length && !stages.includes(args?.stageId)) return;
         if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
@@ -2355,7 +2350,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2364,10 +2359,10 @@ export class MedalProgress implements PlayerPerMedal {
    * 修复（2026-09-09）：原为「注册后天数」占位实现。数据实参为
    * [completeState, stageId, 敌人 id(;), 允许击杀上限（缺省 0）]：通关且击杀数不超过上限即计 1 场。
    */
-  PassStageKilledLess(args: any, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+  PassStageKilledLess(args: PassStageStats, mode: string = "update") {
+    const funcs = {
       init: () => this.val[0].push(0, 1),
-      update: (args: any) => {
+      update: (args: PassStageStats) => {
         const stages = String(this.param[1] ?? "").split(";").filter(Boolean);
         if (stages.length && !stages.includes(args?.stageId)) return;
         if ((args?.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
@@ -2376,7 +2371,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2387,13 +2382,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标科技数
    */
   ActivityTechTreeActive(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2404,13 +2399,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标宝藏数
    */
   ActivityTreasureGain(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2421,13 +2416,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithTechTree(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2438,13 +2433,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithEnemyActiveLess(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2455,13 +2450,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithAtLeast(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2472,13 +2467,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标消耗量
    */
   ActivityCostAgenda(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2493,13 +2488,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2510,13 +2505,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标奖励数
    */
   ActivityMilestoneReward(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2527,13 +2522,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标解锁数
    */
   CharmUnlock(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2544,13 +2539,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标奖励数
    */
   ActivityCharmRecycleReward(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2561,13 +2556,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标总数
    */
   PassStageWithActiveTotal(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2578,13 +2573,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithActiveLess(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2595,13 +2590,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithDeadInLess(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2612,13 +2607,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标持有量
    */
   ActivityHoldTaichi(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2629,13 +2624,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithLessDeploy(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2646,13 +2641,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithoutBossShield(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2663,13 +2658,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标总数
    */
   ActivityConfinementTotal(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2680,13 +2675,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标击杀总数
    */
   ActivityKilledTotal(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2697,13 +2692,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标新闻数
    */
   ActivityCasimirReadNews(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2714,13 +2709,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标采伐量
    */
   ActivityCutTree(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2731,13 +2726,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithCutTree(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2748,13 +2743,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标场次
    */
   PassStageWithTower(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2769,13 +2764,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2786,13 +2781,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标结局数
    */
   ActivitySandboxAchieveEnding(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2803,13 +2798,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标章节数
    */
   UnlockStoryGroup(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2820,13 +2815,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标溢出数
    */
   FullPotentialOverflow(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2843,7 +2838,7 @@ export class MedalProgress implements PlayerPerMedal {
     // param[2] = 所需危机等级门槛，param[3] = 截止时间（官服：「且在XX行动开始一周内完成」）。
     const target = 1;
     const deadline = this._paramNum(3);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { seasonId?: string; stageId?: string; score?: number }) => {
         if (!this._seasonMatch(args.seasonId)) return;
@@ -2854,7 +2849,7 @@ export class MedalProgress implements PlayerPerMedal {
         if ((args.score ?? 0) >= this._paramNum(2)) this.val[0][0] = 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2864,13 +2859,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标徽章数
    */
   Act1ArcadeCollectAllBadge(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2880,13 +2875,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标得分
    */
   Act1FootballScores(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2896,13 +2891,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标升级数
    */
   Act1HalfidleUpgradeChar(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2916,13 +2911,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2932,13 +2927,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标解锁枪数
    */
   Act42sideUnlockGunCnt(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2948,13 +2943,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标关卡数
    */
   Act46sidePassMonopolyStage(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2964,13 +2959,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标提交数
    */
   ActMultiV3CommitAlbum(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2980,13 +2975,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标事件数
    */
   ActMultiV3CompleteSimpleEvent(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -2996,13 +2991,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标波次数
    */
   ActMultiV3DefenceWave(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3012,13 +3007,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标进球数
    */
   ActMultiV3FootballGoal(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3028,13 +3023,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标头衔数
    */
   ActMultiV3GainTitle(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3044,13 +3039,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标承伤值
    */
   ActMultiV3StageDefenceDamage(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3060,13 +3055,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标星级数
    */
   ActMultiV3StageStar(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3076,13 +3071,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标总星级
    */
   ActMultiV3TotalStar(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3092,13 +3087,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标事件数
    */
   ActVecBreakV2LevelSimpleEventAtLeast(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3108,13 +3103,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标关卡数
    */
   ActVecBreakV2PassStageBeforeTime(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3124,13 +3119,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标击杀数
    */
   ActVecBreakV2PassStageWithEnemyKilled(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3140,13 +3135,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标技能使用数
    */
   ActVecBreakV2PassStageWithSkillUsed(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3156,13 +3151,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标事件数
    */
   ActVecBreakV2SimpleEventAtLeast(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3172,13 +3167,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标徽章数
    */
   ActivityAutoChessBandBadgeCount(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3188,13 +3183,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标升级数
    */
   ActivityAutoChessCharChessUpgrade(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3208,13 +3203,13 @@ export class MedalProgress implements PlayerPerMedal {
     //（官服存档 val[0][1] 反推，见 docs/prts-wiki-实现评估-2026-09-09.md Round 32）。
     // 原实现取 parseInt(param[0]) → NaN → 该章永不可得。
     const target = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3224,13 +3219,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标通关数
    */
   ActivityAutoChessPassWithBandAccumulative(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3240,13 +3235,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标通关数
    */
   ActivityAutoChessPassWithBondAccumulative(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3256,13 +3251,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标治疗量
    */
   ActivityBattleHeal(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3272,13 +3267,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标任务次数
    */
   ActivityEnemyDuelRank(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3295,7 +3290,7 @@ export class MedalProgress implements PlayerPerMedal {
   CharEvolvePhase(args: {}, mode: string = "update") {
     const targetCharId = String(this.param?.[0] ?? "");
     const needPhase = this._paramNum(1);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       // 目标恒为 1：该干员达成该阶段即完成（数据表未给出次数目标）
       init: () => this.val[0].push(0, 1),
       update: (args: { charId?: string; phase?: number }) => {
@@ -3305,7 +3300,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] = 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3315,13 +3310,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标积分
    */
   GainSixStarGroupPoint(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3337,7 +3332,7 @@ export class MedalProgress implements PlayerPerMedal {
     // 「峰值 vs 目标」写法一致，仅进度显示为 1/1 而非 8/8。
     const target = 1;
     const need = this._paramNum(2);
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       update: (args: { seasonId?: string; stageId?: string; score?: number }) => {
         if (!this._seasonMatch(args.seasonId)) return;
@@ -3346,7 +3341,7 @@ export class MedalProgress implements PlayerPerMedal {
         if ((args.score ?? 0) >= need) this.val[0][0] = 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3356,13 +3351,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标抽取次数
    */
   Rlv2CopperDraw(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3372,13 +3367,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标节点数
    */
   Rlv2PassNodeStrict(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3392,7 +3387,7 @@ export class MedalProgress implements PlayerPerMedal {
     // 「在集成战略：XX主题中通过 YY 区域 N 次」）。原实现取 parseInt(param[0]) → NaN。
     const target = this._paramNum(2);
     const wantZone = String(this.param?.[1] ?? "");
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, target),
       // 事件由 roguelike event.ts 在进入新区域时发射
       update: (args: { theme?: string; zoneId?: string }) => {
@@ -3401,7 +3396,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3411,13 +3406,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标区域数
    */
   Rlv2SpecialZoneEnter(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3427,13 +3422,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标基地等级
    */
   Sbv3BaseUpgrade(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3443,13 +3438,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标任务数
    */
   Sbv3BattleTaskCount(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3459,13 +3454,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标清理数
    */
   Sbv3ClearDebris(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3475,13 +3470,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标部署数
    */
   Sbv3DeployBuilding(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3491,13 +3486,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标任务次数
    */
   Sbv3DungeonKillEnemyType(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3507,13 +3502,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标电力分
    */
   Sbv3ElectricScore(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3523,13 +3518,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标菜谱数
    */
   Sbv3GainCookbook(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3539,13 +3534,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标地牢数
    */
   Sbv3PassDungeon(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3555,13 +3550,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标任务数
    */
   Sbv3QuestFinish(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3571,13 +3566,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标科技数
    */
   Sbv3TechUnlock(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3587,13 +3582,13 @@ export class MedalProgress implements PlayerPerMedal {
    * @param param[0] 目标签到次数
    */
   TotalCheckinCount(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3602,7 +3597,7 @@ export class MedalProgress implements PlayerPerMedal {
    * 事件参数 {activityId, count}：count=ARK_HUB.pixelCollected 累计收集数。
    */
   ActivityArkhubPixelCollect(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[2])),
       update: (args: { activityId: string; count: number }) => {
         if (args.activityId !== this.param[0]) return;
@@ -3612,7 +3607,7 @@ export class MedalProgress implements PlayerPerMedal {
         );
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3621,7 +3616,7 @@ export class MedalProgress implements PlayerPerMedal {
    * → target=param[2]）。事件 {activityId, count, collectionKey}：count=已收录种类数。
    */
   ActivityArkhubCreatureCollect(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[2])),
       update: (args: { activityId: string; count: number }) => {
         if (args.activityId !== this.param[0]) return;
@@ -3631,7 +3626,7 @@ export class MedalProgress implements PlayerPerMedal {
         );
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3641,7 +3636,7 @@ export class MedalProgress implements PlayerPerMedal {
    * 仅当 alterCount >= param[3] 时进度才随 count 推进（镀层条件缺一不可）。
    */
   ActivityArkhubAlterCollect(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[2])),
       update: (args: { activityId: string; count: number; alterCount: number }) => {
         if (args.activityId !== this.param[0]) return;
@@ -3653,7 +3648,7 @@ export class MedalProgress implements PlayerPerMedal {
         );
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3663,9 +3658,9 @@ export class MedalProgress implements PlayerPerMedal {
    * 由 arkodc 状态更新处发射，模板读 varSeqs[param[1]] 作为进度。
    */
   ArkodcVarSeqAtLeast(args: { activityId: string; varSeqs: Record<string, number> }, mode: string = "update") {
-    const funcs: { [key: string]: (args: { activityId: string; varSeqs: Record<string, number> }) => void } = {
-      init: (args) => this.val[0].push(0, parseInt(this.param[2])),
-      update: (args) => {
+    const funcs = {
+      init: (_args: {}) => this.val[0].push(0, parseInt(this.param[2])),
+      update: (args: { activityId: string; varSeqs: Record<string, number> }) => {
         if (args.activityId !== this.param[0]) return;
         this.val[0][0] = Math.max(
           this.val[0][0],
@@ -3673,7 +3668,7 @@ export class MedalProgress implements PlayerPerMedal {
         );
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3681,13 +3676,13 @@ export class MedalProgress implements PlayerPerMedal {
    * 肉鸽中击杀天气敌人（target=param[0]；等待 rlv2 KillWeather 事件驱动）
    */
   Rlv2KillWeather(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   /**
@@ -3695,13 +3690,13 @@ export class MedalProgress implements PlayerPerMedal {
    * 肉鸽废品玩法中移动/推进（target=param[0]；等待 rlv2 scrap move 事件驱动）
    */
   Rlv2MoveByScrap(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
+    const funcs = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: () => {
         this.val[0][0] += 1;
       },
     };
-    funcs[mode](args);
+    dispatch(mode, funcs.init, funcs.update, args);
   }
 
   toJSON(): PlayerPerMedal {
@@ -3714,3 +3709,230 @@ export class MedalProgress implements PlayerPerMedal {
     };
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * 模板派发与处理函数表
+ *
+ * MedalProgress 的每个模板方法形如 `X(args, mode)`：init 分支构建进度结构、
+ * update 分支按事件载荷推进。两个分支载荷类型不同，旧实现靠一个宽化的
+ * 索引签名表（`{ [key: string]: (args) => void }`）+ `funcs[mode](args)` 兜底；
+ * 现改为显式分支派发（dispatch）+ 显式「模板名 → 处理函数」表，消除模糊类型。
+ * ------------------------------------------------------------------------- */
+
+/**
+ * 按 init/update 显式分支派发模板载荷
+ *
+ * 保持旧语义：mode 既非 init 也非 update 时抛 TypeError——旧实现 `funcs[mode]`
+ * 为 undefined，调用即抛 TypeError；这里显式抛出同类错误。
+ *
+ * @param mode - 调用模式（"init" | "update"）
+ * @param initFn - 构建进度结构的分支
+ * @param updateFn - 推进进度的分支
+ * @param args - 载荷（init 传 `{}`，update 传事件载荷元组首元素）
+ */
+function dispatch<TInit, TUpdate>(
+  mode: string,
+  initFn: (args: TInit) => void,
+  updateFn: (args: TUpdate) => void,
+  args: TInit | TUpdate,
+): void {
+  if (mode === "init") {
+    initFn(args as TInit);
+  } else if (mode === "update") {
+    updateFn(args as TUpdate);
+  } else {
+    throw new TypeError(`funcs[${mode}] is not a function`);
+  }
+}
+
+/**
+ * 模板处理函数
+ *
+ * payload 取 never：模板名运行时才确定，具体载荷类型由各模板方法的形参约束，
+ * 表中转发无需逐项断言。
+ */
+type MedalTemplateHandler = (
+  progress: MedalProgress,
+  payload: never,
+  mode: string,
+) => void;
+
+/**
+ * 模板名 → 处理函数表
+ *
+ * 键为 excel MedalTable 的 `template` 字段取值，也是事件总线上的订阅名。
+ * 表覆盖全部已实现模板（含暂无 emit 侧的历史模板）；查不到即未实现 →
+ * init() 走 `this.val = [[0, 0]]` 降级分支（与原 `template in this` 等价）。
+ */
+const MedalTemplateHandlers: Record<string, MedalTemplateHandler> = {
+  PlayerLevel: (p, payload, mode) => p.PlayerLevel(payload, mode),
+  JoinGameDays: (p, payload, mode) => p.JoinGameDays(payload, mode),
+  CharNum: (p, payload, mode) => p.CharNum(payload, mode),
+  RecruitCount: (p, payload, mode) => p.RecruitCount(payload, mode),
+  PassStageSome: (p, payload, mode) => p.PassStageSome(payload, mode),
+  CampaignsDiamondLimit: (p, payload, mode) => p.CampaignsDiamondLimit(payload, mode),
+  CampaignsComplete: (p, payload, mode) => p.CampaignsComplete(payload, mode),
+  PassTower: (p, payload, mode) => p.PassTower(payload, mode),
+  CharEvolveCount: (p, payload, mode) => p.CharEvolveCount(payload, mode),
+  CharSkillCount: (p, payload, mode) => p.CharSkillCount(payload, mode),
+  CharSkillSpecCount: (p, payload, mode) => p.CharSkillSpecCount(payload, mode),
+  CharFavorCount: (p, payload, mode) => p.CharFavorCount(payload, mode),
+  GotChars: (p, payload, mode) => p.GotChars(payload, mode),
+  CharPotential: (p, payload, mode) => p.CharPotential(payload, mode),
+  CharStoryUnlock: (p, payload, mode) => p.CharStoryUnlock(payload, mode),
+  Sbv2UpgradeBase: (p, payload, mode) => p.Sbv2UpgradeBase(payload, mode),
+  Sbv2FinishQuest: (p, payload, mode) => p.Sbv2FinishQuest(payload, mode),
+  Sbv2BattleFinishWithChar: (p, payload, mode) => p.Sbv2BattleFinishWithChar(payload, mode),
+  Sbv2UnlockCook: (p, payload, mode) => p.Sbv2UnlockCook(payload, mode),
+  Sbv2PlaceBuilding: (p, payload, mode) => p.Sbv2PlaceBuilding(payload, mode),
+  Sbv2PassRiftLevel: (p, payload, mode) => p.Sbv2PassRiftLevel(payload, mode),
+  Sbv2PassRiftCount: (p, payload, mode) => p.Sbv2PassRiftCount(payload, mode),
+  Sbv2CatchAnimal: (p, payload, mode) => p.Sbv2CatchAnimal(payload, mode),
+  Sbv2UnlockTech: (p, payload, mode) => p.Sbv2UnlockTech(payload, mode),
+  Sbv2SurviveDays: (p, payload, mode) => p.Sbv2SurviveDays(payload, mode),
+  Sbv2KillBoss: (p, payload, mode) => p.Sbv2KillBoss(payload, mode),
+  Rlv2PassNode: (p, payload, mode) => p.Rlv2PassNode(payload, mode),
+  Rlv2BpLevel: (p, payload, mode) => p.Rlv2BpLevel(payload, mode),
+  PermUpgrade: (p, payload, mode) => p.PermUpgrade(payload, mode),
+  UseAlchemy: (p, payload, mode) => p.UseAlchemy(payload, mode),
+  Rlv2Recruit: (p, payload, mode) => p.Rlv2Recruit(payload, mode),
+  Rlv2GetTeamReward: (p, payload, mode) => p.Rlv2GetTeamReward(payload, mode),
+  Rlv2EndingCollect: (p, payload, mode) => p.Rlv2EndingCollect(payload, mode),
+  Rlv2CollectRelic: (p, payload, mode) => p.Rlv2CollectRelic(payload, mode),
+  Rlv2FinishBattleWithSpecChar: (p, payload, mode) => p.Rlv2FinishBattleWithSpecChar(payload, mode),
+  Rlv2EndingWithModeGrade: (p, payload, mode) => p.Rlv2EndingWithModeGrade(payload, mode),
+  Rlv2UnlockBand: (p, payload, mode) => p.Rlv2UnlockBand(payload, mode),
+  Rlv2TotemResonance: (p, payload, mode) => p.Rlv2TotemResonance(payload, mode),
+  Rlv2CompleteNodeMission: (p, payload, mode) => p.Rlv2CompleteNodeMission(payload, mode),
+  Rlv2GainCapsule: (p, payload, mode) => p.Rlv2GainCapsule(payload, mode),
+  BuildingGotFurnitureThemeCount: (p, payload, mode) => p.BuildingGotFurnitureThemeCount(payload, mode),
+  BuildingManufactureProductTimes: (p, payload, mode) => p.BuildingManufactureProductTimes(payload, mode),
+  BuildingWorkshopSynthesisGroupByID: (p, payload, mode) => p.BuildingWorkshopSynthesisGroupByID(payload, mode),
+  GotCharsBeforeTime: (p, payload, mode) => p.GotCharsBeforeTime(payload, mode),
+  ActivityCoinCost: (p, payload, mode) => p.ActivityCoinCost(payload, mode),
+  MissionCompleteSome: (p, payload, mode) => p.MissionCompleteSome(payload, mode),
+  ActivityPassStageWithSimpleTokenCountMore: (p, payload, mode) => p.ActivityPassStageWithSimpleTokenCountMore(payload, mode),
+  Act35SideFinishCarving: (p, payload, mode) => p.Act35SideFinishCarving(payload, mode),
+  PassStageWithSimpleCountMore: (p, payload, mode) => p.PassStageWithSimpleCountMore(payload, mode),
+  PassStageWithDetailDiffCountMore: (p, payload, mode) => p.PassStageWithDetailDiffCountMore(payload, mode),
+  PassStageWithSimpleTokenCountLess: (p, payload, mode) => p.PassStageWithSimpleTokenCountLess(payload, mode),
+  PassStageKilledTotal: (p, payload, mode) => p.PassStageKilledTotal(payload, mode),
+  ActMultiplayVerify2StageTotalScore: (p, payload, mode) => p.ActMultiplayVerify2StageTotalScore(payload, mode),
+  ActMultiplayVerify2PassStageWithScore: (p, payload, mode) => p.ActMultiplayVerify2PassStageWithScore(payload, mode),
+  ActivityMilestonePoint: (p, payload, mode) => p.ActivityMilestonePoint(payload, mode),
+  GotItemBeforeTime: (p, payload, mode) => p.GotItemBeforeTime(payload, mode),
+  PassStageWithSimpleTokenCountMore: (p, payload, mode) => p.PassStageWithSimpleTokenCountMore(payload, mode),
+  CrisisV2DimScoreTotal: (p, payload, mode) => p.CrisisV2DimScoreTotal(payload, mode),
+  CrisisV2NodeSome: (p, payload, mode) => p.CrisisV2NodeSome(payload, mode),
+  CrisisV2DimScoreSome: (p, payload, mode) => p.CrisisV2DimScoreSome(payload, mode),
+  CrisisV2UseAssist: (p, payload, mode) => p.CrisisV2UseAssist(payload, mode),
+  PassStageWithBossRush: (p, payload, mode) => p.PassStageWithBossRush(payload, mode),
+  PassStageWithSimpleCountLess: (p, payload, mode) => p.PassStageWithSimpleCountLess(payload, mode),
+  TotalSimpleTokenCount: (p, payload, mode) => p.TotalSimpleTokenCount(payload, mode),
+  PassStageWithSimpleTokenCountMax: (p, payload, mode) => p.PassStageWithSimpleTokenCountMax(payload, mode),
+  Act29SideInvestigateDailyNPC: (p, payload, mode) => p.Act29SideInvestigateDailyNPC(payload, mode),
+  SimpleTokenCountMoreInManyStages: (p, payload, mode) => p.SimpleTokenCountMoreInManyStages(payload, mode),
+  Act29SideSyncthesizeMelody: (p, payload, mode) => p.Act29SideSyncthesizeMelody(payload, mode),
+  Act42D0UnlockArea: (p, payload, mode) => p.Act42D0UnlockArea(payload, mode),
+  Act42D0UseAssistPassStage: (p, payload, mode) => p.Act42D0UseAssistPassStage(payload, mode),
+  Act42D0FinishChallenge: (p, payload, mode) => p.Act42D0FinishChallenge(payload, mode),
+  PassStageWithTrapSurvivedLess: (p, payload, mode) => p.PassStageWithTrapSurvivedLess(payload, mode),
+  ActivityAct38d1DimScoreTotal: (p, payload, mode) => p.ActivityAct38d1DimScoreTotal(payload, mode),
+  ActivityAct38d1DimScoreSome: (p, payload, mode) => p.ActivityAct38d1DimScoreSome(payload, mode),
+  ActivityAct38d1UnlockNodeSome: (p, payload, mode) => p.ActivityAct38d1UnlockNodeSome(payload, mode),
+  ActivityAct38d1UseAssist: (p, payload, mode) => p.ActivityAct38d1UseAssist(payload, mode),
+  PassStoryStageSome: (p, payload, mode) => p.PassStoryStageSome(payload, mode),
+  Act25SideSimpleEventAtLeast: (p, payload, mode) => p.Act25SideSimpleEventAtLeast(payload, mode),
+  Act25SideFinInvestigation: (p, payload, mode) => p.Act25SideFinInvestigation(payload, mode),
+  CrisisStageScoreSome: (p, payload, mode) => p.CrisisStageScoreSome(payload, mode),
+  CrisisTempClearSome: (p, payload, mode) => p.CrisisTempClearSome(payload, mode),
+  CrisisTaskSome: (p, payload, mode) => p.CrisisTaskSome(payload, mode),
+  CrisisUnlockPermRuneSome: (p, payload, mode) => p.CrisisUnlockPermRuneSome(payload, mode),
+  CrisisUseAssist: (p, payload, mode) => p.CrisisUseAssist(payload, mode),
+  PassStageWithKillSurvive: (p, payload, mode) => p.PassStageWithKillSurvive(payload, mode),
+  PassStageWithTrapSurvived: (p, payload, mode) => p.PassStageWithTrapSurvived(payload, mode),
+  PassStageWithReedResidue: (p, payload, mode) => p.PassStageWithReedResidue(payload, mode),
+  ActivityLikeOperaComment: (p, payload, mode) => p.ActivityLikeOperaComment(payload, mode),
+  ActivityFinishCharCardTask: (p, payload, mode) => p.ActivityFinishCharCardTask(payload, mode),
+  ActivityUnlockSiracusaArea: (p, payload, mode) => p.ActivityUnlockSiracusaArea(payload, mode),
+  GainCarAccessories: (p, payload, mode) => p.GainCarAccessories(payload, mode),
+  PassStageKilled: (p, payload, mode) => p.PassStageKilled(payload, mode),
+  PassStageKilledLess: (p, payload, mode) => p.PassStageKilledLess(payload, mode),
+  ActivityTechTreeActive: (p, payload, mode) => p.ActivityTechTreeActive(payload, mode),
+  ActivityTreasureGain: (p, payload, mode) => p.ActivityTreasureGain(payload, mode),
+  PassStageWithTechTree: (p, payload, mode) => p.PassStageWithTechTree(payload, mode),
+  PassStageWithEnemyActiveLess: (p, payload, mode) => p.PassStageWithEnemyActiveLess(payload, mode),
+  PassStageWithAtLeast: (p, payload, mode) => p.PassStageWithAtLeast(payload, mode),
+  ActivityCostAgenda: (p, payload, mode) => p.ActivityCostAgenda(payload, mode),
+  ActivityReachPrestigeLevel: (p, payload, mode) => p.ActivityReachPrestigeLevel(payload, mode),
+  ActivityMilestoneReward: (p, payload, mode) => p.ActivityMilestoneReward(payload, mode),
+  CharmUnlock: (p, payload, mode) => p.CharmUnlock(payload, mode),
+  ActivityCharmRecycleReward: (p, payload, mode) => p.ActivityCharmRecycleReward(payload, mode),
+  PassStageWithActiveTotal: (p, payload, mode) => p.PassStageWithActiveTotal(payload, mode),
+  PassStageWithActiveLess: (p, payload, mode) => p.PassStageWithActiveLess(payload, mode),
+  PassStageWithDeadInLess: (p, payload, mode) => p.PassStageWithDeadInLess(payload, mode),
+  ActivityHoldTaichi: (p, payload, mode) => p.ActivityHoldTaichi(payload, mode),
+  PassStageWithLessDeploy: (p, payload, mode) => p.PassStageWithLessDeploy(payload, mode),
+  PassStageWithoutBossShield: (p, payload, mode) => p.PassStageWithoutBossShield(payload, mode),
+  ActivityConfinementTotal: (p, payload, mode) => p.ActivityConfinementTotal(payload, mode),
+  ActivityKilledTotal: (p, payload, mode) => p.ActivityKilledTotal(payload, mode),
+  ActivityCasimirReadNews: (p, payload, mode) => p.ActivityCasimirReadNews(payload, mode),
+  ActivityCutTree: (p, payload, mode) => p.ActivityCutTree(payload, mode),
+  PassStageWithCutTree: (p, payload, mode) => p.PassStageWithCutTree(payload, mode),
+  PassStageWithTower: (p, payload, mode) => p.PassStageWithTower(payload, mode),
+  ActivitySandboxCreateItem: (p, payload, mode) => p.ActivitySandboxCreateItem(payload, mode),
+  ActivitySandboxAchieveEnding: (p, payload, mode) => p.ActivitySandboxAchieveEnding(payload, mode),
+  UnlockStoryGroup: (p, payload, mode) => p.UnlockStoryGroup(payload, mode),
+  FullPotentialOverflow: (p, payload, mode) => p.FullPotentialOverflow(payload, mode),
+  CrisisStageScoreBeforeTime: (p, payload, mode) => p.CrisisStageScoreBeforeTime(payload, mode),
+  Act1ArcadeCollectAllBadge: (p, payload, mode) => p.Act1ArcadeCollectAllBadge(payload, mode),
+  Act1FootballScores: (p, payload, mode) => p.Act1FootballScores(payload, mode),
+  Act1HalfidleUpgradeChar: (p, payload, mode) => p.Act1HalfidleUpgradeChar(payload, mode),
+  Act38SideCompletePuzzle: (p, payload, mode) => p.Act38SideCompletePuzzle(payload, mode),
+  Act42sideUnlockGunCnt: (p, payload, mode) => p.Act42sideUnlockGunCnt(payload, mode),
+  Act46sidePassMonopolyStage: (p, payload, mode) => p.Act46sidePassMonopolyStage(payload, mode),
+  ActMultiV3CommitAlbum: (p, payload, mode) => p.ActMultiV3CommitAlbum(payload, mode),
+  ActMultiV3CompleteSimpleEvent: (p, payload, mode) => p.ActMultiV3CompleteSimpleEvent(payload, mode),
+  ActMultiV3DefenceWave: (p, payload, mode) => p.ActMultiV3DefenceWave(payload, mode),
+  ActMultiV3FootballGoal: (p, payload, mode) => p.ActMultiV3FootballGoal(payload, mode),
+  ActMultiV3GainTitle: (p, payload, mode) => p.ActMultiV3GainTitle(payload, mode),
+  ActMultiV3StageDefenceDamage: (p, payload, mode) => p.ActMultiV3StageDefenceDamage(payload, mode),
+  ActMultiV3StageStar: (p, payload, mode) => p.ActMultiV3StageStar(payload, mode),
+  ActMultiV3TotalStar: (p, payload, mode) => p.ActMultiV3TotalStar(payload, mode),
+  ActVecBreakV2LevelSimpleEventAtLeast: (p, payload, mode) => p.ActVecBreakV2LevelSimpleEventAtLeast(payload, mode),
+  ActVecBreakV2PassStageBeforeTime: (p, payload, mode) => p.ActVecBreakV2PassStageBeforeTime(payload, mode),
+  ActVecBreakV2PassStageWithEnemyKilled: (p, payload, mode) => p.ActVecBreakV2PassStageWithEnemyKilled(payload, mode),
+  ActVecBreakV2PassStageWithSkillUsed: (p, payload, mode) => p.ActVecBreakV2PassStageWithSkillUsed(payload, mode),
+  ActVecBreakV2SimpleEventAtLeast: (p, payload, mode) => p.ActVecBreakV2SimpleEventAtLeast(payload, mode),
+  ActivityAutoChessBandBadgeCount: (p, payload, mode) => p.ActivityAutoChessBandBadgeCount(payload, mode),
+  ActivityAutoChessCharChessUpgrade: (p, payload, mode) => p.ActivityAutoChessCharChessUpgrade(payload, mode),
+  ActivityAutoChessPassGame: (p, payload, mode) => p.ActivityAutoChessPassGame(payload, mode),
+  ActivityAutoChessPassWithBandAccumulative: (p, payload, mode) => p.ActivityAutoChessPassWithBandAccumulative(payload, mode),
+  ActivityAutoChessPassWithBondAccumulative: (p, payload, mode) => p.ActivityAutoChessPassWithBondAccumulative(payload, mode),
+  ActivityBattleHeal: (p, payload, mode) => p.ActivityBattleHeal(payload, mode),
+  ActivityEnemyDuelRank: (p, payload, mode) => p.ActivityEnemyDuelRank(payload, mode),
+  CharEvolvePhase: (p, payload, mode) => p.CharEvolvePhase(payload, mode),
+  GainSixStarGroupPoint: (p, payload, mode) => p.GainSixStarGroupPoint(payload, mode),
+  RecalRuneStageScoreSome: (p, payload, mode) => p.RecalRuneStageScoreSome(payload, mode),
+  Rlv2CopperDraw: (p, payload, mode) => p.Rlv2CopperDraw(payload, mode),
+  Rlv2PassNodeStrict: (p, payload, mode) => p.Rlv2PassNodeStrict(payload, mode),
+  Rlv2PassZone: (p, payload, mode) => p.Rlv2PassZone(payload, mode),
+  Rlv2SpecialZoneEnter: (p, payload, mode) => p.Rlv2SpecialZoneEnter(payload, mode),
+  Sbv3BaseUpgrade: (p, payload, mode) => p.Sbv3BaseUpgrade(payload, mode),
+  Sbv3BattleTaskCount: (p, payload, mode) => p.Sbv3BattleTaskCount(payload, mode),
+  Sbv3ClearDebris: (p, payload, mode) => p.Sbv3ClearDebris(payload, mode),
+  Sbv3DeployBuilding: (p, payload, mode) => p.Sbv3DeployBuilding(payload, mode),
+  Sbv3DungeonKillEnemyType: (p, payload, mode) => p.Sbv3DungeonKillEnemyType(payload, mode),
+  Sbv3ElectricScore: (p, payload, mode) => p.Sbv3ElectricScore(payload, mode),
+  Sbv3GainCookbook: (p, payload, mode) => p.Sbv3GainCookbook(payload, mode),
+  Sbv3PassDungeon: (p, payload, mode) => p.Sbv3PassDungeon(payload, mode),
+  Sbv3QuestFinish: (p, payload, mode) => p.Sbv3QuestFinish(payload, mode),
+  Sbv3TechUnlock: (p, payload, mode) => p.Sbv3TechUnlock(payload, mode),
+  TotalCheckinCount: (p, payload, mode) => p.TotalCheckinCount(payload, mode),
+  ActivityArkhubPixelCollect: (p, payload, mode) => p.ActivityArkhubPixelCollect(payload, mode),
+  ActivityArkhubCreatureCollect: (p, payload, mode) => p.ActivityArkhubCreatureCollect(payload, mode),
+  ActivityArkhubAlterCollect: (p, payload, mode) => p.ActivityArkhubAlterCollect(payload, mode),
+  ArkodcVarSeqAtLeast: (p, payload, mode) => p.ArkodcVarSeqAtLeast(payload, mode),
+  Rlv2KillWeather: (p, payload, mode) => p.Rlv2KillWeather(payload, mode),
+  Rlv2MoveByScrap: (p, payload, mode) => p.Rlv2MoveByScrap(payload, mode),
+};

@@ -38,6 +38,41 @@ export interface DataVersionCheck {
 }
 
 /**
+ * 数据表批量新鲜度校验结果。
+ *
+ * 背景（修复 2026-09-11）：仅比对版本号无法发现「部分表未重转」——实测曾出现
+ * 28/63 张表停留在旧批次、而 `dataVersion` 恰好与 `data_version.txt` 同为旧值，
+ * 于是 S10 校验「假通过」。此校验改用**转换产物旁挂的溯源指纹**
+ * （`data/excel/*.json.meta.json`，由 scripts/excel-convert.ts 的 writeMeta 落盘）
+ * 判断各表是否来自同一次转换批次：以 `convertedAt`（转换时刻）的极差为准。
+ *
+ * 注意不要用 `sourceMtime`（原始解码文件的 mtime）作为判据——官服各 bundle 的
+ * 下载/解码本身就有先后，实测跨度可达 1.5h，属正常；真正要发现的是
+ * 「转换批次被切断」（如部分表转换失败被吞、或只跑了 `--table` 定向转换）。
+ */
+export interface TableFreshnessCheck {
+  /** 是否所有表同批（无元数据时不可判定 → ok: true） */
+  ok: boolean;
+  /** 参与统计的表数 */
+  total: number;
+  /** 带溯源指纹的表数 */
+  withMeta: number;
+  /** 转换时刻跨度（毫秒），无元数据时为 0 */
+  spreadMs: number;
+  /** 最早的转换时刻（ISO），无元数据时 undefined */
+  oldestAt?: string;
+  /** 最晚的转换时刻（ISO），无元数据时 undefined */
+  newestAt?: string;
+  /** 原始解码文件的 mtime 跨度（毫秒，仅供参考，不作为判定依据） */
+  sourceSpreadMs: number;
+  /** 人类可读结论 */
+  message: string;
+}
+
+/** 同批判定阈值：转换时刻跨度超过 30 分钟即视为混合刷新 */
+export const FRESHNESS_SPREAD_TOLERANCE_MS = 30 * 60 * 1000;
+
+/**
  * 解析 `data_version.txt`（逐行 `Key: Value`）
  * @param text - 文件内容
  * @returns 解析出的描述符（缺行则为 undefined）
@@ -113,6 +148,86 @@ export function verifyLocalDataVersion(baseDir: string = process.cwd()): DataVer
     /* 文件缺失 → 不可判定 */
   }
   return checkDataVersion(fileVersion, dataVersion);
+}
+
+/**
+ * 校验 `data/excel/` 下各表是否来自同一转换批次（读取旁挂溯源指纹）。
+ *
+ * 判据：所有带 `<表>.json.meta.json` 的表，其 `convertedAt` 的极差（max - min）
+ * 不超过 {@link FRESHNESS_SPREAD_TOLERANCE_MS}。极差过大说明有表停留在旧批次
+ * （典型成因：转换阶段部分 worker 失败被吞、或只跑了 `--table` 定向转换）。
+ *
+ * 无任何元数据（旧数据 / 未走过新转换管线）→ 不可判定，`ok: true`，
+ * 由 message 说明，避免对存量数据造成硬失败。
+ *
+ * @param baseDir - 项目根目录（默认 cwd）
+ * @returns 新鲜度校验结果
+ */
+export function verifyTableFreshness(baseDir: string = process.cwd()): TableFreshnessCheck {
+  const dir = path.join(baseDir, "data/excel");
+  let files: string[] = [];
+  try {
+    files = fs.readdirSync(dir).filter((f) => f.endsWith(".json") && !f.endsWith(".meta.json"));
+  } catch {
+    return {
+      ok: true,
+      total: 0,
+      withMeta: 0,
+      spreadMs: 0,
+      sourceSpreadMs: 0,
+      message: "数据目录不存在，跳过新鲜度校验",
+    };
+  }
+
+  const converted: number[] = [];
+  const sources: number[] = [];
+  for (const f of files) {
+    try {
+      const meta = JSON.parse(fs.readFileSync(path.join(dir, `${f}.meta.json`), "utf8")) as {
+        sourceMtime?: number;
+        convertedAt?: string;
+      };
+      if (typeof meta?.sourceMtime === "number") sources.push(meta.sourceMtime);
+      const t = meta?.convertedAt ? Date.parse(meta.convertedAt) : NaN;
+      if (Number.isFinite(t)) converted.push(t);
+    } catch {
+      /* 无元数据 → 跳过 */
+    }
+  }
+
+  const sourceSpreadMs =
+    sources.length > 1 ? Math.max(...sources) - Math.min(...sources) : 0;
+
+  if (converted.length === 0) {
+    return {
+      ok: true,
+      total: files.length,
+      withMeta: sources.length,
+      spreadMs: 0,
+      sourceSpreadMs,
+      message: `各表新鲜度不可判定（${files.length} 张表中 ${sources.length} 张有指纹但缺 convertedAt，无法判断是否同批刷新）`,
+    };
+  }
+
+  const min = Math.min(...converted);
+  const max = Math.max(...converted);
+  const spreadMs = max - min;
+  const ok = spreadMs <= FRESHNESS_SPREAD_TOLERANCE_MS;
+  const mins = (spreadMs / 60_000).toFixed(1);
+  return {
+    ok,
+    total: files.length,
+    withMeta: converted.length,
+    spreadMs,
+    sourceSpreadMs,
+    oldestAt: new Date(min).toISOString(),
+    newestAt: new Date(max).toISOString(),
+    message: ok
+      ? `各表刷新批次一致（${converted.length}/${files.length} 张带指纹，转换跨度 ${mins} 分钟）`
+      : `数据表刷新批次不一致：转换跨度 ${mins} 分钟（${converted.length}/${files.length} 张带指纹，` +
+        `最早 ${new Date(min).toISOString()} / 最晚 ${new Date(max).toISOString()}）` +
+        `——存在部分表未重转，建议重跑 \`pnpm run update\``,
+  };
 }
 
 /**

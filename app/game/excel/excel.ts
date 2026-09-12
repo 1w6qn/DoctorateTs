@@ -232,6 +232,7 @@ import {
 
 
 import { buildRoguelikeConsts } from "./roguelike_consts_gen";
+import { normalizeRoguelikeTopicTable } from "./roguelike-keys";
 import { verifyLoadedDataVersion } from "./data-version";
 
 
@@ -252,7 +253,7 @@ export class Excel {
   MissionTable!: MissionTable;
   RoguelikeTopicTable!: RoguelikeTopicTable;
   UniequipTable!: UniEquipTable;
-  StoryReviewTable!: StoryReviewGroupClientData;
+  StoryReviewTable!: { [key: string]: StoryReviewGroupClientData };
   FavorTable!: FavorTable;
   MedalTable!: MedalData;
   GachaDetailTable!: GachaDetailTable;
@@ -521,6 +522,11 @@ export class Excel {
       (this as any)[key] = byPath.get(path);
     });
 
+    // 归一化集成战略主题表：customizeData 键 rlNN → rogue_N、buffDisplayInfo.displayForm
+    // 数值 → 枚举名（否则科技树解锁全 NODE_NOT_FOUND、局外 buff 全 miss）。
+    // 必须在 buildRoguelikeConsts 之前——派生逻辑按 customizeData 的主题键建表并读 displayForm。
+    normalizeRoguelikeTopicTable(this.RoguelikeTopicTable);
+
     // RoguelikeConsts 不再从 data/rlv2.json 读取：由官方 RoguelikeTopicTable 派生
     // （outbuff/recruitGrps 直接来自官方 excel，modebuff 内嵌常量，见 roguelike_consts_gen）
     this.RoguelikeConsts = buildRoguelikeConsts(this.RoguelikeTopicTable);
@@ -722,8 +728,10 @@ export interface MainSkill {
     skillId: null | string;
     overridePrefabKey: null | string;
     overrideTokenKey: null | string;
-    levelUpCostCond: SpecializeLevelData[];
-    unlockCond: UnlockCondition;
+    /** 2.7.71 起由 levelUpCostCond 更名（槽位/语义不变） */
+    specializeLevelUpData: SpecializeLevelData[];
+    /** 2.7.71 起由 unlockCond 更名（槽位/语义不变）：技能解锁相位 */
+    initialUnlockCond: UnlockCondition;
 }
 
 export interface SpecializeLevelData {

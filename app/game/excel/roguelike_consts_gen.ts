@@ -17,6 +17,8 @@
 
 import type { RoguelikeBuff } from "@excel/excel";
 import type { RoguelikeConst } from "@excel/excel";
+import { normalizeRoguelikeTopicTable } from "./roguelike-keys";
+import type { RoguelikeTopicTable } from "./types_excel_gen";
 
 /** buildRoguelikeConsts 所需的官方表最小结构（customizeData 六主题 + details[].recruitGrps） */
 export interface RoguelikeTopicTableInput {
@@ -297,6 +299,13 @@ function themeDevelopments(theme: string, customizeData: any): { [key: string]: 
  * @returns 与旧 data/rlv2.json 结构一致、逐字节等价的 RoguelikeConsts
  */
 export function buildRoguelikeConsts(topicTable: RoguelikeTopicTableInput): { [theme: string]: RoguelikeConst } {
+  // 官方数据里 customizeData 以客户端键 rlNN 存放（details 为 rogue_N），先归一化再派生，
+  // 否则派生结果以 rlNN 为键、按主题查询全部 miss（幂等；excel.init 亦已调用一次）
+  // 入参为该文件的最小结构声明（details 只声明 recruitGrps），此处按官方表类型归一化：
+  // 主题键 rlNN → rogue_N + displayForm 数值 → 枚举名（幂等）
+  normalizeRoguelikeTopicTable(
+    topicTable as Pick<RoguelikeTopicTable, "customizeData" | "details">,
+  );
   const result: { [theme: string]: RoguelikeConst } = {};
   const themes = Object.keys(topicTable.customizeData ?? {});
   for (const theme of themes) {

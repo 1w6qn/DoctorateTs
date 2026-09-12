@@ -153,21 +153,19 @@ router.post("/campaignV2/battleSweep", validateBody(campaignV2BattleSweepSchema)
     logger.warn("campaignV2", `battleSweep ${stageId} 未携带代理指挥卡，拒绝结算`);
     return emptyResponse();
   }
-  await player._trigger.emit("items:use", [
-    [
-      {
-        id: body.itemId,
-        count: 1,
-        instId: body.instId,
-      } as unknown as ItemBundle,
-    ],
-  ]);
+  await player.gainItem
+    .add({
+      id: body.itemId,
+      count: 1,
+      instId: body.instId,
+    } as unknown as ItemBundle)
+    .use();
   // 理智消耗（与直接作战一致）
   const apCost = stage.apCost ?? 0;
   if (apCost > 0) {
-    await player._trigger.emit("items:get", [
-      [{ id: "", type: "AP_GAMEPLAY" as ItemBundle["type"], count: -apCost }],
-    ]);
+    await player.gainItem
+      .add({ id: "", type: "AP_GAMEPLAY" as ItemBundle["type"], count: -apCost })
+      .handle();
   }
   // 合成玉结算：按历史最高歼灭数，受本周上限（campaignTotalFee）封顶
   let currentFeeBefore = 0;
@@ -190,7 +188,8 @@ router.post("/campaignV2/battleSweep", validateBody(campaignV2BattleSweepSchema)
       ? [{ type: "DIAMOND_SHD" as ItemBundle["type"], id: "4003", count: gained }]
       : [];
   if (diamondRewards.length > 0) {
-    await player._trigger.emit("items:get", [diamondRewards]);
+    for (const it of diamondRewards) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
 
   res.send({
@@ -252,12 +251,13 @@ router.post("/campaignV2/getBreakReward", validateBody(campaignV2GetBreakRewardS
     allClaimed = result.allClaimed;
   });
   if (items.length > 0) {
-    await player._trigger.emit("items:get", [items]);
+    for (const it of items) player.gainItem.add(it);
+    await player.gainItem.handle();
   }
   if (feeAdd > 0) {
-    await player._trigger.emit("items:get", [
-      [{ type: "DIAMOND_SHD" as ItemBundle["type"], id: "4003", count: feeAdd }],
-    ]);
+    await player.gainItem
+      .add({ type: "DIAMOND_SHD" as ItemBundle["type"], id: "4003", count: feeAdd })
+      .handle();
   }
   if (allClaimed) {
     // 「获得全部进度奖励」任务（guide_60）与剿灭蚀刻章
@@ -310,9 +310,9 @@ router.post("/campaignV2/getExMissionReward", validateBody(campaignV2GetExMissio
     logger.warn("campaignV2", `getExMissionReward ${missionId} 不可领（未达标或已领取）`);
   }
   if (feeAdd > 0) {
-    await player._trigger.emit("items:get", [
-      [{ type: "DIAMOND_SHD" as ItemBundle["type"], id: "4003", count: feeAdd }],
-    ]);
+    await player.gainItem
+      .add({ type: "DIAMOND_SHD" as ItemBundle["type"], id: "4003", count: feeAdd })
+      .handle();
   }
   res.send({
     ...player.delta,

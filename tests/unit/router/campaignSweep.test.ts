@@ -47,6 +47,7 @@ vi.mock("express-http-context2", () => ({
 
 import campaignRouter from "@game/modules/campaignV2/routes";
 import httpContext from "express-http-context2";
+import { mockGainItem } from "../../helpers";
 
 /**
  * 剿灭作战扫荡路由测试
@@ -67,6 +68,7 @@ describe("campaignV2 battleSweep", () => {
       delta: {},
       _playerdata: data,
       _trigger: { emit: vi.fn().mockResolvedValue(undefined) },
+      gainItem: mockGainItem(),
       update: vi.fn(async (recipe: (d: any) => any) => {
         const draft = JSON.parse(JSON.stringify(data));
         const out = await recipe(draft);
@@ -149,17 +151,13 @@ describe("campaignV2 battleSweep", () => {
     ]);
     expect(arg.currentFeeBefore).toBe(1200);
     expect(arg.currentFeeAfter).toBe(1600);
-    // 消耗代理指挥卡 + 扣 20 理智
-    const calls = player._trigger.emit.mock.calls;
-    expect(calls.some((c: any[]) => c[0] === "items:use")).toBe(true);
-    const apCall = calls.find(
-      (c: any[]) =>
-        c[0] === "items:get" &&
-        Array.isArray(c[1]?.[0]) &&
-        (c[1][0] as any[])[0]?.type === "AP_GAMEPLAY",
+    // 消耗代理指挥卡 + 扣 20 理智（物品增减已收敛到 player.gainItem 管道）
+    expect(player.gainItem.use).toHaveBeenCalled();
+    const apAdd = (player.gainItem.add as any).mock.calls.find(
+      (c: any[]) => (c[0] as any)?.type === "AP_GAMEPLAY",
     );
-    expect(apCall).toBeTruthy();
-    expect((apCall as any[])[1][0][0].count).toBe(-20);
+    expect(apAdd).toBeTruthy();
+    expect((apAdd as any[])[0].count).toBe(-20);
     // currentFee 落盘
     expect(player._playerdata.campaignsV2.campaignCurrentFee).toBe(1600);
   });
@@ -184,10 +182,11 @@ describe("campaignV2 battleSweep", () => {
     const arg = res.send.mock.calls[0][0];
     expect(arg.items).toHaveLength(2);
     expect(arg.feeAdd).toBe(50);
-    // 奖励与 feeAdd 均经 items:get 入账
-    const calls = player._trigger.emit.mock.calls;
-    expect(calls.some((c: any[]) => c[0] === "items:get")).toBe(true);
+    // 奖励与 feeAdd 均经物品管道入账
+    expect(player.gainItem.add).toHaveBeenCalled();
+    expect(player.gainItem.handle).toHaveBeenCalled();
     // 全部领完 → CompleteBreakReward（guide_60）+ CampaignsComplete（蚀刻章）
+    const calls = player._trigger.emit.mock.calls;
     expect(calls.some((c: any[]) => c[0] === "CompleteBreakReward")).toBe(true);
     expect(calls.some((c: any[]) => c[0] === "CampaignsComplete")).toBe(true);
     // rewardStatus 落盘
@@ -241,9 +240,8 @@ describe("campaignV2 battleSweep", () => {
     const arg = res.send.mock.calls[0][0];
     expect(arg.feeAdd).toBe(25);
     expect(player._playerdata.campaignsV2.missions.exterminateActivity_1).toBe(2);
-    expect(
-      player._trigger.emit.mock.calls.some((c: any[]) => c[0] === "items:get"),
-    ).toBe(true);
+    expect(player.gainItem.add).toHaveBeenCalled();
+    expect(player.gainItem.handle).toHaveBeenCalled();
   });
 
   it("getExMissionReward：未达标任务应拒绝", async () => {
@@ -267,6 +265,8 @@ describe("campaignV2 battleSweep", () => {
     const arg = res.send.mock.calls[0][0];
     expect(arg.feeAdd).toBe(0);
     expect(player._playerdata.campaignsV2.missions.exterminateActivity_1).toBeUndefined();
+    // 未入账任何物品、未派发领域事件
+    expect(player.gainItem.add).not.toHaveBeenCalled();
     expect(player._trigger.emit).not.toHaveBeenCalled();
   });
 
@@ -290,5 +290,10 @@ describe("campaignV2 battleSweep", () => {
     const arg = res.send.mock.calls[0][0];
     expect(arg.diamondMaterialRewards).toEqual([]);
     expect(arg.currentFeeAfter).toBe(1800);
+    // 额度用尽 → 不再发合成玉（扣卡/扣理智仍发生，与官服行为一致）
+    const diaAdd = (player.gainItem.add as any).mock.calls.find(
+      (c: any[]) => (c[0] as any)?.type === "DIAMOND_SHD",
+    );
+    expect(diaAdd).toBeUndefined();
   });
 });

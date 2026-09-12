@@ -4,9 +4,9 @@
  */
 import * as fs from "fs";
 import * as path from "path";
+import { resolveCsFile } from "./lib/cs-source";
 
 const ROOT = path.join(__dirname, "..");
-const CS_PATH = path.join(ROOT, "reference/com.hypergryph.arknights_2.7.61.cs");
 const FBS_SCHEMA_DIR = path.join(ROOT, "scripts/vendor/fbs-schemas");
 
 /**
@@ -30,6 +30,17 @@ const PATH_ENUM_OVERRIDES: { pattern: string[]; map: Record<number, string> }[] 
     pattern: ["*", "stagetype"],
     map: { 0: "MAIN", 1: "DAILY", 2: "TRAINING", 3: "ACTIVITY", 4: "GUIDE", 5: "SUB", 6: "CAMPAIGN", 7: "SPECIAL_STORY", 8: "HANDBOOK_BATTLE", 9: "CLIMB_TOWER", 10: "ENUM" },
   },
+  {
+    // roguelike_topic_table.modules.<theme>.scrap.scrapItemToType.<scrapId>：
+    // 值类型为 RoguelikeScrapType（-1 ERROR / 0 NONE / 1 MOVE / 2 GOODS / 3 PASSIVE）。
+    // 该枚举取值与其他枚举大量重号（1/2/3 遍地都是）→ 唯一值兜底弃转，而消费方按
+    // 字符串比较（如 grid-nav 的 `typeMap.scrapItemToType[id] === "MOVE"`，林间代步/
+    // 先行一步归来选 MOVE 型零件）→ 数值形态下这些机制静默失效。
+    // 注：convert 根层把顶层子表键从路径中去掉（out[k] = convert(v, table)），故真实路径为
+    // <theme>.scrap.scrapitemtotype.<scrapId>（4 段；scrapId 已小写化）。
+    pattern: ["*", "scrap", "scrapitemtotype", "*"],
+    map: { [-1]: "ERROR", 0: "NONE", 1: "MOVE", 2: "GOODS", 3: "PASSIVE" },
+  },
 ];
 
 function pathEnumOverride(pathStr: string): Record<number, string> | undefined {
@@ -47,6 +58,42 @@ function pathEnumOverride(pathStr: string): Record<number, string> | undefined {
     if (ok) return map;
   }
   return undefined;
+}
+
+/**
+ * 数值字段路径禁转表（不参与枚举转换）。
+ *
+ * `AttributesData` 的数值字段（maxHp/atk/def/cost/...）在 FBO schema 中被标为
+ * `enum`——`enum` 只是 i32 的线格式（见 fbo.ts），并非"语义上是枚举"。转换器的
+ * 唯一值兜底（uniqueName）会把这些纯数值按"某个枚举恰好定义了该序数"错转成字符串。
+ *
+ * 实例（2026-09-11 发现）：def=514 → "BATTLES"（RoguelikeSkyZoneNodeType.BATTLES=514）、
+ * atk=63 → "ALL"（RarityRankMask.ALL=63）。因这些序数在各自枚举中**唯一**，多义弃转
+ * 规则无法拦住。数值 0 因 NONE=0 遍布上百枚举而被正确弃转，故只有非 0 碰撞值受害。
+ *
+ * 判定按路径尾段字段名（attributesKeyFrames.*.data.<field>）：属性字段名在小写下与
+ * 其它表的枚举字段重名概率极低，故用具名集合而非通配，避免误伤真正的枚举字段。
+ * 匹配任意表（character_table/char_patch_table/token_table 均含前缀类属性）。
+ */
+const NUMERIC_ATTR_FIELDS = new Set([
+  "maxhp", "atk", "def", "magicresistance", "cost", "blockcnt", "movespeed",
+  "attackspeed", "baseattacktime", "respawntime", "hprecoverypersec",
+  "sprecoverypersec", "maxdeploycount", "maxdeckstackcnt", "tauntlevel",
+  "masslevel", "baseforcelevel", "epdamageresistance", "epresistance",
+  "damagehitratephysical", "damagehitratemagical", "maxep", "eprecoverypersec",
+]);
+
+/**
+ * 该路径是否为已知纯数值字段（属性表内）。命中则不参与枚举转换。
+ * 仅当路径中出现 `data` 段（KeyFrame.Data）时才判定，确保不会误伤
+ * 其它表中同名的真枚举字段。
+ */
+function isNumericAttrPath(pathStr: string): boolean {
+  const p = pathStr.split(".").slice(1); // 去掉表名
+  if (p.length < 2) return false;
+  const field = p[p.length - 1];
+  const parent = p[p.length - 2];
+  return parent === "data" && NUMERIC_ATTR_FIELDS.has(field);
 }
 
 const PY_KEYWORDS = new Set([
@@ -94,8 +141,9 @@ function loadEnumMaps(): Map<number, string | null> {
   // 数值型数据字段（blackboard.value、playerApMap、characterExpMap、坐标等）错误
   // 转成枚举字符串（技能/AP 上限/经验曲线被破坏）。仅当值已存在于 FBS 枚举时才可能
   // 是数据枚举，CS 同值提供补充命名；CS 独有值一律不转。
-  if (fs.existsSync(CS_PATH)) {
-    const cs = fs.readFileSync(CS_PATH, "utf-8");
+  const csPath = resolveCsFile();
+  if (csPath) {
+    const cs = fs.readFileSync(csPath, "utf-8");
     const re = /public enum (Torappu\.[A-Za-z0-9_.]+)\s*:[^\{]*\{([^}]*)\}/g;
     for (const m of cs.matchAll(re)) {
       const body = m[2];
@@ -106,6 +154,13 @@ function loadEnumMaps(): Map<number, string | null> {
         if (unique.has(v)) add(v, vm[1]);
       }
     }
+  } else {
+    // 历史缺陷：此处曾硬编码 ..._2.7.61.cs，客户端改名后 existsSync 静默失败，
+    // CS 枚举补充整条路径失效且无告警。现在显式 warn，便于发现 reference/ 缺失。
+    console.warn(
+      "[excel-convert][WARN] 未找到 CS 反编译源，跳过 CS 枚举补充" +
+        "（FBS 枚举仍为权威来源；运行 `pnpm run decompile` 或设置 GENERATE_CS 可恢复）",
+    );
   }
   return unique;
 }
@@ -144,19 +199,120 @@ export function buildCompletion(schemaPath: string): SchemaCompletion | undefine
 }
 
 /**
- * 增量判断：原始解码文件与 schema 均不晚于输出文件 mtime → 已是最新（true）。
- * raw 不存在 / stat 出错返回 false（调用方按需转换）。official-excel 与 convert-worker 共用。
+ * 转换产物的溯源元数据键名。
+ *
+ * 历史缺陷：`isUpToDate` 原先只比文件系统 mtime，而 mtime 会被 checkout / 复制 /
+ * 备份还原 / 时钟漂移污染（实测曾出现 28/63 张表「raw 比 out 新但被判为已最新」，
+ * 以及反向的「out 比 raw 新但内容其实是旧的」）。改为在产物内嵌 sourceMtime +
+ * schemaMtime，比对**内容指纹**而非文件时间戳。
+ */
+export const META_KEY = "__meta";
+
+/** 产物内嵌的溯源元数据 */
+/** 转换器逻辑版本号：改动转换语义时必须递增，使全部产物指纹失效。 */
+export const CONVERTER_VERSION = 2;
+
+export interface ConvertMeta {
+  /** 原始解码文件（excel_json）的 mtimeMs */
+  sourceMtime: number;
+  /** FBO schema 文件的 mtimeMs，无 schema（AES 分支）为 null */
+  schemaMtime: number | null;
+  /** 转换时使用的 CS 源基名，便于溯源 */
+  csSource?: string | null;
+  /** 转换时间戳（ISO） */
+  convertedAt?: string;
+  /**
+   * 转换器逻辑版本（CONVERTER_VERSION）。
+   * 递增即可让全部既有产物判为过期并重转——避免"改了转换规则但增量判据看不出
+   * 差异、旧产物继续沿用"的静默问题（2026-09-11：修好数值枚举污染后首跑仍跳过
+   * 全部 63 张表，因 raw/schema mtime 未变）。
+   */
+  converterVersion?: number;
+}
+
+/**
+ * 计算当前 raw/schema 的溯源指纹（供写入产物时落盘）。
+ *
+ * @param rawFile - 原始解码文件
+ * @param schemaFile - FBO schema 文件（可选）
+ * @returns 指纹对象；raw 不存在时返回 null
+ */
+export function buildMeta(rawFile: string, schemaFile?: string): ConvertMeta | null {
+  try {
+    const sourceMtime = fs.statSync(rawFile).mtimeMs;
+    const schemaMtime =
+      schemaFile && fs.existsSync(schemaFile) ? fs.statSync(schemaFile).mtimeMs : null;
+    const cs = resolveCsFile();
+    return {
+      sourceMtime,
+      schemaMtime,
+      csSource: cs ? path.basename(cs) : null,
+      convertedAt: new Date().toISOString(),
+      converterVersion: CONVERTER_VERSION,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 把溯源元数据写入产物（单键根部对象的最外层新增 `__meta`）。
+ *
+ * 单键根表（SimpleKVTable 系列）在 `convertTable` 内部已解包为 values 映射，
+ * 此时在映射外层挂 `__meta` 需要包一层——为保持产物结构 100% 向后兼容
+ * （服务端 excel.init() 直接按表名读顶层键），这里改用**旁挂 sidecar 文件**
+ * `<outFile>.meta.json`，产物 JSON 本体不做任何改动。
+ *
+ * @param outFile - 产物路径
+ * @param meta - 溯源元数据
+ */
+export function writeMeta(outFile: string, meta: ConvertMeta): void {
+  fs.writeFileSync(`${outFile}.meta.json`, JSON.stringify(meta));
+}
+
+/**
+ * 读取产物的旁挂溯源元数据（`<outFile>.meta.json`）。
+ *
+ * @param outFile - 产物路径
+ */
+export function readSidecarMeta(outFile: string): ConvertMeta | null {
+  try {
+    const p = `${outFile}.meta.json`;
+    if (!fs.existsSync(p)) return null;
+    const m = JSON.parse(fs.readFileSync(p, "utf-8"));
+    return m && typeof m.sourceMtime === "number" ? (m as ConvertMeta) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 增量判断：比对旁挂溯源元数据（内容级指纹），退化时回退 mtime。
+ *
+ * 判定为「已最新」的条件（全部满足）：
+ * 1. 产物存在，且存在 `<outFile>.meta.json`；
+ * 2. `meta.sourceMtime === raw 的 mtimeMs`；
+ * 3. `meta.schemaMtime === schema 的 mtimeMs`（无 schema 时两者同为 null）。
+ *
+ * 元数据缺失（旧产物 / 元数据被删）→ 返回 false，强制重转一次以建立元数据。
+ * 这样「转换过一次」的表才有内容级依据；此后 mtime 被 checkout 之类事件污染也不再误判。
+ *
+ * @param rawFile - 原始解码文件（reference/hotupdate/excel_json/*.json）
+ * @param outFile - 转换产物（data/excel/*.json）
+ * @param schemaFile - FBO schema 文件（可选）
  */
 export function isUpToDate(rawFile: string, outFile: string, schemaFile?: string): boolean {
   try {
     const decStat = fs.statSync(rawFile);
-    const outStat = fs.existsSync(outFile) ? fs.statSync(outFile) : null;
-    const schemaStat = schemaFile && fs.existsSync(schemaFile) ? fs.statSync(schemaFile) : null;
-    return (
-      !!outStat &&
-      decStat.mtimeMs <= outStat.mtimeMs &&
-      (!schemaStat || schemaStat.mtimeMs <= outStat.mtimeMs)
-    );
+    if (!fs.existsSync(outFile)) return false;
+    const schemaMtime =
+      schemaFile && fs.existsSync(schemaFile) ? fs.statSync(schemaFile).mtimeMs : null;
+
+    const meta = readSidecarMeta(outFile);
+    if (!meta) return false; // 无元数据 → 必须重转以建立指纹
+    // 转换器版本不符 → 逻辑已变，旧产物不可信
+    if ((meta.converterVersion ?? 0) !== CONVERTER_VERSION) return false;
+    return meta.sourceMtime === decStat.mtimeMs && (meta.schemaMtime ?? null) === schemaMtime;
   } catch {
     return false;
   }
@@ -306,6 +462,9 @@ export function convertTable(
       return null;
     }
     if (typeof d === "number" && Number.isInteger(d)) {
+      // 纯数值字段（属性表 maxHp/atk/def 等）不参与枚举转换——
+      // 否则 def=514→"BATTLES"、atk=63→"ALL" 之类的唯一值碰撞会污染数值（见 isNumericAttrPath）
+      if (isNumericAttrPath(stripIdx(p))) return d;
       const vm = valueMap.get(stripIdx(p));
       if (vm && vm.has(d)) return vm.get(d)!;
       // 路径级枚举覆盖：唯一值兜底对多义值（同一数值在多个枚举中重复）弃转，

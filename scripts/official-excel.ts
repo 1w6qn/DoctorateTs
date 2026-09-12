@@ -13,7 +13,7 @@ import { createCipheriv, createDecipheriv, createHash } from "crypto";
 import { extractTextAsset } from "./vendor/unityfs";
 import { FBO } from "./vendor/fbo";
 import { LUACRYPT_MASK } from "./vendor/lua-crypt";
-import { convertTable, buildCompletion, isUpToDate } from "./excel-convert";
+import { convertTable, buildCompletion, isUpToDate, buildMeta, writeMeta } from "./excel-convert";
 import { assetRegistry } from "@asset/asset-service";
 
 const ROOT = path.join(__dirname, "..");
@@ -24,8 +24,53 @@ const DL_DIR = path.join(ROOT, "reference/hotupdate/downloads");
 const OUT_DIR = path.join(ROOT, "reference/hotupdate/excel_json");
 const DATA_EXCEL_DIR = path.join(ROOT, "data/excel");
 const SCHEMA_DIR = path.join(ROOT, "scripts/vendor/fbs-schemas");
-const HUL_SNAPSHOT = path.join(HUL_DIR, "hot_update_list_26-08-07-10-51-39.json");
 const NAME_CACHE = path.join(HUL_DIR, "textasset-names.json");
+
+/**
+ * 探测本地最新的热更清单快照（`reference/hotupdate/hot_update_list_*.json`）。
+ *
+ * 历史缺陷：此处曾硬编码 `hot_update_list_26-08-07-10-51-39.json`，客户端 resVersion
+ * 推进到 `26-09-03-04-06-11_79371a` 后仍读旧快照 → 离线/断网回退路径静默解码旧版本数据，
+ * 且 `assetRegistry` 溯源把旧 resVersion 写进血缘记录。
+ *
+ * 优先取内嵌时间戳最新的文件名；解析不出时间戳时退回 mtime。
+ */
+function resolveLatestHulSnapshot(): string | null {
+  if (!fs.existsSync(HUL_DIR)) return null;
+  const files = fs
+    .readdirSync(HUL_DIR)
+    .filter((f) => /^hot_update_list_.+\.json$/.test(f));
+  if (files.length === 0) return null;
+  // 文件名内嵌 `YY-MM-DD-HH-mm-ss`，字典序即时间序；同前缀（无时间戳）时以 mtime 兜底
+  const ts = (f: string): number => {
+    const m = f.match(/^hot_update_list_(\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})/);
+    if (!m) return fs.statSync(path.join(HUL_DIR, f)).mtimeMs;
+    return Date.UTC(
+      2000 + Number(m[1].slice(0, 2)),
+      Number(m[1].slice(3, 5)) - 1,
+      Number(m[1].slice(6, 8)),
+      Number(m[1].slice(9, 11)),
+      Number(m[1].slice(12, 14)),
+      Number(m[1].slice(15, 17)),
+    );
+  };
+  const sorted = files
+    .map((f) => ({ p: path.join(HUL_DIR, f), key: ts(f) }))
+    .sort((a, b) => a.key - b.key);
+  return sorted[sorted.length - 1].p;
+}
+
+/**
+ * 从清单文件内容取 resVersion：优先 `versionId`，其次文件名内嵌时间戳。
+ *
+ * @param hulPath - 清单文件路径
+ * @param hul - 已解析的清单对象（可选，避免重复读取）
+ */
+function resVersionOf(hulPath: string, hul?: any): string {
+  if (hul && typeof hul.versionId === "string" && hul.versionId) return hul.versionId;
+  const m = path.basename(hulPath).match(/^hot_update_list_(.+)\.json$/);
+  return m ? m[1] : "unknown";
+}
 
 // 服务端加载的全部 excel 表
 const TABLE_WHITELIST = new Set([
@@ -169,17 +214,66 @@ async function main() {
   const tableArg = ti >= 0 ? args[ti + 1] : undefined;
 
   let hul: any;
-  let resVersion = "26-08-07-10-51-39";
+  let resVersion: string;
+  let hulPath: string | null = null;
   if (doDownload && !offline) {
     try {
       ({ hul, resVersion } = await fetchHotUpdateList());
       console.log(`热更清单: resVersion=${resVersion}`);
     } catch {
       console.log("[warn] 拉取热更清单失败，使用本地快照");
-      hul = JSON.parse(fs.readFileSync(HUL_SNAPSHOT, "utf-8"));
+      hulPath = resolveLatestHulSnapshot();
+      if (!hulPath) {
+        console.error(`本地无热更清单快照（${HUL_DIR}/hot_update_list_*.json），无法解码`);
+        process.exit(1);
+      }
+      hul = JSON.parse(fs.readFileSync(hulPath, "utf-8"));
+      resVersion = resVersionOf(hulPath, hul);
+      console.log(`  本地快照: ${path.basename(hulPath)} → resVersion=${resVersion}`);
     }
   } else {
-    hul = JSON.parse(fs.readFileSync(HUL_SNAPSHOT, "utf-8"));
+    hulPath = resolveLatestHulSnapshot();
+    if (!hulPath) {
+      console.error(`本地无热更清单快照（${HUL_DIR}/hot_update_list_*.json），无法解码`);
+      process.exit(1);
+    }
+    hul = JSON.parse(fs.readFileSync(hulPath, "utf-8"));
+    resVersion = resVersionOf(hulPath, hul);
+    console.log(`离线/解码模式使用本地快照: ${path.basename(hulPath)} → resVersion=${resVersion}`);
+  }
+  // 溯源版本强制以清单内容为准，避免网络分支 resVersion 与本地清单不一致
+  resVersion = resVersionOf(hulPath ?? path.join(HUL_DIR, `hot_update_list_${resVersion}.json`), hul) || resVersion;
+
+  /**
+   * 从热更清单重写 `data/excel/data_version.txt`（官服热更描述符）。
+   *
+   * 历史缺陷：该文件此前**无任何脚本写入方**，是手工维护/直接入库的产物，
+   * 实测停留在 `VersionControl:76.2.0` 而实际数据已是 77.0.0 —— 导致 S10
+   * 版本校验（`data_version.txt` vs `gamedata_const.dataVersion`）保护失效。
+   *
+   * 映射依据：清单 `manifestVersion`（如 `V077`）↔ `gamedata_const.dataVersion`
+   * （如 `77.0.0`），实测一一对应。
+   */
+  function writeDataVersionFile(): void {
+    try {
+      const mv: string | undefined = hul?.manifestVersion;
+      if (!mv) {
+        console.warn("[warn] 清单缺 manifestVersion，跳过 data_version.txt 重写");
+        return;
+      }
+      const digits = mv.replace(/^[Vv]/, "");
+      // V077 → 77.0.0（去掉前导 0）
+      const versionControl = `${Number(digits)}.0.0`;
+      const content =
+        `Stream://torappu-data/v${digits}/rel${Number(digits)}.0\n` +
+        `Change:0 on ${new Date().toISOString().slice(0, 10).replace(/-/g, "/")}\n` +
+        `VersionControl:${versionControl}\n`;
+      const p = path.join(DATA_EXCEL_DIR, "data_version.txt");
+      fs.writeFileSync(p, content);
+      console.log(`已重写 data_version.txt: VersionControl=${versionControl}（源自清单 ${mv}）`);
+    } catch (e) {
+      console.warn(`[warn] 重写 data_version.txt 失败：${(e as Error).message}`);
+    }
   }
 
   fs.mkdirSync(DL_DIR, { recursive: true });
@@ -314,10 +408,15 @@ async function main() {
     }
     await Promise.all(Array.from({ length: decodeConcurrency }, decodeWorker));
     console.log(`解码完成: ${ok} ok, ${fail} fail`);
+    if (fail > 0) {
+      console.error(`解码存在 ${fail} 个 bundle 失败`);
+      process.exitCode = 1;
+    }
   }
 
   if (doConvert) {
     let ok = 0, fail = 0, skipped = 0;
+    const failures: string[] = [];
     const allTables = fs.readdirSync(OUT_DIR).filter((x) => x.endsWith(".json")).map((x) => x.slice(0, -5)).sort();
     const targets = tableArg ? allTables.filter((n) => n === tableArg) : allTables;
     // 并行转换：需转换的表数较多时用 worker_threads（首次/新版本全量）；否则内联
@@ -335,28 +434,68 @@ async function main() {
       // 全部最新
     } else if (needConvert.length >= 4 && !tableArg) {
       // worker 并行（worker_threads 独立进程，避开单线程 CPU 瓶颈）
+      //
+      // 关键：worker 以**普通 Node 进程**启动，不继承主进程 tsx 的转译上下文，
+      // 因此不能直接 spawn TS 文件（`.ts`/`.mts` 均报
+      // `Cannot use import statement outside a module`，因为依赖链里有 CJS 的
+      // excel-convert.ts；execArgv 注入 tsx loader 亦无效）。
+      // 正确入口是纯 CJS 引导 `convert-worker-boot.cjs`，它先 require("tsx/cjs")
+      // 注册转译钩子再加载真正的 worker。
+      //
+      // 历史缺陷：这条链路此前完全不可用（63/63 全败），错误被
+      // `w.on("error", () => resolve())` 吞掉，管线仍报「转换完成 N ok」，
+      // 实测使 28/63 张表停留在旧批次（2026-09-11 修复）。
       const { Worker } = await import("worker_threads");
-      const workerPath = path.join(__dirname, "convert-worker.ts");
+      const workerPath = path.join(__dirname, "convert-worker-boot.cjs");
       const workers = Math.min(4, Math.max(1, Math.floor((os.cpus().length || 4) / 2)));
       const chunks: string[][] = Array.from({ length: workers }, () => []);
       needConvert.forEach((n, i) => chunks[i % workers].push(n));
-      const results = await Promise.all(
+      console.log(`转换并行度: ${workers} workers`);
+      await Promise.all(
         chunks.map(
           (tables) =>
             new Promise<void>((resolve) => {
+              // 已上报终态的表（ok/fail）集合：用于 worker 异常退出时补齐未上报的表
+              const reported = new Set<string>();
               const w = new Worker(workerPath, {
                 workerData: { tables, outDir: OUT_DIR, dataDir: DATA_EXCEL_DIR, schemaDir: SCHEMA_DIR },
               });
               w.on("message", (m: any) => {
                 if (m.done) { w.terminate(); resolve(); }
-                else if (m.status === "ok") ok++;
-                else if (m.status === "fail") { fail++; console.log(`  转换失败 ${m.name}: ${m.error}`); }
+                else if (m.status === "ok") { ok++; reported.add(m.name); }
+                else if (m.status === "skipped") { reported.add(m.name); }
+                else if (m.status === "fail") {
+                  fail++;
+                  reported.add(m.name);
+                  failures.push(`${m.name}: ${m.error}`);
+                  console.log(`  转换失败 ${m.name}: ${m.error}`);
+                }
               });
-              w.on("error", () => resolve());
+              // 历史缺陷：worker 顶层异常原先只 resolve() 不计 fail → 管线误报成功。
+              // 现在显式计入失败，并把该 worker 未上报的表全部标记为失败（避免静默漏转）。
+              w.on("error", (e) => {
+                const msg = e instanceof Error ? e.message : String(e);
+                for (const name of tables) {
+                  if (reported.has(name)) continue;
+                  fail++;
+                  failures.push(`${name}: worker 异常退出（${msg.slice(0, 120)}）`);
+                }
+                console.error(`  转换 worker 异常退出: ${msg.slice(0, 160)}`);
+                resolve();
+              });
+              // worker 非 0 退出码（如 uncaughtException 后 process.exit(1)）同样需要补齐
+              w.on("exit", (code) => {
+                if (code === 0) return;
+                for (const name of tables) {
+                  if (reported.has(name)) continue;
+                  fail++;
+                  failures.push(`${name}: worker 退出码 ${code}`);
+                }
+                resolve();
+              });
             }),
         ),
       );
-      void results;
     } else {
       // 内联转换（少量表）
       for (const name of needConvert) {
@@ -369,14 +508,20 @@ async function main() {
           const completion = buildCompletion(schemaPath);
           const result = convertTable(dec, loc, name, completion);
           fs.writeFileSync(out, JSON.stringify(result));
+          // 溯源指纹旁挂（下次 isUpToDate 的内容级判据）
+          const meta = buildMeta(path.join(OUT_DIR, f), schemaPath);
+          if (meta) writeMeta(out, meta);
           ok++;
         } catch (e) {
           fail++;
+          failures.push(`${name}: ${(e as Error).message.slice(0, 120)}`);
           console.log(`  转换失败 ${name}: ${(e as Error).message.slice(0, 60)}`);
         }
       }
     }
     console.log(`转换完成: ${ok} ok, ${fail} fail${skipped ? `（跳过 ${skipped} 张未变更表）` : ""}`);
+    // 转换成功后重写版本描述符（供 S10 校验；失败时保持旧值不误导）
+    if (fail === 0) writeDataVersionFile();
     // 溯源：官方 excel 转换（transform）留痕
     try {
       await assetRegistry.recordEvent({
@@ -385,9 +530,17 @@ async function main() {
         actor: "official-excel",
         source: "FBO/AES 解码 → data/excel",
         version: resVersion,
-        detail: { ok, fail, skipped, resVersion, tableCount: ok + skipped },
+        detail: { ok, fail, skipped, resVersion, tableCount: ok + skipped, failures: failures.slice(0, 20) },
       });
     } catch { /* 溯源失败不阻断管线 */ }
+    // 历史缺陷：转换失败原先不影响退出码，`pnpm run update` 会打印「数据更新完成」。
+    // 现在有失败即以非 0 退出，让入口脚本/CI 能感知。
+    if (fail > 0) {
+      console.error(`转换存在 ${fail} 张表失败，管线以非 0 退出：`);
+      for (const f of failures.slice(0, 20)) console.error(`  - ${f}`);
+      if (failures.length > 20) console.error(`  ...另有 ${failures.length - 20} 条`);
+      process.exitCode = 1;
+    }
   }
 }
 

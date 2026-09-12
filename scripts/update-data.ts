@@ -2,8 +2,9 @@ import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 import { getResVersion, CONF_API } from "./official-api";
+import { resolveCsFile } from "./lib/cs-source";
 import { assetRegistry } from "@asset/asset-service";
-import { verifyLocalDataVersion } from "@excel/data-version";
+import { verifyLocalDataVersion, verifyTableFreshness } from "@excel/data-version";
 
 const EXCEL_TARGET_DIR = path.join(__dirname, "../data/excel");
 
@@ -142,17 +143,27 @@ function runLuaHotExtract(): boolean {
   );
 }
 
+function logWarn(message: string): void {
+  console.warn(`[update-data][WARN] ${message}`);
+}
+
 function generateTypes(): boolean {
   log(`生成 TypeScript 类型...`);
-  // 类型生成已切换到 CS 反编译源（reference/com.hypergryph.arknights_2.7.61.cs），
-  // 统一生成器同时产出 types-playerdata.ts 与 types_excel_gen.ts
-  const csFile = path.join(__dirname, "../reference/com.hypergryph.arknights_2.7.61.cs");
-  if (!fs.existsSync(csFile)) {
-    // 新 clone 场景：reference/ 被 gitignore，类型文件已跟踪——跳过再生成而非失败
+  // 类型生成基于 CS 反编译源，统一生成器同时产出 types-playerdata.ts 与 types_excel_gen.ts。
+  // 注意：reference/ 被 gitignore 且文件名内嵌客户端版本号（每次更新改名），
+  // 因此禁止硬编码文件名——统一走 resolveCsFile() 通配探测（历史缺陷：硬编码 2.7.61
+  // 导致客户端升到 2.7.71 后 existsSync 守卫命中，类型生成被静默跳过却上报成功）。
+  const csFile = resolveCsFile();
+  if (!csFile) {
+    // 新 clone 场景：reference/ 被 gitignore，类型文件已随仓库跟踪——跳过再生成而非失败
     // （excel 版本更新后类型可能滞后，但不阻断服务器运行）
-    log(`跳过类型生成：缺少 ${csFile}（类型文件已随仓库跟踪；放回反编译源后可重新生成）`);
+    logWarn(
+      `跳过类型生成：reference/ 下找不到 com.hypergryph.arknights_*.cs` +
+        `（类型文件已随仓库跟踪；运行 \`pnpm run decompile\` 或设置 GENERATE_CS 后可重新生成）`,
+    );
     return true;
   }
+  log(`使用 CS 源: ${path.relative(path.join(__dirname, ".."), csFile)}`);
   return executeCommand("pnpm exec tsx scripts/generate-types.ts", path.join(__dirname, ".."));
 }
 
@@ -192,7 +203,11 @@ export async function main(skipUpdate: boolean = false, offline: boolean = false
     const ver = verifyLocalDataVersion();
     if (ver.ok) log(`数据版本校验：${ver.message}`);
     else logError(`数据版本校验：${ver.message}`);
-    return 0;
+    // S10 补充：各表刷新批次一致性（仅有版本号无法发现「部分表未重转」，见 2026-09-11 修复）
+    const fresh = verifyTableFreshness();
+    if (fresh.ok) log(`数据新鲜度校验：${fresh.message}`);
+    else logWarn(`数据新鲜度校验：${fresh.message}`);
+    return ver.ok ? 0 : 1;
   }
 
   log("===== 开始更新数据 =====");
@@ -221,6 +236,11 @@ export async function main(skipUpdate: boolean = false, offline: boolean = false
   if (!(await syncGameVersion())) {
     logError("同步游戏版本失败，使用本地版本");
   }
+
+  // 更新收尾自检：各表是否同批刷新（能发现「转换阶段部分表失败但被吞」的混合数据集）
+  const fresh = verifyTableFreshness();
+  if (fresh.ok) log(`\n数据新鲜度校验：${fresh.message}`);
+  else logWarn(`\n数据新鲜度校验：${fresh.message}`);
 
   log("\n===== 数据更新完成 =====");
   return 0;

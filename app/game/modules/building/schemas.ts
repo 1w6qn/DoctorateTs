@@ -8,7 +8,7 @@
  * 约定：
  * - 必填字段用对应类型（z.string()/z.number()/z.boolean()/z.array(...)）；
  * - 服务端不读或兼容形态的可选字段标 .optional()；
- * - 客户端会发送但服务端不读取的复杂嵌套对象用 z.any()；
+ * - 客户端会发送但服务端不读取的复杂嵌套对象用 z.json()；
  * - 服务端未读取请求体的端点用空 schema z.object({})。
  */
 import { z } from "zod";
@@ -62,13 +62,14 @@ export const degradeRoomSchema = z.object({
 
 /**
  * 专精升级（CS: UpdateSpecializationRequest）
- * 服务端读 charInstId/targetSkill；skillIndex/reduceTimeBd 客户端发送但服务端不读
+ * 服务端读 charInstId/targetSkill；skillIndex/reduceTimeBd 客户端发送但服务端不读，
+ * 后者用 z.json().optional() 透传（形态不深检）
  */
 export const upgradeSpecializationSchema = z.object({
   charInstId: z.number(),
   targetSkill: z.number(),
   skillIndex: z.number().optional(),
-  reduceTimeBd: z.any().optional(),
+  reduceTimeBd: z.json().optional(),
 });
 
 /** 完成专精升级（CS: CompleteUpgradeSpecializationRequest，服务端读 charInstId/targetSkill） */
@@ -207,10 +208,23 @@ export const changeSaleSolutionSchema = z.object({
     .optional(),
 });
 
-/** 更换自定义方案（CS: BuildingDIYChangeDIYSolutionRequest；solution 复杂对象 z.any()） */
+/**
+ * 更换自定义方案（CS: BuildingDIYChangeDIYSolutionRequest）
+ *
+ * solution 按 handler（building/logic/manufacture.ts#changeDiySolution）实际读取的字段收紧：
+ * wallPaper/floor（家具 ID）与 carpet/other 的 `id` 用于求和房间舒适度；整份 solution 仍
+ * 原样存入 diySolution，故 passthrough 保留未被读取的家具明细字段，避免剥字段丢存档数据
+ */
 export const changeDiySolutionSchema = z.object({
   roomSlotId: z.string(),
-  solution: z.any(),
+  solution: z
+    .object({
+      wallPaper: z.string().optional(),
+      floor: z.string().optional(),
+      carpet: z.array(z.object({ id: z.string() }).passthrough()).optional(),
+      other: z.array(z.object({ id: z.string() }).passthrough()).optional(),
+    })
+    .passthrough(),
 });
 
 /**
@@ -339,19 +353,25 @@ export const changePresetNameSchema = z.object({
   presetName: z.string().optional(),
 });
 
-/** 保存自定义预设方案（CS: BuildingDIYSavePresetSolutionRequest；solution 复杂对象 z.any()） */
+/**
+ * 保存自定义预设方案（CS: BuildingDIYSavePresetSolutionRequest）
+ * solution 服务端不读内层字段（整体存入 diyPresetSolutions[presetName]），用 z.json() 透传
+ */
 export const saveDiyPresetSolutionSchema = z.object({
   solutionId: z.number().optional(),
   roomType: z.string().optional(),
   name: z.string().optional(),
   thumbnail: z.string().optional(),
   presetName: z.string(),
-  solution: z.any(),
+  solution: z.json(),
 });
 
-/** 编辑锁定队列（CS: BuildingSaveDormLockRequest；lockPos 字典复杂对象 z.any()） */
+/**
+ * 编辑锁定队列（CS: BuildingSaveDormLockRequest）
+ * lockPos 字典服务端不读（只读 roomSlotId/locked），用 z.json().optional() 透传
+ */
 export const editLockQueueSchema = z.object({
-  lockPos: z.any().optional(),
+  lockPos: z.json().optional(),
   roomSlotId: z.string(),
   locked: z.boolean(),
 });

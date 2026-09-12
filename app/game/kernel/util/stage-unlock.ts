@@ -13,6 +13,8 @@
  * unlockActivity 与 battle 各自引用本文件即可，不引入 manager 间循环依赖。
  */
 import excel from "@excel/excel";
+import type { Draft } from "mutative";
+import type { PlayerDataModel } from "../playerdata";
 
 /** 解锁条件完成度（PlayerBattleRank 字符串）→ 关卡 state 数值档位（FAIL/PASS/COMPLETE → 1/2/3） */
 export const completeStateRank: Record<string, number> = {
@@ -152,7 +154,7 @@ export interface ScanUnlockChainResult {
  * @returns 新解锁关卡 id 列表与状态对象
  */
 export function scanUnlockChain(
-  draft: any,
+  draft: Draft<PlayerDataModel>,
   anchor?: UnlockChainAnchor,
   opts?: ScanUnlockChainOptions,
 ): ScanUnlockChainResult {
@@ -165,13 +167,13 @@ export function scanUnlockChain(
     opts?.clearedStageType !== undefined &&
     ["MAIN", "SUB"].includes(opts.clearedStageType);
 
-  for (const [itemId, stageDef] of Object.entries(
-    excel.StageTable.stages,
-  ) as [string, any][]) {
+  // stageDef 的声明类型为 StageData；数据表末尾的字段名伪键在 JSON 里值为 null，
+  // battle 分支按下方的 typeof 守卫跳过，seed 分支按 `?? []` 视作无条件关卡。
+  for (const [itemId, stageDef] of Object.entries(excel.StageTable.stages)) {
     if (mode === "battle") {
       // 防御：数据表末尾字段名伪键（值 null）——读 stage.unlockCondition 会崩溃
       if (!stageDef || typeof stageDef !== "object") continue;
-      const conditions = stageDef.unlockCondition as StageUnlockCondition[];
+      const conditions: StageUnlockCondition[] = stageDef.unlockCondition;
       if (conditions.length === 0) {
         // 无前置条件关卡：缺失才补默认状态（noCostCnt 恒 1，两处原始行为一致）
         if (!(itemId in dungeonStages)) {
@@ -202,9 +204,7 @@ export function scanUnlockChain(
         const fresh = defaultStageState(itemId, opts?.noCost);
         if (
           advanceMainStage &&
-          ["MAIN", "SUB"].includes(
-            excel.StageTable.stages[itemId]?.stageType as string,
-          )
+          ["MAIN", "SUB"].includes(stageDef.stageType)
         ) {
           draft.status.mainStageProgress = itemId;
         }

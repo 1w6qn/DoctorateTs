@@ -6,6 +6,7 @@
  * 避免 PlayerDataManager 与 AccountManager 之间的循环依赖。
  */
 import type { ItemBundle } from "@excel/excel";
+import type { SquadFriendData } from "./model";
 
 /**
  * 战斗信息接口（battle_infos 表：结算所需的最小上下文，战斗期间即写入）
@@ -38,13 +39,13 @@ export interface BattleInfo {
   settled?: number;
   /** 出战编队（用于结算信赖等后处理） */
   squad?: { slots: ({ charInstId: number } | null)[] };
-  /** 助战好友信息（编队借用好友干员） */
-  assistFriend?: {
-    uid: string;
-    nickName: string;
-    assistChar: { charId: string; level?: number }[];
-    assistSlotIndex: number;
-  } | null;
+  /**
+   * 助战好友信息（battleStart 快照 CommonStartBattleRequest.assistFriend 原样保存）
+   *
+   * 修复：原为内联的子集结构（uid/nickName/assistChar/assistSlotIndex），
+   * 与事件契约 StageWithAssistChar 的 SquadFriendData 不一致，逼出 `as any`。
+   */
+  assistFriend?: SquadFriendData | null;
 }
 
 /**

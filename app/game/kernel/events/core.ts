@@ -16,7 +16,7 @@ import type {
   BattleData,
   CommonStartBattleRequest,
 } from "../battle-model";
-import type { PlayerCharacter } from "../model";
+import type { PlayerCharacter, SquadFriendData } from "../model";
 import type { PlayerRoguelikeV2 } from "../../modules/roguelike/rlv2-model";
 
 /**
@@ -112,8 +112,8 @@ export type EventMapCore = {
   StageWithEnemyKill: [BattleData & { stageId: string }];
   /** 任意关卡击杀敌人 */
   EnemyKillInAnyStage: [BattleData];
-  /** 使用助战角色通关 */
-  StageWithAssistChar: [BattleData & { assistFriend: any }];
+  /** 使用助战角色通关（assistFriend 为 battleStart 快照的助战好友，未助战为 null） */
+  StageWithAssistChar: [BattleData & { assistFriend: null | SquadFriendData }];
   /** 升级角色 */
   UpgradeChar: [{ char: PlayerCharacter; exp: number }];
   /** 获得社交点数 */

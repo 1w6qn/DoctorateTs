@@ -9,7 +9,8 @@
  * 约定：
  * - 必填字段用对应类型（z.string/z.number/z.boolean/z.array）
  * - 服务端不读或可省略的字段 .optional()
- * - 复杂嵌套对象用 z.any()（如 expMats / squad 等），仅保证键存在不深检
+ * - handler 会读内层字段的嵌套数组按被读字段收紧（如 expMats 的 id/count）；
+ *   整包转发/整体存储的（如 squad）用 z.json()，仅保证键存在不深检
  */
 
 import { z } from "zod";
@@ -25,8 +26,14 @@ export const setDefaultSkillSchema = z.object({
 /** 干员升级请求（CS: UpgradeCharRequest；expMats 为 ItemBundle[] 复杂对象数组） */
 export const upgradeCharSchema = z.object({
   charInstId: z.number(),
-  // expMats 为 ItemBundle[] 复杂嵌套，仅保证为数组，元素结构不深检
-  expMats: z.array(z.any()),
+  // expMats 为 ItemBundle[]（{ id, count }）——char.ts#upgradeChar 逐项读 id/count 折算经验，
+  // 再交 gainItem 管道消耗，故按被读字段收紧；passthrough 保留 type/instId 等附加字段
+  expMats: z.array(
+    z.object({
+      id: z.string(),
+      count: z.number(),
+    }).passthrough(),
+  ),
 });
 
 /** 干员精英化请求（CS: EvolveCharRequest；destEvolvePhase 为 EvolvePhase 枚举数值） */
@@ -134,7 +141,7 @@ export const addonStageBattleStartSchema = z.object({
   charId: z.string(),
   stageId: z.string(),
   // squad 为 PlayerSquad 复杂嵌套对象，仅保证键存在
-  squad: z.any(),
+  squad: z.json(),
   stageType: z.string(),
 });
 

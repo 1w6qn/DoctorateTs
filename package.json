@@ -32,6 +32,8 @@
     "start:capture": "tsx index.ts -s --capture",
     "start:dev": "nodemon --exec tsx index.ts --ext ts --watch index.ts --watch app --watch config",
     "build": "tsc",
+    "typecheck": "tsc -p tsconfig.json",
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json",
     "hook": "frida-compile hook/main.ts -o _arknights.js -c",
     "test": "vitest run",
     "test:watch": "vitest",

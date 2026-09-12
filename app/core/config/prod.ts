@@ -44,7 +44,8 @@ const router = Router();
 // Windows 平台独立版本（odpy 参考：config.version.windows；无则回退单版本）
 router.get("/official/Windows/version", async (req, res) => {
   const version = servedVersion();
-  const win = (version as any).windows;
+  // 平台独立版本（region 伪装字段级回退后的 ResolvedVersion.windows；缺省回退单版本）
+  const win = version.windows;
   let modPatch: { resVersion?: string } = {};
   if (config.assets.enableMods) {
     await ensureModsLoaded("Windows");

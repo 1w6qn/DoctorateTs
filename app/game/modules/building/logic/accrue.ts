@@ -193,7 +193,7 @@ function _powerLaborSpeed(
    */
 export function _recoverLabor(mgr: BuildingManager, draft: Draft<PlayerDataModel>, ts: number) : void {
     const labor = draft.building.status.labor;
-    const baseRate = getBuildingConstant<number>("laborRecoverTime") ?? 360;
+    const baseRate = getBuildingConstant("laborRecoverTime") ?? 360;
     // 修复（2026-09-09）：充能速率须计入发电站在岗干员加成——prts《发电站》：
     // 每名在岗干员充能速度 +5%，实际加成为所有发电站之和（真存档 labor.buffSpeed=0.6）。
     // 原实现固定 360s/架且从不写 buffSpeed → 发电站干员（伊芙利特/澄闪/THRM-EX）完全无效。
@@ -219,7 +219,7 @@ export function _infoShareReward(mgr: BuildingManager, sr: { daily?: number; sea
    * 保底 creditGuaranteed=10，兜底 35）——信用经济循环的每次入账量
    */
 export function _meetingCreditPerVisit(mgr: BuildingManager, draft: Draft<PlayerDataModel>) : number {
-    const guaranteed = getBuildingConstant<number>("creditGuaranteed") ?? 10;
+    const guaranteed = getBuildingConstant("creditGuaranteed") ?? 10;
     for (const slot of Object.values(draft.building.roomSlots)) {
       if (slot?.roomId !== "MEETING") continue;
       const phase = getMeetingPhase(slot.level ?? 1);
@@ -298,7 +298,7 @@ export function _accumulateSearchCredit(mgr: BuildingManager, draft: Draft<Playe
     visitorCount: number,) : void {
     if (!room || visitorCount <= 0) return;
     const perVisit = mgr._meetingCreditPerVisit(draft);
-    const limit = getBuildingConstant<number>("creditInitiativeLimit") ?? 100;
+    const limit = getBuildingConstant("creditInitiativeLimit") ?? 100;
     room.socialReward = room.socialReward ?? { daily: 0, search: 0 };
     room.socialReward.search = Math.min(
       (room.socialReward.search ?? 0) + visitorCount * perVisit,
@@ -583,7 +583,7 @@ export function _accrueMeeting(mgr: BuildingManager, draft: Draft<PlayerDataMode
         // 数值取 clue_data.outputBasicBonus（实测 20，与 getDailyClue 同口径）。
         draft.status.socialPoint =
           (draft.status.socialPoint ?? 0) +
-          (getClueConstant<number>("outputBasicBonus") ?? 20);
+          (getClueConstant("outputBasicBonus") ?? 20);
         draft.pushFlags.hasClues = 1;
       }
     }
@@ -891,7 +891,7 @@ export function _accrueWarmup(mgr: BuildingManager, draft: Draft<PlayerDataModel
    */
 export function _accrueFavor(mgr: BuildingManager, draft: Draft<PlayerDataModel>, nowSec?: number) : void {
     const ts = nowSec ?? Date.now() / 1000; // 浮点秒（毫秒精度）
-    const perDay = getBuildingConstant<number>("basicFavorPerDay") ?? 720;
+    const perDay = getBuildingConstant("basicFavorPerDay") ?? 720;
     const perHour = Math.max(perDay / 24, 1); // 每小时信赖量（默认 720/24 = 30）
     const perSec = perHour / 3600; // 每秒信赖量
     if (perSec <= 0) return;

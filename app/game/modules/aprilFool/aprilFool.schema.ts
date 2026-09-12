@@ -8,7 +8,7 @@
  * 约定：
  * - 开始战斗（battleStart）与直播结算（liveSettle）为 stub（handler 不读 body），
  *   用 z.object({})。
- * - 结算端点 handler 仅读 data（解密用），battleData 复杂对象按需用 z.any()。
+ * - 结算端点 handler 仅读 data（解密用），battleData 复杂对象按需用 z.json()。
  */
 import { z } from "zod";
 
@@ -19,7 +19,7 @@ export const act5funBattleStartSchema = z.object({});
 export const act5funBattleFinishSchema = z.object({
   data: z.string(),
   // battleData 为客户端完整战报对象，仅保证存在，不做深类型校验
-  battleData: z.any(),
+  battleData: z.json(),
 });
 
 /** act3fun 开始战斗（stub，handler 不读 body） */

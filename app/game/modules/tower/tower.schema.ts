@@ -8,8 +8,8 @@
  *
  * 约定：
  * - 协议层 Boolean 按 0/1 数字处理（如 isHard/giveUp）。
- * - 复杂嵌套对象（tactical/slots 等）用 z.any() 或 z.array(z.any())，仅保证
- *   键存在、结构由 manager 自行处理，避免对客户端完整结构误伤。
+ * - 整包存储/转发的复杂嵌套对象（tactical）用 z.json()；handler 会读内层字段的
+ *   （slots 的 charInstId/skillIndex/currentEquip）按被读字段收紧，passthrough 保留其余字段。
  * - 空请求体用 z.object({})。
  */
 import { z } from "zod";
@@ -28,12 +28,24 @@ export const initGodCardSchema = z.object({
 /** 初始化游戏请求（CS: ClimbTowerInitGameRequest；tactical 为复杂嵌套对象） */
 export const initGameSchema = z.object({
   strategy: z.string(),
-  tactical: z.any(),
+  tactical: z.json(),
 });
 
-/** 初始化卡牌请求（CS: ClimbTowerInitSquadRequest，含 slots/assist；服务端仅读 slots） */
+/**
+ * 初始化卡牌请求（CS: ClimbTowerInitSquadRequest，含 slots/assist；服务端仅读 slots）
+ *
+ * slots 每项按 handler（tower/routes.ts#initCard）实际读取的字段收紧：
+ * `charInstId`（查 troop.chars）、`skillIndex`/`currentEquip`（缺省由干员数据兜底）。
+ * 非空校验仍留在 handler（空数组返回 result:1 业务错误，不能由 schema 提前 422）。
+ */
 export const initCardSchema = z.object({
-  slots: z.array(z.any()),
+  slots: z.array(
+    z.object({
+      charInstId: z.number(),
+      skillIndex: z.number().optional(),
+      currentEquip: z.string().nullable().optional(),
+    }).passthrough(),
+  ),
 });
 
 /** 爬塔战斗开始请求（CS: ClimbTowerBattleStartRequest，服务端仅读 stageId） */
@@ -68,7 +80,7 @@ export const settleGameSchema = z.object({});
  */
 export const layerRewardSchema = z.object({
   tower: z.string().optional(),
-  layers: z.array(z.any()).optional(),
+  layers: z.array(z.json()).optional(),
   isHard: z.union([z.number(), z.boolean()]).optional(),
 });
 

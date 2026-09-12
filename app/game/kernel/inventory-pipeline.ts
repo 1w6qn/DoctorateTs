@@ -21,8 +21,19 @@ import type { PlayerDataManager } from "./PlayerDataManager";
 import type { TypedEventEmitter } from "./events/runtime";
 import { ItemBundle, ItemType } from "@excel/excel";
 
+/**
+ * 管道物品条目：ItemBundle + consumable 实例 id
+ *
+ * `setTarget` 的 instId 供 inventory.ts 消耗路径定位 `consumable[itemId][instId]`
+ * 实例（ItemBundle 本身不含该字段；运行时为同一对象，事件订阅方按需读取）。
+ */
+export interface PipelineItem extends ItemBundle {
+  /** consumable 实例 id（仅实例化物品使用） */
+  instId?: number;
+}
+
 export class GainItemPipeline {
-  private _targets: ItemBundle[] = [];
+  private _targets: PipelineItem[] = [];
 
   constructor(
     private _player: PlayerDataManager,
@@ -30,7 +41,7 @@ export class GainItemPipeline {
   ) {}
 
   /** 已入队的目标（只读，供断言/审计） */
-  get targets(): readonly ItemBundle[] {
+  get targets(): readonly PipelineItem[] {
     return this._targets;
   }
 
@@ -52,7 +63,7 @@ export class GainItemPipeline {
       type: itemType as ItemType,
       count: itemCount ?? 1,
       instId: itemInstId,
-    } as any);
+    });
     return this;
   }
 

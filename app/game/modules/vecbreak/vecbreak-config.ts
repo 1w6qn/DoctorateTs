@@ -1,13 +1,18 @@
 /**
  * 矢量突破V2（vecbreak）活动配置读取
  *
- * 数据源：excel `ActivityTable.activity.vecBreakV2[activityId]`（当前版本含 `act1break` 与 `act2break`）与
- * `ActivityTable.basicInfo[activityId]`（`startTime`/`endTime`）。
+ * 数据源：excel `ActivityTable.activity.typeActVecBreakV2Data[activityId]`（当前版本含 `act1break` 与 `act2break`）
+ * 与 `ActivityTable.basicInfo[activityId]`（`startTime`/`endTime`）。
  * 每季配置含 `offenseStageDict`（核心突破 12 层）/ `hardStageDict`（全力以赴）/ `defenseBasicDict`（特别战线）
  * / `stageRewardDict`（各关卡的里程碑点数：首通 `completeRewardCnt`、重复 `normalRewardCnt`、限时 `limitReward`）
  * / `milestoneList` / `constData`。
+ *
+ * 修复（2026-09-12）：原实现读 `activity.vecBreakV2`，而官方表字段名是
+ * `activity.typeActVecBreakV2Data`（CS 签名 `ActivityTable.ActivityDetailTable.typeActVecBreakV2Data`，
+ * 2.7.71 实锤）——赛季字典恒为空 → 关卡清单为空、里程碑点数恒不发放。
  */
 import excel from "@excel/excel";
+import { isJsonObject, type JsonObject, type JsonValue } from "@excel/json-value";
 
 /** 单关卡里程碑奖励配置（stageRewardDict[stageId]） */
 export interface VecBreakStageReward {
@@ -20,9 +25,55 @@ export interface VecBreakStageReward {
   limitReward: { startTs: number; endTs: number; rewardCnt: number } | null;
 }
 
-/** vecBreakV2 活动字典 */
-function vecBreakDict(): Record<string, any> {
-  return ((excel.ActivityTable as any)?.activity?.vecBreakV2 ?? {}) as Record<string, any>;
+/** 限时奖励窗口 */
+type VecBreakLimitReward = NonNullable<VecBreakStageReward["limitReward"]>;
+
+/** 官方未建模 JSON 里的赛季字段（服务端消费面） */
+type JsonDict = { [key: string]: JsonValue };
+
+/**
+ * 取非负有限数值（缺失/非数值/被转换管线误写成枚举名的字符串一律按 0）
+ *
+ * 官方数据实锤：`stageRewardDict.*.completeRewardCnt` 的少量行是枚举名
+ * （`"MATERIAL_ISSUE_VOUCHER"` / `"PLOT_ITEM"`），而 CS 签名为 `System.Int32`
+ * ——转换器把数值 0/1 按全局枚举名表转成了字符串。消费侧若直接 `Number()` 会得到
+ * NaN 并写进存档，故此处保守按 0 计。
+ * @param raw - 原始 JSON 值
+ * @returns 数值（无法解析为有限数时 0）
+ */
+function toCount(raw: JsonValue | undefined): number {
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+  if (typeof raw === "string") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+/** JsonValue → 字符串键字典（非对象按空表处理） */
+function asDict(value: JsonValue | undefined): JsonDict {
+  return isJsonObjectValue(value) ? value : {};
+}
+
+/**
+ * `JsonValue | undefined` → JSON 对象收窄
+ *
+ * `json-value.ts` 的 {@link isJsonObject} 只接受 `JsonValue`（undefined 不在 JSON 域内），
+ * 而本模块的取值链（可选表 → 可选字典项）天然产生 `JsonValue | undefined`，
+ * 故在此收口：undefined 视为非对象。
+ * @param value - 待判定值
+ * @returns 是否为 JSON 对象
+ */
+function isJsonObjectValue(value: JsonValue | undefined): value is JsonObject {
+  return value !== undefined && isJsonObject(value);
+}
+
+/**
+ * 赛季字典（官方 `activity.typeActVecBreakV2Data`，键 = 赛季 id）
+ * @returns 赛季 id → 赛季配置（未建模 JSON）
+ */
+function vecBreakDict(): JsonDict {
+  return asDict(excel.ActivityTable?.activity?.typeActVecBreakV2Data);
 }
 
 /**
@@ -30,7 +81,7 @@ function vecBreakDict(): Record<string, any> {
  * @returns 赛季 id 列表
  */
 export function vecBreakActivityIds(): string[] {
-  const basic = ((excel.ActivityTable as any)?.basicInfo ?? {}) as Record<string, any>;
+  const basic = excel.ActivityTable?.basicInfo ?? {};
   return Object.keys(vecBreakDict()).sort(
     (a, b) => Number(basic[b]?.startTime ?? 0) - Number(basic[a]?.startTime ?? 0),
   );
@@ -50,30 +101,51 @@ export function currentVecBreakActivityId(): string {
 /**
  * 取指定（或默认当前）赛季的配置
  * @param activityId - 赛季 id；缺省取当前赛季
- * @returns 赛季 id 与配置对象；未命中返回 undefined
+ * @returns 赛季 id 与配置对象（未建模 JSON）；未命中返回 undefined
  */
 export function vecBreakDetail(
   activityId?: string,
-): { activityId: string; detail: Record<string, any> } | undefined {
+): { activityId: string; detail: JsonDict } | undefined {
   const dict = vecBreakDict();
-  const id = activityId && dict[activityId] ? activityId : currentVecBreakActivityId();
+  const id = activityId && isJsonObject(dict[activityId]) ? activityId : currentVecBreakActivityId();
   const detail = dict[id];
-  return detail ? { activityId: id, detail } : undefined;
+  return isJsonObject(detail) ? { activityId: id, detail } : undefined;
 }
 
 /**
  * 取关卡里程碑点数配置
  * @param activityId - 赛季 id
  * @param stageId - 关卡 id
- * @returns 奖励配置；未命中返回 undefined
+ * @returns 奖励配置（数值已归一）；未命中返回 undefined
  */
 export function vecBreakStageReward(
   activityId: string | undefined,
   stageId: string,
 ): VecBreakStageReward | undefined {
-  const cfg = vecBreakDetail(activityId);
-  const row = cfg?.detail?.stageRewardDict?.[stageId];
-  return row ? (row as VecBreakStageReward) : undefined;
+  const rows = vecBreakDetail(activityId)?.detail.stageRewardDict;
+  if (!isJsonObjectValue(rows)) return undefined;
+  const row = rows[stageId];
+  if (!isJsonObjectValue(row)) return undefined;
+  return {
+    stageId: typeof row.stageId === "string" ? row.stageId : stageId,
+    completeRewardCnt: toCount(row.completeRewardCnt),
+    normalRewardCnt: toCount(row.normalRewardCnt),
+    limitReward: toLimitReward(row.limitReward),
+  };
+}
+
+/**
+ * 限时奖励窗口（缺失/非法 → null = 无窗口）
+ * @param raw - stageRewardDict[*].limitReward 原始值
+ * @returns 窗口起止与点数
+ */
+function toLimitReward(raw: JsonValue | undefined): VecBreakLimitReward | null {
+  if (!isJsonObjectValue(raw)) return null;
+  return {
+    startTs: toCount(raw.startTs),
+    endTs: toCount(raw.endTs),
+    rewardCnt: toCount(raw.rewardCnt),
+  };
 }
 
 /**
@@ -97,22 +169,11 @@ export function vecBreakMilestoneGain(
 ): { point: number; timeLimited: boolean } {
   const row = vecBreakStageReward(activityId, stageId);
   if (!row) return { point: 0, timeLimited: false };
-  let point = 0;
-  if (firstClear) {
-    point += Number(row.completeRewardCnt ?? 0);
-  } else {
-    point += Number(row.normalRewardCnt ?? 0);
-  }
+  let point = firstClear ? row.completeRewardCnt : row.normalRewardCnt;
   let timeLimited = false;
   const limit = row.limitReward;
-  if (
-    firstClear &&
-    !timeLimitedClaimed &&
-    limit &&
-    nowTs >= Number(limit.startTs ?? 0) &&
-    nowTs <= Number(limit.endTs ?? 0)
-  ) {
-    point += Number(limit.rewardCnt ?? 0);
+  if (firstClear && !timeLimitedClaimed && limit && nowTs >= limit.startTs && nowTs <= limit.endTs) {
+    point += limit.rewardCnt;
     timeLimited = true;
   }
   return { point, timeLimited };
@@ -127,9 +188,9 @@ export function vecBreakStageIds(activityId?: string): string[] {
   const detail = vecBreakDetail(activityId)?.detail;
   if (!detail) return [];
   return [
-    ...Object.keys(detail.offenseStageDict ?? {}),
-    ...Object.keys(detail.hardStageDict ?? {}),
-    ...Object.keys(detail.defenseBasicDict ?? {}),
+    ...Object.keys(asDict(detail.offenseStageDict)),
+    ...Object.keys(asDict(detail.hardStageDict)),
+    ...Object.keys(asDict(detail.defenseBasicDict)),
   ];
 }
 
@@ -141,8 +202,12 @@ export function vecBreakStageIds(activityId?: string): string[] {
 export function vecBreakOffenseStages(
   activityId?: string,
 ): { stageId: string; level: number }[] {
-  const dict = vecBreakDetail(activityId)?.detail?.offenseStageDict ?? {};
+  const dict = asDict(vecBreakDetail(activityId)?.detail.offenseStageDict);
   return Object.values(dict)
-    .map((s: any) => ({ stageId: String(s.stageId), level: Number(s.level ?? 0) }))
+    .map((stage) =>
+      isJsonObject(stage)
+        ? { stageId: String(stage.stageId ?? ""), level: toCount(stage.level) }
+        : { stageId: "", level: 0 },
+    )
     .sort((a, b) => a.level - b.level);
 }

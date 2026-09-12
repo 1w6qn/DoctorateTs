@@ -8,7 +8,7 @@
  * 控制器抛 500。
  *
  * 约定：
- * - z.any() 表示请求体需携带该键但值类型不深检（如 itemList/chooseChar）。
+ * - handler 只读其中少数字段的（itemList/chooseChar）按被读字段收紧结构。
  * - .optional() 表示服务端不读或抓包确认可不传的字段。
  * - useTkt 对应 CS 数值枚举 GachaType（number 值），故使用 z.number()。
  */
@@ -73,14 +73,24 @@ export const advancedGachaSchema = z.object({
 export const tenAdvancedGachaSchema = z.object({
   poolId: z.string(),
   useTkt: z.number(),
-  // itemList 为复杂嵌套数组（CombineGachaItem { id, count }），仅保证出现，不深检
-  itemList: z.array(z.any()),
+  // itemList 为 CombineGachaItem[]（{ id, count }）——gacha/logic.ts 按 useTkt 将整段并入
+  // 消耗列表（gainItem 管道读 id/count），故按被读字段收紧；passthrough 保留 type 等附加字段
+  itemList: z.array(
+    z.object({
+      id: z.string(),
+      count: z.number(),
+    }).passthrough(),
+  ),
 });
 
-/** 选择 UP 角色请求（CS: ChoosePoolUpRequest { poolId, chooseChar }；chooseChar 为字典，不深检） */
+/** 选择 UP 角色请求（CS: ChoosePoolUpRequest { poolId, chooseChar }） */
 export const choosePoolUpSchema = z.object({
   poolId: z.string(),
-  chooseChar: z.any(),
+  // chooseChar 由 handler 原样存入 gacha[type][poolId].upChar（不读内层字段）：
+  // 协议为 { 稀有度: 干员ID[] } 字典，但 OBS/线上另有「直接给 charId 字符串」的形态
+  // （router 测试固化；gacha-up-list.ts 亦显式守卫 !upChar||typeof!=="object" 才按字典合并）。
+  // 故用 z.json() 透传，收紧成 record 会把该形态 422 掉。
+  chooseChar: z.json(),
 });
 
 /** 获取免费干员请求（CS: GetFreeCharRequest { poolId }） */

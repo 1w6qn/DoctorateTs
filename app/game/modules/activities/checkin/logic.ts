@@ -222,10 +222,10 @@ export async function handleGetActivityCheckInReward(player: PlayerDataManager, 
 
   await player.update(async (draft) => {
     if (!draft.activity) {
-      (draft as any).activity = {};
+      draft.activity = {};
     }
     if (!draft.activity.CHECKIN_ONLY) {
-      (draft.activity as any).CHECKIN_ONLY = {};
+      draft.activity.CHECKIN_ONLY = {};
     }
     if (!draft.activity.CHECKIN_ONLY[activityId]) {
       draft.activity.CHECKIN_ONLY[activityId] = {
@@ -233,7 +233,7 @@ export async function handleGetActivityCheckInReward(player: PlayerDataManager, 
         history: [],
       };
     }
-    const data = (draft.activity as any).CHECKIN_ONLY[activityId];
+    const data = draft.activity.CHECKIN_ONLY[activityId];
     // 修复：已领取的 index 不再重复发奖（原实现恒置 0 → 可重复刷）
     if (data.history[targetIndex] === 0) {
       already = true;
@@ -296,12 +296,12 @@ export async function handleActCheckinvssign(player: PlayerDataManager, body: Ac
     const actId = body.actId;
     const tasteChoice = body.tasteChoice;
     if (!draft.activity) {
-      (draft as any).activity = {};
+      draft.activity = {};
     }
     if (!draft.activity.CHECKIN_VS) {
-      (draft.activity as any).CHECKIN_VS = {};
+      draft.activity.CHECKIN_VS = {};
     }
-    const vsData = draft.activity.CHECKIN_VS as any;
+    const vsData = draft.activity.CHECKIN_VS;
     if (!vsData[actId]) {
       vsData[actId] = {
         sweetVote: 0,
@@ -337,7 +337,7 @@ export async function handleActCheckinvssign(player: PlayerDataManager, body: Ac
     const vsConfig = (
       excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
     )[checkinVsKey]?.[body.actId] as any;
-    const day = (player._playerdata as any).activity?.CHECKIN_VS?.[body.actId]?.signedCnt ?? 1;
+    const day = player._playerdata.activity?.CHECKIN_VS?.[body.actId]?.signedCnt ?? 1;
     const daily = vsConfig?.checkInDict?.[String(day)];
     rewards = (daily?.rewardList ?? []) as ItemBundle[];
 
@@ -367,12 +367,12 @@ export async function handleGetSwitchOnlyReward(player: PlayerDataManager, body:
     const activityId = body.activityId;
     const rewardId = body.reward;
     if (!draft.activity) {
-      (draft as any).activity = {};
+      draft.activity = {};
     }
     if (!draft.activity.SWITCH_ONLY) {
-      (draft.activity as any).SWITCH_ONLY = {};
+      draft.activity.SWITCH_ONLY = {};
     }
-    const switchData = draft.activity.SWITCH_ONLY as any;
+    const switchData = draft.activity.SWITCH_ONLY;
     if (!switchData[activityId]) {
       switchData[activityId] = {};
     }
@@ -425,12 +425,12 @@ export async function handleLoginOnlyGetReward(player: PlayerDataManager, body: 
   let already = false;
   await player.update(async (draft) => {
     if (!draft.activity) {
-      (draft as any).activity = {};
+      draft.activity = {};
     }
     if (!draft.activity.LOGIN_ONLY) {
-      (draft.activity as any).LOGIN_ONLY = {};
+      draft.activity.LOGIN_ONLY = {};
     }
-    const data = draft.activity.LOGIN_ONLY as any;
+    const data = draft.activity.LOGIN_ONLY;
     if (!data[activityId]) {
       data[activityId] = { reward: 1 };
     }
@@ -491,10 +491,10 @@ export async function handleCheckinAllPlayerCheckin(
   let blocked = false;
   await player.update(async (draft) => {
     if (!draft.activity) {
-      (draft as any).activity = {};
+      draft.activity = {};
     }
     if (!draft.activity.CHECKIN_ALL_PLAYER) {
-      (draft.activity as any).CHECKIN_ALL_PLAYER = {};
+      draft.activity.CHECKIN_ALL_PLAYER = {};
     }
     if (!draft.activity.CHECKIN_ALL_PLAYER[activityId]) {
       draft.activity.CHECKIN_ALL_PLAYER[activityId] = {
@@ -502,7 +502,7 @@ export async function handleCheckinAllPlayerCheckin(
         history: [],
       };
     }
-    const data = (draft.activity as any).CHECKIN_ALL_PLAYER[activityId];
+    const data = draft.activity.CHECKIN_ALL_PLAYER[activityId];
     if (data.history[targetIndex] === 0) {
       already = true;
       return;
@@ -590,14 +590,17 @@ export async function handleGetCheckInReward(player: PlayerDataManager, body: Ge
     ];
     let already = false;
     await player.update(async (draft) => {
-      if (!draft.activity.CHECKIN_ACCESS[activityId]) {
-        draft.activity.CHECKIN_ACCESS[activityId] = {
+      // CHECKIN_ACCESS 键由活动解锁播种（basicInfo 可能无该活动）：保持原语义不在此建键，
+      // 缺键时与原 `as any` 直取行为一致（同样抛错）。
+      const access = draft.activity.CHECKIN_ACCESS!;
+      if (!access[activityId]) {
+        access[activityId] = {
           rewardsCount: 0,
           currentStatus: 0,
           lastTs: 0,
         };
       }
-      const data = (draft.activity as any).CHECKIN_ACCESS[activityId];
+      const data = access[activityId];
       // 修复：每日限领一次（原实现 rewardsCount 无限累加、无任何限制）
       const dayKey = Math.floor(Date.now() / 86400000);
       if (Math.floor((data.lastTs || 0) / 86400000) === dayKey) {
@@ -620,7 +623,7 @@ export async function handleGetCheckInReward(player: PlayerDataManager, body: Ge
     } satisfies GetCheckInRewardResponse);
   } else if (activityId.endsWith("blessing")) {
     await player.update(async (draft) => {
-      const blessData = draft.activity.BLESS_ONLY as any;
+      const blessData = draft.activity.BLESS_ONLY!;
       if (!blessData[activityId]) {
         blessData[activityId] = {};
       }
@@ -643,7 +646,7 @@ export async function handleChangeFestivalChar(player: PlayerDataManager, body: 
     return ({ result: 1, ...player.delta });
   }
    await player.update(async (draft) => {
-    const blessData = draft.activity.BLESS_ONLY as any;
+    const blessData = draft.activity.BLESS_ONLY!;
     if (!blessData[body.activityId]) {
       blessData[body.activityId] = { festivalHistory: [], history: [] };
     }

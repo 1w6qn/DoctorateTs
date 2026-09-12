@@ -341,7 +341,7 @@ export function _settleOrderInternal(mgr: BuildingManager, draft: Draft<PlayerDa
    * @returns 需要消耗的无人机数量（至少 1）
    */
 function _accelDroneCost(cost: number | undefined, maxPoint: number | undefined): number {
-  const unit = getBuildingConstant<number>("tradingReduceTimeUnit") ?? 180;
+  const unit = getBuildingConstant("tradingReduceTimeUnit") ?? 180;
   if (typeof cost === "number" && Number.isInteger(cost) && cost > 0) return cost;
   const span = typeof maxPoint === "number" && maxPoint > 0 ? maxPoint : unit;
   return Math.max(1, Math.ceil(span / unit));
@@ -661,8 +661,8 @@ export async function buyLabor(mgr: BuildingManager, args: { buyCount: number })
       const ctlSlot = Object.values(draft.building.roomSlots).find(
         (s) => s.roomId === "CONTROL",
       );
-      const unlockLevel = getBuildingConstant<number>("apToLaborUnlockLevel") ?? 4;
-      const ratio = getBuildingConstant<number>("apToLaborRatio") ?? 2;
+      const unlockLevel = getBuildingConstant("apToLaborUnlockLevel") ?? 4;
+      const ratio = getBuildingConstant("apToLaborRatio") ?? 2;
       if ((ctlSlot?.level ?? 0) >= unlockLevel && ratio > 0) {
         const apCost = Math.ceil(buyCount / ratio);
         if (((draft.status as any).ap ?? 0) < apCost) return;

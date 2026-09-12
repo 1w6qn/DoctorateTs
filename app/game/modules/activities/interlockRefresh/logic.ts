@@ -188,9 +188,9 @@ async function confirmOneActivityMission(
       (r) => r.id === "act1arkhub_token_seal",
     );
     if (seal?.count) {
-      const hub = (draft.activity as any)?.ARK_HUB?.act1arkhub;
+      const hub = draft.activity.ARK_HUB?.act1arkhub;
       if (hub) hub.coin = (hub.coin ?? 0) + seal.count;
-      const shop = (draft.tshop as any)?.["shop_act1arkhub"];
+      const shop = draft.tshop?.["shop_act1arkhub"];
       if (shop) shop.coin = (shop.coin ?? 0) + seal.count;
     }
   });

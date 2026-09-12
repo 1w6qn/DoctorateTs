@@ -16,9 +16,14 @@ export const changeSecretarySchema = z.object({
   skinId: z.string(),
 });
 
-/** 更换头像请求（CS: ChangeAvatarRequest { avatar }），avatar 为复杂对象，用 z.any() */
+/**
+ * 更换头像请求（CS: ChangeAvatarRequest { avatar }）
+ *
+ * avatar 为生成类型 AvatarInfo（app/game/excel/types-playerdata.ts）——服务端仅整体
+ * 存入 status.avatar、不读内层字段，故用 z.json() 透传，避免手抄生成类型造成漂移。
+ */
 export const changeAvatarSchema = z.object({
-  avatar: z.any(),
+  avatar: z.json(),
 });
 
 /** 更换简介请求（CS: ChangeResumeRequest { resume }） */
@@ -155,16 +160,28 @@ export const getThumbnailUrlSchema = z.object({
 /** 修改杂志编队请求（服务端自定义，空请求体） */
 export const changeMagazineSquadSchema = z.object({});
 
-/** 保存自定义杂志请求（V1/V2；magazine 为复杂对象，用 z.any()；thumbnail 为客户端上传的 base64 缩略图，可选） */
+/**
+ * 保存自定义杂志请求（V1/V2）
+ *
+ * magazine 按 handler（user/routes.ts#saveDiyMagazine / persistGalleryThumbnail）实际
+ * 读取的字段收紧：leafId（页 ID）、decorList（装饰列表）、charSkin；三项内层结构服务端
+ * 不读，整体透传存储。passthrough 保留客户端附加字段，thumbnail 为 base64 缩略图（可选）。
+ */
 export const saveDiyMagazineSchema = z.object({
-  magazine: z.any(),
+  magazine: z
+    .object({
+      leafId: z.string().optional(),
+      charSkin: z.json().optional(),
+      decorList: z.array(z.json()).optional(),
+    })
+    .passthrough(),
   thumbnail: z.string().optional(),
 });
 
-/** 设置勋章自定义数据请求（CS: MedalSetCustomDataRequest { index?, data }）；data 复杂，用 z.any() */
+/** 设置勋章自定义数据请求（CS: MedalSetCustomDataRequest { index?, data }）；data 复杂，用 z.json() */
 export const medalSetCustomDataSchema = z.object({
   index: z.string().optional(),
-  data: z.any(),
+  data: z.json(),
 });
 
 /** 领取画廊收集奖励请求（CS: ArtMagazineGetCollectionRewardsRequest { setId?, missionId? }） */

@@ -24,6 +24,44 @@ export function detectLocalIp(): string {
 }
 
 /**
+ * 网络配置端点值
+ *
+ * 官方扁平 network_config 的 `network` 表值域：端点地址字符串 /
+ * 功能开关布尔（如 secure）/ 官服空占位 null。
+ */
+export type NetworkEndpointValue = string | boolean | null;
+
+/** 单个网络配置档（`configs[funcVer]`）：覆盖标记 + 端点表 */
+export interface NetworkConfigEntry {
+  /** 覆盖标记（官方字段，私服不消费） */
+  override?: boolean;
+  /** 端点表：gs/as/u8/hu/hv/rc/an/prean/sl/of/pkgAd/pkgIOS/secure … */
+  network?: Record<string, NetworkEndpointValue>;
+}
+
+/**
+ * NetworkConfig 文件结构（`data/config.json` 的 NetworkConfig 块）
+ *
+ * 与官方 `/config/prod/official/network_config` 响应体同构；
+ * `devsdk` / `pkgIOS` 为可选顶层字段（官方格式由 game-config 补齐，私服缺省回退）。
+ */
+export interface NetworkConfigFile {
+  /** 配置版本（响应原样下发） */
+  configVer?: string;
+  /** 功能版本号（update 管线按官服同步，决定 configs 命中档位） */
+  funcVer?: string;
+  /** 功能版本 → 配置档 */
+  configs?: Record<string, NetworkConfigEntry>;
+  /** 触达 SDK 开关（官方顶层字段，缺省 false） */
+  devsdk?: boolean;
+  /** iOS 包地址（客户端 iOS 更新用，私服置空） */
+  pkgIOS?: string | null;
+}
+
+/** 远程功能开关值域（官方 remote_config 扁平响应的标量值） */
+export type RemoteConfigValue = string | number | boolean;
+
+/**
  * 用户配置接口
  * 
  * 定义应用配置的数据结构。
@@ -86,10 +124,10 @@ interface UserConfig {
      */
     backfillVersions?: string[];
   };
-  /** 网络配置 */
-  NetworkConfig: object;
+  /** 网络配置（官方 network_config 结构，见 {@link NetworkConfigFile}） */
+  NetworkConfig: NetworkConfigFile;
   /** 远程功能配置（新版 remote_config 接口响应，缺省使用官方默认值） */
-  RemoteConfig?: Record<string, unknown>;
+  RemoteConfig?: Record<string, RemoteConfigValue>;
   /** 抓包专用官服转发模式：as/gs 流量转发官服并记录（等价命令行 --capture） */
   capture?: {
     /** 是否开启官服转发（客户端连接私服，as/gs 请求转发官服；config/asset/admin 仍本地响应）。

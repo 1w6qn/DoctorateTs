@@ -3,6 +3,8 @@
 > 生成物守卫：`tests/unit/architecture/type-debt-ratchet.test.ts`（棘轮，只减不增）
 > 度量 CLI：`pnpm run type:debt` / `pnpm run type:debt -- --write`
 > 扫描器：`scripts/lib/type-debt-scan.ts`（守卫与 CLI 共用，口径一致）
+> **扫描范围（2026-09-11 起）**：`app/` + `scripts/` + `tests/` + `hook/` + 根 `index.ts`
+> （`SCAN_DIRS`）；范围扩容用 `--write --expand-scope`（只放行新文件，既有文件仍禁止上升）。
 
 ## 1. 审计结论（证据）
 
@@ -15,6 +17,24 @@
 | 修复后（226 文件） | 1518 | 469 | **73** | **2060** |
 
 **核心结论：`object` 债有 69% 来自两个生成文件，根因在生成器而非业务代码。**
+
+### 1.1 全范围现状（2026-09-11，扫描范围扩容后）
+
+| 范围 | any | unknown | object | 是否在 tsc 覆盖内 |
+| --- | --- | --- | --- | --- |
+| `app/**` + `index.ts` | 1516 | 468 | 72 | ✅ `tsconfig.json` |
+| `tests/**` | 5511 | 62 | 15 | ❌（纳入后暴露 1260 个既有错误） |
+| `scripts/**` | 104 | 34 | 14 | ❌（纳入后暴露 19 个既有错误） |
+| `hook/` | 0 | 1 | 0 | ❌（`hook/main.ts` 由 frida-compile 构建） |
+| **合计** | **7131** | **565** | **101** | — |
+
+`any` 的形态分布（app）：`: any` 648、`as any` 683、`any[]` 80、`Record<string, any>` 66、
+`z.any()` 122（20 文件）、`Promise<any>` 13。测试侧 `any` 主要来自无类型的测试桩
+（`mockPlayerData` 的 `gainItem/delta/_trigger/excel`）导致的调用点 `as any`。
+
+**收敛路线（2026-09-11 批准）**：`any` 一律清零（app → scripts → tests 分阶段），
+每条 `any` 的归宿只有四种——① 精确手写类型；② 生成器覆盖表登记 + 重生成；③ I/O 边界
+改 `unknown` + 就地收窄；④ 路由契约用 `z.json()`/精确 schema。
 
 | 文件 | 初始 object |
 | --- | --- |
@@ -81,7 +101,29 @@ mutative 的 `Draft<T>` 会**递归映射** T 的每个属性。把递归类型�
 `ServerPayload` 显式展开两层（标量 / 标量数组 / 一层嵌套对象），仍是严格类型，
 但保证 `Draft` 可终结。**新增玩家存档字段时不要用 `JsonValue`。**
 
-### 3.3 顺带修出的真实缺陷
+### 3.3 服务端活动字典的精确化配方（2026-09-11 验证）
+
+`PlayerActivity` 是服务端独有的形状：`{ [类型key]: { [actId]: 活动数据 } }`
+（客户端模型是 60 个分列表字段），此前整接口覆盖为 `{ [typeKey: string]: { [actId: string]: object } }`
+→ 归一成两层 `ServerPayload`，**任何第三层访问都要 `as any`**（全仓 `draft.activity as any` 51 处、
+`_playerdata.activity as any` 6 处的主要根因）。
+
+配方（登记在 `scripts/playerdata-server-adapt.ts` 的 `SERVER_OVERRIDE_FIELDS.PlayerActivity["[server]"]`）：
+
+1. **只给服务端真正读写的类型键**写具名成员，其余键继续走兜底索引签名；
+2. 具名成员**一律可选（`?:`）**——索引签名语义下键不保证存在（存档惰性建键），
+   写必填会让 `draft.activity = {}` 这类赋值直接报错，访问侧也必须用 `?.`；
+3. 兜底索引签名必须用**交叉类型**挂载：具名成员与索引签名写在同一个对象字面量里会
+   触发 **TS2411**（具名值类型不可赋给索引签名值类型）；交叉写法绕开该检查，
+   且**不会**让 `Draft` 深度爆炸（已实测：交叉写法 + `--playerdata` 重生成后
+   `tsc -p tsconfig.json` 全绿）；
+4. 成员内部**保持非递归**（禁止 `JsonValue`，兜底类型用 `ServerPayload`）；
+5. 重生成：`pnpm run generate:playerdata`（本仓等价 `tsx scripts/generate-types.ts --playerdata`），
+   然后删掉访问点的 cast；生成文件不得手改。
+
+已登记（首例，2026-09-11）：`BOSS_RUSH`（`milestone` / `relic` / `bestWaveDic`）。
+
+### 3.4 顺带修出的真实缺陷
 
 - **`StoryReviewTable` 声明为单行类型**（`app/game/excel/excel.ts`）：
   该表实际是 `{ [groupId]: StoryReviewGroupClientData }`（已用
@@ -112,11 +154,18 @@ mutative 的 `Draft<T>` 会**递归映射** T 的每个属性。把递归类型�
 ## 5. 工作流
 
 ```bash
-pnpm run type:debt            # 报告总量 / delta / Top 违规文件
-pnpm run type:debt -- --write # 刷新基线（棘轮只紧不松，上升即拒绝并退出 1）
+pnpm run type:debt                            # 报告总量 / delta / Top 违规文件
+pnpm run type:debt -- --write                 # 刷新基线（棘轮只紧不松，上升即拒绝并退出 1）
+pnpm run type:debt -- --write --expand-scope  # 扫描范围扩容时刷新（只放行新增文件）
 pnpm exec vitest run tests/unit/architecture/type-debt-ratchet.test.ts
-pnpm exec tsc --noEmit && pnpm exec vitest run
+pnpm run typecheck                            # app + index（tsconfig.json）
+pnpm run typecheck:scripts                    # scripts + app + index（tsconfig.scripts.json）
+pnpm exec vitest run
 ```
+
+`tests/` 的类型检查（`tsconfig.tests.json`）在测试侧模糊类型收敛后接入：直接纳入会暴露
+1260 个既有错误（TS18048 383 / TS2339 227 / TS7023 143 / TS7053 89 …），需先按根因
+（优先类型化 `tests/helpers/` 测试桩）清理。
 
 修复一个文件后，该文件计数下降无需手工改基线；**清零后必须**从
 `tests/unit/architecture/type-debt-baseline.json` 移除该条目（守卫会红灯提醒）。

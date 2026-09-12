@@ -2,6 +2,8 @@ import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { now } from "@utils/time";
+import type { Draft } from "mutative";
+import type { PlayerDataModel } from "../../kernel/playerdata";
 import {
   VecBreakV2ChangeBuffRequest,
   VecBreakV2ChangeBuffResponse,
@@ -14,6 +16,7 @@ import {
   VecBreakV2SetDefendRequest,
   VecBreakV2SetDefendResponse,
   VecBreakV2StartBattleResponse,
+  VecBreakV2PlayerData,
 } from "./vecbreak";
 import { validateBody } from "../../kernel/http/validate-body";
 import {
@@ -42,7 +45,7 @@ const vecBreakBattleCtxs = new Map<
 >();
 
 /** 按需初始化 VEC_BREAK_V2 活动数据 */
-function ensureVecBreakData(draft: any, activityId: string): any {
+function ensureVecBreakData(draft: Draft<PlayerDataModel>, activityId: string): VecBreakV2PlayerData {
   // 修复：draft.activity / VEC_BREAK_V2 缺失时可能为 undefined，先兜底再重读引用，
   // 避免赋值后本地变量仍为 undefined，导致 vb[activityId] 抛「reading 'undefined'」500。
   if (!draft.activity) draft.activity = {};
@@ -73,7 +76,7 @@ router.post("/vecBreakV2/getSeasonRecord", validateBody(getSeasonRecordSchema), 
     // CS: PlayerStageState 数值枚举（0=NONE … 3=COMPLETE），非字符串
     stageInfo[stageId] = { stageId, state: Number(stages[stageId]?.state ?? 0) };
   }
-  const vb = (player._playerdata.activity as any)?.VEC_BREAK_V2?.[activityId];
+  const vb = player._playerdata.activity?.VEC_BREAK_V2?.[activityId];
   // 最佳记录 = 已通关的最高核心突破层（未通关任何层时回退首层）
   const offense = vecBreakOffenseStages(activityId);
   let bestStageId = offense[0]?.stageId ?? "";

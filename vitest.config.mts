@@ -10,6 +10,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // 单用例上限：仓内有一批**全仓扫描型守卫**（类型债棘轮/物品管线棘轮/excel 单例棘轮/
+    // 解耦与路由契约守卫等），在慢机器或并发负载下单文件就要 10~100 秒；5s 默认值会让
+    // 这些守卫假失败（不区分「跑得慢」与「真失败」）。这里放宽到 2 分钟——真挂死仍会失败。
+    testTimeout: 120000,
     // 测试期间日志落盘到 tmp/（gitignored），避免污染 logs/
     env: { LOG_DIR: 'tmp/test-logs' },
     include: ['tests/**/*.test.ts'],

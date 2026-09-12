@@ -17,6 +17,7 @@ import { assetRegistry } from "@asset/asset-service";
 import { createSse, sseSend } from "@utils/sse";
 import { pluginConfigService } from "@plugin/index";
 import { validateBody } from "@game/kernel/http/validate-body";
+import { isOfficialAction } from "./official-ops";
 import {
   arkhubImportPetsSchema,
   backfillAssetsSchema,
@@ -75,6 +76,20 @@ import {
 } from "./schemas";
 
 const router = Router();
+
+/** Express 查询参数值（叶子/数组/嵌套对象；缺省 undefined） */
+type QueryParam = Request["query"][string];
+
+/** 查询参数 → 字符串（缺省/空串 → undefined） */
+function queryStr(v: QueryParam): string | undefined {
+  return v === undefined || v === "" ? undefined : String(v);
+}
+
+/** 查询参数 → 有限数字（缺省/空串/非有限数 → undefined） */
+function queryNum(v: QueryParam): number | undefined {
+  const n = v === undefined || v === "" ? undefined : Number(v);
+  return n !== undefined && Number.isFinite(n) ? n : undefined;
+}
 
 /** Dashboard 静态页面（免认证，页面内输入令牌后访问 API） */
 router.get(["/", "/dashboard"], (_req: Request, res: Response) => {
@@ -751,10 +766,14 @@ router.post(
 router.post("/api/official/action", validateBody(officialActionSchema, 400), async (req: Request, res: Response) => {
   try {
     const { phone, pwd, action } = req.body ?? {};
+    const act = String(action);
+    if (!isOfficialAction(act)) {
+      throw new Error(`未知官服操作: ${act}`);
+    }
     const result = await adminService.officialAction(
       String(phone),
       String(pwd),
-      String(action) as any,
+      act,
     );
     res.json(result);
   } catch (err) {
@@ -1024,26 +1043,21 @@ router.delete("/api/capture/sessions/:id", validateBody(deleteCaptureSessionSche
 router.get("/api/capture/records", async (req: Request, res: Response) => {
   try {
     const q = req.query ?? {};
-    const str = (v: unknown) => (v === undefined || v === "" ? undefined : String(v));
-    const num = (v: unknown) => {
-      const n = v === undefined || v === "" ? undefined : Number(v);
-      return n !== undefined && Number.isFinite(n) ? n : undefined;
-    };
     res.json(
       await captureManager.query({
-        sessionId: str(q.sessionId),
-        source: str(q.source),
-        method: str(q.method),
-        path: str(q.path),
-        module: str(q.module),
-        endpoint: str(q.endpoint),
-        direction: str(q.direction),
-        status: num(q.status),
-        from: num(q.from),
-        to: num(q.to),
-        q: str(q.q),
-        limit: num(q.limit),
-        offset: num(q.offset),
+        sessionId: queryStr(q.sessionId),
+        source: queryStr(q.source),
+        method: queryStr(q.method),
+        path: queryStr(q.path),
+        module: queryStr(q.module),
+        endpoint: queryStr(q.endpoint),
+        direction: queryStr(q.direction),
+        status: queryNum(q.status),
+        from: queryNum(q.from),
+        to: queryNum(q.to),
+        q: queryStr(q.q),
+        limit: queryNum(q.limit),
+        offset: queryNum(q.offset),
       }),
     );
   } catch (err) {
@@ -1128,19 +1142,14 @@ router.get("/api/capture/stream", (req: Request, res: Response) => {
 router.get("/api/logs/server", async (req: Request, res: Response) => {
   try {
     const q = req.query ?? {};
-    const str = (v: unknown) => (v === undefined || v === "" ? undefined : String(v));
-    const num = (v: unknown) => {
-      const n = v === undefined || v === "" ? undefined : Number(v);
-      return n !== undefined && Number.isFinite(n) ? n : undefined;
-    };
     res.json(
       await logService.readServerLog({
-        date: str(q.date),
-        level: str(q.level),
-        tag: str(q.tag),
-        q: str(q.q),
-        limit: num(q.limit),
-        offset: num(q.offset),
+        date: queryStr(q.date),
+        level: queryStr(q.level),
+        tag: queryStr(q.tag),
+        q: queryStr(q.q),
+        limit: queryNum(q.limit),
+        offset: queryNum(q.offset),
       }),
     );
   } catch (err) {
@@ -1162,17 +1171,12 @@ router.get("/api/logs/watchdog", async (_req: Request, res: Response) => {
 router.get("/api/logs/audit", async (req: Request, res: Response) => {
   try {
     const q = req.query ?? {};
-    const str = (v: unknown) => (v === undefined || v === "" ? undefined : String(v));
-    const num = (v: unknown) => {
-      const n = v === undefined || v === "" ? undefined : Number(v);
-      return n !== undefined && Number.isFinite(n) ? n : undefined;
-    };
     res.json(
       await logService.readAuditLog({
-        action: str(q.action),
-        uid: str(q.uid),
-        q: str(q.q),
-        limit: num(q.limit),
+        action: queryStr(q.action),
+        uid: queryStr(q.uid),
+        q: queryStr(q.q),
+        limit: queryNum(q.limit),
       }),
     );
   } catch (err) {

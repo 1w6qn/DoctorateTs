@@ -7,7 +7,9 @@
  *
  * 约定：
  * - schema 覆盖 handler 实际读取的 req.body 字段：必填用对应类型，可选用 .optional()。
- * - 复杂嵌套对象（items/pixelData/body 等）仅保证键存在，用 z.any() 不做深检。
+ * - handler 会读内层字段的嵌套对象按被读字段收紧（如邮件 items 的 id/count），
+ *   passthrough 保留其余字段；服务端整体透传/透传给官方 cgi 的（pixelData/body 等）
+ *   用 z.json() 不做深检（pixelData 还被 validatePixelData 统一归一化多种形态）。
  * - 需将 req.body 中其余字段透传给控制器（如 setCharAttrs 的 ...attrs 展开）的，
  *   用 .passthrough() 保留未知字段，避免误删影响 handler 逻辑。
  * - 不读取 body 的端点用共享的 emptyObjectSchema（z.object({})）。
@@ -101,15 +103,31 @@ export const sendMailSchema = z.object({
   uid: z.string(),
   subject: z.string(),
   content: z.string().optional(),
-  // items 为附件条目列表，复杂结构仅保证类型
-  items: z.array(z.any()).optional(),
+  // items 为附件条目列表——AdminService#sendMail 读 it.id/it.count 转 ItemBundle，
+  // 故按被读字段收紧；passthrough 保留客户端附加字段（如 type）
+  items: z
+    .array(
+      z.object({
+        id: z.string(),
+        count: z.number(),
+      }).passthrough(),
+    )
+    .optional(),
 });
 
 /** 群发邮件（读 subject/content/items） */
 export const sendMailAllSchema = z.object({
   subject: z.string(),
   content: z.string().optional(),
-  items: z.array(z.any()).optional(),
+  // 同 sendMailSchema.items
+  items: z
+    .array(
+      z.object({
+        id: z.string(),
+        count: z.number(),
+      }).passthrough(),
+    )
+    .optional(),
 });
 
 /** 每日/每周刷新（无 body） */
@@ -130,7 +148,7 @@ export const rogueSimStepSchema = z.object({
   uid: z.string(),
   action: z.string(),
   // body 为各 action 的透传参数，灵活结构不深检
-  body: z.any().optional(),
+  body: z.json().optional(),
 });
 
 /** 上帝视角实时修改（读 uid/ops：set|del|inc 路径补丁数组） */
@@ -140,7 +158,7 @@ export const rogueModifySchema = z.object({
     z.object({
       op: z.enum(["set", "del", "inc"]),
       path: z.string(),
-      value: z.any().optional(),
+      value: z.json().optional(),
     }),
   ),
 });
@@ -169,7 +187,7 @@ export const gameProxySchema = z.object({
   uid: z.string(),
   path: z.string(),
   method: z.string().optional(),
-  body: z.any().optional(),
+  body: z.json().optional(),
 });
 
 /** 设置玩家卡池 UP 选择（读 charIds） */
@@ -210,7 +228,7 @@ export const officialCallSchema = z.object({
   phone: z.string(),
   pwd: z.string(),
   cgi: z.string(),
-  body: z.any().optional(),
+  body: z.json().optional(),
 });
 
 /** 从官服同步卡池（读 phone/pwd/poolIds/refresh） */
@@ -225,14 +243,14 @@ export const syncGachaPoolSchema = z.object({
 export const uploadPixelArtSchema = z.object({
   phone: z.string(),
   pwd: z.string(),
-  pixelData: z.any(),
+  pixelData: z.json(),
 });
 
 /** 批量上传像素画官服（读 phone/pwd/pixelDataList） */
 export const uploadPixelArtBatchSchema = z.object({
   phone: z.string(),
   pwd: z.string(),
-  pixelDataList: z.array(z.any()).optional(),
+  pixelDataList: z.array(z.json()).optional(),
 });
 
 /** 读取官服已上传像素画（读 phone/pwd/pixelArtIds） */

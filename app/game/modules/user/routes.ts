@@ -709,7 +709,7 @@ rootRouter.post("/pixelArt/review", validateBody(pixelArtReviewSchema), async (r
   const player = getPlayer();
   const body = req.body as { uid?: string; status?: number };
   await player.update(async (draft) => {
-    const act = draft.activity as any;
+    const act = draft.activity;
     if (!act.ARK_HUB) act.ARK_HUB = {};
     const hub = (act.ARK_HUB["act1arkhub"] = act.ARK_HUB["act1arkhub"] ?? {});
     hub.reviewedPixelArts = hub.reviewedPixelArts ?? {};

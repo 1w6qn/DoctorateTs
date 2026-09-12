@@ -8,7 +8,8 @@
  *
  * 约定：
  * - 必填字段（activityId/stageId 等）用对应类型。
- * - 复杂嵌套对象（squad/squadSlots 等）用 z.any()，仅保证键存在。
+ * - 整包转发给 battle.start 的复杂嵌套对象（squad/assistFriend）用 z.json() 透传；
+ *   squadSlots/battleData 服务端不读内层字段，同样透传（battleData 可选）。
  * - 服务端不读取 body 的端点用 z.object({})。
  *
  * 修复（2026-09-09）：进攻链路三处原为 `z.object({})`，zod 会静默剥掉全部字段——
@@ -30,33 +31,33 @@ export const changeBuffListSchema = z.object({
 export const defendBattleStartSchema = z.object({
   activityId: z.string(),
   stageId: z.string(),
-  squad: z.any(),
+  squad: z.json(),
 });
 
 /** 防守战斗结束请求（CS: VecBreakV2DefenseFinishBattleRequest : CommonFinishBattleRequest） */
 export const defendBattleFinishSchema = z.object({
   data: z.string().optional(),
-  battleData: z.any().optional(),
+  battleData: z.json().optional(),
 });
 
 /** 设置防守请求（CS: VecBreakV2SetDefendRequest；squadSlots 为复杂嵌套数组） */
 export const setDefendSchema = z.object({
   activityId: z.string(),
   stageId: z.string(),
-  squadSlots: z.any(),
+  squadSlots: z.json(),
 });
 
 /** 进攻战斗开始请求（CS: VecBreakV2OffenseStartBattleRequest : DefaultStartBattleRequest + activityId） */
 export const battleStartSchema = z.object({
   activityId: z.string().optional(),
   stageId: z.string(),
-  squad: z.any().optional(),
-  assistFriend: z.any().optional(),
+  squad: z.json().optional(),
+  assistFriend: z.json().optional(),
   usePracticeTicket: z.number().optional(),
 });
 
 /** 进攻战斗结束请求（CS: VecBreakV2OffenseFinishBattleRequest : CommonFinishBattleRequest） */
 export const battleFinishSchema = z.object({
   data: z.string().optional(),
-  battleData: z.any().optional(),
+  battleData: z.json().optional(),
 });

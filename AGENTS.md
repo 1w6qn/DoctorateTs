@@ -36,7 +36,9 @@ pnpm run schema:audit      # 报文真值审计：解码官方 bundle 比对 vta
 pnpm run decompile         # 官服客户端反编译工作流（Cpp2IL→ilspycmd→dump-cs-signature.py），产出 reference/arknights-<版本>-csharp/（含方法体的 C# 源码）+ reference/com.hypergryph.arknights_<版本>.cs（签名文件，供 generate:types 再生类型；均 gitignored）；末尾自动跑 schema:check 门禁
 ```
 
-No lint script exists. Verification order: `pnpm exec tsc --noEmit` then `pnpm exec vitest run`.
+No lint script exists（ESLint 配置在仓但 `typescript-eslint` 8 尚不支持 TS 7，跑不起来）. Verification order: `pnpm run typecheck` (= `tsc -p tsconfig.json`, app+index) → `pnpm run typecheck:scripts` (app+index+scripts) → `pnpm exec vitest run`.
+
+**类型债棘轮**：`pnpm run type:debt` 报告全仓（`app`+`scripts`+`tests`+`hook`+`index.ts`）的 `any`/`unknown`/`object` 计数与 Top 违规文件，守卫是 `tests/unit/architecture/type-debt-ratchet.test.ts`（逐文件只减不增；新文件必须零模糊类型）。收敛后刷新基线 `pnpm run type:debt -- --write`；**扫描范围扩容**时才用 `pnpm run type:debt -- --write --expand-scope`（只放行新增文件）。策略与四种归宿见 `docs/type-system-audit.md`。
 
 ## Generated files — never hand-edit
 

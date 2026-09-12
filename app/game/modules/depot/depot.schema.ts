@@ -8,7 +8,7 @@
  * 控制器抛 500。
  *
  * 约定：
- * - z.any() 表示"键必须存在、值类型不深检"（如 choices 这类复杂嵌套数组）。
+ * - 被 handler 读取内层字段的嵌套数组按被读字段收紧（如 choices 的 id/count）。
  * - .optional() 表示服务端不读或抓包确认可不传的字段。
  */
 import { z } from "zod";
@@ -62,8 +62,15 @@ export const useFullPotentialItemSchema = z.object({
 export const useOptionVoucherSchema = z.object({
   instId: z.union([z.string(), z.number()]),
   itemId: z.string(),
-  // choices 为复杂嵌套数组（OptionalChoiceItem { id, count }），仅保证出现，不深检
-  choices: z.array(z.any()),
+  // choices 为选项条目数组（OptionalChoiceItem { id, count }）——handler 逐项读 id/count
+  // 做白名单/正整数校验（非法输入走业务错误分支），故按被读字段收紧；
+  // passthrough 保留客户端附加字段（如 ItemBundle.type/instId），避免剥字段改变发放内容
+  choices: z.array(
+    z.object({
+      id: z.string(),
+      count: z.number(),
+    }).passthrough(),
+  ),
   // 客户端选择数量，可能省略（handler 以 1 兜底）
   voucherCount: z.number().optional(),
 });

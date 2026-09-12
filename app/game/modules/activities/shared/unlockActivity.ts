@@ -462,7 +462,7 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
     // （巡展印象/珍奇奖章）写入 playerdata.medal.medals（val=[[0,target]]）。
     // 注意：MedalManager.init 先于播种执行——本会话内存 map 不含新勋章，进度监听
     // 自下次加载生效（模板已实现，不会 "not implemented" throw）；syncInfo 会推送。
-    if ((draft.activity as any)?.ARK_HUB?.act1arkhub && !draft.medal?.medals?.["medal_activity_1arkhub_01"]) {
+    if (draft.activity.ARK_HUB?.act1arkhub && !draft.medal?.medals?.["medal_activity_1arkhub_01"]) {
       draft.medal = draft.medal ?? { medals: {}, custom: { currentIndex: "", customs: {} } };
       const info = excel.ActivityTable?.basicInfo?.["act1arkhub"];
       for (const medalId of info?.ungroupedMedalIds ?? []) {

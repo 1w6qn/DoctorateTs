@@ -22,7 +22,7 @@ export const arkOdcBattleStartSchema = z.object({
 export const arkOdcBattleFinishSchema = z.object({
   data: z.string(),
   // battleData 为客户端完整战报对象，仅保证存在，不做深类型校验
-  battleData: z.any(),
+  battleData: z.json(),
   operationId: z.string().optional(),
   actorId: z.string().optional(),
 });

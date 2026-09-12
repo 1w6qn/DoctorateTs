@@ -3,13 +3,34 @@
  *
  * 从 excel.BuildingData 查表（制造/加工配方、房间相位、汇率、常量），
  * 供 BuildingManager 复用——替代硬编码区间/常量。
+ *
+ * 返回类型一律取自官方表类型的索引访问（`BuildingData["manufactFormulas"][string]` 等），
+ * 表结构随 `types_excel_gen` 重生成自动跟随，不再需要 any 或调用侧补类型。
  */
-import excel from "./excel";
+import excel, { type ClueData } from "./excel";
+import type { BuildingData } from "./types_excel_gen";
+
+/** 制造配方（building_data.manufactFormulas[...]） */
+type ManufactFormula = BuildingData["manufactFormulas"][string];
+/** 加工配方（building_data.workshopFormulas[...]） */
+type WorkshopFormula = BuildingData["workshopFormulas"][string];
+/** 房间相位（building_data.rooms[roomId].phases[...]） */
+type RoomPhase = BuildingData["rooms"][string]["phases"][number];
+/** 制造站相位（building_data.manufactData.phases[...]） */
+type ManufactPhase = BuildingData["manufactData"]["phases"][number];
+/** 宿舍相位（building_data.dormData.phases[...]） */
+type DormPhase = BuildingData["dormData"]["phases"][number];
+/** 会客室相位（building_data.meetingData.phases[...]） */
+type MeetingPhase = BuildingData["meetingData"]["phases"][number];
+/** 人力办公室相位（building_data.hireData.phases[...]） */
+type HirePhase = BuildingData["hireData"]["phases"][number];
+/** 家具（building_data.customData.furnitures[...]） */
+type FurnitureInfo = BuildingData["customData"]["furnitures"][string];
 
 /** 制造配方（formulaId 字符串/数字兼容；未知返回 undefined） */
 export function getManufactFormula(
   formulaId: string | number | undefined | null,
-): any {
+): ManufactFormula | undefined {
   if (formulaId == null) return undefined;
   return excel.BuildingData?.manufactFormulas?.[String(formulaId)];
 }
@@ -17,7 +38,7 @@ export function getManufactFormula(
 /** 加工配方（未知返回 undefined） */
 export function getWorkshopFormula(
   formulaId: string | number | undefined | null,
-): any {
+): WorkshopFormula | undefined {
   if (formulaId == null) return undefined;
   return excel.BuildingData?.workshopFormulas?.[String(formulaId)];
 }
@@ -26,7 +47,7 @@ export function getWorkshopFormula(
 export function getRoomPhase(
   roomId: string,
   level: number,
-): { buildCost?: { items?: { id: string; count: number; type: string }[]; time?: number; labor?: number }; maxStationedNum?: number; electricity?: number } | undefined {
+): RoomPhase | undefined {
   return excel.BuildingData?.rooms?.[roomId]?.phases?.[level - 1];
 }
 
@@ -38,20 +59,22 @@ export function getGoldRate(): number {
 /** 制造站相位（level 从 1 起；outputCapacity = 基础容量） */
 export function getManufactPhase(
   level: number,
-): { speed?: number; outputCapacity?: number } | undefined {
+): ManufactPhase | undefined {
   return excel.BuildingData?.manufactData?.phases?.[level - 1];
 }
 
 /** 宿舍相位（level 从 1 起；manpowerRecover 为心情恢复数值——注意个别相位是占位字符串） */
 export function getDormPhase(
   level: number,
-): { manpowerRecover?: number | string } | undefined {
+): DormPhase | undefined {
   return excel.BuildingData?.dormData?.phases?.[level - 1];
 }
 
 /** 读取 BuildingData 顶层常量（laborRecoverTime/basicFavorPerDay/apToLaborRatio 等） */
-export function getBuildingConstant<T = number>(key: string): T | undefined {
-  return (excel.BuildingData as any)?.[key] as T | undefined;
+export function getBuildingConstant<K extends keyof BuildingData>(
+  key: K,
+): BuildingData[K] | undefined {
+  return excel.BuildingData?.[key];
 }
 
 /**
@@ -60,7 +83,7 @@ export function getBuildingConstant<T = number>(key: string): T | undefined {
  */
 export function getFurnitureInfo(
   furnitureId: string | undefined | null,
-): { comfort?: number; themeId?: string; processedProductId?: string; processedProductCount?: number; name?: string } | undefined {
+): FurnitureInfo | undefined {
   if (furnitureId == null) return undefined;
   return excel.BuildingData?.customData?.furnitures?.[furnitureId];
 }
@@ -96,7 +119,7 @@ export function getRoomUnlockCondId(
   level: number,
 ): string | undefined {
   const phase = getRoomPhase(roomId ?? "", level);
-  return (phase as any)?.unlockCondId as string | undefined;
+  return phase?.unlockCondId;
 }
 
 /**
@@ -107,7 +130,7 @@ export function getRoomUnlockCondId(
  * @returns 是否可降级
  */
 export function canRoomLevelDown(roomId: string | undefined | null): boolean {
-  const v = (excel.BuildingData?.rooms as any)?.[roomId ?? ""]?.canLevelDown;
+  const v = excel.BuildingData?.rooms?.[roomId ?? ""]?.canLevelDown;
   return v === undefined ? true : Boolean(v);
 }
 
@@ -121,8 +144,10 @@ export function canRoomLevelDown(roomId: string | undefined | null): boolean {
  * @param key - clue_data 顶层键
  * @returns 常量值；缺表返回 undefined
  */
-export function getClueConstant<T = number>(key: string): T | undefined {
-  return (excel as any).ClueData?.[key] as T | undefined;
+export function getClueConstant<K extends keyof ClueData>(
+  key: K,
+): ClueData[K] | undefined {
+  return excel.ClueData?.[key];
 }
 
 /**
@@ -131,7 +156,7 @@ export function getClueConstant<T = number>(key: string): T | undefined {
  * @returns 信用值
  */
 export function getClueReceiveBonus(index: number): number {
-  const table = getClueConstant<any[]>("receiveTimeBonus") ?? [];
+  const table = getClueConstant("receiveTimeBonus");
   const row = Array.isArray(table)
     ? table.find((r) => Number(r?.receiveTimes) === index + 1)
     : undefined;
@@ -147,7 +172,7 @@ export function getClueReceiveBonus(index: number): number {
  * @returns 上限（缺表回退 99）
  */
 export function getManufactureInputCapacity(): number {
-  const v = getBuildingConstant<number>("manufactInputCapacity");
+  const v = getBuildingConstant("manufactInputCapacity");
   return typeof v === "number" && v > 0 ? v : 99;
 }
 
@@ -160,15 +185,14 @@ export function getManufactureInputCapacity(): number {
  * @returns 每名在岗干员的加成（无配置返回 0）
  */
 export function getRoomBasicSpeedBuff(roomType: string): number {
-  const bd = excel.BuildingData as any;
-  const map: Record<string, any> = {
-    MANUFACTURE: bd?.manufactData,
-    TRADING: bd?.tradingData,
-    MEETING: bd?.meetingData,
-    HIRE: bd?.hireData,
-    CONTROL: bd?.controlData,
+  // 各房间类型的 basicSpeedBuff（控制中枢为 basicCostBuff，无该字段 → 缺省 0）
+  const map: { [roomType: string]: number | undefined } = {
+    MANUFACTURE: excel.BuildingData?.manufactData?.basicSpeedBuff,
+    TRADING: excel.BuildingData?.tradingData?.basicSpeedBuff,
+    MEETING: excel.BuildingData?.meetingData?.basicSpeedBuff,
+    HIRE: excel.BuildingData?.hireData?.basicSpeedBuff,
   };
-  const v = map[roomType]?.basicSpeedBuff;
+  const v = map[roomType];
   return typeof v === "number" ? v : 0;
 }
 
@@ -176,14 +200,14 @@ export function getRoomBasicSpeedBuff(roomType: string): number {
 export function getWorkshopFormulaType(
   formulaId: string | number | undefined | null,
 ): string | undefined {
-  return getWorkshopFormula(formulaId)?.formulaType as string | undefined;
+  return getWorkshopFormula(formulaId)?.formulaType;
 }
 
 /** 制造配方类型（formulaType，如 F_EXP/F_GOLD）——贸易站订单按制造产出类型匹配 */
 export function getManufactFormulaType(
   formulaId: string | number | undefined | null,
 ): string | undefined {
-  return getManufactFormula(formulaId)?.formulaType as string | undefined;
+  return getManufactFormula(formulaId)?.formulaType;
 }
 
 /**
@@ -205,7 +229,7 @@ export function getRoomElectricity(
  * 之后由 BuildingManager 自动移除；缺表/字段时回退官方默认值 10。
  */
 export function getClueExpiredDays(): number {
-  const days = (excel as any).ClueData?.expiredDays;
+  const days = excel.ClueData?.expiredDays;
   return typeof days === "number" && days > 0 ? days : 10;
 }
 
@@ -220,7 +244,7 @@ export function getMessageLeaveBoardConst(): {
   visitorBonus: number;
   visitorBonusLimit: number;
 } {
-  const c = (excel as any).ClueData?.messageLeaveBoardConstData;
+  const c = excel.ClueData?.messageLeaveBoardConstData;
   const visitorBonus = typeof c?.visitorBonus === "number" ? c.visitorBonus : 30;
   const visitorBonusLimit =
     typeof c?.visitorBonusLimit === "number" ? c.visitorBonusLimit : 300;
@@ -234,7 +258,7 @@ export function getMessageLeaveBoardConst(): {
  */
 export function getMeetingPhase(
   level: number,
-): { friendSlotInc?: number; maxVisitorNum?: number; gatheringSpeed?: number } | undefined {
+): MeetingPhase | undefined {
   return excel.BuildingData?.meetingData?.phases?.[level - 1];
 }
 
@@ -244,6 +268,6 @@ export function getMeetingPhase(
  */
 export function getHirePhase(
   level: number,
-): { economizeRate?: number; resSpeed?: number; refreshTimes?: number } | undefined {
+): HirePhase | undefined {
   return excel.BuildingData?.hireData?.phases?.[level - 1];
 }

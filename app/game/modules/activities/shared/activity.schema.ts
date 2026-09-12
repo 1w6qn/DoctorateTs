@@ -7,8 +7,10 @@
  *
  * 约定：
  * - 服务端实际读取的字段标必填；服务端不读或抓包确认可不传的字段标 .optional()。
- * - 复杂嵌套对象（squad/ownSlots/assistFriend/items/battleData/settle 等）
- *   用 z.any()，仅保证键存在、不深检，避免对客户端完整结构误伤。
+ * - 复杂嵌套对象（squad/ownSlots/assistFriend/battleData 等）用 z.json()：接受任意 JSON
+ *   值并原样透传（无 any 债，且对 JSON body 与替换前的 any schema 行为一致），避免误伤客户端完整结构。
+ * - handler 只读其中少数字段的（如 settle.rankList、act24side items、arkhub squads），
+ *   按被读层级收紧结构并用 .passthrough() 保留其余字段。
  * - 空请求体（stub 路由）用 z.object({})。
  */
 import { z } from "zod";
@@ -173,8 +175,8 @@ export const bossRushStartBattleSchema = z.object({
   stageId: z.string(),
   teamId: z.string().optional(),
   // 编队/助战为复杂嵌套对象，仅保证存在
-  ownSlots: z.any(),
-  assistFriend: z.any(),
+  ownSlots: z.json(),
+  assistFriend: z.json(),
 });
 
 /** 尖灭测试战斗结算（CS: BossRushFinishBattleRequest；服务端读 activityId/data/battleData） */
@@ -182,7 +184,7 @@ export const bossRushBattleFinishSchema = z.object({
   activityId: z.string(),
   data: z.string(),
   // 客户端完整战报对象，仅保证存在，不做深检
-  battleData: z.any(),
+  battleData: z.json(),
 });
 
 /** 尖灭测试密文选择（CS: BossRushRelicSelectRequest；服务端读 activityId/relicId） */
@@ -208,13 +210,19 @@ export const enemyDuelSingleBattleStartSchema = z.object({
 /** 怪猎对决单人结算（CS: EnemyDuelSingleBattleFinishRequest；服务端读 activityId/settle.rankList） */
 export const enemyDuelSingleBattleFinishSchema = z.object({
   activityId: z.string(),
-  // settle 为复杂结算对象（含 rankList），仅保证存在
-  settle: z.any().optional(),
+  // settle 只被读 rankList（enemyDuel/router.ts 取 `settle?.rankList` 作为排行榜回填/兜底），
+  // 元素内层字段不做服务端读取，故整体作为 JSON 数组透传；passthrough 保留其余结算字段
+  settle: z
+    .object({
+      rankList: z.array(z.json()).optional(),
+    })
+    .passthrough()
+    .optional(),
   // 服务端不读 data/battleData/surviveUnits/bornUnits，标可选
   data: z.string().optional(),
-  battleData: z.any().optional(),
-  surviveUnits: z.array(z.any()).optional(),
-  bornUnits: z.array(z.any()).optional(),
+  battleData: z.json().optional(),
+  surviveUnits: z.array(z.json()).optional(),
+  bornUnits: z.array(z.json()).optional(),
 });
 
 /** 怪猎对决开始匹配（CS: EnemyDuelStartMatchRequest；服务端读 activityId/modeId） */
@@ -253,9 +261,9 @@ export const enemyDuelMultiBattleFinishSchema = z.object({
   // 服务端不读以下字段，标可选
   sceneId: z.string().optional(),
   data: z.string().optional(),
-  battleData: z.any().optional(),
-  surviveUnits: z.array(z.any()).optional(),
-  bornUnits: z.array(z.any()).optional(),
+  battleData: z.json().optional(),
+  surviveUnits: z.array(z.json()).optional(),
+  bornUnits: z.array(z.json()).optional(),
 });
 
 /* ===== 怪猎（act24side） ===== */
@@ -264,21 +272,22 @@ export const enemyDuelMultiBattleFinishSchema = z.object({
 export const act24sideAlchemySchema = z.object({
   activityId: z.string(),
   gachaBox: z.string(),
-  // items 为 <素材ID, 数量> 扁平映射，作为复杂嵌套对象不做深检
-  items: z.any(),
+  // items 为 <素材ID, 数量> 扁平映射——act24side/router.ts 逐项读键与数量做扣减/计分，
+  // 故按协议类型收紧为 string→number 字典（不再接受任意 JSON）
+  items: z.record(z.string(), z.number()),
 });
 
 /** 怪猎开始战斗（CS: Act24sideBattleStartRequest : CommonStartBattleRequest；整包转发 battle.start） */
 export const act24sideBattleStartSchema = z.object({
   stageId: z.string(),
   // squad 为完整编队对象，仅保证存在
-  squad: z.any(),
+  squad: z.json(),
   isRetro: z.number().optional(),
   pray: z.number().optional(),
   battleType: z.number().optional(),
-  continuous: z.any().optional(),
+  continuous: z.json().optional(),
   usePracticeTicket: z.number().optional(),
-  assistFriend: z.any().optional(),
+  assistFriend: z.json().optional(),
   isReplay: z.number().optional(),
   startTs: z.number().optional(),
   activityId: z.string().optional(),
@@ -289,7 +298,7 @@ export const act24sideBattleFinishSchema = z.object({
   activityId: z.string().optional(),
   data: z.string(),
   // 客户端完整战报对象，仅保证存在，不做深检
-  battleData: z.any(),
+  battleData: z.json(),
 });
 
 /** 怪猎进食（服务端自定义；服务端读 activityId/meal） */
@@ -315,13 +324,13 @@ export const act24sideGetHuntCollectRewardsSchema = z.object({
 export const act25sideBattleStartSchema = z.object({
   stageId: z.string(),
   // squad 为完整编队对象，仅保证存在
-  squad: z.any(),
+  squad: z.json(),
   isRetro: z.number().optional(),
   pray: z.number().optional(),
   battleType: z.number().optional(),
-  continuous: z.any().optional(),
+  continuous: z.json().optional(),
   usePracticeTicket: z.number().optional(),
-  assistFriend: z.any().optional(),
+  assistFriend: z.json().optional(),
   isReplay: z.number().optional(),
   startTs: z.number().optional(),
 });
@@ -330,7 +339,7 @@ export const act25sideBattleStartSchema = z.object({
 export const act25sideBattleFinishSchema = z.object({
   data: z.string(),
   // 客户端完整战报对象，仅保证存在，不做深检
-  battleData: z.any(),
+  battleData: z.json(),
 });
 
 /** 生息演算每日刷新（CS: Act25sideDailyRefreshRequest；服务端不读 body） */
@@ -356,15 +365,15 @@ export const footballBattleStartSchema = z.object({
   activityId: z.string().optional(),
   stageId: z.string().optional(),
   // squad/assistFriend 为复杂嵌套对象，仅保证存在
-  squad: z.any().optional(),
-  assistFriend: z.any().optional(),
+  squad: z.json().optional(),
+  assistFriend: z.json().optional(),
 });
 
 /** 足球战斗结算（CS: Act1FootballBattleFinishRequest；服务端不读 body） */
 export const footballBattleFinishSchema = z.object({
   activityId: z.string().optional(),
   data: z.string().optional(),
-  battleData: z.any().optional(),
+  battleData: z.json().optional(),
 });
 
 /* ===== 通用 stub（未读取 body 的批量活动接口） ===== */
@@ -471,7 +480,7 @@ export const act45sideConfirmSchema = z.object({
 /** act46side 挖矿（Act46sideGameRequest；未读取 body） */
 export const act46sideGameSchema = z.object({
   activityId: z.string().optional(),
-  node: z.any().optional(),
+  node: z.json().optional(),
 });
 
 /** act5d1 危机合约购买（Act5d1BuyGoodsRequest；未读取 body） */
@@ -513,5 +522,7 @@ export const arkhubSetSecretarySchema = z.object({
 
 /** 方舟枢纽设置队伍（服务端读 squads；squads 为复杂对象数组） */
 export const arkhubSetSquadSchema = z.object({
-  squads: z.array(z.any()).optional(),
+  // handler 只做 Array.isArray 判定后整段存入 activity.ARK_HUB.squads（不读元素字段），
+  // 故按被读层级收紧到「JSON 数组」，元素结构保持透传
+  squads: z.array(z.json()).optional(),
 });

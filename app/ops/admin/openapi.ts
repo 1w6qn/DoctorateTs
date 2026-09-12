@@ -6,13 +6,45 @@
  * 路径参数（:uid → {uid}）与请求体示例自动转换。
  */
 import { ADMIN_ENDPOINTS } from "./api-spec";
+import type { JsonValue } from "@excel/json-value";
+
+/** OpenAPI 参数对象（本生成器产出的字段子集） */
+export interface OpenApiParameter {
+  name: string;
+  in: "path" | "query";
+  required?: boolean;
+  schema: { type: "string" | "integer" };
+  description?: string;
+}
+
+/** OpenAPI 操作对象（本生成器产出的字段子集） */
+export interface OpenApiOperation {
+  summary: string;
+  parameters: OpenApiParameter[];
+  responses: { [status: string]: { description: string } };
+  requestBody?: {
+    required: boolean;
+    content: { "application/json": { example: JsonValue } };
+  };
+}
+
+/** OpenAPI 3.0.3 文档（本生成器产出的字段子集） */
+export interface OpenApiDocument {
+  openapi: string;
+  info: { title: string; version: string; description: string };
+  security: { adminToken: string[] }[];
+  components: {
+    securitySchemes: { adminToken: { type: string; in: string; name: string } };
+  };
+  paths: { [path: string]: { [method: string]: OpenApiOperation } };
+}
 
 /** 生成 OpenAPI 3.0.3 文档对象 */
-export function buildOpenApi(): object {
-  const paths: { [key: string]: any } = {};
+export function buildOpenApi(): OpenApiDocument {
+  const paths: OpenApiDocument["paths"] = {};
   for (const e of ADMIN_ENDPOINTS) {
     const pathKey = e.path.replace(/:([A-Za-z_]+)/g, "{$1}");
-    const op: any = {
+    const op: OpenApiOperation = {
       summary: e.summary,
       parameters: [],
       responses: {

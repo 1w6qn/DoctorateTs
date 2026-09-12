@@ -7,7 +7,7 @@
  * 避免非法 body 传入控制器抛 500。
  *
  * 约定：
- * - 复杂嵌套对象（slots/squad/continuous/assistFriend/battleData）用 z.any()，
+ * - 复杂嵌套对象（slots/squad/continuous/assistFriend/battleData）用 z.json()，
  *   仅保证键存在、不深检，避免对客户端完整结构误伤。
  * - .optional() 表示服务端不读或抓包确认可不传的字段。
  */
@@ -16,8 +16,9 @@ import { z } from "zod";
 /** 编队请求（CS: SquadFormationRequest { squadId, slots, changeSkill? }） */
 export const squadFormationSchema = z.object({
   squadId: z.number(),
-  // slots 为复杂嵌套对象数组，仅保证存在，数值/结构由 manager 自行处理
-  slots: z.any(),
+  // slots 为 PlayerSquadItem[]——handler 只做 Array.isArray 判定后整段写入
+  // troop.squads[squadId].slots（不读元素字段），故按被读层级收紧到「JSON 数组」
+  slots: z.array(z.json()),
   changeSkill: z.number().optional(),
 });
 
@@ -34,24 +35,28 @@ export const getAssistListSchema = z.object({
   currSquadId: z.string().optional(),
 });
 
-/** 战斗开始请求（CS: CommonStartBattleRequest；squad/continuous/assistFriend 为嵌套对象） */
+/**
+ * 战斗开始请求（CS: CommonStartBattleRequest；squad/continuous/assistFriend 为嵌套对象）
+ * 三者整包转发给 battle.start（由 kernel/battle 读取内层字段），故用 z.json() 原样透传，
+ * 不用精确 schema——否则 zod 会剥掉未声明的内层字段改变开战数据。
+ */
 export const battleStartSchema = z.object({
   isRetro: z.number(),
   pray: z.number(),
   battleType: z.number(),
-  continuous: z.any(),
+  continuous: z.json(),
   usePracticeTicket: z.number(),
   stageId: z.string(),
-  squad: z.any(),
-  assistFriend: z.any(),
+  squad: z.json(),
+  assistFriend: z.json(),
   isReplay: z.number(),
   startTs: z.number(),
 });
 
-/** 战斗结算请求（CS: CommonFinishBattleRequest { data, battleData }；battleData 完整战报不深检） */
+/** 战斗结算请求（CS: CommonFinishBattleRequest { data, battleData }；battleData 完整战报透传给 battle.finish） */
 export const battleFinishSchema = z.object({
   data: z.string(),
-  battleData: z.any(),
+  battleData: z.json(),
 });
 
 /** 获取战斗回放请求（CS: LoadBattleReplayRequest { stageId }） */

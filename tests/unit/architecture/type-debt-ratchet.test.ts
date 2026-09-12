@@ -17,9 +17,14 @@
  *  - 生成的类型文件（app/game/excel/types*）同样纳入统计：其模糊类型源自生成器
  *    而非手写，修复方向是改生成器，因此同样只能减少。
  *
+ * 扫描范围是**全仓代码**：`app/`、`scripts/`、`tests/`、`hook/` 与根 `index.ts`
+ * （见 scripts/lib/type-debt-scan.ts#SCAN_DIRS）——测试与脚本同样是仓库资产，
+ * `any` 不因所在目录而合法。
+ *
  * 扫描器为纯函数（scripts/lib/type-debt-scan.ts），与 CLI `pnpm run type:debt` 共用，
  * 保证「守卫判定」与「基线刷新」口径完全一致。刷新基线：`pnpm run type:debt -- --write`
- * （该命令拒绝让总量上升）。
+ * （该命令拒绝让总量上升）；**扫描范围扩容**时用
+ * `pnpm run type:debt -- --write --expand-scope`（只放行新增文件，既有文件仍禁止上升）。
  */
 import { describe, it, expect } from "vitest";
 import * as fs from "fs";
@@ -39,12 +44,22 @@ function readBaseline(): TypeDebtBaseline {
   return JSON.parse(fs.readFileSync(BASELINE_FILE, "utf-8")) as TypeDebtBaseline;
 }
 
-/** 当前扫描结果 */
+/**
+ * 当前扫描结果（惰性缓存）
+ *
+ * 扫描范围已扩到全仓（`app`/`scripts`/`tests`/`hook` + `index.ts`，约 470 个文件），
+ * 单次扫描在本机需数十秒；四个校验用例若各扫一遍会让整个用例组在并发跑测时超时。
+ * 一次扫描结果在所有用例间共享（文件在单次测试运行内不会被改写）。
+ */
+let cachedScan: ReturnType<typeof scanTypeDebt> | null = null;
+
+/** 当前扫描结果（首次调用时扫描，后续复用） */
 function currentScan(): ReturnType<typeof scanTypeDebt> {
-  return scanTypeDebt(REPO_ROOT);
+  return (cachedScan ??= scanTypeDebt(REPO_ROOT));
 }
 
-describe("类型债守卫（any/unknown/object 棘轮）", () => {
+// 全仓扫描耗时随范围增长（秒级），显式放宽单用例上限，避免在慢机器/并发负载下假失败
+describe("类型债守卫（any/unknown/object 棘轮）", { timeout: 180000 }, () => {
   it("负样本自证：注释、字符串、正则中的关键字不计为类型债", () => {
     expect(countVagueTypes("// any unknown object")).toEqual({ any: 0, unknown: 0, object: 0 });
     expect(countVagueTypes("/* any unknown object */")).toEqual({ any: 0, unknown: 0, object: 0 });

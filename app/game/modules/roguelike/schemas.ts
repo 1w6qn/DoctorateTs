@@ -7,7 +7,7 @@
  * 由 validateBody 中间件返回 HTTP 4xx，避免非法 body 传入控制器抛 500。
  *
  * 约定：
- * - z.any() 表示"键必须存在、值类型不深检"（如 battleData/squad 这类复杂嵌套对象，
+ * - z.json() 表示"键必须存在、值类型不深检"（如 battleData/squad 这类复杂嵌套对象，
  *   仅保证出现，避免对客户端完整结构误伤）。
  * - .optional() 表示服务端不读或抓包确认可不传的字段。
  * - 响应 schema 仅作类型断言用（rlv2Response 已保证结构），不参与运行时校验。
@@ -94,14 +94,14 @@ export const moveToSchema = z.object({
 export const moveAndBattleStartSchema = z.object({
   to: nodePositionSchema,
   stageId: z.string(),
-  squad: z.any(),
+  squad: z.json(),
 });
 
 /** 战斗结算（CS: RoguelikeFinishBattleRequest : CommonFinishBattleRequest + battleLog） */
 export const battleFinishSchema = z.object({
   data: z.string(),
   // battleData 为客户端完整战报对象，仅保证存在，不做深类型校验
-  battleData: z.any(),
+  battleData: z.json(),
   battleLog: z.string(),
 });
 
@@ -324,7 +324,7 @@ export const gridZoneMoveToSchema = z.object({
 export const gridZoneMoveAndBattleStartSchema = z.object({
   route: z.array(z.string()).min(1),
   stageId: z.string(),
-  squad: z.any(),
+  squad: z.json(),
 });
 
 /** 网格区域空步（GRID_ZONE 模块，无字段） */

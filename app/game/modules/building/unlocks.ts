@@ -47,6 +47,6 @@ export function isFormulaUnlocked(formula: any, ctx: FormulaUnlockCtx): boolean 
  * @param roomLevel - 贸易站当前等级
  */
 export function isDiamondStrategyUnlocked(roomLevel: number): boolean {
-  const need = getBuildingConstant<number>("tradingStrategyUnlockLevel") ?? 3;
+  const need = getBuildingConstant("tradingStrategyUnlockLevel") ?? 3;
   return (roomLevel ?? 0) >= need;
 }

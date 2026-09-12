@@ -15,6 +15,8 @@
  */
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../../kernel/events/runtime";
+import type { Draft } from "mutative";
+import type { PlayerDataModel } from "../../../kernel/playerdata";
 import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";
 import { logger } from "@utils/logger";
@@ -99,13 +101,16 @@ export class BossRushManager {
 
   /**
    * 取玩家尖灭存档（draft.activity.BOSS_RUSH[actId]）
+   *
+   * 形状来自生成类型 `PlayerActivity["BOSS_RUSH"]`（登记在
+   * scripts/playerdata-server-adapt.ts 的 SERVER_OVERRIDE_FIELDS），本模块的
+   * `BossRushPlayerData` 只是其可读别名，不再需要 cast。
    * @param draft - 玩家数据 draft
    * @param actId - 活动 ID
    * @returns 玩家尖灭存档（缺失返回 undefined）
    */
-  private userData(draft: any, actId: string): BossRushPlayerData | undefined {
-    const act = (draft?.activity as Record<string, any> | undefined)?.["BOSS_RUSH"];
-    return act?.[actId] as BossRushPlayerData | undefined;
+  private userData(draft: Draft<PlayerDataModel>, actId: string): BossRushPlayerData | undefined {
+    return draft.activity.BOSS_RUSH?.[actId];
   }
 
   /**

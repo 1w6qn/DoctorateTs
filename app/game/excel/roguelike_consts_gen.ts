@@ -18,13 +18,16 @@
 import type { RoguelikeBuff } from "@excel/excel";
 import type { RoguelikeConst } from "@excel/excel";
 import { normalizeRoguelikeTopicTable } from "./roguelike-keys";
-import type { RoguelikeTopicTable } from "./types_excel_gen";
+import { isJsonArray, isJsonObject, type JsonValue } from "./json-value";
+import type { Blackboard, RoguelikeTopicTable } from "./types_excel_gen";
 
-/** buildRoguelikeConsts 所需的官方表最小结构（customizeData 六主题 + details[].recruitGrps） */
-export interface RoguelikeTopicTableInput {
-  customizeData: Record<string, any>;
-  details?: Record<string, { recruitGrps?: Record<string, any> }>;
-}
+/**
+ * buildRoguelikeConsts 所需的官方表最小结构
+ *
+ * 直接取官方表类型的 customizeData/details（normalize 需要两者同现）。customizeData 在
+ * 生成类型里是未建模 JSON（`{ [key: string]: JsonValue }`），派生逻辑按 JSON 域收窄读取。
+ */
+export type RoguelikeTopicTableInput = Pick<RoguelikeTopicTable, "customizeData" | "details">;
 
 /** 单条 buffDisplayInfo（displayType/displayForm/displayNum） */
 interface DisplayInfo {
@@ -34,19 +37,37 @@ interface DisplayInfo {
 }
 
 /**
+ * blackboard 条目（派生数据形态）
+ *
+ * 官方 JSON 省略缺省字段（只有 `{key}` / `{key,value}` / `{key,valueStr}` 三种），
+ * 与生成类型 `Blackboard_DataPair`（FBO 线格式，value/valueStr 必填）不同。
+ */
+interface BlackboardEntry {
+  key: string;
+  value?: number;
+  valueStr?: string | null;
+}
+
+/**
  * 构造一个 blackboard 条目，形如旧 rlv2.json：仅包含实际存在的字段。
  * 缺失的数值/字符串字段被省略（与旧数据逐字节一致，运行时不读取缺省 key）。
  */
-function bb(key: string, value?: number, valueStr?: string | null): Record<string, unknown> {
-  const e: Record<string, unknown> = { key };
+function bb(key: string, value?: number, valueStr?: string | null): BlackboardEntry {
+  const e: BlackboardEntry = { key };
   if (value !== undefined) e.value = value;
   if (valueStr !== undefined) e.valueStr = valueStr;
   return e;
 }
 
-/** 构造单个 RoguelikeBuff */
-function buff(key: string, blackboard: Record<string, unknown>[]): RoguelikeBuff {
-  return { key, blackboard: blackboard as any };
+/**
+ * 构造单个 RoguelikeBuff
+ *
+ * `Blackboard_DataPair` 是 FBO 线格式（value/valueStr 必填），而本函数按旧 rlv2.json
+ * 语义省略缺省字段；两者形状兼容（线格式 → 条目为放宽），故用精确的 `as Blackboard`
+ * 断言而非 any（运行期字段不变）。
+ */
+function buff(key: string, blackboard: BlackboardEntry[]): RoguelikeBuff {
+  return { key, blackboard: blackboard as Blackboard };
 }
 
 /** immediate_reward：发放一类初始资源/物品 */
@@ -177,7 +198,7 @@ const RAWRULES: { [themeBuffId: string]: RoguelikeBuff[] } = {
   ],
   // legacy 怪癖：该 char_attribute_mul 的 max_hp 条目多带了 valueStr:null（其余主题同型无此字段）
   "rogue_4.rogue_4_outbuff_1": [
-    buff("char_attribute_mul", [{ key: "max_hp", value: 0.01, valueStr: null } as any]),
+    buff("char_attribute_mul", [{ key: "max_hp", value: 0.01, valueStr: null }]),
   ],
 };
 
@@ -282,14 +303,47 @@ const MODEBUFF: { [theme: string]: { [grade: string]: RoguelikeBuff[] } } = {
   rogue_6: {},
 };
 
-/** 提取某主题 customizeData 的 developments（rogue_1..3 顶层，rogue_4..6 在 commonDevelopment） */
-function themeDevelopments(theme: string, customizeData: any): { [key: string]: any } {
-  const cd = customizeData?.[theme];
-  if (!cd) return {};
-  if (theme === "rogue_4" || theme === "rogue_5" || theme === "rogue_6") {
-    return cd.commonDevelopment?.developments ?? {};
+/**
+ * 逐个收窄开发项的 buffDisplayInfo（未建模 JSON → 精确形状）
+ *
+ * 形状不符的条目直接丢弃（官方数据全部合规；`displayType` 必须为字符串、
+ * `displayNum` 必须为数值、`displayForm` 必须为字符串或数值）。
+ * @param dev - customizeData 里的一条开发项
+ * @returns 逐项收窄后的 buffDisplayInfo
+ */
+function displayInfosOf(dev: JsonValue): DisplayInfo[] {
+  if (!isJsonObject(dev)) return [];
+  const infos = dev.buffDisplayInfo;
+  if (!isJsonArray(infos)) return [];
+  const out: DisplayInfo[] = [];
+  for (const info of infos) {
+    if (!isJsonObject(info)) continue;
+    const { displayType, displayForm, displayNum } = info;
+    if (typeof displayType !== "string" || typeof displayNum !== "number") continue;
+    if (typeof displayForm !== "string" && typeof displayForm !== "number") continue;
+    out.push({ displayType, displayForm, displayNum });
   }
-  return cd.developments ?? {};
+  return out;
+}
+
+/**
+ * 提取某主题 customizeData 的 developments（rogue_1..3 顶层，rogue_4..6 在 commonDevelopment）
+ *
+ * 官方 customizeData 为未建模 JSON（生成类型 `{ [key: string]: JsonValue }`，加载期键为
+ * rlNN、displayForm 为数值），故按 JSON 域收窄：缺失/形状不符的主题按空表处理（与旧行为一致）。
+ */
+function themeDevelopments(
+  theme: string,
+  customizeData: { [key: string]: JsonValue },
+): { [key: string]: JsonValue } {
+  const cd = customizeData[theme];
+  if (!isJsonObject(cd)) return {};
+  const commonDevelopment = cd.commonDevelopment;
+  const developments =
+    theme === "rogue_4" || theme === "rogue_5" || theme === "rogue_6"
+      ? (isJsonObject(commonDevelopment) ? commonDevelopment.developments : null)
+      : cd.developments;
+  return isJsonObject(developments) ? developments : {};
 }
 
 /**
@@ -300,12 +354,9 @@ function themeDevelopments(theme: string, customizeData: any): { [key: string]: 
  */
 export function buildRoguelikeConsts(topicTable: RoguelikeTopicTableInput): { [theme: string]: RoguelikeConst } {
   // 官方数据里 customizeData 以客户端键 rlNN 存放（details 为 rogue_N），先归一化再派生，
-  // 否则派生结果以 rlNN 为键、按主题查询全部 miss（幂等；excel.init 亦已调用一次）
-  // 入参为该文件的最小结构声明（details 只声明 recruitGrps），此处按官方表类型归一化：
-  // 主题键 rlNN → rogue_N + displayForm 数值 → 枚举名（幂等）
-  normalizeRoguelikeTopicTable(
-    topicTable as Pick<RoguelikeTopicTable, "customizeData" | "details">,
-  );
+  // 否则派生结果以 rlNN 为键、按主题查询全部 miss（幂等；excel.init 亦已调用一次）。
+  // 入参即官方表最小结构（customizeData + details），无需再断言成官方表类型。
+  normalizeRoguelikeTopicTable(topicTable);
   const result: { [theme: string]: RoguelikeConst } = {};
   const themes = Object.keys(topicTable.customizeData ?? {});
   for (const theme of themes) {
@@ -316,17 +367,13 @@ export function buildRoguelikeConsts(topicTable: RoguelikeTopicTableInput): { [t
       const overrideKey = `${theme}.${buffId}`;
       let bufs: RoguelikeBuff[] = RAWRULES[overrideKey];
       if (!bufs) {
-        const infos = dev.buffDisplayInfo as DisplayInfo[] | undefined;
-        bufs =
-          infos && infos.length > 0
-            ? infos
-                .map((info) => fromDisplayInfo(theme, info))
-                .filter((b): b is RoguelikeBuff => b !== null)
-            : [];
+        bufs = displayInfosOf(dev)
+          .map((info) => fromDisplayInfo(theme, info))
+          .filter((b): b is RoguelikeBuff => b !== null);
       }
       outbuff[buffId] = bufs;
     }
-    const recruitGrps: { [key: string]: any } = topicTable.details?.[theme]?.recruitGrps ?? {};
+    const recruitGrps = topicTable.details?.[theme]?.recruitGrps ?? {};
     result[theme] = {
       outbuff,
       modebuff: MODEBUFF[theme] ?? {},

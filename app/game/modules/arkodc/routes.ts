@@ -204,12 +204,14 @@ router.post("/battleFinish", validateBody(arkOdcBattleFinishSchema), async (req,
 
   // 完成后推进 actorData.actorShowCondition 的 varSeqs
   const topicId = arkOdcTopics.get(player.uid) ?? "";
-  const arkvent = (excel as any).ArkventTable;
+  const arkvent = excel.ArkventTable;
   const actorData = arkvent?.arkventDataMap?.[topicId]?.taskData?.actorData?.[actorId!];
-  if (actorData?.actorShowCondition) {
+  // 提到局部常量：属性收窄不进入闭包（旧实现靠 any 绕过）
+  const showConditions = actorData?.actorShowCondition;
+  if (showConditions) {
     await player.update(async (draft) => {
       const arkTopic = ensureArkOdcTopic(draft, topicId);
-      for (const condition of actorData.actorShowCondition) {
+      for (const condition of showConditions) {
         applyVarSeqList(arkTopic, condition.varSeqList);
       }
     });
@@ -263,7 +265,7 @@ router.post("/triggerInteraction", validateBody(arkOdcTriggerActionSchema), asyn
   if (isInvalidTopicId(topicId)) {
     return res.send({ items: [], ...player.delta } satisfies ArkOdcTriggerActionResponse);
   }
-  const arkvent = (excel as any).ArkventTable;
+  const arkvent = excel.ArkventTable;
   let items: ItemBundle[] = [];
 
   await player.update(async (draft) => {
@@ -277,10 +279,10 @@ router.post("/triggerInteraction", validateBody(arkOdcTriggerActionSchema), asyn
       // 宝箱奖励（..._tre_a 等）不匹配
       if (/_q\d+$/.test(awardId)) {
         const actorDataMap = arkvent?.arkventDataMap?.[topicId!]?.taskData?.actorData ?? {};
-        for (const currentTaskData of Object.values(actorDataMap) as any[]) {
+        for (const currentTaskData of Object.values(actorDataMap)) {
           const triggerOps = currentTaskData?.actorTriggerOperations ?? {};
           let found = false;
-          for (const opsList of Object.values(triggerOps) as any[]) {
+          for (const opsList of Object.values(triggerOps)) {
             if (!Array.isArray(opsList)) continue;
             for (const operation of opsList) {
               const awardIdValue = operation?.operationParams?.awardId ?? "";

@@ -73,6 +73,10 @@
 import * as readline from "readline";
 import { readFileSync } from "fs";
 import excel from "@excel/excel";
+import { isJsonObject } from "@excel/json-value";
+import type { JsonValue } from "@excel/json-value";
+import { isOfficialAction } from "@ops/admin/official-ops";
+import type { OfficialAction } from "@ops/admin/official-ops";
 import { accountManager } from "@game/modules/account/AccountManager";
 import { adminService } from "@ops/admin/AdminService";
 import config from "@core/config/index";
@@ -1493,6 +1497,30 @@ async function runPay(args: string[]): Promise<void> {
   process.exitCode = 1;
 }
 
+/**
+ * 把 CLI 的官服子命令收窄为受支持操作
+ *
+ * 迁移前此处为 `sub as any`——`--action` 来自命令行，属外部输入，应经运行时白名单
+ * （{@link isOfficialAction}）收窄后再透传给官方调用层。
+ * @param sub - 子命令名
+ * @returns 受支持的官服操作
+ * @throws 子命令不在白名单时
+ */
+function asOfficialAction(sub: string): OfficialAction {
+  if (!isOfficialAction(sub)) throw new Error(`不支持的官服操作: ${sub}`);
+  return sub;
+}
+
+/**
+ * 读取官服 JSON 响应字段（仅用于 CLI 打印）
+ * @param data - 响应数据（外部未建模 JSON）
+ * @param key - 字段名
+ * @returns 字段值；非对象或缺失时为 undefined（打印效果与迁移前的直接属性访问一致）
+ */
+function officialField(data: JsonValue | undefined, key: string): JsonValue | undefined {
+  return data !== undefined && isJsonObject(data) ? data[key] : undefined;
+}
+
 async function runOfficial(
   args: string[],  flags: { [key: string]: string },
 ): Promise<void> {
@@ -1576,7 +1604,7 @@ async function runOfficial(
       return;
     }
     console.log(`正在登录官服并执行「${sub}」...（需公网访问官服）`);
-    const r = await adminService.officialAction(phone, pwd, sub as any);
+    const r = await adminService.officialAction(phone, pwd, asOfficialAction(sub));
     if (flags.json) {
       output(r, flags);
       return;
@@ -1587,13 +1615,13 @@ async function runOfficial(
     }
     if (sub === "status") {
       const d = r.data;
-      console.log(`官服账号 ${d.nickName}#${d.nickNumber}（uid=${d.uid}）Lv.${d.level}`);
-      console.log(`  理智 ${d.ap}/${d.maxAp} | 龙门币 ${d.gold} | 源石 ${d.androidDiamond} | 社交点 ${d.socialPoint}`);
-      console.log(`  绿票 ${d.lggShard} | 黄票 ${d.hggShard} | 今日可签 ${d.canCheckIn ? "是" : "否"}`);
+      console.log(`官服账号 ${officialField(d, "nickName")}#${officialField(d, "nickNumber")}（uid=${officialField(d, "uid")}）Lv.${officialField(d, "level")}`);
+      console.log(`  理智 ${officialField(d, "ap")}/${officialField(d, "maxAp")} | 龙门币 ${officialField(d, "gold")} | 源石 ${officialField(d, "androidDiamond")} | 社交点 ${officialField(d, "socialPoint")}`);
+      console.log(`  绿票 ${officialField(d, "lggShard")} | 黄票 ${officialField(d, "hggShard")} | 今日可签 ${officialField(d, "canCheckIn") ? "是" : "否"}`);
       return;
     }
     if (sub === "mails") {
-      console.log(`官服邮件：共 ${r.data.count} 封（未读 ${r.data.unread}）`);
+      console.log(`官服邮件：共 ${officialField(r.data, "count")} 封（未读 ${officialField(r.data, "unread")}）`);
       return;
     }
     console.log(`[成功] ${JSON.stringify(r.data ?? "")}`);

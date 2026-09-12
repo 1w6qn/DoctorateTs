@@ -54,7 +54,9 @@ describe("medal 根级路由", () => {
     const res = mockRes();
     const customData = { layout: [{ x: 1 }] };
     await call({ method: "POST", url: "/medal/setCustomData", body: { data: customData } }, res);
-    expect(draft.medal.custom.customs["1"]).toBe(customData);
+    // 深相等而非引用相等：zod 校验（z.json）会重建对象，validateBody 写入 req.body 的是
+    // 解析后的新对象——handler 契约是「把 data 存进 customs[index]」，不涉及引用共享
+    expect(draft.medal.custom.customs["1"]).toStrictEqual(customData);
     expect(res.send).toHaveBeenCalledWith({ modified: {} });
   });
 

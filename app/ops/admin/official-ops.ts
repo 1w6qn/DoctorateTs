@@ -19,11 +19,91 @@ import {
 } from "../../../scripts/official-api";
 import { pixelDataMd5, validatePixelData } from "./arkhub-pixel";
 import { captureManager } from "@capture/capture-manager";
+import { isJsonObject } from "@excel/json-value";
+import type { JsonObject, JsonValue } from "@excel/json-value";
 import { logger } from "@utils/logger";
 import {
   GatewaySession,
   randomGatewayDeviceId,
 } from "./arkhub-gateway-client";
+
+/** 官服账号状态（syncData.user.status；只声明本模块读取的字段） */
+export type OfficialAccountStatus = {
+  nickName?: string;
+  nickNumber?: string;
+  uid?: string;
+  level?: number;
+  ap?: number;
+  maxAp?: number;
+  gold?: number;
+  androidDiamond?: number;
+  socialPoint?: number;
+  lggShard?: number;
+  hggShard?: number;
+};
+
+/** 官服 syncData 响应中的 user 字段（本模块读取 status/checkIn；其余字段透传不读取） */
+export type OfficialSyncUser = {
+  status?: OfficialAccountStatus;
+  checkIn?: { canCheckIn?: number };
+};
+
+/** 官服邮件元信息（getMetaInfoList.result 元素；未建模 JSON，读取点按字段兜底） */
+export type OfficialMailMeta = JsonObject;
+
+/**
+ * 官服 CGI 响应体（外部不可信输入）
+ *
+ * 各接口返回字段的并集（全部可选）——只声明本模块真正读取的键，读取端一律
+ * `?.` + `??` 兜底（与迁移前 `any` 访问逐分支一致）。叶级值保持 {@link JsonValue}：
+ * 这些结构（卡池详情等）由调用方原样落盘，不在本层建模。
+ */
+export type OfficialCgiResponse = {
+  /** syncData：玩家数据根 */
+  user?: OfficialSyncUser;
+  /** getPoolDetail：卡池详情（写入本地 gacha_detail_table.json 的原始结构） */
+  detailInfo?: JsonValue;
+  /** getMetaInfoList：邮件元信息列表 */
+  result?: JsonValue;
+  /** getPixelArt：像素画 id → 元信息 */
+  pixelArts?: { [id: string]: { url?: string; isBanned?: boolean } };
+  /** savePixelArt 等接口的业务状态码（HTTP 200 但业务失败） */
+  statusCode?: number;
+  /** 同上（部分接口用 code） */
+  code?: number;
+};
+
+/** 账号状态摘要（statusSummary 产物；字段缺失即缺省） */
+export type OfficialStatusSummary = OfficialAccountStatus & { canCheckIn: number };
+
+/** 官服操作结果（runOfficialAction） */
+export type OfficialActionResult = {
+  action: string;
+  ok: boolean;
+  data?: JsonValue;
+  reason?: string;
+};
+
+/** 官服通用调用结果（runOfficialCall） */
+export type OfficialCallResult = { cgi: string; result: OfficialCgiResponse };
+
+/** 抓包记录：请求视图（body 为 JSON 值或预序列化文本） */
+export type OfficialTraceRequest = { body?: JsonValue; headers: Record<string, string> };
+
+/** 抓包记录：响应视图 */
+export type OfficialTraceResponse = { status: number; body: JsonValue };
+
+/**
+ * 官服响应根对象判定
+ *
+ * 官服 CGI 是外部不可信输入：此处只确认 JSON 根为对象（字段级形状由各读取点
+ * 按需兜底——深校验会对大响应（syncData）产生无谓开销，且本层不消费深字段）。
+ * @param value - fetch 解析出的响应体
+ * @returns 是否为官服响应视图
+ */
+function isOfficialCgiResponse(value: JsonValue): value is OfficialCgiResponse {
+  return isJsonObject(value);
+}
 
 /**
  * 记录一次官服调用请求/响应到统一抓包存储（source=ops，请求头脱敏：去除 secret）。
@@ -31,8 +111,8 @@ import {
  */
 async function recordOfficialCall(
   cgi: string,
-  req: { body?: any; headers: Record<string, string> },
-  res: { status: number; body: any },
+  req: OfficialTraceRequest,
+  res: OfficialTraceResponse,
 ): Promise<void> {
   const { secret: _secret, ...safeHeaders } = req.headers; // 脱敏：不落盘 secret
   try {
@@ -61,13 +141,26 @@ async function recordOfficialCall(
   }
 }
 
+/** 支持的官服操作（运行时白名单；类型 {@link OfficialAction} 由本表推导） */
+export const OFFICIAL_ACTIONS = [
+  "status", // 账号状态（登录 + sync）
+  "signin", // 签到（今日已签返回 reason）
+  "mails", // 邮件列表
+  "receive", // 领取全部邮件
+  "daily", // 一键日常（签到 + 领邮件）
+] as const;
+
 /** 支持的官服操作 */
-export type OfficialAction =
-  | "status" // 账号状态（登录 + sync）
-  | "signin" // 签到（今日已签返回 reason）
-  | "mails" // 邮件列表
-  | "receive" // 领取全部邮件
-  | "daily"; // 一键日常（签到 + 领邮件）
+export type OfficialAction = (typeof OFFICIAL_ACTIONS)[number];
+
+/**
+ * 官服操作判定（路由 body 为外部不可信输入：运行时收窄后再透传给官方调用层）
+ * @param value - 待判定的请求字段
+ * @returns 是否为受支持的官服操作
+ */
+export function isOfficialAction(value: JsonValue): value is OfficialAction {
+  return typeof value === "string" && OFFICIAL_ACTIONS.some((action) => action === value);
+}
 
 /** 官服 cgi 路径校验：仅允许 /xxx/yyy 形式的官方接口路径 */
 export function validateCgi(cgi: string): string {
@@ -84,7 +177,7 @@ export class OfficialSession {
   secret = "";
   seqnum = 1;
   /** 最近一次 syncData 的 user 字段 */
-  data: any = null;
+  data: OfficialSyncUser | null = null;
 
   /** 三步登录 + 游戏登录拿 secret */
   async login(phone: string, password: string): Promise<void> {
@@ -104,14 +197,14 @@ export class OfficialSession {
   }
 
   /** 拉取官服玩家数据 */
-  async sync(): Promise<any> {
+  async sync(): Promise<OfficialSyncUser | null> {
     const data = await this.post("/account/syncData", { platform: 1 });
-    this.data = data?.user ?? this.data;
+    this.data = data.user ?? this.data;
     return this.data;
   }
 
   /** 官服 POST（带 secret/seqnum 头；seqnum 按响应头更新或自增；调用记录到统一抓包存储） */
-  async post(cgi: string, body?: any): Promise<any> {
+  async post(cgi: string, body?: JsonValue): Promise<OfficialCgiResponse> {
     const headers: Record<string, string> = {
       uid: this.uid,
       secret: this.secret,
@@ -122,7 +215,7 @@ export class OfficialSession {
       Connection: "Keep-Alive",
     };
     let status = 0;
-    let data: any = null;
+    let data: OfficialCgiResponse | null = null;
     try {
       const res = await fetch(GAME_API + cgi, {
         method: "POST",
@@ -138,9 +231,10 @@ export class OfficialSession {
         seqnumHeader && !Number.isNaN(Number(seqnumHeader))
           ? Number(seqnumHeader)
           : this.seqnum + 1;
-      data = await res.json();
+      const parsed: JsonValue = await res.json();
+      data = isOfficialCgiResponse(parsed) ? parsed : null;
       if (data?.user) this.data = data.user;
-      return data;
+      return data ?? {};
     } finally {
       // 无论成功失败都记录（请求脱敏去除 secret；响应含 status 与 body）
       void recordOfficialCall(
@@ -152,12 +246,12 @@ export class OfficialSession {
   }
 
   /** 官服签到 */
-  async checkIn(): Promise<any> {
+  async checkIn(): Promise<OfficialCgiResponse> {
     return this.post("/user/checkIn", {});
   }
 
   /** 官服 multipart POST（复用 uid/secret/seqnum 头；用于 arkhub savePixelArt 二进制上传） */
-  async postMultipart(cgi: string, boundary: string, body: Buffer): Promise<any> {
+  async postMultipart(cgi: string, boundary: string, body: Buffer): Promise<OfficialCgiResponse> {
     const headers: Record<string, string> = {
       uid: this.uid,
       secret: this.secret,
@@ -169,7 +263,7 @@ export class OfficialSession {
       "Content-Length": String(body.length),
     };
     let status = 0;
-    let data: any = null;
+    let data: OfficialCgiResponse | null = null;
     try {
       const res = await fetch(GAME_API + cgi, {
         method: "POST",
@@ -186,15 +280,16 @@ export class OfficialSession {
         seqnumHeader && !Number.isNaN(Number(seqnumHeader))
           ? Number(seqnumHeader)
           : this.seqnum + 1;
-      data = await res.json();
+      const parsed: JsonValue = await res.json();
+      data = isOfficialCgiResponse(parsed) ? parsed : null;
       // 官服业务状态码校验：savePixelArt 等接口 HTTP 200 但 body.statusCode 非 0/200
       // 表示业务失败（如 "Invalid multipart payload format"）——不校验会被当成功，
       // 该张实际未保存导致批量上传缺一张、官服展示错位
-      const bizCode = (data as any)?.statusCode ?? (data as any)?.code;
+      const bizCode = data?.statusCode ?? data?.code;
       if (bizCode !== undefined && bizCode !== 0 && bizCode !== 200) {
         throw new Error(`官服业务失败 statusCode=${bizCode} @ ${cgi}: ${JSON.stringify(data).slice(0, 200)}`);
       }
-      return data;
+      return data ?? {};
     } finally {
       // 请求体为二进制不落盘完整字节，只记长度
       void recordOfficialCall(
@@ -205,20 +300,21 @@ export class OfficialSession {
     }
   }
 
-  /** 官服卡池详情（getPoolDetail） */
-  async getPoolDetail(poolId: string): Promise<any> {
+  /** 官服卡池详情（getPoolDetail；返回官方原始结构，缺省 null） */
+  async getPoolDetail(poolId: string): Promise<JsonValue> {
     const res = await this.post("/gacha/getPoolDetail", { poolId, gachaObjGroupType: 0 });
-    return res?.detailInfo ?? null;
+    return res.detailInfo ?? null;
   }
 
   /** 官服邮件元信息列表 */
-  async listMails(): Promise<any[]> {
+  async listMails(): Promise<OfficialMailMeta[]> {
     const res = await this.post("/mail/getMetaInfoList", { from: 0 });
-    return Array.isArray(res?.result) ? res.result : [];
+    const result = res.result;
+    return Array.isArray(result) ? result.map((item) => (isJsonObject(item) ? item : {})) : [];
   }
 
   /** 领取全部邮件 */
-  async receiveAll(): Promise<any> {
+  async receiveAll(): Promise<OfficialCgiResponse> {
     return this.post("/mail/receiveAllMail", {
       sysMailIdList: [],
       surveyMailIdList: [],
@@ -227,8 +323,8 @@ export class OfficialSession {
   }
 
   /** 账号状态摘要 */
-  statusSummary(): any {
-    const s = this.data?.status ?? {};
+  statusSummary(): OfficialStatusSummary {
+    const s: OfficialAccountStatus = this.data?.status ?? {};
     return {
       nickName: s.nickName,
       nickNumber: s.nickNumber,
@@ -254,7 +350,7 @@ export async function runOfficialAction(
   phone: string,
   pwd: string,
   action: OfficialAction,
-): Promise<{ action: string; ok: boolean; data?: any; reason?: string }> {
+): Promise<OfficialActionResult> {
   const session = new OfficialSession();
   await session.login(phone, pwd);
 
@@ -279,8 +375,8 @@ export async function runOfficialAction(
         ok: true,
         data: {
           count: mails.length,
-          unread: mails.filter((m: any) => m.state === 0).length,
-          mails: mails.map((m: any) => ({
+          unread: mails.filter((m) => m.state === 0).length,
+          mails: mails.map((m) => ({
             mailId: m.mailId,
             hasItem: m.hasItem,
             state: m.state,
@@ -295,16 +391,18 @@ export async function runOfficialAction(
     }
     case "daily": {
       await session.sync();
-      const out: any = { signin: "今日已签到", mails: null };
+      const out: { signin: string; mails: { count: number; unread: number } | null } = {
+        signin: "今日已签到",
+        mails: null,
+      };
       if (session.data?.checkIn?.canCheckIn) {
         await session.checkIn();
         out.signin = "签到成功";
       }
       const mails = await session.listMails();
-      out.mails = { count: mails.length, unread: mails.filter((m: any) => m.state === 0).length };
+      out.mails = { count: mails.length, unread: mails.filter((m) => m.state === 0).length };
       await session.receiveAll();
-      out.received = true;
-      return { action, ok: true, data: out };
+      return { action, ok: true, data: { ...out, received: true } };
     }
     default:
       throw new Error(`未知官服操作: ${action}`);
@@ -324,8 +422,8 @@ export async function runOfficialCall(
   phone: string,
   pwd: string,
   cgi: string,
-  body?: any,
-): Promise<{ cgi: string; result: any }> {
+  body?: JsonValue,
+): Promise<OfficialCallResult> {
   const path = validateCgi(cgi);
   const session = new OfficialSession();
   await session.login(phone, pwd);
@@ -345,10 +443,10 @@ export async function runGachaSync(
   phone: string,
   pwd: string,
   poolIds: string[],
-): Promise<{ poolId: string; detailInfo?: any; error?: string }[]> {
+): Promise<{ poolId: string; detailInfo?: JsonValue; error?: string }[]> {
   const session = new OfficialSession();
   await session.login(phone, pwd);
-  const results: { poolId: string; detailInfo?: any; error?: string }[] = [];
+  const results: { poolId: string; detailInfo?: JsonValue; error?: string }[] = [];
   for (const poolId of poolIds) {
     try {
       const detailInfo = await session.getPoolDetail(poolId);
@@ -382,11 +480,11 @@ export async function uploadPixelArt(
   phone: string,
   pwd: string,
   pixelData: Buffer,
-): Promise<{ pixelArtId: bigint; uploadToken: string; httpResp: any }> {
+): Promise<{ pixelArtId: bigint; uploadToken: string; httpResp: OfficialCgiResponse }> {
   const results = await uploadPixelArtBatch(phone, pwd, [pixelData]);
   const r = results[0];
   if (!r.ok) throw new Error(r.error ?? "上传失败");
-  return { pixelArtId: r.pixelArtId!, uploadToken: r.uploadToken!, httpResp: r.httpResp };
+  return { pixelArtId: r.pixelArtId!, uploadToken: r.uploadToken!, httpResp: r.httpResp! };
 }
 
 /**
@@ -411,7 +509,7 @@ export async function uploadPixelArtBatch(
   ok: boolean;
   pixelArtId?: bigint;
   uploadToken?: string;
-  httpResp?: any;
+  httpResp?: OfficialCgiResponse;
   error?: string;
 }[]> {
   const results: {
@@ -419,7 +517,7 @@ export async function uploadPixelArtBatch(
     ok: boolean;
     pixelArtId?: bigint;
     uploadToken?: string;
-    httpResp?: any;
+    httpResp?: OfficialCgiResponse;
     error?: string;
   }[] = [];
   if (pixelDataList.length === 0) return results;
@@ -514,13 +612,13 @@ export async function getPixelArtList(
     activityId: "act1arkhub",
     pixelArtIds: ids.map((x) => Number(x)),
   });
-  const pixelArts = resp?.pixelArts ?? {};
+  const pixelArts = resp.pixelArts ?? {};
   const results: { id: string; url: string; isBanned: boolean; pixels: number[] | null }[] = [];
   for (const id of Object.keys(pixelArts)) {
     const info = pixelArts[id] ?? {};
     let pixels: number[] | null = null;
     try {
-      const url = info.url as string;
+      const url = typeof info.url === "string" ? info.url : "";
       if (url) {
         const res = await fetch(url);
         if (res.ok) {

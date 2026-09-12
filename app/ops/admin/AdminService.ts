@@ -15,6 +15,12 @@ import excel from "@excel/excel";
 import { getRoomPhase } from "@excel/building_excel";
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import { PlayerDataModel } from "@game/kernel/playerdata";
+import type { PlayerCharEquipInfo, PlayerCharacter } from "@game/kernel/model";
+import { acceptJsonValue, delIn, getIn, incIn, setIn } from "@game/kernel/util/json-path";
+import { isJsonObject } from "@excel/json-value";
+import type { JsonValue } from "@excel/json-value";
+import type { RoguelikeV2Manager } from "@game/modules/roguelike/logic";
+import type { PlayerRoguelikeV2 } from "@game/modules/roguelike/rlv2-model";
 import { adminGame } from "./game-gateway";
 import { runMigration } from "../../../scripts/migrate-official";
 import { loadUsers } from "../../../scripts/official-register";
@@ -26,6 +32,11 @@ import {
   runGachaSync,
   uploadPixelArt as uploadPixelArtToOfficial,
   OfficialAction,
+} from "./official-ops";
+import type {
+  OfficialActionResult,
+  OfficialCgiResponse,
+  OfficialCallResult,
 } from "./official-ops";
 import { MAIL_TEMPLATES } from "./mail-templates";
 import { exists, size, readJson, readJsonSync, writeJson } from "@utils/file";
@@ -72,6 +83,23 @@ const {
 const ADMIN_LOG_PATH = "./data/admin/logs.jsonl";
 /** 用户存档备份目录 */
 const BACKUP_DIR = "./data/user/backups";
+
+/** 本地 data/excel/gacha_table.json 视图（卡池同步只取池 id 列表） */
+type LocalGachaTableFile = { gachaPoolClient?: { gachaPoolId: string }[] };
+
+/** 本地 data/gacha_detail_table.json 视图（卡池 id → 官服原始详情，原样透传落盘） */
+type LocalGachaDetailFile = { details?: { [poolId: string]: JsonValue } };
+
+/** 黑流树海（rogue_6）数据模块类型（dashboard 无相地图构造数据的真实来源类型） */
+type BlackstreamDataModule = typeof import("@game/modules/roguelike/data/blackstream-data");
+
+/** mapviz「无相地图」网格数据（构造模板/距离规则/数量规则/层类型） */
+type MapvizGridData = {
+  constructions: BlackstreamDataModule["BLACKSTREAM_CONSTRUCTIONS"];
+  distanceRules: BlackstreamDataModule["BLACKSTREAM_DISTANCE_RULES"];
+  countRules: BlackstreamDataModule["BLACKSTREAM_COUNT_RULES"];
+  layerTypes: BlackstreamDataModule["BLACKSTREAM_LAYER_TYPES"];
+};
 
 /** 用户列表摘要 */
 export interface UserSummary {
@@ -130,7 +158,7 @@ export interface CharDetail extends CharSummary {
   voiceLan: string;
   skills: { skillId: string; unlock: number; specializeLevel: number }[];
   currentEquip: string | null;
-  equip: { [key: string]: unknown };
+  equip: { [key: string]: PlayerCharEquipInfo };
 }
 
 /** 干员属性修改参数（均可选，未传不修改） */
@@ -246,16 +274,21 @@ export interface CheckInState {
   total: number;
 }
 
-/** 从玩家数据提取列表摘要 */
-export function toUserSummary(uid: string, pd: PlayerDataManager): UserSummary {
-  const status = pd._playerdata.status;
+/**
+ * 从玩家数据提取列表摘要
+ * @param uid - 用户 ID
+ * @param pd - 玩家数据管理器；存档不可读（懒加载失败）时传 null——按账号配置降级为占位摘要
+ * @returns 用户列表摘要
+ */
+export function toUserSummary(uid: string, pd: PlayerDataManager | null): UserSummary {
+  const status = pd?._playerdata.status;
   return {
     uid,
-    nickName: status.nickName,
-    nickNumber: status.nickNumber,
-    level: status.level,
+    nickName: status?.nickName ?? "",
+    nickNumber: status?.nickNumber ?? "",
+    level: status?.level ?? 0,
     phone: accountManager.configs[uid]?.auth.phone ?? "",
-    lastOnlineTs: status.lastOnlineTs,
+    lastOnlineTs: status?.lastOnlineTs ?? 0,
     disabled: !!accountManager.configs[uid]?.disabled,
   };
 }
@@ -270,10 +303,23 @@ function formatTs(ts: number): string {
   );
 }
 
-/** 路径段转容器键：数字段按数组下标处理 */
-function rlv2Key(seg: string, parent: Record<string, unknown>): string | number {
-  return Array.isArray(parent) && /^\d+$/.test(seg) ? Number(seg) : seg;
-}
+/**
+ * rlv2 上帝视角可写根
+ *
+ * 各顶层段路由到的「权威对象」类型（管理器实例或其持有的 JSON 子树）——取自
+ * {@link RoguelikeV2Manager} 的真实字段类型，不再用 `any` 关掉类型系统。
+ * `undefined` 分支对应 `inventory` 未挂载（对局外）时 relic/recruit 子树不可达。
+ */
+type Rlv2WritableRoot =
+  | RoguelikeV2Manager["current"]
+  | RoguelikeV2Manager["_status"]
+  | RoguelikeV2Manager["_map"]
+  | RoguelikeV2Manager["_module"]
+  | RoguelikeV2Manager["troop"]
+  | NonNullable<RoguelikeV2Manager["inventory"]>
+  | NonNullable<RoguelikeV2Manager["inventory"]>["_relic"]["relics"]
+  | NonNullable<RoguelikeV2Manager["inventory"]>["_recruit"]["tickets"]
+  | undefined;
 
 /**
  * 上帝视角修改：把 current 顶层段路由到对应 manager 的"可写权威对象"。
@@ -281,14 +327,15 @@ function rlv2Key(seg: string, parent: Record<string, unknown>): string | number 
  * manager.toJSON() 为快照回写 current——若直接改 current.* 会被回写覆盖。故把补丁
  * 作用到 manager 实际持有的对象（其 toJSON 读取的同一引用）。record/game/buff 未
  * 被 manager 接管，直接落在 current。
- * @param ctl  - RoguelikeV2Manager（任意类型）
+ *
+ * @param ctl  - RoguelikeV2Manager（rlv2 模块组合根实例）
  * @param segs - 完整路径段（如 ["player","property","hp","current"]）
  * @returns 权威根对象 + 剩余路径段（已去掉顶层段）
  */
 function rlv2AuthoritativeRoot(
-  ctl: any,
+  ctl: RoguelikeV2Manager,
   segs: string[],
-): { root: Record<string, unknown>; rest: string[] } {
+): { root: Rlv2WritableRoot; rest: string[] } {
   const top = segs[0];
   const rest = segs.slice(1);
   const cur = ctl.current;
@@ -305,7 +352,7 @@ function rlv2AuthoritativeRoot(
       // relic/recruit 是 getter（子管理器），需钻进 *_relic.relics / *_recruit.tickets
       if (rest[0] === "relic") return { root: ctl.inventory?._relic?.relics, rest: rest.slice(1) };
       if (rest[0] === "recruit") return { root: ctl.inventory?._recruit?.tickets, rest: rest.slice(1) };
-      return { root: ctl.inventory, rest };
+      return { root: ctl.inventory ?? undefined, rest };
     default:
       // record / game / buff 直接同居 current
       return { root: cur, rest: segs };
@@ -314,50 +361,137 @@ function rlv2AuthoritativeRoot(
 
 /**
  * 沿 JSON 路径对 rlv2 current 子树应用单个补丁（set/del/inc）。
- * 修改对象（含数组）须为可变——rlv2 是 autoFreeze 兼容的可写孤岛，直接改即可。
- * @param root  - current 根对象
+ *
+ * 路径遍历收敛在 `@game/kernel/util/json-path`（严格 `JsonValue` 域，容器形态
+ * 分派只在该模块内做一次）。修改对象（含数组）须为可变——rlv2 是 autoFreeze
+ * 兼容的可写孤岛，直接改即可。
+ * @param root  - 权威根对象（管理器实例或其 JSON 子树，形状由调用方保证）
  * @param op    - set=赋值（不存在则创建中间路径）；del=删除键/数组元素；inc=数值加（默认 +1）
  * @param segs  - 点分路径段（如 ["player","property","hp","current"]）
- * @param value - set 的目标值
+ * @param value - set 的目标值（JSON 域值；来自管理接口请求体）
  */
-export function applyRlv2Patch(
-  root: Record<string, unknown>,
+export function applyRlv2Patch<T>(
+  root: T,
   op: "set" | "del" | "inc",
   segs: string[],
-  value?: unknown,
+  value?: JsonValue,
 ): void {
-  let cur = root;
-  const last = rlv2Key(segs[segs.length - 1], cur);
-  for (let i = 0; i < segs.length - 1; i++) {
-    const key = rlv2Key(segs[i], cur);
-    const next: unknown = (cur as any)[key];
-    if (next === null || next === undefined || typeof next !== "object") {
-      // 自动创建中间容器（对象或数组由下一段的形态决定，默认对象）
-      (cur as any)[key] = {};
-    }
-    cur = (cur as any)[key] as Record<string, unknown>;
-  }
-  const container = cur as Record<string, unknown>;
   if (op === "del") {
-    if (Array.isArray(container)) {
-      const idx = typeof last === "number" ? last : Number(last);
-      if (Number.isFinite(idx)) container.splice(idx, 1);
-    } else if (typeof last === "string") {
-      delete container[last];
-    }
-  } else if (op === "inc") {
-    const base = Number((container as any)[last] ?? 0);
-    const delta = Number(value ?? 0);
-    (container as any)[last] = base + delta;
-  } else {
-    // set：空值可选语义——显式传 undefined 表示删除，避免误留
-    if (value === undefined) {
-      if (Array.isArray(container)) container.splice(Number(last) || 0, 1);
-      else if (typeof last === "string") delete container[last];
-    } else {
-      (container as any)[last] = value;
-    }
+    delIn(root, segs);
+    return;
   }
+  if (op === "inc") {
+    incIn(root, segs, Number(value ?? 0));
+    return;
+  }
+  // set：空值可选语义——显式传 undefined 表示删除，避免误留
+  if (value === undefined) {
+    delIn(root, segs);
+    return;
+  }
+  setIn(root, segs, value);
+}
+
+/**
+ * 补齐阿米娅升变模板（currentTmpl + 三形态 tmpl 映射）
+ *
+ * `buildMaxedChar`（scripts/generate-max-account）返回 `Record<string, unknown>`
+ * ——动态 JSON 产物。这里经 `@game/kernel/util/json-path` 的 JSON 域接纳点
+ * （{@link acceptJsonValue} + {@link setIn}）写回，避免为动态结构写 `as any` 断言；
+ * `currentTmpl` 按字符串收窄后直接赋值（非字符串即不写，与迁移前写 undefined 的
+ * 可序列化结果一致，见 save-health 的模板字段归一化规则）。
+ * @param ch - 目标干员（存档草稿中的可写对象）
+ * @param instId - 干员实例 ID（buildMaxedChar 回填 instId）
+ */
+function applyAmiyaTemplate(ch: PlayerCharacter, instId: number): void {
+  const full = buildMaxedChar(instId, "char_002_amiya");
+  const currentTmpl = full["currentTmpl"];
+  if (typeof currentTmpl === "string") ch.currentTmpl = currentTmpl;
+  setIn(ch, ["tmpl"], acceptJsonValue(full["tmpl"]));
+}
+
+/** rlv2 快照中的标准地图节点（自走模拟读取的字段） */
+type Rlv2SimMapNode = {
+  pos?: { x: number; y: number } | null;
+  type?: number | null;
+  zone_end?: boolean | null;
+  next?: { x: number; y: number }[] | null;
+};
+
+/** rlv2 快照中的网格节点（rogue_6 无相地图；自走模拟读取的字段） */
+type Rlv2SimGridNode = {
+  zone_end?: boolean | null;
+  content?: {
+    kind?: number | null;
+    savage?: { stageId?: string | null } | null;
+    shop?: JsonValue | null;
+  } | null;
+};
+
+/** rlv2 快照中的待处理事件（自走模拟读取的字段） */
+type Rlv2SimPending = {
+  type?: string | null;
+  content?: {
+    scene?: { choices?: { [key: string]: JsonValue } | null } | null;
+    initSupport?: { scene?: { choices?: { [key: string]: JsonValue } | null } | null } | null;
+  } | null;
+};
+
+/** rlv2 快照（gameProxy 响应 modified.rlv2 的只读视图；自走模拟只读下列字段） */
+type Rlv2SimSnapshot = {
+  current?: {
+    player?: {
+      state?: string | null;
+      cursor?: {
+        zone?: number | null;
+        position?: { x: number; y: number } | null;
+      } | null;
+      pending?: Rlv2SimPending[] | null;
+    } | null;
+    map?: {
+      zones?: {
+        [zone: string]: { nodes?: { [nodeId: string]: Rlv2SimMapNode } | null } | null;
+      } | null;
+    } | null;
+    module?: {
+      gridZone?: {
+        zones?: {
+          [zone: string]: { nodes?: { [nodeId: string]: Rlv2SimGridNode } | null } | null;
+        } | null;
+      } | null;
+    } | null;
+  } | null;
+};
+
+/**
+ * rlv2 快照节点判定（`playerDataDelta.modified.rlv2` 的值本身）
+ *
+ * 边界：gameProxy 的响应体是 HTTP 自代理返回的 JSON（外部不可信输入）。此处只确认
+ * `current` 为对象——字段级形状不做深校验（大响应深校验有明显开销，且读取端一律
+ * `?.` + `??` 兜底，与迁移前 `any` 访问逐分支行为一致）。非对象一律判定失败。
+ * @param value - 待判定的 rlv2 节点
+ * @returns 是否为 rlv2 增量快照视图
+ */
+function isRlv2SimSnapshot(value: JsonValue): value is Rlv2SimSnapshot {
+  return isJsonObject(value) && isJsonObject(value["current"]);
+}
+
+/**
+ * 从 gameProxy 响应体提取 rlv2 快照（非快照 → null，与迁移前 `?? null` 一致）
+ *
+ * 注意返回的是**内层 rlv2 节点**（`playerDataDelta.modified.rlv2`），不是整个响应体
+ * ——调用方（rogueSimStep/rogueSimAuto）与 CLI 消费的都是 `state.current.*`。
+ * @param data - gameProxy 响应体（JSON 域值）
+ * @returns 快照视图；响应不是 rlv2 增量时为 null
+ */
+function pickRlv2SimSnapshot(data: JsonValue): Rlv2SimSnapshot | null {
+  if (!isJsonObject(data)) return null;
+  const delta = data["playerDataDelta"];
+  if (!isJsonObject(delta)) return null;
+  const modified = delta["modified"];
+  if (!isJsonObject(modified)) return null;
+  const rlv2 = modified["rlv2"];
+  return rlv2 !== undefined && isRlv2SimSnapshot(rlv2) ? rlv2 : null;
 }
 
 export class AdminService {
@@ -414,7 +548,10 @@ export class AdminService {
           const pd = await accountManager.getPlayerData(uid);
           return toUserSummary(uid, pd);
         } catch {
-          return toUserSummary(uid, undefined as any);
+          // 存档不可读（懒加载失败）：降级为仅账号配置的占位摘要。
+          // 原实现传 undefined 会在 toUserSummary 内读 _playerdata 抛 TypeError，
+          // 使 catch 分支反而把整个用户列表接口打成 500。
+          return toUserSummary(uid, null);
         }
       }),
     );
@@ -481,7 +618,8 @@ export class AdminService {
       throw new Error(`物品 ${resolved} 不在 ItemTable，无法发放`);
     }
     const pd = await this.getPlayer(uid);
-    await pd.inventory.gainItem({ id: resolved, count } as unknown as ItemBundle);
+    // makeItem 保持「type 缺省 = 无 type 语义」（由库存层按 item_table 推导）
+    await pd.inventory.gainItem(excel.makeItem(resolved, count));
     await this.savePlayer(uid);
     await this._audit("grantItem", uid, `${resolved}(${itemName(resolved)}) x${count}`);
   }
@@ -493,7 +631,7 @@ export class AdminService {
    */
   async grantChar(uid: string, charId: string): Promise<{ isNew: number; name: string }> {
     const resolved = resolveCharRef(charId);
-    if (!(excel.CharacterTable as Record<string, any>)?.[resolved]) {
+    if (!excel.charData(resolved)) {
       throw new Error(`未知干员: ${charId}`);
     }
     const pd = await this.getPlayer(uid);
@@ -505,9 +643,7 @@ export class AdminService {
       await pd.update(async (draft) => {
         const ch = draft.troop.chars[res.charInstId as number];
         if (ch) {
-          const full = buildMaxedChar((ch as any).instId, "char_002_amiya");
-          ch.currentTmpl = (full as any).currentTmpl as string;
-          ch.tmpl = (full as any).tmpl as any;
+          applyAmiyaTemplate(ch, ch.instId);
         }
       });
     }
@@ -536,13 +672,12 @@ export class AdminService {
     const pd = await this.getPlayer(uid);
     const chars = pd._playerdata.troop?.chars ?? {};
     return Object.values(chars)
-      .sort((a, b) => (a as any).instId - (b as any).instId)
+      .sort((a, b) => a.instId - b.instId)
       .map((ch) => {
-        const info = (excel.CharacterTable as Record<string, any>)?.[ch.charId];
-        const phases = info?.phases as any[] | undefined;
+        const phases = excel.charData(ch.charId)?.phases;
         const maxLevel = phases?.[ch.evolvePhase ?? 0]?.maxLevel ?? 90;
         return {
-          instId: (ch as any).instId,
+          instId: ch.instId,
           charId: ch.charId,
           name: charName(ch.charId),
           rarity: charRarity(ch.charId),
@@ -565,7 +700,7 @@ export class AdminService {
     const pd = await this.getPlayer(uid);
     const ch = pd._playerdata.troop?.chars?.[String(instId)];
     if (!ch) return null;
-    const info = (excel.CharacterTable as Record<string, any>)?.[ch.charId];
+    const info = excel.charData(ch.charId);
     return {
       instId,
       charId: ch.charId,
@@ -640,11 +775,12 @@ export class AdminService {
     uid: string,
   ): Promise<{ types: { type: string; curShopId?: string; items: number }[]; total: number }> {
     const pd = await this.getPlayer(uid);
-    const shop = (pd._playerdata.shop ?? {}) as Record<string, any>;
+    const shop = pd._playerdata.shop;
     const types = Object.entries(shop).map(([type, v]) => ({
       type,
-      curShopId: typeof v?.curShopId === "string" ? v.curShopId : undefined,
-      items: Array.isArray(v?.info) ? v.info.length : 0,
+      // 各商店档位的字段并集（部分类型无 curShopId）：按存在性收窄
+      curShopId: "curShopId" in v && typeof v.curShopId === "string" ? v.curShopId : undefined,
+      items: "info" in v && Array.isArray(v.info) ? v.info.length : 0,
     }));
     return {
       types,
@@ -665,8 +801,8 @@ export class AdminService {
     if (!ch) {
       throw new Error(`干员不存在: instId=${instId}`);
     }
-    const info = (excel.CharacterTable as Record<string, any>)?.[ch.charId];
-    const phases = info?.phases as any[] | undefined;
+    const info = excel.charData(ch.charId);
+    const phases = info?.phases;
     const maxEvolve = phases?.length ? phases.length - 1 : 2;
     const maxPotential = info?.maxPotentialLevel ?? 5;
 
@@ -695,7 +831,7 @@ export class AdminService {
       uid,
       `instId=${instId} ${JSON.stringify(attrs)}`,
     );
-    return (await this.listChars(uid)).find((c) => (c as any).instId === instId)!;
+    return (await this.listChars(uid)).find((c) => c.instId === instId)!;
   }
 
   /**
@@ -734,8 +870,8 @@ export class AdminService {
 
       // 3. 已有干员拉满
       for (const ch of Object.values(draft.troop?.chars ?? {})) {
-        const charData = (excel.CharacterTable as Record<string, any>)?.[ch.charId];
-        const phases = charData?.phases as any[] | undefined;
+        const charData = excel.charData(ch.charId);
+        const phases = charData?.phases;
         const maxEvolve = phases?.length ? phases.length - 1 : 2;
         ch.evolvePhase = maxEvolve;
         ch.level = phases?.[maxEvolve]?.maxLevel ?? 90;
@@ -750,8 +886,8 @@ export class AdminService {
         }
         const { ids: equipIds, equip } = buildMaxedEquip(ch.charId);
         ch.currentEquip = equipIds[0] || null;
-        // buildMaxedEquip 返回 Record<string, unknown>（excel 动态结构），与 PlayerCharEquipInfo 映射兼容
-        ch.equip = equip as any;
+        // buildMaxedEquip 的 MaxedEquipEntry 与 PlayerCharEquipInfo 同形（hide/locked/level）
+        ch.equip = equip;
         stats.chars++;
       }
 
@@ -949,7 +1085,7 @@ export class AdminService {
       await mailManager.sendMail(uid, {
         subject: args.subject,
         content: args.content,
-        items: args.items as unknown as ItemBundle[],
+        items: args.items.map((it) => excel.makeItem(it.id, it.count)),
       });
     }
     await this._audit("sendMailAll", "", `${args.subject} → ${uids.length} 人`);
@@ -1086,8 +1222,8 @@ export class AdminService {
     uid: string,
     path: string,
     method: "GET" | "POST" | "DELETE" = "GET",
-    body?: unknown,
-  ): Promise<{ status: number; data: unknown; uid: string }> {
+    body?: JsonValue,
+  ): Promise<{ status: number; data: JsonValue; uid: string }> {
     const p = String(path ?? "").trim();
     if (!p.startsWith("/")) {
       throw new Error(`路径必须以 / 开头: ${path}`);
@@ -1112,7 +1248,7 @@ export class AdminService {
       throw new Error(`服务器内部请求失败: ${(e as Error).message}`);
     }
     const text = await res.text();
-    let data: unknown = text;
+    let data: JsonValue = text;
     try {
       data = text ? JSON.parse(text) : null;
     } catch {
@@ -1140,11 +1276,11 @@ export class AdminService {
   ): Promise<{
     ok: boolean;
     steps: { step: number; action: string; zone: number; state: string }[];
-    final: unknown;
+    final: Rlv2SimSnapshot | null;
     error?: string;
   }> {
     const steps: { step: number; action: string; zone: number; state: string }[] = [];
-    const log = (action: string, snap: any) => {
+    const log = (action: string, snap: Rlv2SimSnapshot | null) => {
       steps.push({
         step: steps.length + 1,
         action,
@@ -1152,13 +1288,13 @@ export class AdminService {
         state: snap?.current?.player?.state ?? "?",
       });
     };
-    const call = async (path: string, body?: unknown): Promise<any> => {
+    const call = async (path: string, body?: JsonValue): Promise<Rlv2SimSnapshot | null> => {
       const res = await this.gameProxy(uid, `/rlv2/${path}`, "POST", body ?? {});
       if (res.status >= 400) {
         throw new Error(`rlv2/${path} 失败(${res.status}): ${JSON.stringify(res.data).slice(0, 300)}`);
       }
       // 响应 data: { playerDataDelta: { modified: { rlv2: {...} } } }
-      return (res.data as any)?.playerDataDelta?.modified?.rlv2 ?? null;
+      return pickRlv2SimSnapshot(res.data);
     };
 
     try {
@@ -1173,7 +1309,7 @@ export class AdminService {
       while (guard++ < 30) {
         const state = snap?.current?.player?.state;
         const zone = snap?.current?.player?.cursor?.zone;
-        if (state === "WAIT_MOVE" && zone >= 1) break;
+        if (state === "WAIT_MOVE" && (zone ?? 0) >= 1) break;
         if (state !== "INIT" && state !== "WAIT_MOVE") break;
         // pending 顶部按类型消费（INIT 阶段专用接口：RELIC/RECRUIT_SET/SUPPORT 各司其职，其余走 finishEvent）
         const pending = snap?.current?.player?.pending ?? [];
@@ -1269,10 +1405,10 @@ export class AdminService {
   /** 消费当前 PENDING 事件（SCENE→selectChoice 首选项；BATTLE_SHOP→leaveShop；BATTLE→跳过） */
   private async consumePending(
     uid: string,
-    call: (path: string, body?: unknown) => Promise<any>,
-    log: (action: string, snap: any) => void,
-  ): Promise<any> {
-    let snap = null;
+    call: (path: string, body?: JsonValue) => Promise<Rlv2SimSnapshot | null>,
+    log: (action: string, snap: Rlv2SimSnapshot | null) => void,
+  ): Promise<Rlv2SimSnapshot | null> {
+    let snap: Rlv2SimSnapshot | null = null;
     let guard = 0;
     while (guard++ < 10) {
       snap = await call("finishEvent");
@@ -1304,9 +1440,9 @@ export class AdminService {
   /** rogue_6 网格区域：沿构造模板连通路径（node.next）BFS 到终点，逐节点 route 移动 */
   private async rogueGridZoneAuto(
     uid: string,
-    snap: any,
-    call: (path: string, body?: unknown) => Promise<any>,
-    log: (action: string, snap: any) => void,
+    snap: Rlv2SimSnapshot | null,
+    call: (path: string, body?: JsonValue) => Promise<Rlv2SimSnapshot | null>,
+    log: (action: string, snap: Rlv2SimSnapshot | null) => void,
   ): Promise<void> {
     const zone = snap?.current?.player?.cursor?.zone ?? 0;
     const gz = snap?.current?.module?.gridZone?.zones?.[String(zone)];
@@ -1337,7 +1473,7 @@ export class AdminService {
   }
 
   /** BFS：标准地图 nodes 中从 startId 到 zone_end 节点的最短路径（节点 id 列表，含起点终点） */
-  private bfsToZoneEnd(startId: string, nodes: Record<string, any>): string[] {
+  private bfsToZoneEnd(startId: string, nodes: { [nodeId: string]: Rlv2SimMapNode }): string[] {
     if (!nodes[startId]) return [];
     const prev: Record<string, string | null> = { [startId]: null };
     const queue: string[] = [startId];
@@ -1366,7 +1502,7 @@ export class AdminService {
   }
 
   /** BFS：rogue_6 网格节点（无 next 字段，用 map.zones 邻接或全连）到终点 */
-  private bfsGridToEnd(startId: string, nodes: Record<string, any>): string[] {
+  private bfsGridToEnd(startId: string, nodes: { [nodeId: string]: Rlv2SimGridNode }): string[] {
     if (!nodes[startId]) return [];
     const ids = Object.keys(nodes);
     const prev: Record<string, string | null> = { [startId]: null };
@@ -1399,8 +1535,8 @@ export class AdminService {
   async rogueSimStep(
     uid: string,
     action: string,
-    body?: unknown,
-  ): Promise<{ ok: boolean; state: unknown; error?: string }> {
+    body?: JsonValue,
+  ): Promise<{ ok: boolean; state: Rlv2SimSnapshot | null; error?: string }> {
     const WHITELIST = [
       "createGame", "chooseInitialRelic", "chooseInitialRecruitSet",
       "finishEvent", "selectChoice", "moveTo", "moveAndBattleStart",
@@ -1415,15 +1551,14 @@ export class AdminService {
       if (res.status >= 400) {
         return { ok: false, state: null, error: `rlv2/${action} 失败(${res.status}): ${JSON.stringify(res.data).slice(0, 300)}` };
       }
-      const snap = (res.data as any)?.playerDataDelta?.modified?.rlv2 ?? null;
-      return { ok: true, state: snap };
+      return { ok: true, state: pickRlv2SimSnapshot(res.data) };
     } catch (e) {
       return { ok: false, state: null, error: (e as Error).message };
     }
   }
 
   /** 肉鸽流程分步：当前 rlv2 状态快照（纯读，无副作用） */
-  async rogueSimState(uid: string): Promise<unknown> {
+  async rogueSimState(uid: string): Promise<PlayerRoguelikeV2> {
     const pd = await this.getPlayer(uid);
     return pd.rlv2.toJSON();
   }
@@ -1443,11 +1578,11 @@ export class AdminService {
    */
   async rogueModifyState(
     uid: string,
-    ops: { op: "set" | "del" | "inc"; path: string; value?: unknown }[],
-  ): Promise<{ ok: boolean; state: unknown; error?: string }> {
+    ops: { op: "set" | "del" | "inc"; path: string; value?: JsonValue }[],
+  ): Promise<{ ok: boolean; state: PlayerRoguelikeV2 | null; error?: string }> {
     try {
       const pd = await this.getPlayer(uid);
-      const ctl: any = pd.rlv2;
+      const ctl = pd.rlv2;
       if (!ctl?.current) {
         return { ok: false, state: null, error: "该玩家无 rlv2 上下文（未发起对局或已卸载）" };
       }
@@ -1527,8 +1662,13 @@ export class AdminService {
     }
     const pd = await this.getPlayer(uid);
     const gachaType = GACHA_RULE_TYPE[pool.gachaRuleType] ?? "single";
-    const poolData = (pd._playerdata.gacha as any)?.[gachaType]?.[poolId];
-    const upCharIds: string[] = Array.isArray(poolData?.upChar) ? poolData.upChar : [];
+    // gacha[gachaType][poolId].upChar：gachaType 是运行时字符串（生成模型 PlayerGacha 只有
+    // 固定键），upChar 又有字典/数组两种形态（见 gacha/logic._selfSelectedUpForRank）——
+    // 动态下钻统一走 json-path，避免 cast；只取数组形态（管理后台写入形态）
+    const upChar = getIn(pd._playerdata.gacha, [gachaType, poolId, "upChar"]);
+    const upCharIds: string[] = Array.isArray(upChar)
+      ? upChar.filter((id) => typeof id === "string")
+      : [];
     const beforeNonHitCnt = await accountManager.getBeforeNonHitCnt(
       uid,
       pool.gachaRuleType,
@@ -1564,10 +1704,9 @@ export class AdminService {
     const pd = await this.getPlayer(uid);
     const gachaType = GACHA_RULE_TYPE[pool.gachaRuleType] ?? "single";
     await pd.update(async (draft) => {
-      const gacha = (draft as any).gacha;
-      if (!gacha[gachaType]) gacha[gachaType] = {};
-      if (!gacha[gachaType][poolId]) gacha[gachaType][poolId] = {};
-      gacha[gachaType][poolId].upChar = clean;
+      // gacha[gachaType][poolId].upChar（gachaType 为运行时字符串）：逐层补建缺失容器
+      // 的语义与迁移前一致，收敛在 json-path.setIn（自动创建中间对象）
+      setIn(draft.gacha, [gachaType, poolId, "upChar"], clean);
     });
     await this.savePlayer(uid);
     await this._audit(
@@ -1665,8 +1804,8 @@ export class AdminService {
     let n = 0;
     await pd.update(async (draft) => {
       for (const ch of Object.values(draft.troop?.chars ?? {})) {
-        const charData = (excel.CharacterTable as Record<string, any>)?.[ch.charId];
-        const phases = charData?.phases as any[] | undefined;
+        const charData = excel.charData(ch.charId);
+        const phases = charData?.phases;
         const maxEvolve = phases?.length ? phases.length - 1 : 2;
         ch.evolvePhase = maxEvolve;
         ch.level = phases?.[maxEvolve]?.maxLevel ?? 90;
@@ -1681,8 +1820,8 @@ export class AdminService {
         }
         const { ids: equipIds, equip } = buildMaxedEquip(ch.charId);
         ch.currentEquip = equipIds[0] || null;
-        // buildMaxedEquip 返回 Record<string, unknown>（excel 动态结构），与 PlayerCharEquipInfo 映射兼容
-        ch.equip = equip as any;
+        // buildMaxedEquip 的 MaxedEquipEntry 与 PlayerCharEquipInfo 同形（hide/locked/level）
+        ch.equip = equip;
         n++;
       }
     });
@@ -1837,7 +1976,7 @@ export class AdminService {
     }
     const out = targetPath ?? `./exports/${uid}-${formatTs(now())}.json`;
     await mkdir(path.dirname(out), { recursive: true });
-    await writeJson(out, data as any);
+    await writeJson(out, data);
     const size = (await readFile(out)).length;
     await this._audit("exportUser", uid, out);
     return { uid, path: out, size };
@@ -1878,8 +2017,12 @@ export class AdminService {
           if (!ch?.charId || !excel.charData(ch.charId)) {
             throw new Error(`干员 instId=${instId} 缺失 charId 或不在 CharacterTable`);
           }
-          for (const f of ["level", "evolvePhase", "potentialRank", "mainSkillLvl", "favorPoint", "gainTime", "voiceLan"]) {
-            if ((ch as any)[f] === undefined) {
+          // 逐字段检查（字段名限定为生成模型的键，直接索引不再需要 any）
+          const requiredFields: (keyof PlayerCharacter)[] = [
+            "level", "evolvePhase", "potentialRank", "mainSkillLvl", "favorPoint", "gainTime", "voiceLan",
+          ];
+          for (const f of requiredFields) {
+            if (ch[f] === undefined) {
               throw new Error(`干员 ${ch.charId}(instId=${instId}) 缺少 ${f}`);
             }
           }
@@ -1929,7 +2072,7 @@ export class AdminService {
     uid: string,
   ): Promise<{ total: number; types: { type: string; activities: number }[] }> {
     const pd = await this.getPlayer(uid);
-    const act = (pd._playerdata.activity ?? {}) as Record<string, any>;
+    const act = pd._playerdata.activity ?? {};
     const types = Object.entries(act)
       .map(([type, v]) => ({
         type,
@@ -1967,7 +2110,7 @@ export class AdminService {
     const frozen = config.developer?.timestamp ?? -1;
     const effectiveTs = userTimestamp();
     const forced = forcedActivityIds();
-    const basicInfo = (excel.ActivityTable?.basicInfo ?? {}) as Record<string, any>;
+    const basicInfo = excel.ActivityTable?.basicInfo ?? {};
     const activities = Object.values(basicInfo)
       // 防御：basicInfo 含 null 占位条目（20/331）
       .filter((info) => info && typeof info === "object")
@@ -2036,7 +2179,7 @@ export class AdminService {
         );
       }
     }
-    const basicInfo = (excel.ActivityTable?.basicInfo ?? {}) as Record<string, any>;
+    const basicInfo = excel.ActivityTable?.basicInfo ?? {};
     const seasons = await listCrisisSeasons();
     // 校验合约赛季存在（文件缺失时拒绝，避免客户端拿到空数据）
     const crisisV1 = p.crisisV1 ?? config.activities?.crisisV1 ?? "cc1";
@@ -2063,7 +2206,8 @@ export class AdminService {
       }
     }
     // 持久化 data/config.json（读-改-写，保留其它字段）
-    const cfg = readJsonSync<Record<string, any>>("./data/config.json");
+    // 类型取内存 config 的同一形状（`typeof config`）：磁盘文件即该对象的序列化形态
+    const cfg = readJsonSync<typeof config>("./data/config.json");
     cfg.developer = { timestamp };
     cfg.activities = {
       ...(cfg.activities ?? {}),
@@ -2209,7 +2353,7 @@ export class AdminService {
         patch(ch.gainTime === undefined, () => {
           ch.gainTime = now();
         });
-        const charData = (excel.CharacterTable as Record<string, any>)?.[ch.charId];
+        const charData = excel.charData(ch.charId);
         patch(!ch.skills || !ch.skills.length, () => {
           const skills = buildMaxedSkills(charData);
           if (skills.length) {
@@ -2220,12 +2364,10 @@ export class AdminService {
         patch(ch.equip === undefined, () => {
           const { ids: equipIds, equip } = buildMaxedEquip(ch.charId);
           ch.currentEquip = equipIds[0] || null;
-          ch.equip = equip as any;
+          ch.equip = equip;
         });
         patch(ch.charId === "char_002_amiya" && (!ch.currentTmpl || !ch.tmpl), () => {
-          const full = buildMaxedChar(Number((ch as any).instId), "char_002_amiya");
-          ch.currentTmpl = "char_002_amiya";
-          ch.tmpl = full.tmpl as any;
+          applyAmiyaTemplate(ch, ch.instId);
         });
         if (changed) chars++;
       }
@@ -2288,8 +2430,9 @@ export class AdminService {
         draft.pushFlags.hasFreeLevelGP = flags.hasFreeLevelGP;
     });
     await this.savePlayer(uid);
-    const changed = Object.keys(flags)
-      .filter((k) => (flags as any)[k] != null)
+    const changed = Object.entries(flags)
+      .filter(([, v]) => v != null)
+      .map(([k]) => k)
       .join(",");
     await this._audit("pushMessage", uid, `发放推送信息: ${changed}`);
     return { ...pd._playerdata.pushFlags };
@@ -2428,7 +2571,7 @@ export class AdminService {
     phone: string,
     pwd: string,
     action: OfficialAction,
-  ): Promise<{ action: string; ok: boolean; data?: any; reason?: string }> {
+  ): Promise<OfficialActionResult> {
     if (!phone || !pwd) {
       throw new Error("需提供官服手机号与密码");
     }
@@ -2453,8 +2596,8 @@ export class AdminService {
     phone: string,
     pwd: string,
     cgi: string,
-    body?: unknown,
-  ): Promise<{ cgi: string; result: any }> {
+    body?: JsonValue,
+  ): Promise<OfficialCallResult> {
     if (!phone || !pwd) {
       throw new Error("需提供官服手机号与密码");
     }
@@ -2473,8 +2616,8 @@ export class AdminService {
   async uploadPixelArt(
     phone: string,
     pwd: string,
-    pixelData: unknown,
-  ): Promise<{ pixelArtId: string; uploadToken: string; httpResp: any }> {
+    pixelData: JsonValue,
+  ): Promise<{ pixelArtId: string; uploadToken: string; httpResp: OfficialCgiResponse }> {
     if (!phone || !pwd) {
       throw new Error("需提供官服手机号与密码");
     }
@@ -2501,7 +2644,7 @@ export class AdminService {
   async uploadPixelArtBatch(
     phone: string,
     pwd: string,
-    pixelDataList: unknown[],
+    pixelDataList: JsonValue[],
   ): Promise<{ index: number; ok: boolean; pixelArtId?: string; error?: string }[]> {
     if (!phone || !pwd) {
       throw new Error("需提供官服手机号与密码");
@@ -2598,14 +2741,16 @@ export class AdminService {
     // 缺省池列表：读本地 gacha_table（不依赖 excel.init）
     let targets = poolIds?.map(String).filter(Boolean) ?? [];
     if (!targets.length) {
-      const table = await readJson<any>("./data/excel/gacha_table.json");
-      targets = (table?.gachaPoolClient ?? []).map((p: any) => p.gachaPoolId);
+      const table = await readJson<LocalGachaTableFile>("./data/excel/gacha_table.json");
+      targets = (table?.gachaPoolClient ?? []).map((p) => p.gachaPoolId);
     }
     if (!targets.length) {
       throw new Error("未提供 poolId 且本地 gachaPoolClient 为空");
     }
     // 补全模式（默认）：跳过本地已有的卡池，只抓缺失的新池；--refresh 全量刷新
-    const current = (await readJson<any>("./data/gacha_detail_table.json").catch(() => ({}))) ?? {};
+    const current = await readJson<LocalGachaDetailFile>("./data/gacha_detail_table.json").catch(
+      (): LocalGachaDetailFile => ({}),
+    );
     const existingKeys = new Set(Object.keys(current.details ?? {}));
     const refresh = opts?.refresh === true;
     const toSync = refresh ? targets : targets.filter((p) => !existingKeys.has(p));
@@ -2624,7 +2769,7 @@ export class AdminService {
     }
     const details = current.details ?? {};
     for (const r of ok) {
-      details[r.poolId] = r.detailInfo;
+      if (r.detailInfo !== undefined) details[r.poolId] = r.detailInfo;
     }
     await writeJson(target, { details });
     await this._audit(
@@ -2736,10 +2881,7 @@ export class AdminService {
    * （BLACKSTREAM 构造模板/距离规则/数量规则/层类型，供 dashboard 按无相地图模板生成）。
    * 文件缺失或解析失败返回 null（router 层转 404）。
    */
-  async getMapvizData(): Promise<{
-    themes: object;
-    grid: object;
-  } | null> {
+  async getMapvizData(): Promise<{ themes: JsonValue; grid: MapvizGridData } | null> {
     try {
       const raw = await readFile(
         path.join(process.cwd(), "data", "mapviz", "game-data.js"),
@@ -2751,7 +2893,7 @@ export class AdminService {
         logger.warn("Mapviz", "game-data.js 格式异常（缺少 = 或 ;）");
         return null;
       }
-      const themes = JSON.parse(raw.slice(start + 1, end)) as object;
+      const themes: JsonValue = JSON.parse(raw.slice(start + 1, end));
       // rogue_6 无相地图：构造模板等由黑流树海数据模块提供（并行 GRID_ZONE 同源）
       const { BLACKSTREAM_CONSTRUCTIONS, BLACKSTREAM_DISTANCE_RULES, BLACKSTREAM_COUNT_RULES, BLACKSTREAM_LAYER_TYPES } = await import(
         "@game/modules/roguelike/data/blackstream-data"
@@ -2827,7 +2969,7 @@ export class AdminService {
     return {
       port: config.PORT,
       offline:
-        (config as any).offline === true ||
+        config.offline === true ||
         process.argv.includes("--offline") ||
         process.argv.includes("-o"),
       clientVersion: config.version.clientVersion,

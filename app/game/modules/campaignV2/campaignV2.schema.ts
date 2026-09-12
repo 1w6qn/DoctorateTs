@@ -6,7 +6,7 @@
  * 由 validateBody 中间件返回 HTTP 4xx。
  *
  * 约定：
- * - battleStart 经 battle.start 读取 stageId/squad/usePracticeTicket，squad 复杂对象用 z.any()；
+ * - battleStart 经 battle.start 读取 stageId/squad/usePracticeTicket，squad 复杂对象用 z.json()；
  * - battleFinish 由 handler 判空 data/battleData，两者均必填；
  * - battleSweep/getBreakReward/getExMissionReward 为 stub（handler 不读 body），用 z.object({})。
  */
@@ -19,11 +19,11 @@ import { z } from "zod";
 export const campaignV2BattleStartSchema = z.object({
   stageId: z.string(),
   // squad 为完整编队对象，仅保证存在，不做深类型校验
-  squad: z.any(),
+  squad: z.json(),
   isRetro: z.number().optional(),
   pray: z.number().optional(),
   battleType: z.number().optional(),
-  continuous: z.any().optional(),
+  continuous: z.json().optional(),
   usePracticeTicket: z.number().optional(),
   assistFriend: z.null().optional(),
   isReplay: z.number().optional(),
@@ -34,7 +34,7 @@ export const campaignV2BattleStartSchema = z.object({
 export const campaignV2BattleFinishSchema = z.object({
   data: z.string(),
   // battleData 为客户端完整战报对象，仅保证存在，不做深类型校验
-  battleData: z.any(),
+  battleData: z.json(),
 });
 
 /**

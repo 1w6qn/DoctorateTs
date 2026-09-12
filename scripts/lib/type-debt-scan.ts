@@ -23,6 +23,18 @@ export interface TypeDebtCounts {
 /** 受控关键字（顺序即报告顺序） */
 export const DEBT_KEYS = ["any", "unknown", "object"] as const;
 
+/**
+ * 默认扫描目录（全范围）
+ *
+ * 覆盖业务代码（`app`）、运维脚本（`scripts`）、测试（`tests`）与 Frida hook（`hook`）：
+ * `any` 债不因目录不同而合法，测试与脚本同样是仓库资产。守卫与 CLI 共用本常量，
+ * 保证「守卫判定」与「基线刷新」口径永远一致。
+ */
+export const SCAN_DIRS = ["app", "scripts", "tests", "hook"] as const;
+
+/** 默认扫描的单文件（仓库根入口，不在 SCAN_DIRS 内） */
+export const SCAN_EXTRA_FILES = ["index.ts"] as const;
+
 /** 受控关键字类型 */
 export type DebtKey = (typeof DEBT_KEYS)[number];
 
@@ -196,14 +208,14 @@ export function collectTsFiles(dir: string): string[] {
 /**
  * 扫描指定根目录的模糊类型分布
  * @param rootDir - 仓库根绝对路径（结果键为该根的相对 POSIX 路径）
- * @param dirs - 相对根目录的扫描目录，默认 `["app"]`
- * @param extraFiles - 相对根目录的额外单文件，默认 `["index.ts"]`
+ * @param dirs - 相对根目录的扫描目录，默认 {@link SCAN_DIRS}（app/scripts/tests/hook）
+ * @param extraFiles - 相对根目录的额外单文件，默认 {@link SCAN_EXTRA_FILES}（index.ts）
  * @returns 相对路径 → 计数，仅保留计数非零的文件
  */
 export function scanTypeDebt(
   rootDir: string,
-  dirs: string[] = ["app"],
-  extraFiles: string[] = ["index.ts"],
+  dirs: readonly string[] = SCAN_DIRS,
+  extraFiles: readonly string[] = SCAN_EXTRA_FILES,
 ): Record<string, TypeDebtCounts> {
   const fs = require("fs") as typeof import("fs");
   const path = require("path") as typeof import("path");

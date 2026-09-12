@@ -16,6 +16,8 @@
  * 非法 JSON 无法自动修复（由加载层记录并备份）。
  */
 import { logger } from "@utils/logger";
+import type { JsonValue } from "@excel/json-value";
+import type { CharEquipsLike, CharSkillsLike } from "../modules/character/char-skills";
 import {
   reconcileCharEquips,
   reconcileCharSkills,
@@ -31,15 +33,85 @@ export interface SaveIssue {
   fixed: boolean;
 }
 
+/**
+ * status 基础结构（uid 允许数字——修复分支会转字符串）
+ */
+interface SaveStatusEntry {
+  uid?: string | number;
+  nickName?: string;
+  nickNumber?: string;
+  level?: number;
+  exp?: number;
+}
+
+/**
+ * troop.chars 干员条目
+ *
+ * 与 char-skills 的 {@link CharSkillsLike} / {@link CharEquipsLike} 兼容，
+ * 使技能/模组回填可直接原地修改；阿米娅升变模板字段另行声明。
+ */
+interface SaveCharEntry extends CharSkillsLike, CharEquipsLike {
+  /** 升变模板表（仅 char_002_amiya 合法携带） */
+  tmpl?: Record<string, JsonValue> | null;
+  /** 当前升变形态（无有效模板映射时须移除，否则客户端卡死） */
+  currentTmpl?: string | null;
+}
+
+/** 私人宿舍（building.rooms.PRIVATE[slotId]） */
+interface SavePrivateRoom {
+  /** 宿舍干员 instId 列表（历史 bug 会残留 null 条目） */
+  owners?: (number | null)[] | null;
+}
+
+/** 训练室（building.rooms.TRAINING[slotId]） */
+interface SaveTrainingRoom {
+  trainee?: Record<string, JsonValue> | null;
+  trainer?: Record<string, JsonValue> | null;
+}
+
+/** 干员图鉴条目（dexNav.character[charId]） */
+interface SaveDexChar {
+  charInstId?: number;
+}
+
+/** arkodc 主题（arkodc.topics[topicId]） */
+interface SaveArkTopic {
+  position?: { x: number; y: number; z: number } | null;
+}
+
+/**
+ * 存档视图（不可信 JSON 输入）
+ *
+ * 只声明本模块真正访问/修复的字段：这些类型描述**期望的线格式**，而输入来自
+ * 磁盘上的任意 JSON——每个分支仍有 `typeof` / `Array.isArray` / 真值守卫兜底，
+ * 与历史 `any` 实现的运行时行为逐分支一致。未列出的字段一律透传保留。
+ */
+export interface SaveDataShape {
+  status?: SaveStatusEntry;
+  troop?: { chars?: Record<string, SaveCharEntry | null | undefined> };
+  /** 关卡进度（本模块只做存在性检查/重建，不读字段） */
+  dungeon?: Record<string, JsonValue>;
+  /** 活动状态（同上，仅存在性检查/重建） */
+  activity?: Record<string, JsonValue>;
+  building?: {
+    rooms?: {
+      PRIVATE?: Record<string, SavePrivateRoom | null | undefined>;
+      TRAINING?: Record<string, SaveTrainingRoom | null | undefined>;
+    };
+  };
+  dexNav?: { character?: Record<string, SaveDexChar | null | undefined> };
+  arkodc?: { topics?: Record<string, SaveArkTopic | null | undefined> };
+}
+
 /** 必填顶层结构（缺失时重建空对象） */
-const REQUIRED_TOP_LEVEL = ["status", "troop", "dungeon", "activity", "building"];
+const REQUIRED_TOP_LEVEL = ["status", "troop", "dungeon", "activity", "building"] as const;
 
 /**
  * 校验并修复玩家存档（幂等）
  * @param data - 从文件读取的存档对象（原地修改）
  * @returns 发现的问题列表（含是否已修复）
  */
-export function checkAndRepairSave(data: any): SaveIssue[] {
+export function checkAndRepairSave(data: SaveDataShape): SaveIssue[] {
   const issues: SaveIssue[] = [];
   if (!data || typeof data !== "object") {
     issues.push({ path: "(root)", message: "存档根节点非对象，无法自动修复", fixed: false });
@@ -47,14 +119,16 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
   }
 
   // 1. status 基础结构（缺失时重建）
-  if (!data.status || typeof data.status !== "object") {
-    data.status = {
-      uid: String(data?.status?.uid ?? "1"),
+  let status = data.status;
+  if (!status || typeof status !== "object") {
+    status = {
+      uid: String(data.status?.uid ?? "1"),
       nickName: "博士",
       nickNumber: "1",
       level: 1,
       exp: 0,
     };
+    data.status = status;
     issues.push({ path: "status", message: "status 缺失/非对象，重建基础结构", fixed: true });
   }
 
@@ -70,7 +144,7 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
   const chars = data.troop?.chars;
   if (chars && typeof chars === "object") {
     for (const [instId, c] of Object.entries(chars)) {
-      if (!c || typeof c !== "object" || !(c as any).charId) {
+      if (!c || typeof c !== "object" || !c.charId) {
         delete chars[instId];
         issues.push({ path: `troop.chars[${instId}]`, message: "非法干员（非对象/缺 charId），移除", fixed: true });
       }
@@ -81,9 +155,9 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
   const privateRooms = data.building?.rooms?.PRIVATE;
   if (privateRooms && typeof privateRooms === "object") {
     for (const [slotId, room] of Object.entries(privateRooms)) {
-      const owners = (room as any)?.owners;
-      if (Array.isArray(owners) && owners.some((o) => o == null)) {
-        (room as any).owners = owners.filter((o) => o != null);
+      const owners = room?.owners;
+      if (room && Array.isArray(owners) && owners.some((o) => o == null)) {
+        room.owners = owners.filter((o) => o != null);
         issues.push({
           path: `building.rooms.PRIVATE[${slotId}].owners`,
           message: "含 null 条目（损坏残留），已过滤",
@@ -94,8 +168,8 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
   }
 
   // 5. status.uid 类型
-  if (typeof data.status.uid !== "string") {
-    data.status.uid = String(data.status.uid ?? "1");
+  if (typeof status.uid !== "string") {
+    status.uid = String(status.uid ?? "1");
     issues.push({ path: "status.uid", message: "uid 非字符串，转字符串", fixed: true });
   }
 
@@ -104,12 +178,8 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
   //    悬空或错指其他干员 → 客户端按 charInstId 查 troop.chars 失败 → 抽卡/招募结果
   //    "获取干员信息" 报错。修复：按 charId 在 roster 找回正确 instId 重指向；
   //    charId 不在 roster（孤儿条目）则移除，使下次获得时按新干员正确建档。
-  const dexChars = data.dexNav?.character as
-    | Record<string, { charInstId?: number } | null>
-    | undefined;
-  const troopChars = data.troop?.chars as
-    | Record<string, { charId?: string }>
-    | undefined;
+  const dexChars = data.dexNav?.character;
+  const troopChars = data.troop?.chars;
   if (dexChars && troopChars) {
     for (const [charId, entry] of Object.entries(dexChars)) {
       const e = entry;
@@ -146,7 +216,7 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
   //    修复：currentTmpl 无有效模板映射即移除；阿米娅合法多形态模板保留。
   if (chars && typeof chars === "object") {
     for (const [instId, ch] of Object.entries(chars)) {
-      const c = ch as any;
+      const c = ch;
       if (!c || typeof c !== "object") continue;
       const tmpl = c.tmpl;
       const hasFilledTmpl =
@@ -169,7 +239,7 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
           message: "currentTmpl 为 null（旧生成器结构），移除模板字段",
           fixed: true,
         });
-      } else if (cur !== undefined && hasFilledTmpl && !tmpl[cur]) {
+      } else if (cur !== undefined && hasFilledTmpl && !tmpl?.[cur]) {
         delete c.currentTmpl;
         issues.push({
           path: `troop.chars[${instId}]`,
@@ -188,7 +258,7 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
   //    多发放移除。
   if (chars && typeof chars === "object") {
     for (const [instId, ch] of Object.entries(chars)) {
-      const c = ch as any;
+      const c = ch;
       if (!c || typeof c !== "object" || !c.charId) continue;
       if (reconcileCharSkills(c)) {
         const unlocked = unlockedSkillIds(
@@ -211,11 +281,11 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
   //    hide（精二→0）、精二即用模组置 locked=0、修正 currentEquip。阿米娅/无模组干员跳过。
   if (chars && typeof chars === "object") {
     for (const [instId, ch] of Object.entries(chars)) {
-      const c = ch as any;
+      const c = ch;
       if (!c || typeof c !== "object" || !c.charId) continue;
       if (reconcileCharEquips(c)) {
         const hiddenUnlocked = Object.entries(c.equip ?? {}).filter(
-          ([, v]: any) => v && v.locked === 0 && v.hide === 1,
+          ([, v]) => v && v.locked === 0 && v.hide === 1,
         );
         issues.push({
           path: `troop.chars[${instId}].equip`,
@@ -236,7 +306,7 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
   const trainingRooms = data.building?.rooms?.TRAINING;
   if (trainingRooms && typeof trainingRooms === "object") {
     for (const [slotId, room] of Object.entries(trainingRooms)) {
-      const r = room as any;
+      const r = room;
       if (!r || typeof r !== "object") continue;
       const EMPTY_TRAINEE = {
         charInstId: -1,
@@ -271,7 +341,7 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
   const arkTopics = data.arkodc?.topics;
   if (arkTopics && typeof arkTopics === "object") {
     for (const [tid, t] of Object.entries(arkTopics)) {
-      if (tid === "undefined" || (tid as string).length === 0) {
+      if (tid === "undefined" || tid.length === 0) {
         delete arkTopics[tid];
         issues.push({
           path: `arkodc.topics[${tid}]`,
@@ -280,7 +350,7 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
         });
         continue;
       }
-      const topic = t as any;
+      const topic = t;
       if (topic && topic.position == null) {
         topic.position = { x: 0, y: 0, z: 0 };
         issues.push({
@@ -297,10 +367,10 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
 
 /**
  * 校验存档并输出健康报告（不修改数据）
- * @param data - 存档对象
+ * @param data - 存档对象（深拷贝后修复，原件不受影响）
  * @returns 是否存在可修复的问题
  */
-export function hasRepairableIssues(data: any): boolean {
+export function hasRepairableIssues(data: SaveDataShape): boolean {
   return checkAndRepairSave(structuredClone ? structuredClone(data) : JSON.parse(JSON.stringify(data))).some(
     (i) => i.fixed,
   );

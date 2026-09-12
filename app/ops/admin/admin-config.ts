@@ -21,7 +21,7 @@ const DEFAULT_ADMIN_CONFIG: AdminConfig = {
 
 /** 读取管理配置（缺失 admin 段时回退默认值） */
 export function getAdminConfig(): AdminConfig {
-  const admin = (config as any).admin;
+  const admin = config.admin;
   return {
     enable: admin?.enable ?? DEFAULT_ADMIN_CONFIG.enable,
     token: admin?.token ?? DEFAULT_ADMIN_CONFIG.token,

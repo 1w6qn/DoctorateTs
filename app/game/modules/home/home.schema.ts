@@ -30,11 +30,26 @@ export const charRotationSetCurrentSchema = z.object({
 /** 创建轮换预设请求（CS: CharRotationCreatePresetRequest，空请求体） */
 export const charRotationCreatePresetSchema = z.object({});
 
-/** 更新轮换预设请求（CS: CharRotationUpdatePresetRequest { instId, flag, data }）；data 复杂，用 z.any() */
+/**
+ * 更新轮换预设请求（CS: CharRotationUpdatePresetRequest { instId, flag, data }）
+ *
+ * data 内层字段全部可选，口径同 character/charRotation.schema.ts：按
+ * CharRotationManager#updatePreset 实际读取的字段收紧（slots 整体透传），
+ * passthrough 保留服务端未读取的协议字段（如 secretaryShowSpDynIllust）。
+ */
 export const charRotationUpdatePresetSchema = z.object({
   instId: z.string(),
   flag: z.number(),
-  data: z.any(),
+  data: z
+    .object({
+      name: z.string().optional(),
+      background: z.string().optional(),
+      homeTheme: z.string().optional(),
+      secretarySkinId: z.string().optional(),
+      secretaryCharInstId: z.string().optional(),
+      slots: z.array(z.json()).optional(),
+    })
+    .passthrough(),
 });
 
 /** 删除轮换预设请求（CS: CharRotationDeletePresetRequest { instId }） */
@@ -44,9 +59,9 @@ export const charRotationDeletePresetSchema = z.object({
 
 /* ===== 干员标记 ===== */
 
-/** 修改干员星级标记请求（CS: ChangeStarMarkCharRequest { chrIdDict }）；chrIdDict 为 string→number 字典，用 z.any() */
+/** 修改干员星级标记请求（CS: ChangeStarMarkCharRequest { chrIdDict }）；chrIdDict 为 charId→标记 字典，handler 逐项读取 */
 export const changeMarkStarSchema = z.object({
-  chrIdDict: z.any(),
+  chrIdDict: z.record(z.string(), z.number()),
 });
 
 /* ===== 设置 ===== */
@@ -81,10 +96,10 @@ export const charmSetSquadSchema = z.object({
   squad: z.array(z.string()),
 });
 
-/** 保存烟花棋盘槽位请求（CS: FireworkSavePlateSlotRequest { groupId?, slots }）；slots 复杂，用 z.any() */
+/** 保存烟花棋盘槽位请求（CS: FireworkSavePlateSlotRequest { groupId?, slots }）；slots 复杂，用 z.json() */
 export const fireworkSavePlateSlotsSchema = z.object({
   groupId: z.string().optional(),
-  slots: z.any(),
+  slots: z.json(),
 });
 
 /** 更换烟花动物请求（CS: FireworkChangeAnimalRequest { animal, groupId? }） */
@@ -95,9 +110,9 @@ export const fireworkChangeAnimalSchema = z.object({
 
 /* ===== 战车与陷阱队 ===== */
 
-/** 确认出战战车请求（服务端自定义 { car }）；car 复杂，用 z.any() */
+/** 确认出战战车请求（服务端自定义 { car }）；car 复杂，用 z.json() */
 export const confirmBattleCarSchema = z.object({
-  car: z.any(),
+  car: z.json(),
 });
 
 /** 设置陷阱队请求（CS: SetTemplateTrapRequest { trapDomainId, trapSquad }）；trapSquad 可为数字/字符串 id */

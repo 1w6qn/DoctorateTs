@@ -2,12 +2,19 @@
  * 类型债 CLI
  *
  * 用法：
- *   pnpm run type:debt              报告总量 + Top 违规文件
- *   pnpm run type:debt -- --write   刷新 type-debt-baseline.json（棘轮只紧不松）
- *   pnpm run type:debt -- --top 50  自定义报告条数
+ *   pnpm run type:debt                        报告总量 + Top 违规文件
+ *   pnpm run type:debt -- --write             刷新 type-debt-baseline.json（棘轮只紧不松）
+ *   pnpm run type:debt -- --write --expand-scope  扫描范围扩容时刷新基线（见下）
+ *   pnpm run type:debt -- --top 50            自定义报告条数
  *
  * `--write` 默认拒绝让任一文件计数或总量上升，必须先真正修掉类型债；
  * 确需例外时用 `--force`（会在输出中显式警告，便于评审发现）。
+ *
+ * `--expand-scope` 是**范围扩容专用**通道：当 {@link SCAN_DIRS} 新增扫描目录
+ * （如把 tests / scripts 纳入口径）时，新增文件与总量必然上升，普通 `--write`
+ * 会拒绝。该开关只放行「基线中不存在的新文件」带来的上升，**既有文件计数上升
+ * 依旧拒绝**——棘轮对已纳入范围的文件始终只紧不松。
+ *
  * 扫描口径与 tests/unit/architecture/type-debt-ratchet.test.ts 完全一致
  * （共用 scripts/lib/type-debt-scan.ts）。
  */
@@ -99,11 +106,12 @@ function report(): void {
   for (const w of worst) console.log(`  ${String(w.score).padStart(4)}  ${w.file}  (${fmt(w.c)})`);
 }
 
-/** 刷新基线（棘轮只紧不松） */
+/** 刷新基线（棘轮只紧不松；`--expand-scope` 放行范围扩容） */
 function write(): void {
   const current = scanTypeDebt(REPO_ROOT);
   const baseline = readBaseline();
   const force = args.includes("--force");
+  const expandScope = args.includes("--expand-scope");
   if (baseline && !force) {
     const { added, grown } = violations(baseline, current);
     const totals = totalOf(current);
@@ -111,13 +119,27 @@ function write(): void {
       totals.any > baseline.totals.any ||
       totals.unknown > baseline.totals.unknown ||
       totals.object > baseline.totals.object;
-    if (added.length || grown.length || totalGrown) {
-      console.error("拒绝写入：棘轮只允许收紧，检测到类型债上升。");
+    // --expand-scope 只放行「新文件 + 总量上升」，既有文件上升仍拒绝
+    const blocked = expandScope
+      ? grown.length > 0
+      : added.length > 0 || grown.length > 0 || totalGrown;
+    if (blocked) {
+      console.error(
+        expandScope
+          ? "拒绝写入：--expand-scope 仅放行新增文件，既有文件计数不得上升。"
+          : "拒绝写入：棘轮只允许收紧，检测到类型债上升。",
+      );
       if (added.length) console.error(`  新增文件:\n    ${added.join("\n    ")}`);
       if (grown.length) console.error(`  计数上升:\n    ${grown.join("\n    ")}`);
-      if (totalGrown)
+      if (totalGrown && !expandScope)
         console.error(`  总量上升: ${fmt(baseline.totals)} → ${fmt(totals)}`);
       process.exit(1);
+    }
+    if (expandScope) {
+      console.log(
+        `ℹ️  --expand-scope：扫描范围扩容，纳入新增文件 ${added.length} 个；` +
+          `总量 ${fmt(baseline.totals)} → ${fmt(totals)}（既有文件均未上升）`,
+      );
     }
   } else if (baseline && force) {
     console.warn("⚠️  --force：允许类型债上升写入基线，请在评审中说明原因。");

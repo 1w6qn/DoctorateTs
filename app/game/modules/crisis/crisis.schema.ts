@@ -8,7 +8,7 @@
  * 约定：
  * - 必填字段用对应类型（z.string/z.number/z.array）
  * - 服务端不读取 body 的端点用空对象 z.object({})
- * - 复杂嵌套对象用 z.any()（如 slots / assistFriend），仅保证键存在不深检
+ * - 复杂嵌套对象用 z.json()（如 slots / assistFriend），仅保证键存在不深检
  */
 
 import { z } from "zod";
@@ -80,7 +80,7 @@ export const crisisV2GetInfoSchema = z.object({});
 export const crisisV2BattleStartSchema = z.object({
   mapId: z.string(),
   runeSlots: z.array(z.string()),
-  assistFriend: z.any().optional(),
+  assistFriend: z.json().optional(),
 });
 
 /** 危机合约V2战斗结束请求（服务端不读取 body） */
@@ -105,14 +105,14 @@ export const crisisV2BuyGoodSchema = z.object({
 
 /**
  * 重构符文战斗开始请求（CS: RecalRuneBattleStartRequest）
- * slots 为 unknown[]、assistFriend 为 unknown，均用 z.any() 不做深检
+ * slots 为 unknown[]、assistFriend 为 unknown，均用 z.json() 不做深检
  */
 export const recalRuneBattleStartSchema = z.object({
   seasonId: z.string(),
   stageId: z.string(),
   runes: z.array(z.string()),
-  slots: z.any().optional(),
-  assistFriend: z.any().optional(),
+  slots: z.json().optional(),
+  assistFriend: z.json().optional(),
 });
 
 /** 重构符文战斗结束请求（服务端仅读取可选 data） */

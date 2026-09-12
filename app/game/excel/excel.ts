@@ -234,13 +234,123 @@ import {
 import { buildRoguelikeConsts } from "./roguelike_consts_gen";
 import { normalizeRoguelikeTopicTable } from "./roguelike-keys";
 import { verifyLoadedDataVersion } from "./data-version";
+import type { JsonObject, JsonValue } from "./json-value";
+
+/**
+ * 启动期加载的表（表名 → 表类型）
+ *
+ * 与 `Excel` 的字段一一对应（`class Excel implements EagerTables` 由编译器强制）：
+ * `init()` 的加载清单按本接口派生的表名联合写入，取代原先的 `(this as any)[key] = ...`——
+ * 表名与表类型在编译期绑定，`_assignTable` 不再需要 any/cast。
+ */
+interface EagerTables {
+  MissionTable: MissionTable;
+  BattleEquipTable: BattleEquipPack;
+  BuildingData: BuildingData;
+  CharacterTable: CharacterTable;
+  GameDataConst: GameDataConsts;
+  ItemTable: ServerItemTable;
+  StageTable: StageTable;
+  CheckinTable: CheckInTable;
+  StoryReviewMetaTable: StoryReviewMetaTable;
+  GachaTable: GachaData;
+  RoguelikeTopicTable: RoguelikeTopicTable;
+  UniequipTable: UniEquipTable;
+  FavorTable: FavorTable;
+  StoryReviewTable: { [key: string]: StoryReviewGroupClientData };
+  MedalTable: MedalData;
+  CharMetaTable: CharMetaTable;
+  SkinTable: SkinTable;
+  OpenServerTable: OpenServerSchedule;
+  RetroTable: RetroStageTable;
+  GachaDetailTable: GachaDetailTable;
+  ActivityTable: ActivityTable;
+  CampaignTable: CampaignTable;
+  ChapterTable: { [key: string]: ChapterData };
+  CharMasterTable: { [key: string]: CharMasterBasicData };
+  CharPatchTable: CharPatchData;
+  CharmTable: CharmData;
+  ClimbTowerTable: ClimbTowerTable;
+  CrisisTable: CrisisClientData;
+  CrisisV2SharedData: CrisisV2SharedData;
+  DisplayMetaTable: DisplayMetaData;
+  EpBreakBuffData: EPBreakBuffData;
+  ExtraBattleLogData: ExtraBattleLogData;
+  HotUpdateMetaTable: HotUpdateMetaTable;
+  MetaUIDisplayTable: MetaUIDisplayTable;
+  PlayerAvatarTable: PlayerAvatarData;
+  RangeTable: RangeData;
+  ReplicateTable: ReplicateTable;
+  RoguelikeActivityTable: RoguelikeActivityTable;
+  SandboxActTable: SandboxTableFile;
+  SandboxPermTable: SandboxPermTable;
+  SandboxTable: SandboxTableFile;
+  ShopClientTable: ShopClientData;
+  SpecialOperatorTable: SpecialOperatorTable;
+  StoryData: StoryData;
+  UniEquipData: UniEquipData;
+  ZoneTable: ZoneTable;
+  ArkventTable: ArkventTable;
+}
+
+/** 启动期表名（{@link EagerTables} 的键联合） */
+type EagerTableName = keyof EagerTables;
+
+/** 启动期表加载清单（表名 + 文件路径；顺序即加载顺序，同文件可被多张表引用） */
+const EAGER_TABLES: readonly (readonly [EagerTableName, string])[] = [
+  ["MissionTable", "./data/excel/mission_table.json"],
+  ["BattleEquipTable", "./data/excel/battle_equip_table.json"],
+  ["BuildingData", "./data/excel/building_data.json"],
+  ["CharacterTable", "./data/excel/character_table.json"],
+  ["GameDataConst", "./data/excel/gamedata_const.json"],
+  ["ItemTable", "./data/excel/item_table.json"],
+  ["StageTable", "./data/excel/stage_table.json"],
+  ["CheckinTable", "./data/excel/checkin_table.json"],
+  ["StoryReviewMetaTable", "./data/excel/story_review_meta_table.json"],
+  ["GachaTable", "./data/excel/gacha_table.json"],
+  ["RoguelikeTopicTable", "./data/excel/roguelike_topic_table.json"],
+  ["UniequipTable", "./data/excel/uniequip_table.json"],
+  ["FavorTable", "./data/excel/favor_table.json"],
+  ["StoryReviewTable", "./data/excel/story_review_table.json"],
+  ["MedalTable", "./data/excel/medal_table.json"],
+  ["CharMetaTable", "./data/excel/char_meta_table.json"],
+  ["SkinTable", "./data/excel/skin_table.json"],
+  ["OpenServerTable", "./data/excel/open_server_table.json"],
+  ["RetroTable", "./data/excel/retro_table.json"],
+  ["GachaDetailTable", "./data/gacha_detail_table.json"],
+  ["ActivityTable", "./data/excel/activity_table.json"],
+  ["CampaignTable", "./data/excel/campaign_table.json"],
+  ["ChapterTable", "./data/excel/chapter_table.json"],
+  ["CharMasterTable", "./data/excel/char_master_table.json"],
+  ["CharPatchTable", "./data/excel/char_patch_table.json"],
+  ["CharmTable", "./data/excel/charm_table.json"],
+  ["ClimbTowerTable", "./data/excel/climb_tower_table.json"],
+  ["CrisisTable", "./data/excel/crisis_table.json"],
+  ["CrisisV2SharedData", "./data/excel/crisis_v2_table.json"],
+  ["DisplayMetaTable", "./data/excel/display_meta_table.json"],
+  ["EpBreakBuffData", "./data/excel/ep_breakbuff_table.json"],
+  ["ExtraBattleLogData", "./data/excel/extra_battlelog_table.json"],
+  ["HotUpdateMetaTable", "./data/excel/hotupdate_meta_table.json"],
+  ["MetaUIDisplayTable", "./data/excel/meta_ui_table.json"],
+  ["PlayerAvatarTable", "./data/excel/player_avatar_table.json"],
+  ["RangeTable", "./data/excel/range_table.json"],
+  ["ReplicateTable", "./data/excel/replicate_table.json"],
+  ["RoguelikeActivityTable", "./data/excel/roguelike_table.json"],
+  ["SandboxActTable", "./data/excel/sandbox_table.json"],
+  ["SandboxPermTable", "./data/excel/sandbox_perm_table.json"],
+  ["SandboxTable", "./data/excel/sandbox_table.json"],
+  ["ShopClientTable", "./data/excel/shop_client_table.json"],
+  ["SpecialOperatorTable", "./data/excel/special_operator_table.json"],
+  ["StoryData", "./data/excel/story_table.json"],
+  ["UniEquipData", "./data/excel/uniequip_data.json"],
+  ["ZoneTable", "./data/excel/zone_table.json"],
+  ["ArkventTable", "./data/excel/arkvent_table.json"],
+];
 
 
 
 
-
-
-export class Excel {
+export class Excel implements EagerTables {
   BattleEquipTable!: BattleEquipPack;
   BuildingData!: BuildingData;
   CharacterTable!: CharacterTable;
@@ -281,16 +391,16 @@ export class Excel {
   RangeTable!: RangeData;
   ReplicateTable!: ReplicateTable;
   RoguelikeActivityTable!: RoguelikeActivityTable;
-  /** 沙盒活动表（cs 无对应包装类，JSON 按活动分键的松散视图） */
-  SandboxActTable!: { [key: string]: object };
+  /** 沙盒活动表（cs 无对应包装类；与 SandboxTable 同文件、共享解析结果） */
+  SandboxActTable!: SandboxTableFile;
   SandboxPermTable!: SandboxPermTable;
-  SandboxTable!: { [key: string]: SandboxPermItemData };
+  SandboxTable!: SandboxTableFile;
   ShopClientTable!: ShopClientData;
   SpecialOperatorTable!: SpecialOperatorTable;
   StoryData!: StoryData;
   UniEquipData!: UniEquipData;
   ZoneTable!: ZoneTable;
-  ArkventTable!: any;
+  ArkventTable!: ArkventTable;
 
   /**
    * 懒加载大表（B-1 性能优化）
@@ -357,9 +467,9 @@ export class Excel {
    * 线索阵营/编号/过期天数等常量；`expiredDays`（线索过期天数）供
    * BuildingManager 好友赠送线索的自动过期移除使用。懒加载（小表）。
    */
-  private _clueData?: any;
-  get ClueData(): any {
-    return (this._clueData ??= readJsonSync<any>(excelFilePath("./data/excel/clue_data.json")));
+  private _clueData?: ClueData;
+  get ClueData(): ClueData {
+    return (this._clueData ??= readJsonSync<ClueData>(excelFilePath("./data/excel/clue_data.json")));
   }
 
   /**
@@ -367,9 +477,9 @@ export class Excel {
    * 来源：activity_table.json → activity.arkHub.act1arkhub.moduleData.arkdexModule
    * （官方 CDN 热更，2026-08-17 导出到 data/arkhub/arkdex.json）
    */
-  private _arkhubCreatureTable?: Record<string, any>;
-  get ArkhubCreatureTable(): Record<string, any> {
-    return (this._arkhubCreatureTable ??= readJsonSync<Record<string, any>>(
+  private _arkhubCreatureTable?: ArkhubArkdexData;
+  get ArkhubCreatureTable(): ArkhubArkdexData {
+    return (this._arkhubCreatureTable ??= readJsonSync<ArkhubArkdexData>(
       "./data/arkhub/arkdex.json",
     ));
   }
@@ -449,6 +559,29 @@ export class Excel {
 
 
   /**
+   * 类型安全的表写入（表名与表类型在编译期绑定，取代 `(this as any)[key] = ...`）
+   *
+   * `host` 局部变量（`EagerTables` 视图）是必需的：对 `this[key]` 的泛型索引写入会被
+   * TS 判为不可赋值（`this` 可能被更具体地实例化），而 `EagerTables` 视图下的
+   * `host[key] = value` 由编译器保证「表名 K ↔ 值类型 EagerTables[K]」一致。
+   * @param key - 启动期表名
+   * @param value - 该表的解析结果
+   */
+  private _assignTable<K extends EagerTableName>(key: K, value: EagerTables[K]): void {
+    const host: EagerTables = this;
+    host[key] = value;
+  }
+
+  /**
+   * 读取并写入单张启动期表
+   * @param key - 启动期表名
+   * @param path - 相对 data/ 的文件路径
+   */
+  private async _loadTable<K extends EagerTableName>(key: K, path: string): Promise<void> {
+    this._assignTable(key, await readJson<EagerTables[K]>(excelFilePath(path)));
+  }
+
+  /**
    * 初始化所有 Excel 数据表
    *
    * 从 data/excel/ 目录下批量并行加载所有 JSON 格式的数据表文件
@@ -458,69 +591,22 @@ export class Excel {
   async init(): Promise<void> {
     // 热重载（后台更新后再次 init）时先失效懒加载大表缓存，避免返回陈旧数据
     this.resetLazyTables();
-    const loaders: [keyof Excel, string][] = [
-      ["MissionTable", "./data/excel/mission_table.json"],
-      ["BattleEquipTable", "./data/excel/battle_equip_table.json"],
-      ["BuildingData", "./data/excel/building_data.json"],
-      ["CharacterTable", "./data/excel/character_table.json"],
-      ["GameDataConst", "./data/excel/gamedata_const.json"],
-      ["ItemTable", "./data/excel/item_table.json"],
-      ["StageTable", "./data/excel/stage_table.json"],
-      ["CheckinTable", "./data/excel/checkin_table.json"],
-      ["StoryReviewMetaTable", "./data/excel/story_review_meta_table.json"],
-      ["GachaTable", "./data/excel/gacha_table.json"],
-      ["RoguelikeTopicTable", "./data/excel/roguelike_topic_table.json"],
-      ["UniequipTable", "./data/excel/uniequip_table.json"],
-      ["FavorTable", "./data/excel/favor_table.json"],
-      ["StoryReviewTable", "./data/excel/story_review_table.json"],
-      ["MedalTable", "./data/excel/medal_table.json"],
-      ["CharMetaTable", "./data/excel/char_meta_table.json"],
-      ["SkinTable", "./data/excel/skin_table.json"],
-      ["OpenServerTable", "./data/excel/open_server_table.json"],
-      ["RetroTable", "./data/excel/retro_table.json"],
-      ["GachaDetailTable", "./data/gacha_detail_table.json"],
-      ["ActivityTable", "./data/excel/activity_table.json"],
-      ["CampaignTable", "./data/excel/campaign_table.json"],
-      ["ChapterTable", "./data/excel/chapter_table.json"],
-      ["CharMasterTable", "./data/excel/char_master_table.json"],
-      ["CharPatchTable", "./data/excel/char_patch_table.json"],
-      ["CharmTable", "./data/excel/charm_table.json"],
-      ["ClimbTowerTable", "./data/excel/climb_tower_table.json"],
-      ["CrisisTable", "./data/excel/crisis_table.json"],
-      ["CrisisV2SharedData", "./data/excel/crisis_v2_table.json"],
-      ["DisplayMetaTable", "./data/excel/display_meta_table.json"],
-      ["EpBreakBuffData", "./data/excel/ep_breakbuff_table.json"],
-      ["ExtraBattleLogData", "./data/excel/extra_battlelog_table.json"],
-      ["HotUpdateMetaTable", "./data/excel/hotupdate_meta_table.json"],
-      ["MetaUIDisplayTable", "./data/excel/meta_ui_table.json"],
-      ["PlayerAvatarTable", "./data/excel/player_avatar_table.json"],
-      ["RangeTable", "./data/excel/range_table.json"],
-      ["ReplicateTable", "./data/excel/replicate_table.json"],
-      ["RoguelikeActivityTable", "./data/excel/roguelike_table.json"],
-      ["SandboxActTable", "./data/excel/sandbox_table.json"],
-      ["SandboxPermTable", "./data/excel/sandbox_perm_table.json"],
-      ["SandboxTable", "./data/excel/sandbox_table.json"],
-      ["ShopClientTable", "./data/excel/shop_client_table.json"],
-      ["SpecialOperatorTable", "./data/excel/special_operator_table.json"],
-      ["StoryData", "./data/excel/story_table.json"],
-      ["UniEquipData", "./data/excel/uniequip_data.json"],
-      ["ZoneTable", "./data/excel/zone_table.json"],
-      ["ArkventTable", "./data/excel/arkvent_table.json"],
-    ];
 
     // 去重后的唯一路径：同一文件被多个 key 引用时只读取/解析一次，
     // 各 key 共享同一对象引用（只读数据表，共享安全）。
-    const uniquePaths = [...new Set(loaders.map(([, path]) => path))];
+    const uniquePaths = [...new Set(EAGER_TABLES.map(([, path]) => path))];
     const results = await Promise.all(
-      uniquePaths.map((path) => readJson(excelFilePath(path))),
+      uniquePaths.map((path) => readJson<EagerTables[EagerTableName]>(excelFilePath(path))),
     );
-    const byPath = new Map<string, object>();
+    const byPath = new Map<string, EagerTables[EagerTableName]>();
     uniquePaths.forEach((path, i) => {
       byPath.set(path, results[i]);
     });
-    loaders.forEach(([key, path]) => {
-      (this as any)[key] = byPath.get(path);
-    });
+    for (const [key, path] of EAGER_TABLES) {
+      const value = byPath.get(path);
+      if (value === undefined) continue;
+      this._assignTable(key, value);
+    }
 
     // 归一化集成战略主题表：customizeData 键 rlNN → rogue_N、buffDisplayInfo.displayForm
     // 数值 → 枚举名（否则科技树解锁全 NODE_NOT_FOUND、局外 buff 全 miss）。
@@ -534,7 +620,7 @@ export class Excel {
     // 归一化掉落信息（occPercent/dropType 字符串 → 数字档位，供 dropReward 使用）
     normalizeStageDropInfo(this.StageTable);
 
-    logger.info("Excel", `${loaders.length} excels loaded`);
+    logger.info("Excel", `${EAGER_TABLES.length} excels loaded`);
     // S10：数据版本一致性校验（data_version.txt 的 VersionControl vs gamedata_const.dataVersion）——
     // 不一致说明更新中断/仅部分表被转换，仅告警不阻断启动
     verifyLoadedDataVersion((this.GameDataConst as { dataVersion?: string })?.dataVersion);
@@ -547,6 +633,221 @@ export class Excel {
 /** Excel 数据表管理实例（具名供同文件合并工具引用；默认导出保持） */
 const excel = new Excel();
 export default excel;
+
+// ===== 表数据类型（官方 JSON 实锤的手写模型；生成类型无对应包装类的表） =====
+
+/**
+ * 沙盒表文件（`data/excel/sandbox_table.json` 整体）
+ *
+ * SandboxTable 与 SandboxActTable 两个字段共享同一份解析结果（同文件）：
+ * `sandboxActTables` 按活动分键（形状未建模 → JsonValue），`itemDatas` 为沙盒道具表。
+ */
+export interface SandboxTableFile {
+  sandboxActTables: { [actId: string]: JsonValue };
+  itemDatas: { [itemId: string]: SandboxPermItemData };
+}
+
+/**
+ * 会客室线索表（`data/excel/clue_data.json`，懒加载）
+ *
+ * 顶层键与类型按 2026-09 官方数据实锤；数值常量供 BuildingManager 线索经济/过期使用。
+ */
+export interface ClueData {
+  /** 全部线索（阵营 × 编号） */
+  clues: ClueEntry[];
+  /** 阵营列表（clueType × 该阵营线索数） */
+  clueTypes: ClueTypeEntry[];
+  /** 接收好友线索第 1/2/3 张的信用奖励 */
+  receiveTimeBonus: ClueReceiveTimeBonus[];
+  /** 留言板常量（访客信用/周上限/文案） */
+  messageLeaveBoardConstData: ClueMessageLeaveBoardConstData;
+  /** 线索库存上限 */
+  inventoryLimit: number;
+  /** 每产出 1 张线索的信用 */
+  outputBasicBonus: number;
+  /** 有干员进驻时的额外产出信用 */
+  outputOperatorsBonus: number;
+  /** 线索点数上限 */
+  cluePointLimit: number;
+  /** 线索过期天数 */
+  expiredDays: number;
+  /** 转赠线索信用 */
+  transferBonus: number;
+  /** 回收自有线索信用 */
+  recycleBonus: number;
+  /** 过期线索返还信用 */
+  expiredBonus: number;
+  /** 线索交流持续时间（秒） */
+  communicationDuration: number;
+  /** 自己开启线索交流的信用 */
+  initiatorBonus: number;
+  /** 参与他人交流的信用 */
+  participantsBonus: number;
+  /** 交流折叠时长 */
+  commuFoldDuration: number;
+}
+
+/** 单条线索（clues[]） */
+export interface ClueEntry {
+  clueId: string;
+  clueName: string;
+  clueType: string;
+  number: number;
+}
+
+/** 线索阵营（clueTypes[]） */
+export interface ClueTypeEntry {
+  clueType: string;
+  clueNumber: number;
+}
+
+/** 接收好友线索的信用奖励档位（receiveTimeBonus[]） */
+export interface ClueReceiveTimeBonus {
+  /** 本日接收的第 N 张 */
+  receiveTimes: number;
+  /** 该张的信用奖励 */
+  receiveBonus: number;
+}
+
+/** 留言板常量（messageLeaveBoardConstData；服务端消费前两项） */
+export interface ClueMessageLeaveBoardConstData {
+  /** 每位访客留言的社交点 */
+  visitorBonus: number;
+  /** 每周留言板社交点上限 */
+  visitorBonusLimit: number;
+  visitorToWeek: number;
+  visitorPreWeek: number;
+  bonusToast: string;
+  bonusLimitText: string;
+  recordsTextBonus: string;
+  recordsTextTip: string;
+}
+
+/**
+ * 奇象巡展 ARKDEX 数据（`data/arkhub/arkdex.json`，懒加载）
+ *
+ * 来源：`activity_table.json → activity.arkHub.act1arkhub.moduleData.arkdexModule`
+ * （官方 CDN 热更导出）。仅建模服务端消费的子表；其余子表（itemEffectData/npcInfoData/
+ * captureAreaData/sceneTypeMap 等）服务端不读，按 JSON 域保留。
+ */
+export type ArkhubArkdexData = {
+  /** 生物表（键 = creatureNumId） */
+  creatureData: { [numId: string]: ArkdexCreature };
+  /** 属性表（键 = arkdex_advantage_A/B/C） */
+  advantageTypeData: { [advantageType: string]: ArkdexAdvantageType };
+  /** 克制映射（属性 id → 被克制的属性 id 列表） */
+  advantageCounterMap: { [advantageType: string]: string[] };
+  /** 对决模式表（键 = modeId） */
+  modeData: { [modeId: string]: ArkdexMode };
+  /** 特质表（键 = 展示序号） */
+  traitData: { [sortKey: string]: ArkdexTrait };
+  /** ARKDEX 常量（数值项；pingConds 等非数值项未消费） */
+  dexConstData: { [key: string]: JsonValue };
+  /**
+   * NPC 对决策略组（键 = strategyGroupId）。官方表经 FBO 解码后有两种包装层
+   * （简单组 `{groupId: {...}, 伪键: null}` / 策略池 `{groupId: {strategyId: {...}}}`），
+   * 形状不固定 → 按 JSON 域保留，由 `findCreatureDataDeep` 深度查找。
+   */
+  npcDuelStrategyData: { [strategyGroupId: string]: JsonValue };
+} & JsonObject;
+
+/** 单只生物（creatureData[numId]；仅声明服务端消费字段） */
+export interface ArkdexCreature {
+  /** 生物种类 id */
+  creatureNumId: number;
+  /** 生物名 */
+  name: string;
+  /** 珍奇度 1-3★ */
+  rarity: number;
+  /** 属性 id（advantageTypeData 键） */
+  advantageType: string;
+  /** 亚种 id（0 = 非基种） */
+  alterNumId: number;
+  /** 活动频繁标记（官方本地数据全 false，见 active-weights.json 降级表） */
+  upWeightTagIsShow: boolean;
+  /** 栖息地描述（形如「生息于密林外沿」） */
+  obtainApproach: string;
+}
+
+/** 属性（advantageTypeData[typeId]） */
+export interface ArkdexAdvantageType {
+  advantageType: string;
+  sortId: number;
+  name: string;
+  /** 对其它属性的伤害倍率（被克制方 id → 倍率） */
+  damageScaleMap: { [defendType: string]: number };
+}
+
+/** 对决模式（modeData[modeId]；仅声明服务端消费字段） */
+export interface ArkdexMode {
+  modeId: string;
+  modeNumId: number;
+  isMultiplayer: boolean;
+  numMax: number;
+  battleNpcCount: number;
+  isMatching: boolean;
+  maxRoundNumber: number;
+}
+
+/** 特质（traitData[key]；仅声明服务端消费字段） */
+export interface ArkdexTrait {
+  sortId: number;
+  /** 展示序号（1-9，非位掩码） */
+  traitMask: number;
+  traitId: string;
+  name: string;
+  description: string;
+}
+
+/**
+ * 奇象巡展事件表（`data/excel/arkvent_table.json`）
+ *
+ * 服务端消费两处：ODC 小游戏的宝箱奖励组（odcDataMap）与 actor 触发条件
+ * （arkventDataMap[*].taskData.actorData）；其余子表（sceneDataMap/barkData 等）为客户端数据。
+ */
+export type ArkventTable = {
+  /** ODC 主题表（键 = topicId） */
+  odcDataMap: { [topicId: string]: ArkventOdcTopic };
+  /** 奇象巡展主题表（键 = topicId） */
+  arkventDataMap: { [topicId: string]: ArkventTopic };
+} & JsonObject;
+
+/** ODC 主题（odcDataMap[topicId]） */
+export interface ArkventOdcTopic {
+  topicId: string;
+  /** 宝箱奖励组（键 = awardId → 物品列表） */
+  rewardGroups: { [awardId: string]: ItemBundle[] };
+}
+
+/** 奇象巡展主题（arkventDataMap[topicId]；仅声明任务数据） */
+export interface ArkventTopic {
+  taskData?: ArkventTaskData;
+}
+
+/** 主题任务数据（arkventDataMap[topicId].taskData） */
+export interface ArkventTaskData {
+  /** actor 表（键 = actorId） */
+  actorData?: { [actorId: string]: ArkventActor };
+}
+
+/** actor（taskData.actorData[actorId]；仅声明服务端消费字段） */
+export interface ArkventActor {
+  /** 出现条件（varSeqs 推进依据） */
+  actorShowCondition?: ArkventShowCondition[];
+  /** 触发操作（键 = 序号 → 操作列表） */
+  actorTriggerOperations?: { [order: string]: ArkventTriggerOperation[] };
+}
+
+/** actor 出现条件（仅消费 varSeqList） */
+export interface ArkventShowCondition {
+  varSeqList?: string[];
+}
+
+/** actor 触发操作（仅消费 operationParams.awardId） */
+export interface ArkventTriggerOperation {
+  operationTemplate?: string;
+  operationParams?: { awardId?: string } & JsonObject;
+}
 
 
 export interface GachaDetailTable {
@@ -1383,13 +1684,25 @@ export const DROP_TYPE_NUMERIC: { [key: string]: number } = {
 };
 
 /**
+ * 归一化前的原始掉落条目
+ *
+ * 官方 JSON 里 occPercent/dropType 是字符串枚举名（ALWAYS/NORMAL 等），而生成类型
+ * 声明为枚举联合且 occPercent 为只读语义；归一化会就地改写为数字档位，因此此处用
+ * 可写联合描述「归一化前」的形态（归一化后即为数字，幂等）。
+ */
+export interface RawDisplayDetailRewards {
+  occPercent?: string | number | null;
+  dropType?: string | number;
+}
+
+/**
  * 归一化掉落信息：将 displayDetailRewards 的 occPercent/dropType 从字符串映射为数字档位。
  * 原始 excel 数据为字符串（ALWAYS/NORMAL 等），dropReward 逻辑按数字档位判断。
  * 已在 excel 加载时调用（excel.init），幂等（数字值保持不变）。
  * @param table - StageTable 结构（stages 字段）
  */
 export function normalizeStageDropInfo(table: {
-  stages: { [key: string]: { stageDropInfo?: { displayDetailRewards?: any[] } | null } };
+  stages: { [key: string]: { stageDropInfo?: { displayDetailRewards?: RawDisplayDetailRewards[] } | null } };
 }): void {
   for (const stage of Object.values(table.stages)) {
     const drops = stage?.stageDropInfo?.displayDetailRewards;
@@ -1774,9 +2087,9 @@ export interface CustomizeDataCommon {
     commonDevelopment:      CommonDevelopment;
     difficulties:           FluffyDifficulty[];
     endingText:             { [key: string]: string };
-    specialShopDialog?:     { [key: string]: unknown };
-    scrapShopDialogData?:   { [key: string]: unknown };
-    employShopDialogData?:  { [key: string]: unknown };
+    specialShopDialog?:     JsonObject;
+    scrapShopDialogData?:   JsonObject;
+    employShopDialogData?:  JsonObject;
 }
 
 export interface CommonDevelopment {
@@ -1880,7 +2193,13 @@ export interface HomeEntryDisplayData {
 export interface RoguelikeConst {
   outbuff: { [key: string]: RoguelikeBuff[] };
   modebuff: { [key: string]: RoguelikeBuff[] };
-  recruitGrps: { [key: string]: string[] };
+  /**
+   * 招募组（官方 `details[theme].recruitGrps` 全量直接引用）
+   *
+   * 修复：原类型声明为 `{ [key: string]: string[] }`，而官方数据是招募组对象
+   * （id/iconId/name/desc/unlockDesc）——原声明仅为兼容旧 rlv2.json 形态。
+   */
+  recruitGrps: { [key: string]: RoguelikeGameRecruitGrpData };
 }
 
 // ===== excel-types.ts（合并）=====

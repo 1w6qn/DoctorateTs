@@ -22,7 +22,10 @@ vi.mock("@excel/excel", () => ({
         act2break: { id: "act2break", startTime: 1771920000, endTime: 1773691199 },
       },
       activity: {
-        vecBreakV2: {
+        // 官方表实际键名（CS: ActivityTable.ActivityDetailTable.typeActVecBreakV2Data，
+        // 已用 data/excel/activity_table.json 核对：typeActVecBreakV2Data.{act1break,act2break}）。
+        // 旧夹具写成 vecBreakV2，与生产数据不一致，掩盖了「赛季字典恒空」的读取缺陷。
+        typeActVecBreakV2Data: {
           act1break: {
             offenseStageDict: {
               act1break_01: { stageId: "act1break_01", level: 1 },

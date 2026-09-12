@@ -8,6 +8,16 @@
  */
 import { PlayerSquad, SquadFriendData } from "../../kernel/model";
 import { PlayerDeltaResponse } from "../../kernel/http/common";
+import type { ServerPayload } from "@excel/json-value";
+import type { PlayerActivity } from "../../kernel/playerdata";
+
+/**
+ * VEC_BREAK_V2 活动存档（draft.activity.VEC_BREAK_V2[actId]）
+ *
+ * 形状登记在 scripts/playerdata-server-adapt.ts 的 SERVER_OVERRIDE_FIELDS
+ * （生成类型 PlayerActivity.VEC_BREAK_V2 的条目即本别名），访问点不再需要 cast。
+ */
+export type VecBreakV2PlayerData = NonNullable<NonNullable<PlayerActivity["VEC_BREAK_V2"]>[string]>;
 
 /** 获取赛季记录请求（CS: VecBreakV2SeasonRecordRequest，无字段） */
 export interface VecBreakV2SeasonRecordRequest {}
@@ -29,7 +39,12 @@ export interface VecBreakV2SeasonBestRecordInfo {
   stageId: string;
   buff: string[];
   showTs: number;
-  squad: VecBreakV2SeasonRecordCharInfo[];
+  /**
+   * 驻防编队：服务端原样透传存档 `activity.VEC_BREAK_V2[actId].squads`。
+   * 该字段不在客户端模型（PlayerVecBreakV2）里、服务端只读不写，故按未建模载荷
+   * （ServerPayload[]）声明——见 scripts/playerdata-server-adapt.ts 的 VEC_BREAK_V2 条目。
+   */
+  squad: VecBreakV2SeasonRecordCharInfo[] | ServerPayload[];
   assistChar: VecBreakV2SeasonRecordCharInfo;
 }
 

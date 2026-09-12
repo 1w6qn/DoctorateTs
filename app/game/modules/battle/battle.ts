@@ -1026,10 +1026,11 @@ export class BattleManager {
     // 手动领取」，官方存档形状为 social.yesterdayReward.{assistAmount, comfortAmount}
     // （实测 Lv112 存档 assistAmount = 50 = 使用 30 + 被使用 20）。现改为累积进
     // yesterdayReward.assistAmount，由 SocialManager.receiveSocialPoint 领取。
-    const assistUid = battleInfo.assistFriend?.uid;
-    if (assistUid) {
+    const assistFriend = battleInfo.assistFriend;
+    if (assistFriend?.uid) {
+      const assistUid = assistFriend.uid;
       await this._trigger.emit("StageWithAssistChar", [
-        { ...battleData, assistFriend: battleInfo.assistFriend },
+        { ...battleData, assistFriend },
       ]);
       const usePt = excel.GameDataConst.useAssistSocialPt ?? 30;
       const maxUse = excel.GameDataConst.useAssistSocialPtMaxCount ?? 1;

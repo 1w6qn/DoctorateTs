@@ -8,7 +8,7 @@
  * 约定：
  * - 必填字段用对应类型（z.string/z.number/z.boolean/z.array）
  * - 服务端不读或抓包确认可省略的字段 .optional()
- * - 复杂嵌套对象用 z.any()（如 assistCharList 内的 PlayerFriendAssist），仅保证存在不深检
+ * - 被 handler 读取内层字段的嵌套对象按被读字段收紧（如 param/assistCharList）。
  * - 空对象用 z.object({})
  */
 
@@ -45,8 +45,9 @@ export const searchPlayerSchema = idListRequest;
 export const getSortListInfoSchema = z.object({
   type: z.number(),
   sortKeyList: z.array(z.string()).optional(),
-  // param 为任意字符串映射对象，仅保证键存在，不做深类型校验
-  param: z.any().optional(),
+  // param 为 { 字段名: 字符串值 } 字典——SocialManager#getSortListInfo 读 nickName/nickNumber
+  // 组装完整昵称，故按被读字段收紧为 string→string 字典
+  param: z.record(z.string(), z.string()).optional(),
 });
 
 /** 获取好友列表请求（CS: GetFriendListRequest） */
@@ -57,8 +58,9 @@ export const getFriendRequestListSchema = idListRequest;
 
 /** 设置助战干员列表请求（CS: SetAssistCharListRequest） */
 export const setAssistCharListSchema = z.object({
-  // assistCharList 为 PlayerFriendAssist[] 复杂对象数组，仅保证存在，不做深类型校验
-  assistCharList: z.array(z.any()),
+  // assistCharList 为 PlayerFriendAssist[]——handler 整段写入 social.assistCharList
+  //（内层字段由展示侧读取），故按被读层级收紧到「JSON 数组」，元素结构透传
+  assistCharList: z.array(z.json()),
 });
 
 /** 设置好友备注请求（CS: SetFriendAliasRequest） */

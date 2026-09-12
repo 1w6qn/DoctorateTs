@@ -77,7 +77,7 @@ export class BuildingManager {
   }
 
   get _intimacyGain(): number {
-    const perDay = getBuildingConstant<number>("basicFavorPerDay") ?? 720;
+    const perDay = getBuildingConstant("basicFavorPerDay") ?? 720;
     return Math.max(Math.round(perDay / 60), 1);
   }
 

@@ -7,7 +7,7 @@
  * - battleFinish 读取 RuneFinishBattleRequest（data / battleData / battleLog）
  *
  * 供 router/rune.ts 经 validateBody 做运行时校验，避免非法 body 抛 500。
- * 约定：必填字段用对应类型，复杂嵌套对象用 z.any()。
+ * 约定：必填字段用对应类型，复杂嵌套对象用 z.json()。
  */
 
 import { z } from "zod";
@@ -26,9 +26,9 @@ export const runeStartBattleSchema = z.object({
   usePracticeTicket: z.number(),
   stageId: z.string(),
   // squad 为 PlayerSquad 复杂嵌套对象，仅保证键存在不深检
-  squad: z.any(),
+  squad: z.json(),
   // assistFriend 为 null | SquadFriendData，仅保证键存在不深检
-  assistFriend: z.any().nullable(),
+  assistFriend: z.json().nullable(),
   isReplay: z.number(),
   startTs: z.number(),
   // 学徒试炼附加字段（CS: RuneStartBattleRequest 扩展；可省略）

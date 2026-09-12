@@ -34,7 +34,7 @@ export function itemName(id: string): string {
 
 /** 干员 ID → 中文名（未知原样返回 ID） */
 export function charName(charId: string): string {
-  const def = (excel.CharacterTable as Record<string, any>)?.[charId];
+  const def = excel.charData(charId);
   return def?.name || charId;
 }
 
@@ -69,8 +69,8 @@ export function resolveItemRef(ref: string): string | null {
  */
 export function resolveCharRef(ref: string): string {
   const id = ref.trim();
-  const table = excel.CharacterTable as Record<string, any> | undefined;
-  if (table?.[id]) return id;
+  if (excel.charData(id)) return id;
+  const table = excel.CharacterTable;
   if (table) {
     for (const [charId, info] of Object.entries(table)) {
       if (info?.name === id) return charId;
@@ -83,7 +83,7 @@ export function resolveCharRef(ref: string): string {
  * 干员星级（0-5）：character_table 的 rarity 为 "TIER_5" 字符串（部分版本数字），统一归一为数字
  */
 export function charRarity(charId: string): number {
-  const info = (excel.CharacterTable as Record<string, any>)?.[charId];
+  const info = excel.charData(charId);
   const r = info?.rarity;
   if (typeof r === "number") return r;
   if (typeof r === "string") {

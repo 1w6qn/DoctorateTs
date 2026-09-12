@@ -114,7 +114,7 @@ export async function getDailyClue(mgr: BuildingManager, args: any) {
       // 线索生成信用（PRTS：每张线索 +20；数值取 clue_data.outputBasicBonus，勿写死）
       draft.status.socialPoint =
         (draft.status.socialPoint ?? 0) +
-        (getClueConstant<number>("outputBasicBonus") ?? 20);
+        (getClueConstant("outputBasicBonus") ?? 20);
       // 推送：新线索可处理 → 客户端会客室红点
       draft.pushFlags.hasClues = 1;
     });
@@ -148,7 +148,7 @@ export async function sendClue(mgr: BuildingManager, args: { id?: string; clueId
       // 传递线索信用（PRTS：向好友传递线索每张 +20；数值取 clue_data.transferBonus）
       draft.status.socialPoint =
         (draft.status.socialPoint ?? 0) +
-        (getClueConstant<number>("transferBonus") ?? 20);
+        (getClueConstant("transferBonus") ?? 20);
       // 推送：同步会客室红点（存在未上板线索 → 1）
       mgr._refreshClueFlag(draft, room);
     });
@@ -173,7 +173,7 @@ export async function sendClueAuto(mgr: BuildingManager, args: any) {
       // 传递线索信用（与 sendClue 一致，取 clue_data.transferBonus）
       draft.status.socialPoint =
         (draft.status.socialPoint ?? 0) +
-        (getClueConstant<number>("transferBonus") ?? 20);
+        (getClueConstant("transferBonus") ?? 20);
       // 修复：自动发送后同步红点（与 sendClue 一致）
       mgr._refreshClueFlag(draft, room);
     });
@@ -309,7 +309,7 @@ export async function deleteOwnClue(mgr: BuildingManager, args: { id?: string; c
       if (room.ownStock.length < before) {
         draft.status.socialPoint =
           (draft.status.socialPoint ?? 0) +
-          (getClueConstant<number>("recycleBonus") ?? 5);
+          (getClueConstant("recycleBonus") ?? 5);
       }
       mgr._clearBoardEntry(draft, room, id);
       mgr._refreshClueFlag(draft, room);

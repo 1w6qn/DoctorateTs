@@ -6,7 +6,7 @@
  * 类型不符时返回 HTTP 4xx，避免非法 body 传入控制器抛 500。
  *
  * 约定（与 rlv2.schema.ts 一致）：
- * - z.any() 表示"键必须存在、值类型不深检"（如 material/ownChar 这类复杂嵌套对象，
+ * - z.json() 表示"键必须存在、值类型不深检"（如 material/ownChar 这类复杂嵌套对象，
  *   仅保证出现，避免对客户端完整结构误伤）。
  * - .optional() 表示服务端不读或抓包确认可不传的字段。
  * - 空请求体用 z.object({})。
@@ -51,11 +51,11 @@ export const v2DineSchema = z.object({
   foodInstId: z.string().optional(),
 });
 
-/** 沙盒V2烹饪饮品（CS: SandboxV2CookDrinkRequest { topicId, material, food }）；material/food 为复杂数组，用 z.any() */
+/** 沙盒V2烹饪饮品（CS: SandboxV2CookDrinkRequest { topicId, material, food }）；material/food 为复杂数组，用 z.json() */
 export const v2CookDrinkSchema = z.object({
   topicId: z.string().optional(),
-  material: z.any().optional(),
-  food: z.any().optional(),
+  material: z.json().optional(),
+  food: z.json().optional(),
 });
 
 /** 沙盒V2烹饪食物（CS: SandboxV2CookFoodRequest { topicId, main, sub, count }）；stub 不读，标为可选 */
@@ -66,11 +66,11 @@ export const v2CookFoodSchema = z.object({
   count: z.number().optional(),
 });
 
-/** 沙盒V2设置编队（CS: SandboxV2SetSquadRequest { topicId, index, slots, tools }）；slots 为复杂数组，用 z.any() */
+/** 沙盒V2设置编队（CS: SandboxV2SetSquadRequest { topicId, index, slots, tools }）；slots 为复杂数组，用 z.json() */
 export const v2SetSquadSchema = z.object({
   topicId: z.string().optional(),
   index: z.number().optional(),
-  slots: z.any().optional(),
+  slots: z.json().optional(),
   tools: z.array(z.string()).optional(),
 });
 
@@ -118,12 +118,12 @@ export const v2BaseUpgradeSchema = z.object({
   topicId: z.string().optional(),
 });
 
-/** 沙盒V2建造（CS: SandboxV2ConstructOperationRequest { topicId, nodeId, operation, catchedAnimals }）；operation/catchedAnimals 为复杂结构，用 z.any() */
+/** 沙盒V2建造（CS: SandboxV2ConstructOperationRequest { topicId, nodeId, operation, catchedAnimals }）；operation/catchedAnimals 为复杂结构，用 z.json() */
 export const v2BuildSchema = z.object({
   topicId: z.string().optional(),
   nodeId: z.string().optional(),
-  operation: z.any().optional(),
-  catchedAnimals: z.any().optional(),
+  operation: z.json().optional(),
+  catchedAnimals: z.json().optional(),
 });
 
 /** 沙盒V2烹饪（合成）（CS: SandboxV2CraftRequest { topicId, itemId, count, autoSquad }）；stub 不读，标为可选 */
@@ -361,11 +361,11 @@ export const v3ChooseBandSchema = z.object({
   bandId: z.string().optional(),
 });
 
-/** 沙盒V3每日招募（CS: SandboxV3DayPassRecruitRequest { topicId, ownChar, thirdChar }）；ownChar/thirdChar 为复杂对象，用 z.any() */
+/** 沙盒V3每日招募（CS: SandboxV3DayPassRecruitRequest { topicId, ownChar, thirdChar }）；ownChar/thirdChar 为复杂对象，用 z.json() */
 export const v3DailyRecruitSchema = z.object({
   topicId: z.string().optional(),
-  ownChar: z.any().optional(),
-  thirdChar: z.any().optional(),
+  ownChar: z.json().optional(),
+  thirdChar: z.json().optional(),
 });
 
 /** 沙盒V3进食（CS: SandboxV3EatFoodRequest { topicId, charInstId, cookbook, sub }）；stub 不读，标为可选 */
@@ -394,11 +394,11 @@ export const v3NextDaySchema = z.object({
   topicId: z.string().optional(),
 });
 
-/** 沙盒V3初始化招募（CS: SandboxV3InitRecruitRequest { topicId, ownChars, assistFriend }）；ownChars/assistFriend 为复杂结构，用 z.any() */
+/** 沙盒V3初始化招募（CS: SandboxV3InitRecruitRequest { topicId, ownChars, assistFriend }）；ownChars/assistFriend 为复杂结构，用 z.json() */
 export const v3InitRecruitSchema = z.object({
   topicId: z.string().optional(),
-  ownChars: z.any().optional(),
-  assistFriend: z.any().optional(),
+  ownChars: z.json().optional(),
+  assistFriend: z.json().optional(),
 });
 
 /** 沙盒V3结算游戏（CS: SandboxV3SettleGameRequest { topicId }）；stub 不读，标为可选 */

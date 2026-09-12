@@ -9,10 +9,15 @@
  */
 import { Router } from "express";
 import config from "./index";
+import type { NetworkEndpointValue, RemoteConfigValue } from "./index";
 
-/** 用实际服务器地址替换各端点的官方域名或 {server} 占位符（保留端口与私服路径前缀） */
-function resolveServer(raw: string | null): string {
-  if (!raw) return raw as unknown as string;
+/**
+ * 用实际服务器地址替换各端点的官方域名或 {server} 占位符（保留端口与私服路径前缀）
+ * @param raw - 端点地址（调用方已过滤 null；空串原样返回）
+ * @returns 指向私服的地址
+ */
+function resolveServer(raw: string): string {
+  if (!raw) return raw;
   const server = `${config.Host}:${config.PORT}`;
   return raw
     .replace("{server}", server)
@@ -33,19 +38,17 @@ export function buildNetworkConfigContent(): string {
 
 /**
  * 构建官方格式的网络配置对象（各端点域名替换为私服地址）
+ * @returns 扁平端点表（configVer/devsdk/pkgIOS + network 表，secure/rc 不下发）
  */
-export function buildNetworkConfig(): Record<string, unknown> {
-  const net = (config.NetworkConfig as any)?.configs as
-    | Record<string, { network?: Record<string, string | null> }>
-    | undefined;
+export function buildNetworkConfig(): Record<string, NetworkEndpointValue> {
+  const net = config.NetworkConfig?.configs;
   const network = net ? Object.values(net)[0]?.network ?? {} : {};
-  const { configVer = "5", devsdk = false, pkgIOS = null } = config.NetworkConfig as
-    | any
-    | undefined;
-  const out: Record<string, unknown> = { configVer };
+  const { configVer = "5", devsdk = false, pkgIOS = null } = config.NetworkConfig;
+  const out: Record<string, NetworkEndpointValue> = { configVer };
   for (const [key, value] of Object.entries(network)) {
     if (key === "secure" || key === "rc") continue;
-    out[key] = value === null ? null : resolveServer(value);
+    // 端点值：字符串走地址替换；布尔/null（如 pkgAd/pkgIOS 空占位）原样透传
+    out[key] = typeof value === "string" ? resolveServer(value) : value;
   }
   out.pkgIOS = typeof pkgIOS === "string" ? resolveServer(pkgIOS) : null;
   out.devsdk = devsdk;
@@ -55,7 +58,7 @@ export function buildNetworkConfig(): Record<string, unknown> {
 const router = Router();
 
 /** 官服默认远程功能配置（remote_config 响应，可被 config.json 的 RemoteConfig 覆盖） */
-const DEFAULT_REMOTE_CONFIG: Record<string, unknown> = {
+const DEFAULT_REMOTE_CONFIG: Record<string, RemoteConfigValue> = {
   fapv2: 1,
   HGDownload_1: 10000,
   HGDownload_2: 10000,
@@ -68,9 +71,10 @@ const DEFAULT_REMOTE_CONFIG: Record<string, unknown> = {
 
 /**
  * 构建远程功能配置（官方格式扁平 JSON：fapv2/HGDownload_1 等）
+ * @returns 官方默认开关与 config.json RemoteConfig 覆盖的合并结果
  */
-export function buildRemoteConfig(): Record<string, unknown> {
-  return { ...DEFAULT_REMOTE_CONFIG, ...((config as any).RemoteConfig ?? {}) };
+export function buildRemoteConfig(): Record<string, RemoteConfigValue> {
+  return { ...DEFAULT_REMOTE_CONFIG, ...(config.RemoteConfig ?? {}) };
 }
 
 /**

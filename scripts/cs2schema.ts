@@ -16,6 +16,7 @@
  */
 import * as fs from "fs";
 import * as path from "path";
+import { requireCsFile } from "./lib/cs-source";
 
 const ROOT = path.join(__dirname, "..");
 const SCHEMA_DIR = path.join(ROOT, "scripts/vendor/fbs-schemas");
@@ -25,17 +26,11 @@ const doWrite = args.includes("--write");
 const tableArg = args.includes("--table") ? args[args.indexOf("--table") + 1] : undefined;
 const diffLimit = args.includes("--diff") ? Number(args[args.indexOf("--diff") + 1]) : 0;
 
-/** 解析 object 路径的 C# 签名文件：类 → 有序字段表；枚举名集合 */
+/** 解析 object 路径的 C# 签名文件（统一走 scripts/lib/cs-source，禁止硬编码版本号） */
 function resolveCsFile(): string {
-  const i = args.indexOf("--cs");
-  if (i >= 0 && args[i + 1]) return args[i + 1];
-  const dir = path.join(ROOT, "reference");
-  const cands = fs
-    .readdirSync(dir)
-    .filter((f) => /^com\.hypergryph\.arknights_.+\.cs$/.test(f))
-    .sort();
-  if (!cands.length) throw new Error("reference/ 下找不到 com.hypergryph.arknights_*.cs");
-  return path.join(dir, cands[cands.length - 1]);
+  return requireCsFile({
+    explicit: args.indexOf("--cs") >= 0 ? args[args.indexOf("--cs") + 1] : undefined,
+  });
 }
 
 interface CsField {
@@ -43,9 +38,14 @@ interface CsField {
   name: string;
 }
 
-function parseCs(file: string): { classes: Map<string, CsField[]>; enums: Set<string> } {
+function parseCs(file: string): {
+  classes: Map<string, CsField[]>;
+  enums: Set<string>;
+  bases: Map<string, string>;
+} {
   const classes = new Map<string, CsField[]>();
   const enums = new Set<string>();
+  const bases = new Map<string, string>();
   const lines = fs.readFileSync(file, "utf-8").split(/\r?\n/);
   const declRe = /^public (?:sealed |abstract |static )?(class|struct|enum) ([\w.`]+)/;
   for (let i = 0; i < lines.length; i++) {
@@ -70,8 +70,11 @@ function parseCs(file: string): { classes: Map<string, CsField[]>; enums: Set<st
       if (fm) fields.push({ type: fm[1].trim(), name: fm[2] });
     }
     classes.set(name, fields);
+    // 记录基类（用于识别「列表来自泛型基类」的派生类，见 listDerived 判定）
+    const baseM = /^[^:]+:\s*([\w.`]+)/.exec(lines[i]);
+    if (baseM) bases.set(name, baseM[1]);
   }
-  return { classes, enums };
+  return { classes, enums, bases };
 }
 
 const SCALAR: Record<string, string> = {
@@ -112,7 +115,7 @@ const WIRE_OVERRIDE: Record<string, string> = {
 
 function main() {
   const csFile = resolveCsFile();
-  const { classes, enums } = parseCs(csFile);
+  const { classes, enums, bases } = parseCs(csFile);
   console.log(`解析 ${path.basename(csFile)}：${classes.size} 个类 / ${enums.size} 个枚举`);
 
   /** C# 类型 → schema 类型 token */
@@ -189,6 +192,89 @@ function main() {
     return "unknown";
   }
 
+  /**
+   * 「列表来自泛型基类」判定。
+   *
+   * `Torappu.CharacterData.AttributesKeyFrame : Torappu.KeyFrames<Torappu.AttributesData>`
+   * 自身**不声明任何字段**——元素列表在泛型基类
+   * `KeyFrames<T> : List<KeyFrame<T,T>>` 上。FBO 会把继承来的列表**平铺**进该对象的
+   * vtable，因此线上它实际是「KeyFrame 的向量」，vendored schema 用合成 token
+   * `vec:clz_Torappu_KeyFrames_2_KeyFrame_<A>_<B>_` 表达（该合成表由 schema-gen 预置，
+   * 不在 C# 中，故 cs2schema 一直把它列进"未在 C# 中找到的类"）。
+   *
+   * 反例（错误做法）：若按派生类名写成 `clz_Torappu_CharacterData_AttributesKeyFrame`，
+   * 该键**不在 schema.tables 中**（零字段类被跳过），fbo 的 tableToJson 查不到 →
+   * 返回 `{}`。实测：character_table 全部 2377 条 attributesKeyFrames 退化为
+   * `{level: null, data: null}`（2026-09-11 首次 schema:write 即踩此坑）。
+   * 故：此类字段必须保留**旧 token 原样**，不参与重生成。
+   */
+  function isListFromGenericBase(csType: string): boolean {
+    let t = csType.trim();
+    // 剥掉 vec:/List<> 包装，取元素类型
+    const listM = /^System\.Collections\.Generic\.(?:List|IList|IEnumerable)<(.+)>$/.exec(t);
+    if (listM) t = listM[1].trim();
+    // 字段类型本身可能就是 KeyFrame<A,B> 这类泛型实参（此时直接看基类名）
+    const own = t.split("<")[0];
+    if (/^Torappu\.KeyFrames$/.test(own)) {
+      // KeyFrames<T0,T1> 直接继承 List<KeyFrame<T0,T1>>
+      return genericInner(t) !== null;
+    }
+    // 普通派生类：看它的基类是否为 Torappu.KeyFrames（含泛型实参，如 Torappu.KeyFrames<...>）
+    const base = bases.get(t);
+    if (!base) return false;
+    return base === "Torappu.KeyFrames" || /^Torappu\.KeyFrames</.test(base);
+  }
+
+
+/**
+ * 收集 schema 中被引用但缺失的键值对表定义（`dict__K__V` / `kvp__K__V`）
+ *
+ * 背景：字段类型按 CS 泛型映射为 `vec:dict__K__V`（FBO 的 map = 键值对表向量），
+ * 但 `dict__K__V` 这类**键值对表定义不由 CS 类派生**（历史 vendored schema 自带）。
+ * 当 K/V 组合是新的（如 `dict__string__enum`、`dict__enum__clz_X`、
+ * `dict__string__vec:clz_X`）时 schema 里没有对应表 → fbo.ts 的「纯 KV 表折叠为 dict」
+ * 判定（要求字段恰为 Key/Value）失效 → 解出「元素为空对象的数组」，字段整体静默失效。
+ * 实测受影响：roguelike scrapItemToType、campaign dropGains、display_meta avatarTypeData、
+ * battle_equip tokenAttributeBlackboard 等（2026-09-11）。
+ *
+ * 生成约定与既有 vendored 定义一致：`Key@4 = K`、`Value@6 = V`。
+ * @param tables - 现有表定义（会被就地查询；返回值只含缺失项）
+ * @returns 需要补齐的 { name, fields } 列表（含嵌套 dict 值的递归补齐）
+ */
+function collectMissingKvTables(
+  tables: Record<string, { name: string; type: string; slot: number }[]>,
+): { name: string; fields: { name: string; type: string; slot: number }[] }[] {
+  const added = new Map<string, { name: string; type: string; slot: number }[]>();
+  const consider = (type: string): void => {
+    let t = type;
+    if (t.startsWith("vec:")) t = t.slice(4);
+    if (!(t.startsWith("dict__") || t.startsWith("kvp__"))) return;
+    if (tables[t] || added.has(t)) return;
+    const rest = t.slice(t.indexOf("__") + 2);
+    const sep = rest.indexOf("__");
+    if (sep <= 0) return;
+    const key = rest.slice(0, sep);
+    const value = rest.slice(sep + 2);
+    if (!key || !value) return;
+    added.set(t, [
+      { name: "Key", type: key, slot: 4 },
+      { name: "Value", type: value, slot: 6 },
+    ]);
+  };
+  // 逐轮扫描到不动点：新补的表里可能还引用着别的缺失 KV 表（嵌套 dict 值）
+  for (let round = 0; round < 8; round++) {
+    const before = added.size;
+    for (const fields of Object.values(tables)) {
+      for (const f of fields) consider(f.type);
+    }
+    for (const fields of added.values()) {
+      for (const f of fields) consider(f.type);
+    }
+    if (added.size === before) break;
+  }
+  return [...added.entries()].map(([name, fields]) => ({ name, fields }));
+}
+
   const pascal = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   // int/enum 在解码器中同义（fbo.ts 的 "int" 与 "enum" 都是 i32 读取）——比对时视作等价，
   // 写回时保留旧 token，避免产生无意义的全表 diff。
@@ -234,6 +320,11 @@ function main() {
         const old = oldByName.get(name);
         // int/enum 同义时保留旧 token（减少无谓 diff）
         const type = old && eqType(old.type, mapped) ? old.type : mapped;
+        // 泛型基类列表字段（AttributesKeyFrames 等）：保持旧合成 token——
+        // 按派生类名重写会让 fbo 查不到子表而解成 {}（见 isListFromGenericBase 注释）
+        if (isListFromGenericBase(f.type) && old && old.type.startsWith("vec:clz_")) {
+          return { name, type: old.type, slot: old.slot };
+        }
         return { name, type, slot: 4 + 2 * i };
       });
       // 安全阀 1：字段类型或子类无法解析（泛型实例化类等）→ 保留旧字段表，避免把数据解成 null
@@ -243,9 +334,23 @@ function main() {
       }
       // 安全阀 2：重生成会丢掉旧字段（C# 运行时模型缺该字段，如 SkillData.unlockCond）→
       // 保留旧字段表。丢字段比错位更危险：整片数据静默消失（skin_table 曾丢 30953 处）。
-      const lostFields = oldFields.filter(
-        (o) => !regenRaw.some((f) => f.name === o.name),
-      );
+      //
+      // 但「旧字段名不再出现」有两种截然不同的成因，必须区分（2026-09-11 修复）：
+      //   (a) 字段真的从线上结构移除 —— 槽位空出，必须保留旧表兜底；
+      //   (b) 字段只是**改名**（官方重构，如 CharacterData.MainSkill 的
+      //       LevelUpCostCond→SpecializeLevelUpData、UnlockCond→InitialUnlockCond）——
+      //       槽位与类型都没变，只是名字换了。
+      // 旧实现把 (b) 也当成丢字段，导致这些类**永久冻结在旧名**上：schema 里留着
+      // 已不存在的名字，转换器再按 schema 补 null 伪键（levelUpCostCond/unlockCond 均为 null），
+      // 而真实解码出的新名字（initialUnlockCond）反而成了"计划外"字段。消费者读旧名只拿到
+      // null，静默失效——rlv2 招募技能裁剪即因此失效（精二降精一时三技能未被剔除）。
+      // 判别依据：旧字段若能在**同槽位**上找到类型兼容的新字段，即判定为改名（允许重生成）。
+      const lostFields = oldFields.filter((o) => {
+        if (regenRaw.some((f) => f.name === o.name)) return false; // 同名保留
+        const sameSlot = regenRaw.find((f) => f.slot === o.slot);
+        // 同槽位存在且类型兼容 → 改名，不算丢失
+        return !(sameSlot && eqType(sameSlot.type, o.type));
+      });
       if (lostFields.length > 0) {
         protectedLoss++;
         if (!lostSamples.some((s) => s.key === key)) {
@@ -280,6 +385,11 @@ function main() {
       }
       next.tables[key] = regen;
     }
+    // 补齐缺失的键值对表定义（见 collectMissingKvTables 注释）——纯新增，不动 clz 字段表
+    for (const kv of collectMissingKvTables(next.tables)) {
+      next.tables[kv.name] = kv.fields as any;
+      fileChanged = true;
+    }
     if (fileChanged) perTable.push({ base, added: tAdded, shifted: tShifted, retyped: tRetyped, classes: tClasses });
     if (doWrite && fileChanged) fs.writeFileSync(p, JSON.stringify(next));
     if (!fileChanged) untouched++;
@@ -304,6 +414,24 @@ function main() {
   if (unresolved.size) console.log(`未识别类型 (${unresolved.size}):`, [...unresolved].slice(0, 10).join(", "));
   if (!doCheck && !doWrite) console.log("（未指定 --check/--write：仅试算，未写盘）");
   if (doWrite) console.log("已写回有差异的 schema 文件");
+
+  // --check 的退出码契约：检出 slot 位移即非 0 退出（供 decompile-client.sh / CI 作门禁）。
+  // 仅「类型 token 差异」不计失败——int/enum 等 token 写法差异不改变 vtable 布局，
+  // 真正会破坏解码的是 slot 位移（字段插入中部导致其后全体位移）。
+  // `--table X` 定向检查时只看该表，便于局部验证；--check 与 --write 同时给出时以写入优先。
+  if (doCheck && !doWrite) {
+    const blockers = slotTables.filter((t) => !tableArg || t.base === `${tableArg}.json` || t.base === tableArg);
+    if (blockers.length > 0) {
+      console.error(
+        `\n[FAIL] 检出 ${blockers.length} 张表存在 slot 位移（struct 布局已变，会解码错位）：` +
+          blockers.map((t) => t.base).join(", ") +
+          `\n       请执行 \`pnpm run schema:write\` 重写 schema，再用 \`pnpm run schema:check\` 复核。`,
+      );
+      process.exitCode = 1;
+    } else {
+      console.log("\n[OK] 未检出 slot 位移（结构布局与现有 schema 一致）");
+    }
+  }
 }
 
 main();

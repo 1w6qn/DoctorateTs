@@ -158,11 +158,30 @@ else
   [ "$rc" -eq 0 ] || [ "$rc" -eq 70 ] || { tail -20 "$WORKDIR/ilspy_project.log" >&2; fail "ilspycmd 反编译失败(exit=$rc)"; }
 fi
 
-# ---------- 5. 生成签名文件（供 generate-types.ts 消费，类似 com.hypergryph.arknights_2.7.61.cs） ----------
+# ---------- 5. 生成签名文件（供 generate-types.ts 消费，形如 com.hypergryph.arknights_<版本>.cs） ----------
 SIG_FILE="$REFERENCE_ROOT/com.hypergryph.arknights_$GAME_VERSION.cs"
 log "生成签名文件 -> $SIG_FILE"
 python "$REPO_ROOT/scripts/dump-cs-signature.py" --in "$CPP2IL_OUT" --out "$SIG_FILE" \
   > "$WORKDIR/signature_gen.log" 2>&1 || { tail -20 "$WORKDIR/signature_gen.log" >&2; fail "签名文件生成失败"; }
+
+# ---------- 5b. FBO schema 漂移检查（关键安全阀） ----------
+# 客户端更新后 C# 字段序可能变化，而 .fbs schema 是按字段序推导 vtable slot 的
+# （slot = 4 + 2×字段序）。字段一旦插入中部，其后所有字段 slot 全体位移 → 解码读到
+# 错误字段（症状：向量长度变成天文数字、JSON.stringify 触发 V8 "Invalid string length"、OOM）。
+# 此处以 --check 与新版签名逐字段比对，检出漂移即告警（不自动改写，避免误伤）。
+log "FBO schema 漂移检查（cs2schema --check）..."
+set +e
+(cd "$REPO_ROOT" && pnpm exec tsx scripts/cs2schema.ts --check) > "$WORKDIR/schema_check.log" 2>&1
+schema_rc=$?
+set -e
+if [ "$schema_rc" -eq 0 ]; then
+  log "  schema 与新版签名一致 ✓"
+else
+  log "  ⚠ 检测到 schema 漂移！请先执行: pnpm run schema:check -- --diff 20 查看，"
+  log "    确认无误后用 pnpm run schema:write 重写 scripts/vendor/fbs-schemas/*.json"
+  log "    （详细日志: $WORKDIR/schema_check.log）"
+  tail -20 "$WORKDIR/schema_check.log" 2>/dev/null >&2 || true
+fi
 
 # ---------- 6. 生成/刷新 README（仅当缺失） ----------
 if [ ! -f "$REF_DIR/README.md" ]; then

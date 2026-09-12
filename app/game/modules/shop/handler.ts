@@ -823,9 +823,7 @@ router.post("/buyGoodWithTicket", validateBody(buyGoodWithTicketSchema), async (
     // ticketId 为凭证物品 id（如 VOUCHER_ONCE_*）；非 ItemTable 物品时 items:use
     // WARN 跳过不 500，避免客户端乱传导致崩溃。
     if (body.ticketId) {
-      await player._trigger.emit("items:use", [
-        [excel.makeItem(body.ticketId, 1)],
-      ]);
+      await player.gainItem.add(excel.makeItem(body.ticketId, 1)).use();
     }
     res.send({
       result: 0,

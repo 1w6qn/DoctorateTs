@@ -80,10 +80,10 @@ export async function buyLowGood(mgr: ShopManager, args: {
         ls.info.push({ id: goodId, count } as unknown as ItemBundle);
       }
     });
-    await mgr._trigger.emit("items:use", [
-      [excel.makeItem("4005", good.price * count)],
-    ]);
-    await mgr._trigger.emit("items:get", [[item]]);
+    await mgr._player.gainItem
+      .add(excel.makeItem("4005", good.price * count))
+      .use();
+    await mgr._player.gainItem.add(item).handle();
     // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
     await mgr._trigger.emit("BuyShopItem", [{ type: "LS" as ItemType, socialPoint: 0 }]);
     return [item];
@@ -159,9 +159,9 @@ export async function buyHighGood(mgr: ShopManager, args: {
         hs.progressInfo[good.progressGoodId] = progressInfo;
       }
     });
-    await mgr._trigger.emit("items:use", [
-      [excel.makeItem("4004", price * count)],
-    ]);
+    await mgr._player.gainItem
+      .add(excel.makeItem("4004", price * count))
+      .use();
     // 修复：干员（CHAR）走 char:get 入账并返回带 instId（获得干员效果）；其余走 items:get
     const granted = await mgr._issueCharItem(item);
     // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
@@ -202,9 +202,9 @@ export async function buyExtraGood(mgr: ShopManager, args: {
         es.info.push({ id: goodId, count } as unknown as ItemBundle);
       }
     });
-    await mgr._trigger.emit("items:use", [
-      [excel.makeItem("4006", good!.price * count)],
-    ]);
+    await mgr._player.gainItem
+      .add(excel.makeItem("4006", good!.price * count))
+      .use();
     // 修复：干员（CHAR）走 char:get 入账并返回带 instId 的效果，避免客户端显示"未知物品"
     const granted = await mgr._issueCharItem(item);
     // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
@@ -316,7 +316,7 @@ export async function _issueCharItem(mgr: ShopManager, item: ItemBundle) : Promi
       ]);
       return { ...item, instId: charInstId } as any;
     }
-    await mgr._trigger.emit("items:get", [[item]]);
+    await mgr._player.gainItem.add(item).handle();
     return item;
 }
 

@@ -166,10 +166,10 @@ export async function buySkinGood(mgr: ShopManager, args: { goodId: string }) : 
         skin.info.push(excel.makeItem(good.goodId, 1));
       }
     });
-    await mgr._trigger.emit("items:use", [
-      [{ id: "4002", type: "DIAMOND" as ItemType, count: good.price }],
-    ]);
-    await mgr._trigger.emit("items:get", [[item]]);
+    await mgr._player.gainItem
+      .add({ id: "4002", type: "DIAMOND" as ItemType, count: good.price })
+      .use();
+    await mgr._player.gainItem.add(item).handle();
 }
 
   /**
@@ -212,7 +212,7 @@ export async function buyCashGood(mgr: ShopManager, args: { goodId: string }) : 
       type: "DIAMOND" as ItemType,
       count: diamondCount,
     };
-    await mgr._trigger.emit("items:get", [[item]]);
+    await mgr._player.gainItem.add(item).handle();
     return [item];
 }
 
@@ -247,14 +247,14 @@ export async function buyFurniGood(mgr: ShopManager, args: {
     // 修复：限购检查（FurniGood.count 总可购数）
     mgr._assertAvail("FURNI", goodId, buyCount, good.count);
     if (isCoin) {
-      await mgr._trigger.emit("items:use", [
-        [excel.makeItem("3401", good.priceCoin * buyCount)],
-      ]);
+      await mgr._player.gainItem
+        .add(excel.makeItem("3401", good.priceCoin * buyCount))
+        .use();
     } else {
       // 修复：DIAMOND 分支 id 补全（原 id 为空串，仅靠 type 分支扣减）
-      await mgr._trigger.emit("items:use", [
-        [{ id: "4002", type: "DIAMOND" as ItemType, count: good.priceDia * buyCount }],
-      ]);
+      await mgr._player.gainItem
+        .add({ id: "4002", type: "DIAMOND" as ItemType, count: good.priceDia * buyCount })
+        .use();
     }
     await mgr._player.update(async (draft) => {
       const furni = mgr._shopDraft(draft, "FURNI");
@@ -266,7 +266,7 @@ export async function buyFurniGood(mgr: ShopManager, args: {
       }
     });
     const item = { id: good.furniId, type: "FURN" as ItemType, count: buyCount };
-    await mgr._trigger.emit("items:get", [[item]]);
+    await mgr._player.gainItem.add(item).handle();
     return [item];
 }
 
@@ -296,9 +296,9 @@ export async function buyFurniGroup(mgr: ShopManager, args: {
       if (mgr._held("3401") < (good.priceCoin ?? 0) * count) continue;
       // 修复：限购检查
       mgr._assertAvail("FURNI", g.id, count, good.count);
-      await mgr._trigger.emit("items:use", [
-        [excel.makeItem("3401", (good.priceCoin ?? 0) * count)],
-      ]);
+      await mgr._player.gainItem
+        .add(excel.makeItem("3401", (good.priceCoin ?? 0) * count))
+        .use();
       await mgr._player.update(async (draft) => {
         const furni = mgr._shopDraft(draft, "FURNI");
         const existing = furni.info.find((i: any) => i.id === g.id);
@@ -310,7 +310,8 @@ export async function buyFurniGroup(mgr: ShopManager, args: {
       });
       items.push({ id: good.furniId, type: "FURN" as ItemType, count });
     }
-    await mgr._trigger.emit("items:get", [items]);
+    for (const it of items) mgr._player.gainItem.add(it);
+    await mgr._player.gainItem.handle();
     return items;
 }
 
@@ -501,9 +502,9 @@ export async function useVoucherSkin(mgr: ShopManager, args: { goodId: string })
     // 修复：凭证核销——凭证皮肤商品 currencyUnit 即凭证物品 id（DIAMOND 除外；
     // 当前 SkinGoodList.json 无 isRedeem 商品，此路径有配置时不再无限免费兑换）
     if (good.isRedeem && good.currencyUnit && good.currencyUnit !== "DIAMOND") {
-      await mgr._trigger.emit("items:use", [
-        [excel.makeItem(good.currencyUnit, 1)],
-      ]);
+      await mgr._player.gainItem
+        .add(excel.makeItem(good.currencyUnit, 1))
+        .use();
     }
     // 发放皮肤物品
     const item: ItemBundle = {
@@ -521,7 +522,7 @@ export async function useVoucherSkin(mgr: ShopManager, args: { goodId: string })
         skin.info.push(excel.makeItem(goodId, 1));
       }
     });
-    await mgr._trigger.emit("items:get", [[item]]);
+    await mgr._player.gainItem.add(item).handle();
 }
 
   /**

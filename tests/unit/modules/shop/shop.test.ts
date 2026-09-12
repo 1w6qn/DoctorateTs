@@ -127,8 +127,11 @@ describe("ShopManager 购买", () => {
     const items = await controller.buyLowGood({ goodId: "LS_1", count: 2 });
     expect(items).toEqual([{ id: "30012", count: 4 }]);
     expect(mockPlayer._playerdata.shop!.LS.info).toContainEqual({ id: "LS_1", count: 2 });
-    expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "4005", count: 40 }]]);
-    expect(emitSpy).toHaveBeenCalledWith("items:get", [[{ id: "30012", count: 4 }]]);
+    // 物品增减已收敛到 player.gainItem 管道（不再直发 items:* 事件）
+    expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "4005", count: 40 });
+    expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "30012", count: 4 });
+    expect(mockPlayer.gainItem.use).toHaveBeenCalled();
+    expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
   });
 
   it("buyHighGood 应记录高级商店购买", async () => {
@@ -214,9 +217,12 @@ describe("buildLMTGSGoodList 自动生成限定商店", () => {
     // 干员（CHAR）经 char:get 入账并返回带 instId（获得干员效果；测试环境无 char:get 订阅 → 0）
     expect(items).toEqual([{ id: "char_1015_aglna2", count: 1, type: "CHAR", instId: 0 }]);
     // 扣 LMTGS_COIN_7601（原硬编码 LMTGS_COIN 扣错货币）
-    expect(emitSpy).toHaveBeenCalledWith("items:use", [
-      [{ id: "LMTGS_COIN_7601", count: 300, type: "LMTGS_COIN" }],
-    ]);
+    expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+      id: "LMTGS_COIN_7601",
+      count: 300,
+      type: "LMTGS_COIN",
+    });
+    expect(mockPlayer.gainItem.use).toHaveBeenCalled();
     // 干员走 char:get 事件（非 items:get 裸发放）
     expect(emitSpy).toHaveBeenCalledWith(
       "char:get",
@@ -305,7 +311,8 @@ describe("buildSocialGoodList / buySocialGood 信用商店", () => {
     // 信用扣除（按该商品价格）+ 发放
     const status = mockPlayer._playerdata.status as any;
     expect(status.socialPoint).toBe(500 - good.price);
-    expect(emitSpy).toHaveBeenCalledWith("items:get", [[good.item]]);
+    expect(mockPlayer.gainItem.add).toHaveBeenCalledWith(good.item);
+    expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     // 购买记录
     const social = (mockPlayer._playerdata.shop as any).SOCIAL;
     expect(social.info).toContainEqual({ id: goodId, count: 1 });
@@ -386,8 +393,9 @@ describe("buyFurniGroup 整组购买家具", () => {
       { id: "furni_cafe_table_01", type: "FURN", count: 2 },
     ]);
     // 扣家具币（逐件扣：250×1 + 100×2）
-    expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "3401", count: 250 }]]);
-    expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "3401", count: 200 }]]);
+    expect(mockPlayer.gainItem.add).toHaveBeenNthCalledWith(1, { id: "3401", count: 250 });
+    expect(mockPlayer.gainItem.add).toHaveBeenNthCalledWith(2, { id: "3401", count: 200 });
+    expect(mockPlayer.gainItem.use).toHaveBeenCalledTimes(2);
     // 记录 shop.FURNI.info
     const furni = (mockPlayer._playerdata.shop as any).FURNI;
     expect(furni.info).toContainEqual({ id: "s1_01_1", count: 1 });
@@ -469,10 +477,10 @@ describe("ShopManager 进度商品（buyClassicGood/buyHighGood progressGoodId�
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     const items = await controller.buyHighGood({ goodId: "HS_P1", count: 1 });
     expect(items).toEqual([{ id: "4004", count: 5 }]);
-    expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "4004", count: 100 }]]);
+    expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "4004", count: 100 });
     // 第二档
     await controller.buyHighGood({ goodId: "HS_P1", count: 1 });
-    expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "4004", count: 200 }]]);
+    expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "4004", count: 200 });
   });
 });
 
@@ -523,9 +531,10 @@ describe("ShopManager 余额/限购校验", () => {
     await expect(
       controller.buyLowGood({ goodId: "LS_FREE", count: 3 }),
     ).rejects.toThrow();
-    // 未发生任何扣费/发放副作用
-    expect(emitSpy).not.toHaveBeenCalledWith("items:use", expect.anything());
-    expect(emitSpy).not.toHaveBeenCalledWith("items:get", expect.anything());
+    // 未发生任何扣费/发放副作用（管道无任何入队/执行）
+    expect(mockPlayer.gainItem.add).not.toHaveBeenCalled();
+    expect(mockPlayer.gainItem.use).not.toHaveBeenCalled();
+    expect(mockPlayer.gainItem.handle).not.toHaveBeenCalled();
     expect((mockPlayer._playerdata.shop as any).LS.info).toEqual([]);
   });
 
@@ -700,9 +709,12 @@ describe("buySkinGood 校验", () => {
     const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     await controller.buySkinGood({ goodId: "SKIN_1" });
-    expect(emitSpy).toHaveBeenCalledWith("items:use", [
-      [{ id: "4002", type: "DIAMOND", count: 18 }],
-    ]);
+    expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+      id: "4002",
+      type: "DIAMOND",
+      count: 18,
+    });
+    expect(mockPlayer.gainItem.use).toHaveBeenCalled();
     const skin = (mockPlayer._playerdata.shop as any).SKIN;
     expect(skin.info).toContainEqual({ id: "SKIN_1", count: 1 });
   });
@@ -841,9 +853,8 @@ describe("ShopManager 根据卡池自动生成（HS 高级凭证区 / CLASSIC �
     const good = controller.buildHighCharGoods().find((g) => g.item.id === "char_6s")!;
     const items = await controller.buyHighGood({ goodId: good.goodId, count: 1 });
     expect(items).toEqual([{ id: "char_6s", count: 1, type: "CHAR", instId: 0 }]);
-    expect(emitSpy).toHaveBeenCalledWith("items:use", [
-      [{ id: "4004", count: 180 }],
-    ]);
+    expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "4004", count: 180 });
+    expect(mockPlayer.gainItem.use).toHaveBeenCalled();
   });
 
   it("buyClassicGood 支持购买动态生成商品（按池扣 2000）", async () => {
@@ -1043,8 +1054,14 @@ describe("ShopManager 中坚甄选券（FESCLASSIC 自选卡池）", () => {
     const hsGood = controller.buildFesPickGoods("HS").find((g) => g.goodId.startsWith("HS_FESPICK6_"))!;
     const items = await controller.buyHighGood({ goodId: hsGood.goodId, count: 1 });
     expect(items).toEqual([{ id: "classic_fes_pick_tier_6_7601", count: 1, type: "CLASSIC_FES_PICK_TIER_6" }]);
-    expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "4004", count: 180 }]]);
-    expect(emitSpy).toHaveBeenCalledWith("items:get", [[{ id: "classic_fes_pick_tier_6_7601", count: 1, type: "CLASSIC_FES_PICK_TIER_6" }]]);
+    expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "4004", count: 180 });
+    expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({
+      id: "classic_fes_pick_tier_6_7601",
+      count: 1,
+      type: "CLASSIC_FES_PICK_TIER_6",
+    });
+    expect(mockPlayer.gainItem.use).toHaveBeenCalled();
+    expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     // 余额不足拒绝（result:1 业务错误）
     (mockPlayer._playerdata.status as any).hggShard = 0;
     const ksGood = controller.buildFesPickGoods("KS").find((g) => g.goodId.startsWith("KS_FESPICK6_"))!;

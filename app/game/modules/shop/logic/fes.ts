@@ -64,9 +64,9 @@ export async function buyEPGSGood(mgr: ShopManager, args: {
         epgs.info.push({ id: goodId, count } as unknown as ItemBundle);
       }
     });
-    await mgr._trigger.emit("items:use", [
-      [excel.makeItem("EPGS_COIN", good!.price * count)],
-    ]);
+    await mgr._player.gainItem
+      .add(excel.makeItem("EPGS_COIN", good!.price * count))
+      .use();
     // 修复：干员（CHAR）走 char:get 入账并返回 instId；其余走 items:get
     const granted = await mgr._issueCharItem(item);
     return [granted];
@@ -105,10 +105,10 @@ export async function buyREPGood(mgr: ShopManager, args: {
         rep.info.push({ id: goodId, count } as unknown as ItemBundle);
       }
     });
-    await mgr._trigger.emit("items:use", [
-      [excel.makeItem("REP_COIN", good.price * count)],
-    ]);
-    await mgr._trigger.emit("items:get", [[item]]);
+    await mgr._player.gainItem
+      .add(excel.makeItem("REP_COIN", good.price * count))
+      .use();
+    await mgr._player.gainItem.add(item).handle();
     return [item];
 }
 
@@ -188,9 +188,9 @@ export async function buyClassicGood(mgr: ShopManager, args: {
       }
     });
 
-    await mgr._trigger.emit("items:use", [
-      [excel.makeItem("4004", price * count)],
-    ]);
+    await mgr._player.gainItem
+      .add(excel.makeItem("4004", price * count))
+      .use();
     // 修复：干员（CHAR）走 char:get 入账并返回带 instId（获得干员效果）；其余走 items:get
     const granted = await mgr._issueCharItem(item);
     await mgr._trigger.emit("BuyShopItem", [{ type: "CLASSIC" as ItemType, socialPoint: 0 }]);
@@ -232,9 +232,9 @@ export async function buyLMTGSGood(mgr: ShopManager, args: {
         shop.LMTGS.info.push({ id: goodId, count } as unknown as ItemBundle);
       }
     });
-    await mgr._trigger.emit("items:use", [
-      [{ id: good.price.id, count: good.price.count * count, type: good.price.type as ItemType }],
-    ]);
+    await mgr._player.gainItem
+      .add({ id: good.price.id, count: good.price.count * count, type: good.price.type as ItemType })
+      .use();
     // 带 type 发放（CHAR → char:get 入账干员并返回 instId，客户端"获得干员"效果）
     const item: ItemBundle = {
       id: good.item.id,

@@ -5,7 +5,29 @@
  * 其他模块（events 事件契约等）一律从本层取模型。
  */
 import type { RoguelikeBuff } from "@excel/excel";
+import type { PlayerRoguelikeV2_CurrentData_Module_SkyZoneInfo } from "@excel/types-playerdata";
 import type { OrigChar, PlayerCharacter } from "../../kernel/model";
+
+/** 结算快照叶子值（brief/record 的未建模标量域） */
+export type PlayerRoguelikeV2RecordLeaf = string | number | boolean | null;
+
+/** 结算快照值：标量 / 标量数组 / 一层对象（非递归两层，Draft 安全） */
+export type PlayerRoguelikeV2RecordValue =
+    | PlayerRoguelikeV2RecordLeaf
+    | PlayerRoguelikeV2RecordLeaf[]
+    | { [key: string]: PlayerRoguelikeV2RecordLeaf | PlayerRoguelikeV2RecordLeaf[] };
+
+/**
+ * 进行中/最近一局的结算快照（`current.record`）
+ *
+ * 形状 = `buildSettlement` 的 `{ brief, record }`（modules/roguelike/settle.ts，仅写入）；
+ * 读取侧统一走 `outer[theme].record`，故此处按「两层内联签名 + 未建模叶子」声明，
+ * 避免与 settle 模块互相 import。
+ */
+export interface PlayerRoguelikeV2CurrentRecord {
+    brief?: { [key: string]: PlayerRoguelikeV2RecordValue } | null;
+    record?: { [key: string]: PlayerRoguelikeV2RecordValue | PlayerRoguelikeV2RecordValue[] } | null;
+}
 
 export interface PlayerRoguelikeV2Dungeon {
     zones: { [key: string]: PlayerRoguelikeV2Zone }
@@ -76,7 +98,7 @@ export interface PlayerRoguelikeV2 {
 export namespace PlayerRoguelikeV2 {
     export interface CurrentData {
         player: CurrentData.PlayerStatus | null
-        record: any | null
+        record: PlayerRoguelikeV2CurrentRecord | null
         map: PlayerRoguelikeV2Dungeon | null
         inventory: CurrentData.Inventory | null
         game: CurrentData.Game | null
@@ -199,7 +221,7 @@ export namespace PlayerRoguelikeV2 {
             population: number
             isUpgrade: boolean
             isCure?: boolean
-            charBuff?:any[]
+            charBuff?:string[]
             troopInstId: number
 
 
@@ -267,7 +289,12 @@ export namespace PlayerRoguelikeV2 {
             assistList?: { [key: string]: FriendAssistData[] }
         }
         export interface Module {
-            [key: string]: any
+            /**
+             * 开放模块字典：各主题只出现自己的模块键（键名由 module.ts 的 _modules
+             * 分发表决定），值形状由各模块管理器 toJSON 自持（4~6 层嵌套，存档内
+             * 不许递归类型）——本层按「非空值」占位，读取侧需就地收窄。
+             */
+            [key: string]: Module.ModuleState | undefined
             san?: Module.San
             dice?: Module.Dice
             totem?: Module.Totem
@@ -284,6 +311,14 @@ export namespace PlayerRoguelikeV2 {
             weather?: Module.Weather
         }
         export namespace Module {
+            /**
+             * 开放模块键的值域（各管理器 toJSON 产物，本层不建模）
+             *
+             * 取「非空值」占位：具名模块状态为 4~6 层嵌套对象，存档类型禁止递归形态
+             * （mutative Draft 会 TS2589），故不作结构声明。
+             */
+            export type ModuleState = {};
+
             export interface San {
                 sanity: number
             }
@@ -377,7 +412,7 @@ export namespace PlayerRoguelikeV2 {
                 newWrath: number
             }
             export interface Sky {
-                zones: { [key: string]: any }
+                zones: { [key: string]: PlayerRoguelikeV2_CurrentData_Module_SkyZoneInfo }
             }
             export interface GridMapData {
                 zones: { [key: string]: GridMapZoneData }

@@ -3,12 +3,27 @@ import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import { now } from "@utils/time";
 import { getFurnitureThemeId } from "@excel/building_excel";
-import { PlayerDataModel } from "./playerdata";
+import { isJsonObject, JsonValue } from "@excel/json-value";
+import { PlayerDataModel, PlayerStatus } from "./playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { Draft } from "mutative";
+import type { PipelineItem } from "./inventory-pipeline";
 import { TypedEventEmitter } from "./events/runtime";
 import { BadRequestError } from "./http/errors";
 import { activityDictKey } from "../modules/activities/shared/unlockActivity";
+
+/**
+ * JSON 值（可缺省）→ 调用方声明的局部只读视图
+ *
+ * 与 `modules/activities/shared/activity-json.ts#asShape` 同实现：kernel 层受 R2
+ * 约束不得 import modules（守卫 tests/unit/architecture/module-boundary.test.ts），
+ * 故在此保留最小副本（仅类型层断言，不改运行时值）。
+ * @param value - 待收窄的 JSON 值
+ * @returns 声明的视图；非对象返回 undefined
+ */
+function asJsonShape<T>(value: JsonValue | undefined): T | undefined {
+  return value !== undefined && isJsonObject(value) ? (value as T) : undefined;
+}
 
 /** 余额位于 consumable 实例的物品类型（consumable[itemId][instId].count） */
 const CONSUMABLE_TYPES: ReadonlySet<string> = new Set([
@@ -55,7 +70,7 @@ const INVENTORY_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /** 余额位于 status 字段的物品类型 → 字段名 */
-const STATUS_TYPES: Readonly<Record<string, string>> = {
+const STATUS_TYPES: Readonly<Record<string, keyof PlayerStatus>> = {
   GOLD: "gold",
   DIAMOND: "androidDiamond",
   DIAMOND_SHD: "diamondShard",
@@ -77,15 +92,21 @@ let _act53CoinMap: Map<string, string> | null = null;
 function act53SideActIdByCoinItem(itemId: string): string | undefined {
   if (!_act53CoinMap) {
     _act53CoinMap = new Map();
-    const basic = (excel.ActivityTable as any)?.basicInfo ?? {};
+    const activityTable = excel.ActivityTable;
+    const basic = activityTable?.basicInfo ?? {};
+    // 活动详情表为未建模 JSON（ActivityTable_ActivityDetailTable = JsonValue 字典型），
+    // 逐层用 isJsonObject 收窄后取 constData.coinItemId
+    const activityTypeDict = activityTable?.activity?.[
+      activityDictKey("TYPE_ACT53SIDE") ?? "tYPE_ACT53SIDE"
+    ];
+    const activity = isJsonObject(activityTypeDict) ? activityTypeDict : {};
     for (const [actId, info] of Object.entries(basic)) {
-      const i = info as any;
-      if (i?.type !== "TYPE_ACT53SIDE") continue;
-      const detail = (excel.ActivityTable as any)?.activity?.[
-        activityDictKey("TYPE_ACT53SIDE") ?? "tYPE_ACT53SIDE"
-      ]?.[actId];
-      const coin = detail?.constData?.coinItemId;
-      if (coin) _act53CoinMap.set(coin, actId);
+      if (info?.type !== "TYPE_ACT53SIDE") continue;
+      const detail = activity[actId];
+      if (!isJsonObject(detail)) continue;
+      const constData = detail.constData;
+      const coin = isJsonObject(constData) ? constData.coinItemId : undefined;
+      if (coin) _act53CoinMap.set(String(coin), actId);
     }
   }
   return _act53CoinMap.get(itemId);
@@ -98,7 +119,7 @@ export class InventoryManager {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    this._trigger.on("items:use", async ([items]: [ItemBundle[]]) => {
+    this._trigger.on("items:use", async ([items]: [PipelineItem[]]) => {
       // 修复（2026-09-09）：消耗接口**不接受负数量**（全局不变量）。`_useItem` 对非
       // consumable 类型走 else 分支 emit `items:get`（`count: -item.count`），即负数量
       // 会被当作「反向入账」**发放**物品；而 `canConsume` 又用 `Math.abs()` 校验余额——
@@ -131,7 +152,7 @@ export class InventoryManager {
         await this._useItem(item);
       }
     });
-    this._trigger.on("items:get", async ([items]: [ItemBundle[]]) => {
+    this._trigger.on("items:get", async ([items]: [PipelineItem[]]) => {
       // 串行发放：Promise.all 并发 gainItem 会在同一 _playerdata 上并发
       // createDraft/finishDraft（后一个 finishDraft 覆盖前一个结果 → 物品丢失 +
       // Immer 全树 diff 慢）；逐个 update 语义等价且每个只 diff 实际变更路径
@@ -167,10 +188,10 @@ export class InventoryManager {
    * @param item - 待消耗物品（count 为正表示消耗数量）
    * @returns 不足时的原因文案；充足或不可校验时为 null
    */
-  canConsume(item: ItemBundle): string | null {
+  canConsume(item: PipelineItem): string | null {
     const count = Math.abs(item.count ?? 0);
     if (count <= 0) return null;
-    const data = this._player._playerdata as any;
+    const data = this._player._playerdata;
     const type = (item.type ??
       (excel.getItem(item.id)?.itemType as string | undefined)) as
       | string
@@ -178,14 +199,16 @@ export class InventoryManager {
     if (!type) return null;
     const balances: Array<{ from: string; value: number }> = [];
     if (CONSUMABLE_TYPES.has(type)) {
-      const inst = data?.consumable?.[item.id]?.[String((item as any).instId)];
+      const instId = item.instId;
+      const inst =
+        instId === undefined ? undefined : data.consumable[item.id]?.[instId];
       balances.push({
         from: "consumable",
         value: typeof inst?.count === "number" ? inst.count : 0,
       });
     }
     if (INVENTORY_TYPES.has(type)) {
-      const owned = data?.inventory?.[item.id];
+      const owned = data.inventory?.[item.id];
       balances.push({
         from: "inventory",
         value: typeof owned === "number" ? owned : 0,
@@ -193,7 +216,7 @@ export class InventoryManager {
     }
     const statusField = STATUS_TYPES[type];
     if (statusField) {
-      const owned = data?.status?.[statusField];
+      const owned = data.status[statusField];
       balances.push({
         from: `status.${statusField}`,
         value: typeof owned === "number" ? owned : 0,
@@ -225,14 +248,16 @@ export class InventoryManager {
     const actId = act53SideActIdByCoinItem(item.id);
     if (!actId) return;
     await this._player.update(async (draft) => {
-      const act = (draft.activity as any)?.TYPE_ACT53SIDE?.[actId];
+      // TYPE_ACT53SIDE 未具名登记（PlayerActivity 兜底索引签名只展开两层 ServerPayload），
+      // 第三层 actCoin 就地收窄为存档形状
+      const act = asJsonShape<{ actCoin?: number }>(draft.activity?.TYPE_ACT53SIDE?.[actId]);
       if (act) {
         act.actCoin = (act.actCoin ?? 0) + (item.count ?? 0);
       }
     });
   }
 
-  async _useItem(item: ItemBundle): Promise<void> {
+  async _useItem(item: PipelineItem): Promise<void> {
     if (!item.type) {
       const def = excel.getItem(item.id);
       if (!def) {
@@ -245,16 +270,18 @@ export class InventoryManager {
       item.type = def.itemType;
     }
     const consumableFunc = async (
-      item: ItemBundle,
+      item: PipelineItem,
       draft: Draft<PlayerDataModel>,
     ) => {
       // 防御：目标 consumable 条目不存在（客户端乱传 itemId/instId）时不 500，
       // WARN 跳过——避免 useItem 假 instId 直接崩溃
-      const target = draft.consumable[item.id]?.[(item as any).instId!];
+      const instId = item.instId;
+      const target =
+        instId === undefined ? undefined : draft.consumable[item.id]?.[instId];
       if (!target) {
         logger.warn(
           "inventory",
-          `items:use ${item.id}#${(item as any).instId} 不存在于 consumable，跳过消耗`,
+          `items:use ${item.id}#${item.instId} 不存在于 consumable，跳过消耗`,
         );
         return;
       }
@@ -262,7 +289,7 @@ export class InventoryManager {
     };
     const funcs: {
       [key: string]: (
-        item: ItemBundle,
+        item: PipelineItem,
         draft: Draft<PlayerDataModel>,
       ) => Promise<void>;
     } = {
@@ -318,10 +345,10 @@ export class InventoryManager {
       }
     }
     const consumableFunc = async (
-      item: ItemBundle,
+      item: PipelineItem,
       draft: Draft<PlayerDataModel>,
     ) => {
-      let consumableId = (item as any)?.instId;
+      let consumableId = item.instId;
       if (!consumableId) {
         const consumable_set = new Set<number>();
         // 性能：从实时对象遍历（经 draft 代理遍历会对每个 consumable 条目创建
@@ -351,7 +378,7 @@ export class InventoryManager {
     };
     const funcs: {
       [key: string]: (
-        item: ItemBundle,
+        item: PipelineItem,
         draft: Draft<PlayerDataModel>,
       ) => Promise<void>;
     } = {
@@ -575,17 +602,17 @@ export class InventoryManager {
       EXCLUSIVE_TKT_GACHA_10: consumableFunc,
       MAGAZINE_LEAF: async (item, draft) => {
         // 画廊收集奖励：杂志页入 leafMap（对齐 OBS gallery.leafMap 结构；
-        // charSkin 线格式可为 null，生成类型未标可选故 as any）
-        if (!draft.gallery) (draft as any).gallery = {};
-        if (!draft.gallery.leafMap) draft.gallery.leafMap = {};
-        if (!draft.gallery.leafMap[item.id]) {
-          draft.gallery.leafMap[item.id] = {
+        // charSkin 服务端写 null，见生成器 SERVER_FIELD_TYPE_OVERRIDES）
+        const gallery = (draft.gallery ??= { leafMap: {} });
+        gallery.leafMap ??= {};
+        if (!gallery.leafMap[item.id]) {
+          gallery.leafMap[item.id] = {
             leafId: item.id,
             charSkin: null,
             decorList: [],
             getTs: now(),
             version: 0,
-          } as any;
+          };
         }
       },
     };

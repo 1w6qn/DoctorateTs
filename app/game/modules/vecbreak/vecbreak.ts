@@ -45,7 +45,11 @@ export interface VecBreakV2SeasonBestRecordInfo {
    * （ServerPayload[]）声明——见 scripts/playerdata-server-adapt.ts 的 VEC_BREAK_V2 条目。
    */
   squad: VecBreakV2SeasonRecordCharInfo[] | ServerPayload[];
-  assistChar: VecBreakV2SeasonRecordCharInfo;
+  /**
+   * 助战干员：服务端当前返回空对象 `{}`（参考 ODPY 赛季记录形状），
+   * 客户端模型此处为「当前助战干员」且各字段可选——按 Partial 声明。
+   */
+  assistChar: Partial<VecBreakV2SeasonRecordCharInfo>;
 }
 
 /** 赛季记录干员信息（CS: VecBreakV2SeasonRecordCharInfo） */

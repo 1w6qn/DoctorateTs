@@ -12,8 +12,37 @@ import {
   reconcileCharSkills,
 } from "./char-skills";
 import { PlayerCharacter, PlayerCharPatch } from "../../kernel/model";
+import type { PlayerStatus } from "../../kernel/playerdata";
 import { UniEquipData } from "@excel/excel";
 import { BadRequestError } from "../../kernel/http/errors";
+
+/**
+ * character_table 技能条目读取视图（既有实现按 `levelUpCostCond` 读专精档位）
+ *
+ * 生成类型字段为 `specializeLevelUpData`（真表同键，`levelUpCostCond` 不存在，见台账 #6/#14）；
+ * 本视图仅描述既有实现的读取口径以完成类型清除，不改变行为——修正需同步更新
+ * tests/unit/manager/building-unlocks.test.ts / building.test.ts 的 mock。
+ */
+interface MasterSkillView {
+  skillId?: string;
+  levelUpCostCond?: {
+    unlockCond?: { phase?: string | number | null };
+    lvlUpTime?: number;
+    levelUpCost?: ItemBundle[];
+  }[];
+}
+
+/**
+ * 管道消耗目标视图
+ *
+ * ItemBundle 无 `instId`（服务端消耗品实例号扩展字段），且消耗品券调用点只给
+ * id/count/instId（`type` 由物品表推导）——此视图描述该调用口径，入管道时按 ItemBundle 断言
+ * （断言合法：ItemBundle 可赋给本类型）。
+ */
+type PipelineUseTarget = Omit<ItemBundle, "type"> & {
+  type?: ItemType;
+  instId?: number;
+};
 
 /** 物品类型数字枚举 → 字符串（spCharMissions 等表的 rewards.type 为数字枚举） */
 function itemTypeToString(itemType: number | string): string {
@@ -63,10 +92,10 @@ export class CharManager {
    * 消耗物品：经 gainItem 管道统一出队（inventory-pipeline），不直发 items:use。
    * @param items - 待消耗物品列表（空列表直接跳过）
    */
-  private async _useItems(items: ItemBundle[]): Promise<void> {
+  private async _useItems(items: PipelineUseTarget[]): Promise<void> {
     if (items.length === 0) return;
     const pipe = this._player.gainItem;
-    for (const item of items) pipe.add(item);
+    for (const item of items) pipe.add(item as ItemBundle);
     await pipe.use();
   }
 
@@ -584,7 +613,7 @@ export class CharManager {
       // 对齐官服抓包 R-1689144511000-4558：批量设置是全局语音设置——
       // 同步 status.globalVoiceLan 与 npcAudio.*.npcShowAudioInfoFlag
       if (draft.status) {
-        (draft.status as any).globalVoiceLan = voiceLan;
+        draft.status.globalVoiceLan = voiceLan as PlayerStatus["globalVoiceLan"];
       }
       Object.values(draft.npcAudio ?? {}).forEach((npc) => {
         npc.npcShowAudioInfoFlag = voiceLan;
@@ -706,7 +735,8 @@ export class CharManager {
     lvlUpTime?: number;
     levelUpCost?: ItemBundle[];
   } | null {
-    const skill = (excel.CharacterTable as Record<string, any>)?.[charId]?.skills?.[skillIndex];
+    const skill: MasterSkillView | undefined =
+      excel.CharacterTable?.[charId]?.skills?.[skillIndex];
     const cond = skill?.levelUpCostCond?.[targetLevel - 1];
     return cond ?? null;
   }
@@ -728,8 +758,7 @@ export class CharManager {
     familyPrefix: string,
     charRarityIndex: number,
   ): void {
-    const itemType = (excel.ItemTable?.items as Record<string, any>)?.[itemId]
-      ?.itemType as string | undefined;
+    const itemType = excel.ItemTable?.items?.[itemId]?.itemType;
     if (!itemType || !itemType.startsWith(familyPrefix)) {
       throw new BadRequestError(`道具 ${itemId} 不是 ${familyPrefix}* 直升券，无法使用`);
     }
@@ -785,7 +814,7 @@ export class CharManager {
         this._player.equipmentMission.assertUnlockable(
           char.charId,
           equipData.missionList,
-          draft as any,
+          draft,
         );
       }
       await this._useItems(equipData.itemCost?.[1] ?? []);
@@ -1013,7 +1042,7 @@ export class CharManager {
       // 修复：spCharMissions.rewards 的 type 是数字枚举（2=CARD_EXP、4=GOLD）——
       // gainItem 的 funcs 按字符串类型键（"CARD_EXP"/"GOLD"），数字 type 恒查不到
       // → 奖励被跳过但任务已标记领取（奖励永久丢失）；统一转字符串类型
-      const rewards: ItemBundle[] = (mission.rewards ?? []).map((r: any) => ({
+      const rewards: ItemBundle[] = (mission.rewards ?? []).map((r) => ({
         id: r.id,
         count: r.count,
         type: itemTypeToString(r.type) as ItemType,
@@ -1052,7 +1081,7 @@ export class CharManager {
       reconcileCharSkills(char);
       // 精二后校正模组状态（同 evolveChar：hide 置 0、补齐条目、首个模组 locked 0 + currentEquip）
       reconcileCharEquips(char);
-      await this._useItems([{ id: itemId, count: 1, instId } as any]);
+      await this._useItems([{ id: itemId, count: 1, instId }]);
       await this._trigger.emit("CharEvolveCount", [{ char }]);
       // 修复（2026-09-09，审计 §5.3）：精二直升券同样应推进 CharEvolvePhase（特勤干员精二章）
       await this._trigger.emit("CharEvolvePhase", [
@@ -1088,7 +1117,7 @@ export class CharManager {
         1;
       char.level = phaseMax;
       char.exp = 0;
-      await this._useItems([{ id: itemId, count: 1, instId } as any]);
+      await this._useItems([{ id: itemId, count: 1, instId }]);
       await this._trigger.emit("UpgradeChar", [{ char, exp: 0 }]);
     });
   }
@@ -1121,7 +1150,7 @@ export class CharManager {
       skill.specializeLevel = 3;
       skill.state = 0;
       skill.completeUpgradeTime = -1;
-      await this._useItems([{ id: itemId, count: 1, instId } as any]);
+      await this._useItems([{ id: itemId, count: 1, instId }]);
       await this._trigger.emit("UpgradeSpecialization", [{ targetLevel: 3 }]);
       // 修复（2026-09-09，审计 §5.3）：专精直升券（VOUCHER_SKILL_SPECIALLEVELMAX_*）同样计数
       await this._trigger.emit("CharSkillSpecCount", [{ targetLevel: 3 }]);

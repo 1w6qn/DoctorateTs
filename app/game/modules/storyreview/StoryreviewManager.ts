@@ -1,4 +1,5 @@
 import { ItemBundle } from "@excel/excel";
+import type { PlayerStoryReviewUnlockInfo } from "@excel/types-playerdata";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
@@ -18,7 +19,10 @@ export class StoryreviewManager {
    * 2) 最长前缀匹配：storyId 以 "groupKey_" 开头 → groupKey（兼容多下划线组名）
    * 3) 兜底参考 DoctoratePy：首段 + "min"→"mini" 特例
    */
-  private _groupKeyOf(storyId: string, groups: Record<string, any>): string {
+  private _groupKeyOf(
+    storyId: string,
+    groups: Record<string, PlayerStoryReviewUnlockInfo>,
+  ): string {
     if (groups[storyId]) return storyId;
     let best = "";
     for (const gk of Object.keys(groups)) {

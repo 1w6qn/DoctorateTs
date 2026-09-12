@@ -2,6 +2,7 @@ import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context"
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { Router } from "express";
 import { decryptBattleData } from "@utils/crypt";
+import type { BattleData } from "@game/kernel/battle-model";
 import {
   Act3FunBattleFinishRequest,
   Act3FunBattleFinishResponse,
@@ -57,7 +58,7 @@ function aprilFoolBattleStart() {
 async function tryDecryptBattle(
   player: PlayerDataManager,
   data: string,
-): Promise<any | null> {
+): Promise<BattleData | null> {
   try {
     return await decryptBattleData(data, player._playerdata.pushFlags.status);
   } catch {

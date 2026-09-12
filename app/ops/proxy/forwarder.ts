@@ -165,8 +165,8 @@ export function createProxyForwarder(opts: ProxyForwarderOptions = {}): RequestH
         // 复用共享连接池（避免每请求 TLS 握手）
         httpAgent: officialHttpAgent,
         httpsAgent: officialHttpsAgent,
-        // Express ParsedQs 与 axios params 类型不兼容，cast 兼容
-        params: req.query as any,
+        // Express ParsedQs 与 axios params 宽松类型相容
+        params: req.query,
         // 上游返回 401/400 等状态属正常（未带有效 secret/参数），不抛异常，原样透传
         validateStatus: () => true,
       });

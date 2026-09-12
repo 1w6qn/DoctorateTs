@@ -1,12 +1,12 @@
 {
   "totals": {
-    "any": 5867,
-    "unknown": 468,
+    "any": 5515,
+    "unknown": 453,
     "object": 45
   },
   "counts": {
     "app/core/auth/auth.ts": {
-      "any": 6,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
@@ -53,11 +53,6 @@
     "app/core/db/introspect.ts": {
       "any": 0,
       "unknown": 1,
-      "object": 0
-    },
-    "app/core/db/migrate.ts": {
-      "any": 2,
-      "unknown": 0,
       "object": 0
     },
     "app/core/db/types.ts": {
@@ -165,13 +160,8 @@
       "unknown": 9,
       "object": 0
     },
-    "app/game/kernel/inventory.ts": {
-      "any": 10,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/account/AccountManager.ts": {
-      "any": 15,
+      "any": 0,
       "unknown": 3,
       "object": 1
     },
@@ -201,7 +191,7 @@
       "object": 0
     },
     "app/game/modules/activities/arkhub/logic.ts": {
-      "any": 5,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
@@ -225,18 +215,8 @@
       "unknown": 3,
       "object": 0
     },
-    "app/game/modules/aprilFool/routes.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/arkodc/guide.ts": {
-      "any": 4,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/arkodc/routes.ts": {
-      "any": 2,
+      "any": 0,
       "unknown": 2,
       "object": 0
     },
@@ -251,7 +231,7 @@
       "object": 0
     },
     "app/game/modules/autochess/autochess.ts": {
-      "any": 7,
+      "any": 0,
       "unknown": 4,
       "object": 0
     },
@@ -261,7 +241,7 @@
       "object": 0
     },
     "app/game/modules/battle/battle.ts": {
-      "any": 12,
+      "any": 0,
       "unknown": 9,
       "object": 0
     },
@@ -291,12 +271,12 @@
       "object": 0
     },
     "app/game/modules/character/char-skills.ts": {
-      "any": 4,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
     "app/game/modules/character/char.ts": {
-      "any": 8,
+      "any": 0,
       "unknown": 4,
       "object": 0
     },
@@ -306,7 +286,7 @@
       "object": 0
     },
     "app/game/modules/character/routes.ts": {
-      "any": 13,
+      "any": 0,
       "unknown": 0,
       "object": 1
     },
@@ -316,18 +296,8 @@
       "object": 0
     },
     "app/game/modules/character/troop.ts": {
-      "any": 6,
+      "any": 0,
       "unknown": 2,
-      "object": 0
-    },
-    "app/game/modules/charm/routes.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/checkin/checkin.ts": {
-      "any": 1,
-      "unknown": 0,
       "object": 0
     },
     "app/game/modules/crisis/crisis.ts": {
@@ -336,13 +306,8 @@
       "object": 0
     },
     "app/game/modules/crisis/routes.ts": {
-      "any": 28,
+      "any": 0,
       "unknown": 3,
-      "object": 0
-    },
-    "app/game/modules/deepsea/routes.ts": {
-      "any": 1,
-      "unknown": 0,
       "object": 0
     },
     "app/game/modules/depot/depot.ts": {
@@ -356,43 +321,28 @@
       "object": 0
     },
     "app/game/modules/equipmentMission/equipmentMission.ts": {
-      "any": 7,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
     "app/game/modules/explore/routes.ts": {
-      "any": 7,
+      "any": 0,
       "unknown": 3,
       "object": 0
     },
     "app/game/modules/gacha/gacha-up-list.ts": {
-      "any": 2,
-      "unknown": 2,
-      "object": 0
-    },
-    "app/game/modules/gacha/handler.ts": {
-      "any": 2,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
-    "app/game/modules/gacha/limit-gacha.ts": {
-      "any": 4,
-      "unknown": 0,
+    "app/game/modules/gacha/handler.ts": {
+      "any": 0,
+      "unknown": 1,
       "object": 0
     },
     "app/game/modules/gacha/logic.ts": {
-      "any": 6,
-      "unknown": 5,
-      "object": 0
-    },
-    "app/game/modules/gacha/recruit.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/home/routes.ts": {
-      "any": 3,
-      "unknown": 0,
+      "any": 0,
+      "unknown": 4,
       "object": 0
     },
     "app/game/modules/medal/medal.ts": {
@@ -401,13 +351,13 @@
       "object": 0
     },
     "app/game/modules/mission/logic.ts": {
-      "any": 25,
-      "unknown": 4,
+      "any": 0,
+      "unknown": 1,
       "object": 0
     },
     "app/game/modules/mission/templates/stage.ts": {
-      "any": 3,
-      "unknown": 2,
+      "any": 0,
+      "unknown": 1,
       "object": 0
     },
     "app/game/modules/multiplayer/multiplayer.ts": {
@@ -425,13 +375,8 @@
       "unknown": 4,
       "object": 0
     },
-    "app/game/modules/quest/routes.ts": {
-      "any": 5,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/retro/RetroManager.ts": {
-      "any": 2,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
@@ -459,11 +404,6 @@
       "any": 0,
       "unknown": 1,
       "object": 1
-    },
-    "app/game/modules/roguelike/rlv2-model.ts": {
-      "any": 4,
-      "unknown": 0,
-      "object": 0
     },
     "app/game/modules/roguelike/roguelike.ts": {
       "any": 0,
@@ -496,43 +436,23 @@
       "object": 0
     },
     "app/game/modules/shop/handler.ts": {
-      "any": 9,
+      "any": 0,
       "unknown": 2,
       "object": 0
     },
     "app/game/modules/shop/logic.ts": {
-      "any": 2,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
-    "app/game/modules/shop/logic/fes.ts": {
-      "any": 7,
-      "unknown": 3,
-      "object": 0
-    },
-    "app/game/modules/shop/logic/low-high.ts": {
-      "any": 8,
-      "unknown": 3,
-      "object": 0
-    },
     "app/game/modules/shop/logic/misc.ts": {
-      "any": 15,
-      "unknown": 2,
-      "object": 0
-    },
-    "app/game/modules/shop/logic/social.ts": {
-      "any": 11,
-      "unknown": 0,
+      "any": 0,
+      "unknown": 1,
       "object": 0
     },
     "app/game/modules/shop/models.ts": {
       "any": 0,
       "unknown": 2,
-      "object": 0
-    },
-    "app/game/modules/social/SocialManager.ts": {
-      "any": 6,
-      "unknown": 0,
       "object": 0
     },
     "app/game/modules/social/SocialService.ts": {
@@ -545,49 +465,29 @@
       "unknown": 1,
       "object": 0
     },
-    "app/game/modules/storyreview/StoryreviewManager.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/templateShop/routes.ts": {
-      "any": 13,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/templateShop/templateShop.ts": {
       "any": 0,
       "unknown": 3,
       "object": 0
     },
-    "app/game/modules/tower/routes.ts": {
-      "any": 10,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/tower/tower-reward.ts": {
-      "any": 22,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
     "app/game/modules/user/freshPlayer.ts": {
-      "any": 2,
+      "any": 0,
       "unknown": 45,
       "object": 0
     },
     "app/game/modules/user/routes.ts": {
-      "any": 18,
-      "unknown": 6,
+      "any": 0,
+      "unknown": 4,
       "object": 0
     },
     "app/game/modules/vecbreak/routes.ts": {
-      "any": 9,
+      "any": 0,
       "unknown": 2,
-      "object": 0
-    },
-    "app/ops/admin/arkhub-pets.ts": {
-      "any": 2,
-      "unknown": 0,
       "object": 0
     },
     "app/ops/admin/arkhub-pixel.ts": {
@@ -606,7 +506,7 @@
       "object": 0
     },
     "app/ops/assets/asset-backfill.ts": {
-      "any": 9,
+      "any": 0,
       "unknown": 2,
       "object": 0
     },
@@ -616,7 +516,7 @@
       "object": 0
     },
     "app/ops/assets/asset.ts": {
-      "any": 2,
+      "any": 0,
       "unknown": 0,
       "object": 2
     },
@@ -626,7 +526,7 @@
       "object": 0
     },
     "app/ops/proxy/forwarder.ts": {
-      "any": 1,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
@@ -636,7 +536,7 @@
       "object": 0
     },
     "app/server.ts": {
-      "any": 2,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },

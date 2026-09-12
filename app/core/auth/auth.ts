@@ -5,7 +5,7 @@
  * 所有接口路径前缀为 `/auth`。
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { now } from "@utils/time";
 import { readJson } from "@utils/file";
 import { logger } from "@utils/logger";
@@ -81,7 +81,8 @@ router.get("/general/v1/server_time", async (req, res) => {
  * @returns 应用配置 JSON
  */
 router.get("/app/v1/config", async (req, res) => {
-  const cfg = (await readJson("./data/appConfig.json")) as any;
+  // data/appConfig.json 为外部渠道配置（字段随渠道版本而异）——只声明本处改写点
+  const cfg = await readJson<{ data?: { userCenterUrl?: string } }>("./data/appConfig.json");
   // 用户中心指向本地 /pcSdk/userInfo（官服 userCenterUrl 跳官方页面——私服化去硬编码）
   if (cfg?.data) {
     cfg.data.userCenterUrl = `${serverUrl()}/pcSdk/userInfo`;
@@ -479,7 +480,7 @@ router.post("/user/auth/v1/check_id_card", async (req, res) => {
 const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*]{8,16}$/;
 
 /** 从 body.token 或 secret header 解析 uid（real 模式用户管理闭环） */
-async function resolveAuthUid(req: any): Promise<string> {
+async function resolveAuthUid(req: Request): Promise<string> {
   const token = String(req.body?.token ?? req.headers?.secret ?? "");
   return accountManager.getUidByToken(token);
 }
@@ -566,8 +567,8 @@ router.post("/u8/pay/getAllProductList", async (req, res) => {
  * 统一异常处理（API 兜底）
  * 异步 handler 抛错（Express 5 自动捕获）→ 返回 JSON 错误而非裸 500
  */
-router.use((err: any, _req: any, res: any, _next: any) => {
-  logger.error("auth", (err as Error)?.message || String(err));
+router.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  logger.error("auth", err?.message || String(err));
   res.status(500).send({
     status: 1,
     msg: "服务器内部错误",

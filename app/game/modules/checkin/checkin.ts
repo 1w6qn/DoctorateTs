@@ -61,7 +61,7 @@ export class CheckInManager {
       // 防御：当前时间无匹配签到组（数据缺失/时间跨度断档）时保持原组，不 500
       const group = Object.values(this._player.excel.CheckinTable.groups).find(
         // 防御：数据表末尾字段名伪键（值 null）——t.signStartTime 读 null 崩溃
-        (t: any) => !!t && checkBetween(now(), t.signStartTime, t.signEndTime),
+        (t) => !!t && checkBetween(now(), t.signStartTime, t.signEndTime),
       );
       if (!group) {
         return;

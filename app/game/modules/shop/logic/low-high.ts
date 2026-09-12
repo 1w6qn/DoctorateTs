@@ -73,11 +73,11 @@ export async function buyLowGood(mgr: ShopManager, args: {
     const item = excel.makeItem(good.item.id, good.item.count * count);
     await mgr._player.update(async (draft) => {
       const ls = mgr._shopDraft(draft, "LS");
-      const existingItem = ls.info.find((i: any) => i.id === goodId);
+      const existingItem = ls.info.find((i) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        ls.info.push({ id: goodId, count } as unknown as ItemBundle);
+        ls.info.push({ id: goodId, count });
       }
     });
     await mgr._player.gainItem
@@ -123,7 +123,7 @@ export async function buyHighGood(mgr: ShopManager, args: {
       const progressGood =
         excel.ShopTable.highGoodList.progressGoodList[good.progressGoodId];
       const order =
-        (mgr._player._playerdata.shop as any)?.HS?.progressInfo?.[
+        mgr._player._playerdata.shop?.HS?.progressInfo?.[
           good.progressGoodId
         ]?.order ?? 1;
       mgr._assertAffordable("4004", progressGood[order - 1]?.price ?? 0);
@@ -132,7 +132,7 @@ export async function buyHighGood(mgr: ShopManager, args: {
       const hs = mgr._shopDraft(draft, "HS");
       if (!good?.progressGoodId) {
         item = { id: good.item.id, count: good.item.count * count, type: good.item.type as ItemType };
-        const existingItem = hs.info.find((i: any) => i.id === good.goodId);
+        const existingItem = hs.info.find((i) => i.id === good.goodId);
         if (existingItem) {
           existingItem.count += count;
         } else {
@@ -195,11 +195,11 @@ export async function buyExtraGood(mgr: ShopManager, args: {
     const item = { id: good.item.id, count: good.item.count * count, type: good.item.type as ItemType };
     await mgr._player.update(async (draft) => {
       const es = mgr._shopDraft(draft, "ES");
-      const existingItem = es.info.find((i: any) => i.id === goodId);
+      const existingItem = es.info.find((i) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        es.info.push({ id: goodId, count } as unknown as ItemBundle);
+        es.info.push({ id: goodId, count });
       }
     });
     await mgr._player.gainItem
@@ -291,7 +291,7 @@ export function _autoGoodsTime(mgr: ShopManager, pool: {
 
   /** 干员展示名（CHAR 表缺失时回退 charId） */
 export function _charName(mgr: ShopManager, charId: string) : string {
-    return (excel.CharacterTable as any)?.[charId]?.name ?? charId;
+    return excel.CharacterTable?.[charId]?.name ?? charId;
 }
 
   /**
@@ -304,17 +304,17 @@ export function _charName(mgr: ShopManager, charId: string) : string {
    * @param item - 待发放的商品（ID/数量/类型）
    * @returns 返回客户端的条目（CHAR 附带 instId）
    */
-export async function _issueCharItem(mgr: ShopManager, item: ItemBundle) : Promise<ItemBundle> {
+export async function _issueCharItem(mgr: ShopManager, item: ItemBundle) : Promise<ItemBundle & { instId?: number }> {
     if (item.type === "CHAR" && item.id) {
       let charInstId = 0;
       await mgr._trigger.emit("char:get", [
         item.id,
         { from: "SHOP" },
-        (res: any) => {
+        (res) => {
           charInstId = res?.charInstId ?? 0;
         },
       ]);
-      return { ...item, instId: charInstId } as any;
+      return { ...item, instId: charInstId };
     }
     await mgr._player.gainItem.add(item).handle();
     return item;
@@ -439,7 +439,7 @@ export function _pickTicketId(mgr: ShopManager, tier: number, poolId: string) : 
     const seqMatch = /^FESCLASSIC_(\d+)/.exec(poolId);
     const seq = seqMatch ? seqMatch[1] : "00";
     const byRule = `classic_fes_pick_tier_${tier}_${seq}01`;
-    const items: Record<string, unknown> = (excel.ItemTable as any)?.items ?? {};
+    const items = excel.ItemTable?.items ?? {};
     if (items[byRule]) return byRule;
     // 回退：取已收录同稀有度券中后缀最大者（越接近当期数据越新）
     const existing = Object.keys(items).filter((k) =>

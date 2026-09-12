@@ -6,6 +6,7 @@
  */
 
 import { PlayerDataModel } from "../../kernel/playerdata";
+import type { JsonObject } from "@excel/json-value";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import {
   BattleInfo,
@@ -78,12 +79,16 @@ function reorderRootKeys<T>(data: T): T {
 
 /**
  * 递归冻结对象（跳过已冻结节点，幂等）
+ *
+ * 入参取「非空值」形态（JSON 值域）：非对象/原语直接返回，与历史实现一致。
+ * @param obj - 待冻结的存档子树
  */
-function deepFreeze(obj: any): void {
+function deepFreeze(obj: {} | null | undefined): void {
   if (!obj || typeof obj !== "object" || Object.isFrozen(obj)) return;
   Object.freeze(obj);
-  for (const key of Object.keys(obj)) {
-    deepFreeze(obj[key]);
+  const children = obj as Record<string, {} | null | undefined>;
+  for (const key of Object.keys(children)) {
+    deepFreeze(children[key]);
   }
 }
 
@@ -92,11 +97,12 @@ function deepFreeze(obj: any): void {
  * @param data - 玩家数据对象（原地冻结其顶层子树）
  * @param except - 不冻结的顶层键（rlv2/medal/dungeon/status）
  */
-function deepFreezeExcept(data: any, except: string[]): void {
+function deepFreezeExcept(data: {} | null | undefined, except: string[]): void {
   if (!data || typeof data !== "object") return;
-  for (const key of Object.keys(data)) {
+  const children = data as Record<string, {} | null | undefined>;
+  for (const key of Object.keys(children)) {
     if (except.includes(key)) continue;
-    deepFreeze(data[key]);
+    deepFreeze(children[key]);
   }
 }
 
@@ -161,20 +167,25 @@ export class AccountManager implements BattleInfoStore {
     await migrateFromUserConfigs(db, this.configs);
     // 回放迁移：旧 configs 内嵌回放 → replays 表（一次性；此后 users 表/内存均不再保留回放）
     for (const [uid, conf] of Object.entries(this.configs)) {
-      const replays = (conf as any).battle?.replays;
-      if (replays && Object.keys(replays).length > 0) {
+      // 历史 UserConfig 曾内嵌 battle.replays / battle.infos（已迁至 replays/battle_infos 表）——
+      // 现类型不再声明，迁移读取时按遗留视图收窄
+      const legacyBattle = (
+        conf as { battle?: UserConfig["battle"] & LegacyUserConfigBattle }
+      ).battle;
+      const replays = legacyBattle?.replays;
+      if (legacyBattle && replays && Object.keys(replays).length > 0) {
         for (const [stageId, replay] of Object.entries<string>(replays)) {
           await this._replayRepo.upsert(uid, stageId, replay);
         }
-        delete (conf as any).battle.replays;
+        delete legacyBattle.replays;
       }
       // 结算信息迁移：旧 configs 内嵌 infos → battle_infos 表（一次性）
-      const infos = (conf as any).battle?.infos;
-      if (infos && Object.keys(infos).length > 0) {
+      const infos = legacyBattle?.infos;
+      if (legacyBattle && infos && Object.keys(infos).length > 0) {
         for (const [battleId, info] of Object.entries<BattleInfo>(infos)) {
           await this._replayRepo.upsertInfo(uid, battleId, info);
         }
-        delete (conf as any).battle.infos;
+        delete legacyBattle.infos;
       }
     }
     await this.saveUserConfig();
@@ -434,17 +445,18 @@ export class AccountManager implements BattleInfoStore {
       );
     }
     // 存档健康检查与自动修复（结构性损坏——如 PRIVATE.owners 含 null——幂等修复）
-    const loadIssues = checkAndRepairSave(data as any);
+    const loadIssues = checkAndRepairSave(data);
     const fixed = loadIssues.filter((i) => i.fixed);
+    // 修复后标记脏，使首个请求落盘时写回修复结果（临时标记，构造管理器后立即删除）
+    const marked = data as PlayerDataModel & { _repairMarked?: boolean };
     if (fixed.length > 0) {
       logSaveRepair(uid, loadIssues);
-      // 修复后标记脏，使首个请求落盘时写回修复结果
-      (data as any)._repairMarked = true;
+      marked._repairMarked = true;
     }
     this.data[uid] = new PlayerDataManager(data, this);
-    if ((data as any)._repairMarked) {
+    if (marked._repairMarked) {
       this.data[uid].markDirty();
-      delete (data as any)._repairMarked;
+      delete marked._repairMarked;
     }
     // 构造期子管理器可能原地初始化数据（如 rlv2 current 结构），标记脏使首个请求落盘一次
     // （与条件落盘前"每次请求都落盘"的首请求行为保持一致）
@@ -471,7 +483,7 @@ export class AccountManager implements BattleInfoStore {
     // 构造后异步 init 原地补结构的 mission）。Immer autoFreeze 关闭时 finalize 会遍历
     // 变更路径前的全部顶层子树；冻结后 finalize 对冻结子树 O(1) 跳过（isFrozen 短路），
     // 只有实际修改的路径被遍历。冻结子树在会话内不可变 → 不会产生新损坏。
-    deepFreezeExcept(data as any, ["rlv2", "medal", "dungeon", "status", "mission"]);
+    deepFreezeExcept(data, ["rlv2", "medal", "dungeon", "status", "mission"]);
     this.data[uid]._trigger.on("save", () => {
       // 防抖合并：500ms 内的多次变更只落盘一次
       this.scheduleSave(uid);
@@ -487,18 +499,18 @@ export class AccountManager implements BattleInfoStore {
    * @returns 模板存档对象（深拷贝由调用方负责）
    * @throws 模板均不可用时抛错
    */
-  private async _loadTemplate(): Promise<any> {
+  private async _loadTemplate(): Promise<JsonObject> {
     // 方案 A+C：优先 SQLite player_data 表 uid=1 模板行
     if (this._playerDataRepo) {
       const raw = await this._playerDataRepo.get("1");
-      if (raw !== null) return JSON.parse(raw);
+      if (raw !== null) return JSON.parse(raw) as JsonObject;
     }
     // 回退 JSON 文件模板（迁移过渡/无 repo 防御路径）
     const templatePath = `./data/user/databases/1.json`;
     try {
-      return await readJson(templatePath);
+      return await readJson<JsonObject>(templatePath);
     } catch {
-      const official = await readJson<any>("./player_data.json").catch(() => null);
+      const official = await readJson<JsonObject>("./player_data.json").catch(() => null);
       if (!official) {
         throw new BadRequestError(
           `找不到模板存档 ${templatePath}（player_data.json 亦缺失），无法创建账号`,
@@ -514,9 +526,9 @@ export class AccountManager implements BattleInfoStore {
    * 有 SQLite 仓储（生产/init 后）时仅写入 player_data 表（事务原子）；
    * 无仓储（测试/未 init 的防御路径）回退原子文件写（.tmp + rename）。
    * @param uid - 用户ID
-   * @param data - 玩家数据对象
+   * @param data - 可序列化存档载荷（原始 JSON 对象 / 生成模型 / 管理器实例——其 toJSON() 落到存档）
    */
-  private async _writePlayerData(uid: string, data: any): Promise<void> {
+  private async _writePlayerData<T>(uid: string, data: T): Promise<void> {
     if (this._playerDataRepo) {
       await this._playerDataRepo.upsert(uid, JSON.stringify(data));
     } else {
@@ -589,7 +601,7 @@ export class AccountManager implements BattleInfoStore {
     // 修复：原对 PlayerDataManager 实例做校验（无 activity 等字段 → 误报
     // "activity 缺失" 并往管理器上塞垃圾字段）；改为校验真实存档 _playerdata。
     // 冻结子树（troop 等）在加载时已修复且会话内不可变，此处修复为 no-op 安全。
-    const saveIssues = checkAndRepairSave(this.data[uid]._playerdata as any);
+    const saveIssues = checkAndRepairSave(this.data[uid]._playerdata);
     const saveFixed = saveIssues.filter((i) => i.fixed);
     if (saveFixed.length > 0) {
       logSaveRepair(uid, saveIssues);
@@ -1008,6 +1020,17 @@ const USER_TOKEN_KEY = "7318def77669979d";
  */
 export function generateSecret(phone: string): string {
   return createHash("md5").update(`${phone}${USER_TOKEN_KEY}`).digest("hex");
+}
+
+/**
+ * UserConfig 的历史遗留战斗字段（旧 users.json 内嵌回放/结算信息）
+ *
+ * 回放独立存 replays 表、结算信息独立存 battle_infos 表后，UserConfig.battle
+ * 不再声明这两项；init() 的一次性迁移仍需按遗留形状读取并删除。
+ */
+interface LegacyUserConfigBattle {
+  replays?: { [stageId: string]: string };
+  infos?: { [battleId: string]: BattleInfo };
 }
 
 /**

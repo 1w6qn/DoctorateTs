@@ -9,6 +9,7 @@ import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { GACHA_RULE_TYPE } from "./gacha";
+import { setIn } from "../../kernel/util/json-path";
 import { validateBody } from "../../kernel/http/validate-body";
 import {
   syncNormalGachaSchema,
@@ -25,6 +26,7 @@ import {
   getFreeCharSchema,
 } from "./schemas";
 import excel from "@excel/excel";
+import type { ItemBundle } from "@excel/excel";
 import {
   AdvancedGachaRequest,
   AdvancedGachaResponse,
@@ -207,7 +209,13 @@ router.post("/tenAdvancedGacha", validateBody(tenAdvancedGachaSchema), async (re
   const body = req.body as TenAdvancedGachaRequest;
   res.send({
     result: 0,
-    gachaResultList: await player.modules.gacha.tenAdvancedGacha(body as any),
+    // CombineGachaItem（type 可选）与 ItemBundle 结构相容（后者可赋给前者），此处按管理器契约下钻，
+    // 透传原始 item 对象（保留 passthrough 字段，如消耗品 instId）
+    gachaResultList: await player.modules.gacha.tenAdvancedGacha({
+      poolId: body.poolId,
+      useTkt: body.useTkt,
+      itemList: body.itemList as ItemBundle[],
+    }),
     ...player.delta,
   } satisfies TenAdvancedGachaResponse);
 });
@@ -231,11 +239,9 @@ router.post("/choosePoolUp", validateBody(choosePoolUpSchema), async (req, res) 
     const pool = excel.GachaTable.gachaPoolClient.find((p) => p.gachaPoolId === poolId);
     const gachaType = pool ? GACHA_RULE_TYPE[pool.gachaRuleType] ?? "single" : "single";
     // 修复：首次选择 UP 时 gacha / gacha[gachaType] / gacha[gachaType][poolId] 层级缺失，
-    // 直接赋值会报 Cannot set properties of undefined(upChar)；须逐层初始化（与 AdminService.setPlayerPoolUp 一致）
-    const gacha = (draft as any).gacha;
-    if (!gacha[gachaType]) gacha[gachaType] = {};
-    if (!gacha[gachaType][poolId]) gacha[gachaType][poolId] = {};
-    gacha[gachaType][poolId].upChar = chooseChar;
+    // 直接赋值会报 Cannot set properties of undefined(upChar)；须逐层初始化（与 AdminService.setPlayerPoolUp 一致）。
+    // gacha 按规则类型动态建键（生成模型只列已知池类型）→ json-path 逐层补建后写入。
+    setIn(draft.gacha, [gachaType, poolId, "upChar"], chooseChar);
   });
   res.send({ result: 0, ...player.delta } satisfies ChoosePoolUpResponse);
 });

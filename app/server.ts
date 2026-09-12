@@ -544,7 +544,7 @@ export async function main(): Promise<void> {
     const singleUid = config.singleUid || "1";
     try {
       const player = await accountManager.getPlayerData(singleUid);
-      const marker = (player as any)?._playerdata?.status?.maxAccountResVersion;
+      const marker = player?._playerdata?.status?.maxAccountResVersion;
       if (player && marker !== config.version.resVersion) {
         const { generateMaxedAccount } = await import("../scripts/generate-max-account");
         await generateMaxedAccount(player);
@@ -589,7 +589,8 @@ async function checkRemoteVersionHint(): Promise<void> {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return;
-    const data: any = await res.json();
+    // 官服 version 端点响应（仅消费 resVersion）
+    const data: { resVersion?: string } = await res.json();
     const remote = String(data.resVersion ?? "").split("_")[0];
     const local = (config.version?.windows?.resVersion ?? config.version?.resVersion ?? "").split("_")[0];
     if (remote && local && remote !== local) {

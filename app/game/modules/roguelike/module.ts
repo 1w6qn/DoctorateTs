@@ -250,7 +250,8 @@ export class RoguelikeModuleManager {
       for (const [key, value] of Object.entries(source)) {
         const current = target[key];
         if (typeof value === "object" && value !== null && typeof current === "object") {
-          applyDelta(current, value, s);
+          // 模块状态为开放字典（各主题键不同）——就地收窄回开放字典类型继续下钻
+          applyDelta(current as PlayerRoguelikeV2.CurrentData.Module, value, s);
         } else if (typeof current === "number" && typeof value === "number") {
           target[key] = current + s * value;
         }

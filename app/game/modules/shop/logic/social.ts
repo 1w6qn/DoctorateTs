@@ -103,17 +103,17 @@ export function buildSocialGoodList(mgr: ShopManager) : SocialGoodList & {
       ...(playerSocial?.charPurchase ?? {}),
     };
     // 信用干员解锁配置（客户端 shop_client_table creditUnlockGroup）
-    const unlockGroups = (excel.ShopClientTable as any)?.creditUnlockGroup ?? {};
+    const unlockGroups = excel.ShopClientTable?.creditUnlockGroup ?? {};
     let creditGroup = "creditGroup1";
     let costSocialPoint = 0;
     // 按已购信物推导累计消费与所在组
     for (const [groupId, g] of Object.entries(unlockGroups)) {
-      const entries: any[] = (g as any)?.charDict ?? [];
+      const entries = g?.charDict ?? [];
       for (const e of entries) {
         const bought = charPurchase[e.charId] ?? 0;
         if (!bought) continue;
         if (groupId === "creditGroup2") creditGroup = "creditGroup2";
-        const my = entries.filter((x: any) => x.charId === e.charId);
+        const my = entries.filter((x) => x.charId === e.charId);
         const tier = my[Math.min(bought, my.length) - 1];
         if (tier?.unlockNum) {
           costSocialPoint = Math.max(costSocialPoint, tier.unlockNum);
@@ -123,14 +123,14 @@ export function buildSocialGoodList(mgr: ShopManager) : SocialGoodList & {
     // 当前干员 = 组顺序上第一个未满 6 信的干员（上限固定 6；全满 → null）
     let currentChar: { charId: string; bought: number; unlockNum: number } | null = null;
     for (const [groupId, g] of Object.entries(unlockGroups)) {
-      const entries: any[] = (g as any)?.charDict ?? [];
+      const entries = g?.charDict ?? [];
       const seen = new Set<string>();
       for (const e of entries) {
         if (seen.has(e.charId)) continue;
         seen.add(e.charId);
         const bought = charPurchase[e.charId] ?? 0;
         if (bought < 6) {
-          const my = entries.filter((x: any) => x.charId === e.charId);
+          const my = entries.filter((x) => x.charId === e.charId);
           const tier = my[Math.min(bought, my.length) - 1];
           currentChar = { charId: e.charId, bought, unlockNum: tier?.unlockNum ?? 0 };
           break;
@@ -164,7 +164,7 @@ export function buildSocialGoodList(mgr: ShopManager) : SocialGoodList & {
       goodList.push(...normal); // 干员已换完 → 10 个常规物资
     }
     // 玩家存档累计消费优先（buySocialGood 实时累计，动态字段）
-    const savedCost = (playerSocial as any)?.costSocialPoint;
+    const savedCost = playerSocial?.costSocialPoint;
     if (typeof savedCost === "number" && savedCost > 0) {
       costSocialPoint = Math.max(costSocialPoint, savedCost);
     }
@@ -199,15 +199,15 @@ export function _seededRng(mgr: ShopManager, seed: string) : () => number {
    * @returns 完整物资（含推导的 name/type）
    */
 export function _materialFromEntry(mgr: ShopManager, entry: CreditShopRowEntry) : CreditShopMaterial {
-    const item = (excel.ItemTable as any)?.items?.[entry.id] ?? {};
-    if (!item.name) {
+    const item = excel.ItemTable?.items?.[entry.id];
+    if (!item?.name) {
       logger.warn("shop", `信用交易所候选池条目 ${entry.id} 不在 item_table，按 id 兜底`);
     }
     return {
       id: entry.id,
       count: entry.count,
-      type: (item.itemType as string) ?? "MATERIAL",
-      name: (item.name as string) ?? entry.id,
+      type: item?.itemType ?? "MATERIAL",
+      name: item?.name ?? entry.id,
       originPrice: entry.originPrice,
       ...(entry.allow95 ? { allow95: true } : {}),
       ...(entry.allow99 ? { allow99: true } : {}),
@@ -328,8 +328,7 @@ export async function buySocialGood(mgr: ShopManager, args: {
       const social = draft.shop.SOCIAL;
       social.curShopId = mgr.todaySocialShopId();
       // 修复：累计信用消费（响应 costSocialPoint 数据源——干员解锁进度按累计消费判断）
-      (social as any).costSocialPoint =
-        ((social as any).costSocialPoint ?? 0) + price;      // 修复：干员合同购买 → 更新 charPurchase（信物计数，客户端干员进度）
+      social.costSocialPoint = (social.costSocialPoint ?? 0) + price;      // 修复：干员合同购买 → 更新 charPurchase（信物计数，客户端干员进度）
       if (good.item.type === "CHAR") {
         social.charPurchase = social.charPurchase ?? {};
         social.charPurchase[good.item.id] =

@@ -110,9 +110,20 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
     avatarId: "string",
     friendNumLimit: "number",
     tipMonthlyCardExpireTs: "number",
+    // 助战信用每日限次（私服字段，客户端模型无）：写入见 modules/battle/battle.ts
+    // 的助战结算（使用方 assistUsedDay/Count、被使用方 assistBeUsedDay）
+    assistUsedDay: "number",
+    assistUsedCount: "number",
+    assistBeUsedDay: "number",
+    // 单例满配账号生成标记（scripts/generate-max-account.ts 写 resVersion 字符串；
+    // 读取见 app/server.ts 的版本比对，避免每次启动重刷满配账号）
+    maxAccountResVersion: "string",
   },
   PlayerTroop: {
     charGroup: "{ [key: string]: { favorPoint: number } }",
+    // 干员六星里程碑：服务端自建的「按 groupId → rewardId 领取标记」字典
+    // （写入见 modules/quest/routes.ts#confirmSixStarReward）
+    sixStarReward: "{ [key: string]: { [key: string]: number } }",
   },
   // 说明（2026-09-11）：此处原有第二份 `PlayerCharPatch: { skills: "PlayerSkill[]" }`，
   // 与下方（原 177 行）的线格式内联声明同名——JS 语义「后者胜」，前者静默失效，
@@ -135,7 +146,11 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   },
   PlayerMainlineRecord: {
     version: "number",
-    charVoiceRecord: "{ [key: string]: object }",
+    // 语音档案（服务端自建形状，客户端模型无此字段）：{ [topicId]: { isOpen, confirmEnterReward, nodes[nodeId]=1|2 } }
+    // 此前登记为 `object`（生成后为两层 ServerPayload），但 nodes 是第三层对象 → 写入侧只
+    // 剩 `as any` 一条路（见 modules/user/routes.ts）。此处直接给出精确非递归形状。
+    charVoiceRecord:
+      "{ [key: string]: { isOpen: boolean; confirmEnterReward: boolean; nodes: { [key: string]: number } } }",
   },
   PlayerAvatar: {
     // 头像图标解锁记录：{ [iconId]: { ts: 解锁时间, src: 来源 } }
@@ -285,7 +300,26 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   PlayerHighQCShopProgressData: { curShopId: "string" },
   PlayerCommonShopProgressData: { lastClick: "number" },
   PlayerGiftProgressPerData: { curGroupId: "string" },
-  PlayerSocialShopData: { curShopId: "string", charPurchase: "{ [key: string]: number }" },
+  PlayerSocialShopData: { curShopId: "string", charPurchase: "{ [key: string]: number }", costSocialPoint: "number" },
+  // 礼包商店：服务端多一个 monthlySub 分档（月卡礼包），客户端模型只有 6 档
+  // （见 modules/shop/logic/misc.ts#buyGoodWithTicket 的 sub 计算）
+  PlayerGiftProgressData: { monthlySub: "PlayerGiftProgressPerData" },
+  // 第五周年探索：服务端把「进行中一局的交互状态」直接摊平在 game 上（客户端模型无这些键）
+  // 写入见 modules/explore/routes.ts（selectEventChoice/selectTargetChoice/confirmPassTarget/
+  // giveUpGame/settleGame），值均为 1 或请求下标。
+  PlayerMainlineExplore_PlayerExploreGameContext: {
+    eventChoice: "number",
+    targetChoice: "number",
+    passTarget: "number",
+    gaveUp: "number",
+    settled: "number",
+  },
+  // 第五周年探索外层：missions 为服务端任务领取记录（客户端模型只有 mission 任务进度），
+  // initGroupId 为服务端记录的初始探索组（写入见 modules/explore/routes.ts）。
+  PlayerMainlineExplore_PlayerExploreOuterContext: {
+    missions: "{ [key: string]: number }",
+    initGroupId: "string",
+  },
 };
 
 /** 结构差异覆盖：接口名 → { 字段名: 完整 TS 类型 }（"[server]" 表示整接口覆盖） */
@@ -360,6 +394,10 @@ export const SERVER_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
       " ; COLLECTION?: { [actId: string]: { [collectionId: number]: number } }" +
       // 里程碑兜底标记（MILESTONE_ONLY，同上）：activity.MILESTONE_ONLY[actId][milestoneId]=0 已领
       " ; MILESTONE_ONLY?: { [actId: string]: { [milestoneId: string]: number } }" +
+      // 自走棋赛季（AUTOCHESS_SEASON，见 modules/autochess/autochess.ts）：
+      // 键名与客户端模型类名不同（PlayerActAutoChessActivity），故显式映射到生成类——
+      // ensureState 构造的形状与该类逐字段一致。
+      " ; AUTOCHESS_SEASON?: { [actId: string]: PlayerActivity_PlayerActAutoChessActivity }" +
       " } & { [typeKey: string]: { [actId: string]: ServerPayload } }",
   },
   // 信物（charm）服务端扩展：firstReward[charmId]=1 表示首通奖励已领
@@ -380,7 +418,7 @@ export const SERVER_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
   //   CLASSIC=classicQCShop、SKIN=skinShop）
   PlayerShop: {
     "[server]":
-      "{ LS: PlayerLowQCShopProgressData; HS: PlayerHighQCShopProgressData; ES: PlayerCommonShopProgressData; CASH: PlayerCashProgressData; GP: PlayerGiftProgressData; FURNI: PlayerFurnitureShopData; SOCIAL: PlayerSocialShopData; EPGS: PlayerEPGSProgressData; REP: PlayerEPGSProgressData; CLASSIC: PlayerClassicQCShopProgressData; SKIN: PlayerSkinShopData }",
+      "{ LS: PlayerLowQCShopProgressData; HS: PlayerHighQCShopProgressData; ES: PlayerCommonShopProgressData; CASH: PlayerCashProgressData; GP: PlayerGiftProgressData; FURNI: PlayerFurnitureShopData; SOCIAL: PlayerSocialShopData; EPGS: PlayerEPGSProgressData; REP: PlayerEPGSProgressData; CLASSIC: PlayerClassicQCShopProgressData; SKIN: PlayerSkinShopData; LMTGS?: PlayerLMTGSProgressData }",
   },
   // 服务端 building.rooms = { [房间类型大写key]: { [slotId]: 房间 } }（客户端是具名类 PlayerBuildingRoom）
   // 具名 12 房间类型（线格式键大写），值引用生成房间类——消除 object 盲区
@@ -527,6 +565,19 @@ export const SERVER_FIELD_TYPE_OVERRIDES: Record<string, string> = {
   "PlayerCharPatch.skills": "{ skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[]",
   // 名片皮肤解锁进度线格式可为 null（老皮肤无进度）
   "PlayerNameCardSkin_SkinState.progress": "number[][] | null",
+  // 动态立绘开关（changeSkinSpState）：服务端按 CS Boolean 写 true/false，
+  // 客户端模型声明为 number → 两态并存（见 modules/character/routes.ts#changeSkinSpState）
+  "PlayerSkins.skinSp": "{ [key: string]: number | boolean }",
+  // 牛关（特殊关卡）奖励标记：真实存档为 boolean[]（如 spst_08-02 → [true]、spst_08-04 → []），
+  // 而非 ADD_FIELDS 里按客户端模型登记的 number；写入见 modules/quest/routes.ts#getCowLevelReward
+  // （val.map(() => false) 置为已领）。
+  "PlayerSpecialStage.val": "boolean[]",
+  // ODC 主题坐标：restart 路由把 position 显式置 null（重置游玩进度，
+  // 见 modules/arkodc/routes.ts#/arkodc/restart），种子逻辑亦按 null 兜底
+  "PlayerArkOdcTopic.position": "PlayerArkOdcTopic_Position | null",
+  // 画廊杂志页：服务端建键时 charSkin 写 null（客户端模型为 ArtMagazineLeafElementData，
+  // 见 modules/gallery 与 kernel/inventory.ts#MAGAZINE_LEAF）
+  "PlayerArtMagazineLeafData.charSkin": "ArtMagazineLeafElementData | null",
 };
 
 /** 可选字段（线格式服务端常省略）：接口名 → 字段名数组；生成时输出 name?: type */
@@ -556,6 +607,51 @@ export const SERVER_OPTIONAL_FIELDS: Record<string, string[]> = {
   PlayerPerMedal: ["reward"],
   // 基建干员：线格式不含 skinIdInVisit（客户端模型字段）
   PlayerBuildingChar: ["skinIdInVisit"],
+  // 礼包商店 monthlySub 分档 / 信用商店累计信用消费：服务端惰性建键，旧存档缺失
+  PlayerGiftProgressData: ["monthlySub"],
+  PlayerSocialShopData: ["costSocialPoint"],
+  // 第五周年探索：服务端防御性初始化会先写入空对象再逐层补键
+  // （modules/explore/routes.ts#ensureOuter：`?? {}` 后 `outer = outer ?? {}`），
+  // 故两侧结构在存档里都可缺失；game 上的服务端自建键同样可选。
+  PlayerMainlineExplore: ["game", "outer"],
+  PlayerMainlineExplore_PlayerExploreGameContext: [
+    "state",
+    "node",
+    "map",
+    "log",
+    "eventChoice",
+    "targetChoice",
+    "passTarget",
+    "gaveUp",
+    "settled",
+  ],
+  PlayerMainlineExplore_PlayerExploreOuterContext: [
+    "isOpen",
+    "mission",
+    "lastGameResult",
+    "historyPaths",
+    "missions",
+    "initGroupId",
+  ],
+  // 隐藏关卡 missions 为客户端模型字段，服务端新建条目只写 { unlock: 1 }
+  // （modules/quest/routes.ts#unlockHideStage）
+  PlayerHiddenStage: ["missions"],
+  // 烟花：服务端防御性建键（modules/home/routes.ts#firework/savePlateSlots、changeAnimal
+  // 先 `firework ??= {}` 再 `plate ??= {}`），存档可整块缺失
+  PlayerDataModel: ["firework"],
+  PlayerFirework: ["unlock", "plate", "animal"],
+  PlayerFirework_PlayerPlate: ["unlock", "slots"],
+  PlayerFirework_PlayerAnimal: ["unlock", "select"],
+  // 画廊：服务端只惰性建 leafMap（kernel/inventory.ts#MAGAZINE_LEAF 的
+  // `gallery ??= { leafMap: {} }`），firstRewards 等客户端字段存档可缺失
+  PlayerGallery: ["firstRewards", "magazineSquad", "collectionRewards", "stickerMap", "offlineList"],
+  // 助战信用每日限次：旧存档/未打过助战战不存在这三个计数键
+  PlayerStatus: [
+    "assistUsedDay",
+    "assistUsedCount",
+    "assistBeUsedDay",
+    "maxAccountResVersion",
+  ],
 };
 
 /** 字段类型递归改写：枚举/布尔 → number */

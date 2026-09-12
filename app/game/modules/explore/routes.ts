@@ -7,8 +7,11 @@
  */
 
 import { Router } from "express";
+import type { Draft } from "mutative";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
+import type { PlayerDataModel } from "../../kernel/playerdata";
+import type { PlayerMainlineExplore_PlayerExploreOuterContext } from "@excel/types-playerdata";
 import { validateBody } from "../../kernel/http/validate-body";
 import {
   confirmMissionListSchema,
@@ -24,13 +27,21 @@ import {
 const router = Router();
 
 /** 防御性取 explore.outer 子结构 */
-function ensureOuter(draft: any): any {
-  const explore = (draft.mainline.explore = draft.mainline.explore ?? {
-    game: {},
-    outer: {},
-  });
+function ensureOuter(
+  draft: Draft<PlayerDataModel>,
+): PlayerMainlineExplore_PlayerExploreOuterContext {
+  const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });
   explore.outer = explore.outer ?? {};
   return explore.outer;
+}
+
+/**
+ * 防御性取 explore.game 子结构（同一局内的交互状态摊平在 game 上，见生成类型登记）
+ */
+function ensureGame(draft: Draft<PlayerDataModel>) {
+  const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });
+  explore.game = explore.game ?? {};
+  return explore.game;
 }
 
 /** 领取单个探索任务奖励（CS: ExploreClaimSingleMissionRequest { id }） */
@@ -73,9 +84,7 @@ router.post("/selectEventChoice", validateBody(selectEventChoiceSchema), async (
   const player = getPlayer();
   const { index } = req.body as { index: number };
   await player.update(async (draft) => {
-    const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });
-    explore.game = explore.game ?? {};
-    (explore.game as any).eventChoice = index;
+    ensureGame(draft).eventChoice = index;
   });
   res.send(player.delta);
 });
@@ -85,9 +94,7 @@ router.post("/selectTargetChoice", validateBody(selectTargetChoiceSchema), async
   const player = getPlayer();
   const { index } = req.body as { index: number };
   await player.update(async (draft) => {
-    const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });
-    explore.game = explore.game ?? {};
-    (explore.game as any).targetChoice = index;
+    ensureGame(draft).targetChoice = index;
   });
   res.send(player.delta);
 });
@@ -97,9 +104,7 @@ router.post("/confirmPassTarget", validateBody(confirmPassTargetSchema), async (
   const player = getPlayer();
   req.body as Record<string, unknown>;
   await player.update(async (draft) => {
-    const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });
-    explore.game = explore.game ?? {};
-    (explore.game as any).passTarget = 1;
+    ensureGame(draft).passTarget = 1;
   });
   res.send(player.delta);
 });
@@ -109,9 +114,7 @@ router.post("/giveUpGame", validateBody(giveUpGameSchema), async (req, res) => {
   const player = getPlayer();
   req.body as Record<string, unknown>;
   await player.update(async (draft) => {
-    const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });
-    explore.game = explore.game ?? {};
-    (explore.game as any).gaveUp = 1;
+    ensureGame(draft).gaveUp = 1;
   });
   res.send(player.delta);
 });
@@ -121,9 +124,7 @@ router.post("/settleGame", validateBody(settleGameSchema), async (req, res) => {
   const player = getPlayer();
   req.body as Record<string, unknown>;
   await player.update(async (draft) => {
-    const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });
-    explore.game = explore.game ?? {};
-    (explore.game as any).settled = 1;
+    ensureGame(draft).settled = 1;
   });
   res.send(player.delta);
 });

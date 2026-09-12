@@ -12,6 +12,13 @@
  *   rlv2.current 由控制器默认初始化）置为全新默认。
  */
 
+import type { JsonValue } from "@excel/json-value";
+
+/** 基建状态服务端视图（仅加工队列 labor 为动态进度，其余字段原样保留） */
+interface BuildingStatusView {
+  labor?: { processPoint: number; value: number; lastUpdateTime: number };
+}
+
 /** 1 级新玩家最大体力（阿米娅初始体型；实际随等级增长，功能影响可忽略） */
 const FRESH_MAX_AP = 135;
 
@@ -141,7 +148,7 @@ export function freshTroop(
   tr.charMission = {};
   // 干员 instId 计数器从 1 起（null/0 会让首个新干员写入 chars["null"/"0"] 并破坏递增）
   tr.curCharInstId = 1;
-  const srcSquads = (tr.squads ?? {}) as Record<string, any>;
+  const srcSquads = (tr.squads ?? {}) as Record<string, { slots?: JsonValue[] }>;
   const squads: Record<string, unknown> = {};
   for (const [sid, q] of Object.entries(srcSquads)) {
     const len = Array.isArray(q?.slots) ? q.slots.length : 12;
@@ -213,7 +220,7 @@ export function freshBuilding(
   // 基建内干员分配清空
   b.chars = {};
   // 加工/生产动态清零（labor value=0、order writer 由客户端据此显示为空闲）
-  const status = (b.status ?? {}) as Record<string, any>;
+  const status = (b.status ?? {}) as BuildingStatusView;
   if (status.labor) {
     status.labor.processPoint = 0;
     status.labor.value = 0;

@@ -17,6 +17,7 @@ import { domainLogger } from "@utils/logger";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { random } from "../../kernel/util/random";
+import { getIn } from "../../kernel/util/json-path";
 import { resolveEffectiveUpPerCharList } from "./gacha-up-list";
 import {
   LIMIT_FREE_GACHA_THRESHOLD,
@@ -267,8 +268,9 @@ export class GachaManager {
     }
     // 格式归一：CS GachaDetailData.gachaObjGroups 为客户端解析必需字段——
     // 缺失（旧格式详情/回退详情）时客户端报"疑似格式错误"，统一补 null
-    if (d && !("gachaObjGroups" in d)) {
-      (d as any).gachaObjGroups = null;
+    // （用 hasOwnProperty 而非 `in`：TS 已知该属性为必填，`in` 反查会收窄成 never）
+    if (d && !Object.prototype.hasOwnProperty.call(d, "gachaObjGroups")) {
+      d.gachaObjGroups = null;
     }
     return d;
   }
@@ -306,6 +308,8 @@ export class GachaManager {
   private _verifyCost(costs: ItemBundle[], limitPoolId = ""): boolean {
     const p = this._player._playerdata;
     for (const c of costs) {
+      // ItemBundle 生成类型无 instId；服务端消耗品消耗按运行时附加字段判定
+      const instId = (c as ItemBundle & { instId?: number }).instId;
       const type =
         c.type || excel.getItem(c.id)?.itemType;
       switch (type) {
@@ -349,8 +353,8 @@ export class GachaManager {
           }
           break; // 免费抽，无实际道具消耗（次数在抽后扣减）
         default:
-          if ((c as any).instId != null) {
-            const entry = p.consumable?.[c.id]?.[(c as any).instId];
+          if (instId != null) {
+            const entry = p.consumable?.[c.id]?.[instId];
             if (!entry || entry.count < c.count) return false;
           } else if (type) {
             if ((p.inventory?.[c.id] ?? 0) < c.count) return false;
@@ -753,16 +757,16 @@ export class GachaManager {
     const poolConfig = this._getPoolConfig(poolId);
     const ruleType = this._ruleTypeOf(poolId);
     const gachaType = GACHA_RULE_TYPE[ruleType] ?? "single";
-    const poolData: any = (this.gacha as any)?.[gachaType]?.[poolId];
-    const upChar = poolData?.upChar;
+    // gachaType 为运行时字符串（服务端按规则类型动态建键）→ 经 json-path 下钻，返回 JSON 域值
+    const upChar = getIn(this.gacha, [gachaType, poolId, "upChar"]);
     if (!upChar) return [];
     // 字典形态：按稀有度取（兼容字符串键）
     if (typeof upChar === "object" && !Array.isArray(upChar)) {
       const list = upChar[String(rank)] ?? upChar[rank];
-      return Array.isArray(list) ? list.filter(Boolean) : [];
+      return Array.isArray(list) ? (list as string[]).filter(Boolean) : [];
     }
     // 数组/字符串形态：无法按稀有度区分，仅保留确实在该稀有度候选中的干员
-    const raw: string[] = Array.isArray(upChar) ? upChar : [String(upChar)];
+    const raw: string[] = Array.isArray(upChar) ? (upChar as string[]) : [String(upChar)];
     const rankedSet = new Set(
       this._poolDetail(poolId).availCharInfo.perAvailList
         .find((c) => c.rarityRank === rank)?.charIdList ?? [],
@@ -900,7 +904,7 @@ export class GachaManager {
   private _selfSelectedUpDict(poolId: string): Record<string, string[]> | null {
     const cfg = this._getPoolConfig(poolId);
     const gachaType = GACHA_RULE_TYPE[cfg?.gachaRuleType ?? ""] ?? "single";
-    const upChar: unknown = (this.gacha as any)?.[gachaType]?.[poolId]?.upChar;
+    const upChar = getIn(this.gacha, [gachaType, poolId, "upChar"]);
     if (upChar && typeof upChar === "object" && !Array.isArray(upChar)) {
       return upChar as Record<string, string[]>;
     }

@@ -11,6 +11,7 @@ import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";
 import { ItemBundle } from "@excel/excel";
 import excel from "@excel/excel";
+import type { PlayerArkOdcTopic } from "@excel/types-playerdata";
 import { decryptBattleData } from "@utils/crypt";
 import { now } from "@utils/time";
 import { PlayerDeltaResponse } from "../../kernel/http/common";
@@ -34,7 +35,7 @@ const arkOdcTopics = new Map<string, string>();
  * 应用 varSeqList 到 arkodc 主题状态（参考 ODPY：bool/end/removed 置 1，其余累加）
  */
 function applyVarSeqList(
-  arkodcTopic: any,
+  arkodcTopic: PlayerArkOdcTopic,
   varSeqList: string[] | undefined,
   blackSet: Set<string> = new Set(["bool", "end", "removed"]),
   skipContain?: string[],
@@ -359,7 +360,7 @@ router.post("/triggerInteraction", validateBody(arkOdcTriggerActionSchema), asyn
   // act53side 任务/勋章进度同步：收集奖励后按当前存档快照发射 ArkodcRewardGroupAtLeast
   //（任务 1..9）与 ArkodcVarSeqAtLeast（勋章 bool_all_unlocked）——进度值 = 已收集
   // 奖励/变量命中数量，事件驱动模板据此推进。
-  const latestTopic = (player._playerdata as any)?.arkodc?.topics?.[topicId!];
+  const latestTopic = player._playerdata.arkodc?.topics?.[topicId!];
   if (latestTopic) {
     await player._trigger.emit("ArkodcRewardGroupAtLeast", [
       { activityId: topicId!, rewards: latestTopic.rewards ?? {} },

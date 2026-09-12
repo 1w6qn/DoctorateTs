@@ -11,6 +11,10 @@ import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { BadRequestError } from "../../kernel/http/errors";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { rarityToIndex } from "@utils/rarity";
+import type { PlayerBuildingHire } from "../../kernel/playerdata";
+
+/** 人力办公室房间视图（服务端扩展：`refreshStock` 为旧存档回退字段，官方字段为 `refreshCount`） */
+type HireRoomView = PlayerBuildingHire & { refreshStock?: number };
 
 export class RecruitManager {
   _player: PlayerDataManager;
@@ -31,7 +35,7 @@ export class RecruitManager {
       // 联络库存（building.rooms.HIRE[].refreshStock，_accrueHire 每 12h 充能 1 次，
       // 上限 3）——库存 0 时拒绝刷新；私服兑底：无人力办公室/未进驻 → 免消耗放行，
       // 避免公开招募锁死。
-      let stationedRoom: any = null;
+      let stationedRoom: HireRoomView | null = null;
       for (const [hireSlotId, roomRaw] of Object.entries(
         draft.building?.rooms?.HIRE ?? {},
       )) {
@@ -46,11 +50,11 @@ export class RecruitManager {
       if (stationedRoom) {
         // 修复（2026-09-09）：人脉库存读官服字段 refreshCount（原实现读服务端自建
         // refreshStock，官服迁移存档只有 refreshCount → 恒判 0，标签刷新被拒）
-        const stock = ((stationedRoom as any).refreshCount ??
-          (stationedRoom as any).refreshStock ?? 0) as number;
+        const stock =
+          stationedRoom.refreshCount ?? stationedRoom.refreshStock ?? 0;
         if (stock <= 0) return; // 人脉不足
-        (stationedRoom as any).refreshCount = stock - 1;
-        (stationedRoom as any).refreshStock = stock - 1;
+        stationedRoom.refreshCount = stock - 1;
+        stationedRoom.refreshStock = stock - 1;
       }
       draft.recruit.normal.slots[slotId].tags =
         await RecruitTools.refreshTagList();
@@ -253,7 +257,7 @@ export class RecruitTools {
     const selectedTags = randomSample(tagList, randomInt(0, 3));
     // 数据驱动稀有度范围（参考 ArkGachaService gacha_table.json）：
     // recruitRarityTable[时长/60]——3:50→230、7:40→460、9:00→540（key 为分钟）
-    const gachaTable = excel.GachaTable as any;
+    const gachaTable = excel.GachaTable;
     const durationMinutes = Math.round(duration / 60);
     const range =
       gachaTable?.recruitRarityTable?.[durationMinutes] ??
@@ -268,7 +272,7 @@ export class RecruitTools {
     if (durationMinutes >= 540) {
       const specialRaw = gachaTable?.specialTagRarityTable;
       const specialMap: Record<string, number[]> = Array.isArray(specialRaw)
-        ? Object.fromEntries(specialRaw.map((s: any) => [s.key, s.value]))
+        ? Object.fromEntries(specialRaw.map((s) => [s.key, s.value]))
         : (specialRaw ?? {});
       for (const [tag, rarities] of Object.entries(specialMap)) {
         if (selectedTags.includes(Number(tag))) {

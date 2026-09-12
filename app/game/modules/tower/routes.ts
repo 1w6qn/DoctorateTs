@@ -11,8 +11,18 @@
  */
 
 import { Router } from "express";
+import type { Draft } from "mutative";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
+import type {
+  PlayerDataModel,
+  TowerCurrent,
+  TowerCurrent_HalftimeCandidateGroup,
+  TowerCurrent_HalftimeRecruit,
+  TowerCurrent_TowerCardType,
+  TowerCurrent_TowerGameLayer,
+} from "../../kernel/playerdata";
+import type { BattleData } from "../../kernel/battle-model";
 import { now } from "@utils/time";
 import { decryptBattleData } from "@utils/crypt";
 import { randomSample } from "@utils/random";
@@ -73,6 +83,25 @@ import {
 const router = Router();
 
 /**
+ * 招募候选组的服务端真值视图
+ *
+ * 生成模型 `TowerCurrent_HalftimeCandidateGroup.type` 声明为 `number`，但 CS 字段实为
+ * `TowerCardType` 枚举、服务端（与参考实现 `reference/opendoctoratepy-ex-public/server/tower.py`
+ * createRecruitList）下发字符串 `"CHAR"`。为保持既有下发值不变，按真值视图构造
+ * （生成模型 → 本视图必然可赋值，无需断言）。
+ */
+type HalftimeCandidateGroupView = Omit<TowerCurrent_HalftimeCandidateGroup, "type"> & {
+  type: TowerCurrent_TowerCardType | number;
+};
+
+/** tower.current 的服务端真值视图（仅覆盖招募候选组 type 的生成模型偏差） */
+type TowerCurrentView = Omit<TowerCurrent, "halftime"> & {
+  halftime: Omit<TowerCurrent_HalftimeRecruit, "candidate"> & {
+    candidate: HalftimeCandidateGroupView[];
+  };
+};
+
+/**
  * 生成爬塔招募候选列表
  *
  * 从玩家未在当前爬塔卡组中使用的干员里随机抽取 5 名，构造候选列表。
@@ -81,10 +110,10 @@ const router = Router();
  * @param draft - 玩家数据的 Immer 草稿
  * @returns 候选干员列表（结构同协议中 halftime.candidate）
  */
-function buildRecruitCandidate(draft: any): any[] {
+function buildRecruitCandidate(draft: Draft<PlayerDataModel>): HalftimeCandidateGroupView[] {
   const allCards = Object.keys(draft.troop.chars);
   const usedCards = Object.values(draft.tower.current.cards).map(
-    (c: any) => c.relation,
+    (c) => c.relation,
   );
   const available = allCards.filter((c) => !usedCards.includes(c));
   // 候选数量上限为 5，不足时返回全部可用干员
@@ -305,7 +334,7 @@ router.post("/battleStart", validateBody(battleStartSchema), async (req, res) =>
   await player.update(async (draft) => {
     // 计算当前关卡在层数列表中的索引（0-based）
     const coord = draft.tower.current.layer.findIndex(
-      (l: any) => l.id === stageId,
+      (l) => l.id === stageId,
     );
     if (coord >= 0) {
       draft.tower.current.status.coord = coord;
@@ -342,7 +371,7 @@ router.post("/battleFinish", validateBody(battleFinishSchema), async (req, res) 
   const { data } = req.body as ClimbTowerBattleFinishRequest;
 
   // 解密战斗数据（失败时不影响主流程，按失败处理）
-  let battleData: any;
+  let battleData: BattleData;
   try {
     battleData = await decryptBattleData(data, player.loginTime);
   } catch (err) {
@@ -363,7 +392,7 @@ router.post("/battleFinish", validateBody(battleFinishSchema), async (req, res) 
   let clearedHard = false;
 
   await player.update(async (draft) => {
-    const current = draft.tower.current;
+    const current: TowerCurrentView = draft.tower.current;
     const coord = current.status.coord;
 
     if (battleData.completeState === 1) {
@@ -453,7 +482,7 @@ router.post("/recruit", validateBody(recruitSchema), async (req, res) => {
   let recruitedProfession = "";
 
   await player.update(async (draft) => {
-    const current = draft.tower.current;
+    const current: TowerCurrentView = draft.tower.current;
 
     // 根据 halftime 计数切换状态
     if (current.halftime.count === 1) {
@@ -469,7 +498,7 @@ router.post("/recruit", validateBody(recruitSchema), async (req, res) => {
       // 通过 charId 在 troop.chars 中查找第一个匹配的 instId
       let charInstId = "";
       for (const [instId, char] of Object.entries(draft.troop.chars)) {
-        if ((char as any).charId === charId) {
+        if (char.charId === charId) {
           charInstId = instId;
           break;
         }
@@ -572,7 +601,7 @@ router.post("/settleGame", validateBody(settleGameSchema), async (req, res) => {
     const current = draft.tower.current;
     const towerId = String(current?.status?.tower ?? "");
     const isHard = Boolean(current?.status?.isHard);
-    const layers: any[] = Array.isArray(current?.layer) ? current.layer : [];
+    const layers: TowerCurrent_TowerGameLayer[] = Array.isArray(current?.layer) ? current.layer : [];
     const totalLayers = layers.length;
     const clearedSorts = layers
       .map((l, idx) => (l?.pass === 1 ? idx + 1 : 0))
@@ -689,7 +718,7 @@ router.post("/layerReward", validateBody(layerRewardSchema), async (req, res) =>
     let sorts = normalizeTowerLayers(body.layers);
     if (sorts.length === 0) {
       // 未带 layers 时按「本次已通关且未领取」的层补齐
-      const layers: any[] = Array.isArray(draft.tower.current?.layer)
+      const layers: TowerCurrent_TowerGameLayer[] = Array.isArray(draft.tower.current?.layer)
         ? draft.tower.current.layer
         : [];
       sorts = layers.map((l, idx) => (l?.pass === 1 ? idx + 1 : 0)).filter((s) => s > 0);
@@ -775,7 +804,7 @@ router.post("/sweepGame", validateBody(sweepGameSchema), async (req, res) => {
       }
       draft.inventory[body.itemId] = stock - cost;
     }
-    const totalLayers = Number((excel.ClimbTowerTable as any)?.towers?.[towerId]?.levels?.length ?? 0);
+    const totalLayers = Number(excel.ClimbTowerTable?.towers?.[towerId]?.levels?.length ?? 0);
     const all = Array.from({ length: totalLayers }, (_, i) => i + 1);
     grantedItems = claimTowerLayerRewards(draft, towerId, all, isHard).granted;
   });
@@ -807,7 +836,7 @@ async function claimTowerSeasonMissions(
     const wanted = Array.isArray(body.missionIds) && body.missionIds.length > 0
       ? body.missionIds
       : Object.keys(draft.tower.season.missions);
-    const missions = (excel.ClimbTowerTable as any)?.missionData ?? {};
+    const missions = excel.ClimbTowerTable?.missionData ?? {};
     for (const id of wanted) {
       const state = draft.tower.season.missions[id];
       if (!state || state.hasRecv) continue;

@@ -157,7 +157,7 @@ router.post("/firework/savePlateSlots", validateBody(fireworkSavePlateSlotsSchem
   // 参考 OBS misc_bp.firework_savePlateSlots：firework.plate.slots = slots
   await player.update(async (draft) => {
     // 修复：firework 数据未初始化时兜底，避免 .plate.slots 抛「reading 'plate'」500
-    const fw = (draft as any).firework ??= {};
+    const fw = (draft.firework ??= {});
     fw.plate ??= {};
     fw.plate.slots = body.slots;
   });
@@ -169,7 +169,7 @@ router.post("/firework/changeAnimal", validateBody(fireworkChangeAnimalSchema), 
   // 参考 OBS misc_bp.firework_changeAnimal：firework.animal.select = animal
   await player.update(async (draft) => {
     // 修复：firework 数据未初始化时兜底，避免 .animal.select 抛「reading 'animal'」500
-    const fw = (draft as any).firework ??= {};
+    const fw = (draft.firework ??= {});
     fw.animal ??= {};
     fw.animal.select = body.animal;
   });
@@ -209,7 +209,7 @@ router.post("/troop/pinSpecialOperator", validateBody(pinSpecialOperatorSchema),
     // 修复：非法 instId（已删干员/乱传）不 500
     const char = draft.troop.chars[body.instId];
     if (!char) return;
-    (draft as any).mission.pinnedSpecialOperator = char.charId;
+    draft.mission.pinnedSpecialOperator = char.charId;
   });
   res.send(player.delta satisfies PinSpecialOperatorResponse);
 });

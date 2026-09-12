@@ -10,6 +10,11 @@
  * 免费寻访无任何计数（可无限免费抽）。
  */
 import excel from "@excel/excel";
+import type { Draft } from "mutative";
+import type {
+  PlayerDataModel,
+  PlayerGacha_PlayerFreeLimitGacha,
+} from "../../kernel/playerdata";
 
 /** 限定寻访赠送当期 UP 六星所需的抽数（官方 300 抽） */
 export const LIMIT_FREE_GACHA_THRESHOLD = 300;
@@ -22,13 +27,26 @@ export interface FreeGachaEntry {
   freeCount: number;
 }
 
+/** 限定池免费账本视图（服务端扩展：`freeDay` 日序私服字段） */
+type LimitGachaView = PlayerGacha_PlayerFreeLimitGacha & { freeDay?: number };
+
+/**
+ * 抽卡账本写入视图
+ *
+ * 生成类型把 gacha/limit 声明为必填，但旧存档/测试夹具可能整体缺失这些子表，
+ * 旧实现用 `any` 逐层兜底；此处保留同一行为（可选 + `??=`）。
+ */
+interface GachaLimitView {
+  gacha?: { limit?: { [poolId: string]: LimitGachaView } };
+}
+
 /**
  * 取某限定池的免费寻访配置
  * @param poolId - 卡池 id
  * @returns freeGacha 条目；未收录返回 undefined
  */
 export function freeGachaEntry(poolId: string): FreeGachaEntry | undefined {
-  const list = ((excel.GachaTable as any)?.freeGacha ?? []) as FreeGachaEntry[];
+  const list = excel.GachaTable?.freeGacha ?? [];
   return list.find((e) => e?.poolId === poolId);
 }
 
@@ -51,13 +69,14 @@ export function freeCountFor(poolId: string, nowTs: number): number {
  * @param poolId - 卡池 id
  * @returns 账本记录
  */
-export function ensureLimitGacha(draft: any, poolId: string): any {
-  if (!draft.gacha) draft.gacha = {};
-  if (!draft.gacha.limit) draft.gacha.limit = {};
-  if (!draft.gacha.limit[poolId]) {
-    draft.gacha.limit[poolId] = { leastFree: 0, poolCnt: 0, recruitedFreeChar: false };
+export function ensureLimitGacha(draft: Draft<PlayerDataModel>, poolId: string): LimitGachaView {
+  const view = draft as GachaLimitView;
+  const gacha = (view.gacha ??= {});
+  const limit = (gacha.limit ??= {});
+  if (!limit[poolId]) {
+    limit[poolId] = { leastFree: 0, poolCnt: 0, recruitedFreeChar: false };
   }
-  const rec = draft.gacha.limit[poolId];
+  const rec = limit[poolId];
   if (rec.leastFree == null) rec.leastFree = 0;
   if (rec.poolCnt == null) rec.poolCnt = 0;
   if (rec.recruitedFreeChar == null) rec.recruitedFreeChar = false;
@@ -74,7 +93,7 @@ export function ensureLimitGacha(draft: any, poolId: string): any {
  * @param poolId - 卡池 id
  * @param nowTs - 当前时间（秒）
  */
-export function refreshLimitFree(draft: any, poolId: string, nowTs: number): void {
+export function refreshLimitFree(draft: Draft<PlayerDataModel>, poolId: string, nowTs: number): void {
   const day = Math.floor(nowTs / 86400);
   const rec = ensureLimitGacha(draft, poolId);
   if (Number(rec.freeDay ?? -1) === day) return;

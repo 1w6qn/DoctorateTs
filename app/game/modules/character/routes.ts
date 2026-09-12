@@ -227,8 +227,8 @@ router.post("/evolveCharUseItem", validateBody(evolveCharUseItemSchema), async (
   const body = req.body as EvolveCharUseItemRequest;
   // 修复：CS 字段为 charInsId/itemInsId——客户端按 CS 发，服务端读 charInstId/instId
   //（原实现读不到 → undefined 干员 → 500）
-  const charInstId = (body as any)?.charInstId ?? (body as any)?.charInsId;
-  const instId = (body as any)?.instId ?? (body as any)?.itemInsId;
+  const charInstId = body?.charInstId ?? body?.charInsId;
+  const instId = body?.instId ?? body?.itemInsId;
   // 缺参校验：空 body 或缺 charInstId/itemId/instId 时返回业务错误（避免 500）
   if (
     typeof charInstId !== "number" ||
@@ -244,8 +244,8 @@ router.post("/upgradeCharLevelMaxUseItem", validateBody(upgradeCharLevelMaxUseIt
   const player = getPlayer();
   const body = req.body as UpgradeCharLevelMaxUseItemRequest;
   // 修复：同上 CS 字段名归一化
-  const charInstId = (body as any)?.charInstId ?? (body as any)?.charInsId;
-  const instId = (body as any)?.instId ?? (body as any)?.itemInsId;
+  const charInstId = body?.charInstId ?? body?.charInsId;
+  const instId = body?.instId ?? body?.itemInsId;
   // 缺参校验：空 body 或缺 charInstId/itemId/instId 时返回业务错误（避免 500）
   if (
     typeof charInstId !== "number" ||
@@ -261,8 +261,8 @@ router.post("/upgradeSpecializedSkillUseItem", validateBody(upgradeSpecializedSk
   const player = getPlayer();
   const body = req.body as UpgradeSpecializedSkillUseItemRequest;
   // 修复：同上 CS 字段名归一化
-  const charInstId = (body as any)?.charInstId ?? (body as any)?.charInsId;
-  const instId = (body as any)?.instId ?? (body as any)?.itemInsId;
+  const charInstId = body?.charInstId ?? body?.charInsId;
+  const instId = body?.instId ?? body?.itemInsId;
   // 缺参校验：空 body 或缺 charInstId/skillIndex/itemId/instId 时返回业务错误（避免 500）
   if (
     typeof charInstId !== "number" ||
@@ -381,7 +381,7 @@ router.post("/changeSkinSpState", validateBody(changeSkinSpStateSchema), async (
   const { skinId, isSpecial } = req.body as ChangeCharSkinSpStateRequest;
   // 参考 OBS bp_charBuild.changeSkinSpState：skin.skinSp[skinId] = isSpecial
   await player.update(async (draft) => {
-    const skin = draft.skin as any;
+    const skin = draft.skin;
     // 修复：skin.skinSp 从未初始化（新存档/模板均无此字段）→ 原实现直接写 undefined 500
     if (!skin.skinSp) skin.skinSp = {};
     skin.skinSp[skinId] = isSpecial;

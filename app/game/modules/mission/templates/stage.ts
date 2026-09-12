@@ -3,7 +3,29 @@
  */
 import type { MissionTemplateGroup } from "./types";
 import excel from "@excel/excel";
-import { BattleData } from "../../../kernel/battle-model";
+import { BattleData, BattleStats } from "../../../kernel/battle-model";
+
+/**
+ * 战斗统计服务端视图
+ *
+ * 客户端模型 `BattleStats.packedRuneDataList` 声明为 `null`（服务端实为遗物/组件 id
+ * 字符串列表），生成模型未覆盖该真值；此处就地收窄，不改动 kernel 公共模型。
+ */
+type BattleStatsView = Omit<BattleStats, "packedRuneDataList"> & {
+  packedRuneDataList?: string[] | null;
+};
+
+/**
+ * 判定值是否为字符串数组
+ *
+ * `stats.idList` 客户端模型声明为 `object[]`，服务端实为 charId 字符串列表；按运行期
+ * 元素判定收窄（`object[]` 无法直接断言成 `string[]`）。
+ * @param value - 待判定值
+ * @returns 是否为字符串数组
+ */
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((v) => typeof v === "string");
+}
 
 export const stageTemplates: MissionTemplateGroup = {
   /**
@@ -177,7 +199,7 @@ export const stageTemplates: MissionTemplateGroup = {
           target: parseInt(mission.param[2]),
         });
       },
-      update: (mission, args: BattleData & { assistFriend: any }) => {
+      update: (mission, args) => {
         if (args.completeState >= 2 && args.assistFriend) {
           mission.progress[0].value += 1;
         }
@@ -925,7 +947,8 @@ export const stageTemplates: MissionTemplateGroup = {
         if (args.stageId !== mission.param[2]) return;
         if (args.completeState < parseInt(mission.param[1])) return;
         const stats = args.battleData?.stats;
-        const idList: string[] = (stats?.idList ?? []) as unknown as string[];
+        const rawIdList = stats?.idList;
+        const idList: string[] = isStringArray(rawIdList) ? rawIdList : [];
         for (const n of stats?.charStats ?? []) {
           if (
             n.Key.charId === mission.param[3] &&
@@ -966,7 +989,7 @@ export const stageTemplates: MissionTemplateGroup = {
       update: (mission, args: BattleData & { stageId: string }) => {
         if (args.stageId !== mission.param[2]) return;
         if (args.completeState < parseInt(mission.param[1])) return;
-        const cl = (args.battleData?.stats?.charList ?? {}) as Record<string, unknown>;
+        const cl = args.battleData?.stats?.charList ?? {};
         if (Object.keys(cl).length <= parseInt(mission.param[3] ?? "0")) {
           mission.progress[0].value += 1;
         }
@@ -1077,7 +1100,7 @@ export const stageTemplates: MissionTemplateGroup = {
       update: (mission, args: BattleData & { stageId: string }) => {
         const stages = mission.param[1].split("^");
         if (!stages.includes(args.stageId) || args.completeState < 2) return;
-        const stats = args.battleData?.stats as any;
+        const stats: BattleStatsView | undefined = args.battleData?.stats;
         const runes: string[] = stats?.packedRuneDataList ?? [];
         if (!runes.some((r: string) => String(r).includes(mission.param[2]))) return;
         let deploy = 0;
@@ -1107,7 +1130,7 @@ export const stageTemplates: MissionTemplateGroup = {
         if (args.stageId !== mission.param[2]) return;
         if (args.completeState < parseInt(mission.param[1])) return;
         const techs = mission.param[3].split(";");
-        const stats = args.battleData?.stats as any;
+        const stats: BattleStatsView | undefined = args.battleData?.stats;
         const runes: string[] = stats?.packedRuneDataList ?? [];
         let count = 0;
         for (const r of runes) {

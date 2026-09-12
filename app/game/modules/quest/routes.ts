@@ -177,9 +177,8 @@ router.post("/finishStoryStage", validateBody(finishStoryStageSchema), async (re
 router.post("/editStageSixStarTag", validateBody(editStageSixStarTagSchema), async (req, res) => {
   const player = getPlayer();
   const { stageId, selected } = req.body as EditStageSixStarTagRequest;
-  // 手写 PlayerDataModel 未声明 dungeon.sixStar（生成参考类型 types-playerdata.ts 有），用 (draft as any) 访问
   await player.update(async (draft) => {
-    const d = draft as any;
+    const d = draft;
     // 修复：存档 sixStar 为 null（模板如此）且从未初始化 → 原实现直接 .stages 崩溃 500
     if (!d.dungeon.sixStar) {
       d.dungeon.sixStar = { stages: {}, groups: {} };
@@ -198,13 +197,11 @@ router.post("/getCowLevelReward", validateBody(getCowLevelRewardSchema), async (
   const { stageId } = req.body as GetCowLevelRewardRequest;
   const rewards: ItemBundle[] = [];
   await player.update(async (draft) => {
-    const cowLevel = (draft as any).dungeon.cowLevel as
-      | { [stageId: string]: { val?: boolean[]; fts?: number } }
-      | undefined;
-    if (cowLevel?.[stageId]) {
+    const cowLevel = draft.dungeon.cowLevel[stageId];
+    if (cowLevel) {
       // 标记奖励已领取（val 置 false 表示已领，参考官服结构）
-      if (Array.isArray(cowLevel[stageId].val)) {
-        cowLevel[stageId].val = cowLevel[stageId].val.map(() => false);
+      if (Array.isArray(cowLevel.val)) {
+        cowLevel.val = cowLevel.val.map(() => false);
       }
     }
   });
@@ -246,11 +243,9 @@ router.post("/unlockHideStage", validateBody(unlockHideStageSchema), async (req,
   const player = getPlayer();
   const { stageId } = req.body as UnlockHideStageRequest;
   await player.update(async (draft) => {
-    const hideStages = (draft as any).dungeon.hideStages as
-      | { [stageId: string]: { unlock?: number } }
-      | undefined;
-    if (!hideStages?.[stageId]) {
-      (draft as any).dungeon.hideStages[stageId] = { unlock: 1 };
+    const hideStages = draft.dungeon.hideStages;
+    if (!hideStages[stageId]) {
+      hideStages[stageId] = { unlock: 1 };
     } else {
       hideStages[stageId].unlock = 1;
     }
@@ -269,7 +264,7 @@ router.post("/confirmSixStarReward", validateBody(confirmSixStarRewardSchema), a
     rewardIds?: string[];
   };
   await player.update(async (draft) => {
-    const troop = draft.troop as any;
+    const troop = draft.troop;
     troop.sixStarReward = troop.sixStarReward ?? {};
     const g = (troop.sixStarReward[groupId ?? ""] = troop.sixStarReward[groupId ?? ""] ?? {});
     for (const id of rewardIds) g[id] = 1;

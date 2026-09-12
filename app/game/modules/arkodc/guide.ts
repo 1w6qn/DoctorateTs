@@ -7,26 +7,31 @@
  */
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import excel from "@excel/excel";
+import { isJsonObject } from "@excel/json-value";
+import type { JsonValue } from "@excel/json-value";
+import type { PlayerArkOdcTopic } from "@excel/types-playerdata";
+import type { PlayerDataModel } from "../../kernel/playerdata";
+import type { Draft } from "mutative";
 import { activityDictKey } from "../activities/shared/unlockActivity";
 
 /**
  * 惰性获取（并播种）arkodc 主题——draft.arkodc.topics[topicId] 不存在时创建默认结构。
  * 奇象巡展主题未在解锁播种中创建（真实时间模式/旧存档）时，路由不再静默丢弃。
  */
-export function ensureArkOdcTopic(draft: any, topicId: string): any {
-  if (!draft.arkodc) draft.arkodc = {};
-  if (!draft.arkodc.topics) draft.arkodc.topics = {};
-  let topic = draft.arkodc.topics[topicId];
+export function ensureArkOdcTopic(draft: Draft<PlayerDataModel>, topicId: string): PlayerArkOdcTopic {
+  const arkodc = (draft.arkodc ??= { topics: {} });
+  const topics = (arkodc.topics ??= {});
+  let topic = topics[topicId];
   if (!topic) {
-    topic = draft.arkodc.topics[topicId] = {
+    topic = topics[topicId] = {
       varSeqs: {},
       rewards: {},
       position: { x: 0, y: 0, z: 0 },
     };
   }
-  if (!topic.varSeqs) topic.varSeqs = {};
-  if (!topic.rewards) topic.rewards = {};
-  if (!topic.position) topic.position = { x: 0, y: 0, z: 0 };
+  topic.varSeqs = topic.varSeqs ?? {};
+  topic.rewards = topic.rewards ?? {};
+  topic.position = topic.position ?? { x: 0, y: 0, z: 0 };
   return topic;
 }
 
@@ -48,14 +53,17 @@ export async function finishArkOdcGuideStory(
 ): Promise<void> {
   if (storyId !== ARK_ODC_GUIDE_STORY_ID) return;
   // topicId 从 excel 活动配置取（数据版本键名多变时 activityDictKey 动态命中）
-  const detail = (excel.ActivityTable?.activity as Record<string, any> | undefined)?.[
+  const detail = excel.ActivityTable?.activity?.[
     activityDictKey("TYPE_ACT53SIDE") ?? "tYPE_ACT53SIDE"
   ];
+  const detailEntries: JsonValue[] = isJsonObject(detail) ? Object.values(detail) : [];
   let topicId = "ark_odc_act53side";
-  for (const data of Object.values(detail ?? {})) {
-    const candidate = (data as any)?.constData?.arkOdcTopicId;
+  for (const data of detailEntries) {
+    if (!isJsonObject(data)) continue;
+    const constData = data.constData;
+    const candidate = isJsonObject(constData) ? constData.arkOdcTopicId : undefined;
     if (candidate) {
-      topicId = candidate;
+      topicId = String(candidate);
       break;
     }
   }

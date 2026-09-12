@@ -9,6 +9,7 @@
  * - 官服存档在未精一/未精二时仍会列出未来技能占位（unlock:0），修复/回填时不得删除。
  */
 import excel from "@excel/excel";
+import type { UniEquipData } from "@excel/excel";
 
 /** 干员技能条目（存档线格式） */
 export interface CharSkillEntry {
@@ -17,6 +18,20 @@ export interface CharSkillEntry {
   state: number;
   specializeLevel: number;
   completeUpgradeTime: number;
+}
+
+/**
+ * excel 技能条目读取视图
+ *
+ * 生成类型的技能解锁条件字段为 `initialUnlockCond`（CS 模型，真表数据同键），
+ * 但既有实现按 `unlockCond` 读取（真表恒 undefined → phase 恒 0，见实现报告台账）。
+ * 本视图仅描述既有实现的读取口径以完成类型清除，**不改变行为**；修正需同步更新
+ * tests/unit/manager/char.test.ts 的技能 mock（当前 mock 用 unlockCond）。
+ */
+interface SkillExcelView {
+  /** 技能 ID（生成类型 CharacterData_MainSkill.skillId，用于结构化赋值） */
+  skillId: string;
+  unlockCond?: { phase?: string | number | null };
 }
 
 /** 干员技能相关字段（兼容 PlayerCharacter 与 save-health 的 any 数据） */
@@ -70,12 +85,12 @@ function normalizePhase(phase: unknown): number {
 function excelSkillInfos(charId: string): ExcelSkillInfo[] {
   // 阿米娅：技能在升变 tmpl 三形态中，char.skills 恒为空（官方同）
   if (charId === "char_002_amiya") return [];
-  const info = (excel.CharacterTable as Record<string, any>)?.[charId];
-  const skills = info?.skills;
+  const info = excel.CharacterTable?.[charId];
+  const skills = info?.skills as SkillExcelView[] | undefined;
   if (!Array.isArray(skills) || skills.length === 0) return [];
   return skills
-    .filter((s: any) => s?.skillId)
-    .map((s: any) => ({
+    .filter((s) => s?.skillId)
+    .map((s) => ({
       skillId: s.skillId,
       phase: normalizePhase(s?.unlockCond?.phase),
     }));
@@ -204,11 +219,11 @@ export function reconcileCharSkills(char: CharSkillsLike): boolean {
  * （UniequipTable.charEquip[charId]；无模组干员返回空）
  */
 function excelEquipInfos(charId: string): ExcelEquipInfo[] {
-  const table = (excel.UniequipTable as any) ?? {};
-  const dict = table.equipDict ?? {};
+  const table = excel.UniequipTable;
+  const dict: { [key: string]: UniEquipData } = table?.equipDict ?? {};
   // 优先按 charEquip 映射获取该干员模组顺序；无映射时退化为 scan equipDict
   // 的 charId 归属（兼容仅按 equipDict[].charId 建模的用例）
-  let engine: string[] | null = (table.charEquip?.[charId] ?? null);
+  let engine: string[] | null = table?.charEquip?.[charId] ?? null;
   if (!Array.isArray(engine) || engine.length === 0) {
     engine = Object.keys(dict).filter(
       (uid) => dict[uid] && dict[uid].charId === charId,

@@ -1,4 +1,7 @@
 import { ItemBundle } from "@excel/excel";
+import type { ShopSkinItemViewModel } from "@excel/excel";
+import { getIn } from "../../kernel/util/json-path";
+import { isJsonObject, type JsonValue } from "@excel/json-value";
 /**
  * 商店路由模块
  *
@@ -165,6 +168,33 @@ router.post("/decomposeClassicPotentialItem", validateBody(decomposeClassicPoten
  * @route POST /shop/getGoodPurchaseState
  * @returns 购买状态和玩家增量数据
  */
+/**
+ * 收集商店状态里的已购 goodId
+ *
+ * 兼容两种形状：常规商店 `{ info: [{id, count}] }` 与 GP 等嵌套商店
+ * `{ subType: { info: [...] } }`。以 JSON 域收窄（shopType 为客户端动态键）。
+ * @param node - 商店子节点（JSON 域）
+ * @param out - 已购 goodId 集合（原地累加）
+ */
+function collectPurchased(node: JsonValue | undefined, out: Set<string>): void {
+  if (node === undefined || !isJsonObject(node)) return;
+  const info = node.info;
+  if (Array.isArray(info)) {
+    for (const item of info) {
+      if (isJsonObject(item) && typeof item.id === "string") out.add(item.id);
+    }
+    return;
+  }
+  for (const sub of Object.values(node)) {
+    if (!isJsonObject(sub)) continue;
+    const subInfo = sub.info;
+    if (!Array.isArray(subInfo)) continue;
+    for (const item of subInfo) {
+      if (isJsonObject(item) && typeof item.id === "string") out.add(item.id);
+    }
+  }
+}
+
 router.post("/getGoodPurchaseState", validateBody(getGoodPurchaseStateSchema), async (req, res) => {
   const player = getPlayer();
   const body = req.body as GetGoodPurchaseStateRequest;
@@ -172,25 +202,12 @@ router.post("/getGoodPurchaseState", validateBody(getGoodPurchaseStateSchema), a
   // 对齐 CS GetGoodPurchaseStateResponse { result: Dictionary<string, int> } 与抓包形状；
   // 原实现直接返回各商店原始 info 数组（41KB 且形状不符）
   const goodIdMap = body.goodIdMap ?? {};
-  const shopState = player._playerdata.shop as any;
+  const shopState = player._playerdata.shop;
   const result: { [goodId: string]: number } = {};
   for (const [shopType, goodIds] of Object.entries(goodIdMap)) {
     if (!Array.isArray(goodIds) || goodIds.length === 0) continue;
     const purchased = new Set<string>();
-    const shopData: any = shopState?.[shopType];
-    if (shopData) {
-      if (Array.isArray(shopData.info)) {
-        // 常规商店：{ info: [{id, count}] }
-        for (const item of shopData.info) purchased.add(item.id);
-      } else {
-        // GP 等嵌套商店：{ subType: { info: [...] } }
-        for (const sub of Object.values(shopData)) {
-          if (sub && Array.isArray((sub as any).info)) {
-            for (const item of (sub as any).info) purchased.add(item.id);
-          }
-        }
-      }
-    }
+    collectPurchased(getIn(shopState, [shopType]), purchased);
     for (const goodId of goodIds) {
       result[goodId] = purchased.has(goodId) ? -1 : 1;
     }
@@ -211,7 +228,7 @@ router.post("/getLowGoodList", validateBody(emptyRequestSchema), async (req, res
   req.body as GetLowGoodListRequest;
   // 修复：跨月刷新——玩家 LS.curShopId 停留在旧月份（迁移/未触发 monthlyRefresh）时，
   // 客户端按它计算刷新倒计时 → 剩余时间为负。进入商店时若不是当月立即重置
-  const ls = player._playerdata.shop?.LS as { curShopId?: string } | undefined;
+  const ls = player._playerdata.shop?.LS;
   if (ls && ls.curShopId !== player.modules.shop.todayLowShopId()) {
     await player.modules.shop.monthlyRefresh();
   }
@@ -341,15 +358,17 @@ router.post("/getREPGoodList", validateBody(emptyRequestSchema), async (req, res
 router.post("/getSkinGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = getPlayer();
   req.body as GetSkinGoodListRequest;
-  const charSkins = (excel.SkinTable as any)?.charSkins ?? {};
+  const charSkins = excel.SkinTable?.charSkins ?? {};
   let goodList = excel.ShopTable.skinGoodList.goodList;
   // 皮肤售卖所有皮肤：动态补齐所有 isBuySkin 皮肤（静态皮肤优先保留价格/命名）
   if (config.shop?.skinSellAll) {
     const staticBySkin = new Map(
-      goodList.filter((g: any) => charSkins[g.skinId]).map((g: any) => [g.skinId, g]),
+      goodList
+        .filter((g) => charSkins[g.skinId])
+        .map((g): [string, ShopSkinItemViewModel] => [g.skinId, g]),
     );
-    const auto: any[] = [];
-    for (const skin of Object.values(charSkins) as any[]) {
+    const auto: ShopSkinItemViewModel[] = [];
+    for (const skin of Object.values(charSkins)) {
       if (!skin || !skin.isBuySkin) continue; // 默认/活动皮肤不售卖
       const s = staticBySkin.get(skin.skinId);
       const name =

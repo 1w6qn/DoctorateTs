@@ -3,9 +3,11 @@ import { accountManager } from "../account/AccountManager";
 import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";
 import { now } from "@utils/time";
-import { CommonStartBattleRequest } from "../../kernel/battle-model";
+import { CommonStartBattleRequest, BattleData } from "../../kernel/battle-model";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
+import type { PlayerDataModel, PlayerSocial } from "../../kernel/playerdata";
+import type { Draft } from "mutative";
 import { ItemBundle, ItemType } from "@excel/excel";
 import { DisplayDetailRewards } from "@excel/excel";
 import { syncAct44SideEntry } from "../activities/act44side/informant";
@@ -21,7 +23,7 @@ import {
   defaultStageState,
   scanUnlockChain,
 } from "../../kernel/util/stage-unlock";
-import type { BattleRecord } from "../../kernel/battle-info-store";
+import type { BattleInfo, BattleRecord } from "../../kernel/battle-info-store";
 
 /** excel 关卡表镜像类型（来自 types_excel_gen，与 excel.StageTable.stages 值一致） */
 type ExcelStage = (typeof excel.StageTable.stages)[string];
@@ -707,10 +709,10 @@ export class BattleManager {
    * @param deps.ctx - 结算响应可变输出（返理智/首通/解锁/掉落列表）
    */
   private async _settleStageState(
-    draft: any,
+    draft: Draft<PlayerDataModel>,
     deps: {
-      battleData: any;
-      battleInfo: any;
+      battleData: BattleData;
+      battleInfo: BattleInfo;
       stage: ExcelStage;
       stageId: string;
       isPractice: boolean | number;
@@ -888,8 +890,8 @@ export class BattleManager {
    * @param stageId - 关卡 id
    */
   private async _emitBattleWinEvents(
-    battleData: any,
-    battleInfo: any,
+    battleData: BattleData,
+    battleInfo: BattleInfo,
     apCost: number,
     stageId: string,
   ): Promise<void> {
@@ -1003,7 +1005,7 @@ export class BattleManager {
     await this._trigger.emit("PassStageSome", [this._player]);
     const favorGained =
       battleInfo.squad?.slots?.filter(
-        (s: any) => s && this._player._playerdata.troop.chars[s.charInstId],
+        (s) => s && this._player._playerdata.troop.chars[s.charInstId],
       ).length ?? 0;
     if (favorGained > 0) {
       await this._trigger.emit("GainIntimacy", [{ count: favorGained }]);
@@ -1035,15 +1037,16 @@ export class BattleManager {
       const usePt = excel.GameDataConst.useAssistSocialPt ?? 30;
       const maxUse = excel.GameDataConst.useAssistSocialPtMaxCount ?? 1;
       const todayKey = Math.floor(now() / 86400);
-      // 使用方：每日上限 maxUse 次（status.assistUsedDay 为私服字段，类型未声明用 any）
-      const st = this._player._playerdata.status as any;
+      // 使用方：每日上限 maxUse 次（status.assistUsedDay/assistUsedCount 为私服字段，
+      // 已登记在 scripts/playerdata-server-adapt.ts）
+      const st = this._player._playerdata.status;
       const usedToday =
         st.assistUsedDay === todayKey ||
-        st.assistUsedCount >= maxUse;
+        (st.assistUsedCount !== undefined && st.assistUsedCount >= maxUse);
       if (!usedToday) {
         await this._player.update(async (draft) => {
           this._accumulateAssistReward(draft, this._player.uid, usePt);
-          const ds = draft.status as any;
+          const ds = draft.status;
           ds.assistUsedDay = todayKey;
           ds.assistUsedCount = (ds.assistUsedCount ?? 0) + 1;
         });
@@ -1055,7 +1058,7 @@ export class BattleManager {
         try {
           const owner = await accountManager.getPlayerData(assistUid);
           await owner.update(async (draft) => {
-            const os = draft.status as any;
+            const os = draft.status;
             if (os.assistBeUsedDay === todayKey) return;
             this._accumulateAssistReward(draft, assistUid, beUsedPt);
             os.assistBeUsedDay = todayKey;
@@ -1081,8 +1084,10 @@ export class BattleManager {
    * @param _uid - 收款账号（仅用于日志，写入的是传入 draft 对应账号）
    * @param point - 本次累积的信用点数
    */
-  private _accumulateAssistReward(draft: any, _uid: string, point: number): void {
-    draft.social ??= {};
+  private _accumulateAssistReward(draft: Draft<PlayerDataModel>, _uid: string, point: number): void {
+    // social 为客户端/服务端共有的必需子树，全新存档可能整体缺失 → 防御性建键
+    // （生成类型各字段必填，运行时只建最小子树，故此处放宽）
+    draft.social ??= {} as PlayerSocial;
     draft.social.yesterdayReward ??= {
       canReceive: 0,
       first: 0,
@@ -1114,7 +1119,7 @@ export class BattleManager {
    * @param opts.pushFirstReward - 把首通奖励追加进响应 firstRewards 列表的回调
    */
   private async settleParadoxStage(
-    draft: any,
+    draft: Draft<PlayerDataModel>,
     opts: {
       stageId: string;
       completeState: number;
@@ -1450,10 +1455,12 @@ export class BattleManager {
             );
             if (stageId.includes("pro_")) {
               const drop_array = randomChoices([0, 1], [50, 50], 1)[0];
+              const picked = pickKeys(displayDetailRewards[drop_array], ["id", "type"]);
               rewards.push({
-                ...pickKeys(displayDetailRewards[drop_array], ["id", "type"]),
+                id: picked.id,
+                type: picked.type as ItemType,
                 count: reward_count,
-              } as any);
+              });
             } else {
               const addWeights = 2;
               const drop_array = randomChoices(

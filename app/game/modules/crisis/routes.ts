@@ -6,6 +6,8 @@
  */
 
 import { Router } from "express";
+import type { Request, Response } from "express";
+import type { Draft } from "mutative";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";
 import {
   listCrisisSeasons,
@@ -36,6 +38,21 @@ import {
   recalRuneBattleStartSchema,
 } from "./crisis.schema";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
+import type { PlayerCrisis, PlayerDataModel } from "../../kernel/playerdata";
+import {
+  asCrisisV1Permanent,
+  crisisV1SeasonView,
+  crisisV1SeasonsView,
+  crisisV2SeasonsView,
+  type CrisisV1File,
+  type CrisisV1SeasonReady,
+  type CrisisV1SeasonView,
+  type CrisisV1TemporaryJson,
+  type CrisisV2File,
+  type CrisisV2MapDetailJson,
+  type CrisisV2SeasonReady,
+  type CrisisV2SeasonView,
+} from "./crisis-data";
 import { recordPurchase } from "../pay/purchase-record";
 import { now } from "@utils/time";
 import { readJson } from "@utils/file";
@@ -168,6 +185,10 @@ interface RecalRuneBattleContext {
   assistFriend: unknown;
 }
 
+/** 重构符文关卡数据（由 excel 表类型派生；业务代码不直连生成类型模块） */
+type RecalRuneStageData =
+  (typeof excel.CrisisV2SharedData)["recalRuneData"]["seasons"][string]["stages"][string];
+
 // ==================== 战斗上下文存储类 ====================
 
 /**
@@ -250,23 +271,23 @@ class CrisisBattleStore {
  */
 class CrisisDataCache {
   /** V1数据缓存，按赛季文件名索引 */
-  private v1Cache = new Map<string, any>();
+  private v1Cache = new Map<string, CrisisV1File>();
   /** V2数据缓存，按赛季文件名索引 */
-  private v2Cache = new Map<string, any>();
+  private v2Cache = new Map<string, CrisisV2File>();
 
   /**
    * 获取危机合约V1赛季数据
    * @param crisisId - 赛季文件名（如 "cc1"）
    * @returns V1赛季数据对象
    */
-  async getV1Data(crisisId: string): Promise<any> {
+  async getV1Data(crisisId: string): Promise<CrisisV1File> {
     if (!this.v1Cache.has(crisisId)) {
-      const data = await readJson<any>(
+      const data = await readJson<CrisisV1File>(
         `${CRISIS_JSON_BASE_PATH}${crisisId}.json`,
       );
       this.v1Cache.set(crisisId, data);
     }
-    return this.v1Cache.get(crisisId);
+    return this.v1Cache.get(crisisId)!;
   }
 
   /**
@@ -274,14 +295,14 @@ class CrisisDataCache {
    * @param crisisId - 赛季文件名（如 "cc1"）
    * @returns V2赛季数据对象
    */
-  async getV2Data(crisisId: string): Promise<any> {
+  async getV2Data(crisisId: string): Promise<CrisisV2File> {
     if (!this.v2Cache.has(crisisId)) {
-      const data = await readJson<any>(
+      const data = await readJson<CrisisV2File>(
         `${CRISIS_V2_JSON_BASE_PATH}${crisisId}.json`,
       );
       this.v2Cache.set(crisisId, data);
     }
-    return this.v2Cache.get(crisisId);
+    return this.v2Cache.get(crisisId)!;
   }
 }
 
@@ -301,7 +322,7 @@ const dataCache = new CrisisDataCache();
  * @param nextDay - 下一天的Unix时间戳
  * @returns 临时数据对象
  */
-function buildSeasonTemporary(nextDay: number): any {
+function buildSeasonTemporary(nextDay: number): CrisisV1TemporaryJson {
   /** 构建积分列表，键为0-8，值均为-1 */
   const pointList: { [key: string]: number } = {};
   for (let i = 0; i <= 8; i++) {
@@ -332,17 +353,19 @@ function buildSeasonTemporary(nextDay: number): any {
  * 私服存档可能完全没有该赛季条目，直接下标会 500。
  * @param draft - 玩家数据草稿
  * @param seasonId - 赛季 id（如 rune_season_1_1）
- * @returns 该赛季的玩家记录
+ * @returns 该赛季的玩家记录（permanent 各子块已补齐）
  */
-function ensureCrisisV1Season(draft: any, seasonId: string): any {
-  if (!draft.crisis) draft.crisis = {};
+function ensureCrisisV1Season(draft: Draft<PlayerDataModel>, seasonId: string): CrisisV1SeasonReady {
+  // 整块缺失时先建空对象（生成模型 crisis 各字段必填，按「先建后补齐」的既有语义断言）
+  if (!draft.crisis) draft.crisis = {} as PlayerCrisis;
   if (!draft.crisis.season) draft.crisis.season = {};
-  if (!draft.crisis.season[seasonId]) draft.crisis.season[seasonId] = {};
-  const season = draft.crisis.season[seasonId];
+  const seasons = crisisV1SeasonsView(draft);
+  if (!seasons[seasonId]) seasons[seasonId] = {};
+  const season = seasons[seasonId]!;
   if (season.coin == null) season.coin = 0;
   if (season.tCoin == null) season.tCoin = 0;
   if (!season.permanent) season.permanent = {};
-  const perm = season.permanent;
+  const perm = asCrisisV1Permanent(season.permanent);
   if (!perm.rune) perm.rune = {};
   if (perm.point == null) perm.point = -1;
   if (!perm.challenge) perm.challenge = {};
@@ -351,7 +374,8 @@ function ensureCrisisV1Season(draft: any, seasonId: string): any {
   if (!perm.challenge.pointList) perm.challenge.pointList = {};
   if (!season.temporary) season.temporary = {};
   if (!season.sInfo) season.sInfo = { assistCnt: 0, maxPnt: 0 };
-  return season;
+  // 上方已逐个补齐 permanent 各子块；视图两侧兼容（Ready ⊂ View），故断言安全
+  return season as CrisisV1SeasonReady;
 }
 
 /**
@@ -362,13 +386,14 @@ function ensureCrisisV1Season(draft: any, seasonId: string): any {
  * rune, challenge } }, social }`（见 types-playerdata PlayerCrisisV2Season*）。
  * @param draft - 玩家数据草稿
  * @param seasonId - 赛季 id（如 crisis_v2_season_1_1）
- * @returns 该赛季的玩家记录
+ * @returns 该赛季的玩家记录（permanent 各子块已补齐）
  */
-function ensureCrisisV2Season(draft: any, seasonId: string): any {
-  if (!draft.crisisV2) draft.crisisV2 = {};
+function ensureCrisisV2Season(draft: Draft<PlayerDataModel>, seasonId: string): CrisisV2SeasonReady {
+  if (!draft.crisisV2) draft.crisisV2 = {} as PlayerDataModel["crisisV2"];
   if (!draft.crisisV2.seasons) draft.crisisV2.seasons = {};
-  if (!draft.crisisV2.seasons[seasonId]) draft.crisisV2.seasons[seasonId] = {};
-  const season = draft.crisisV2.seasons[seasonId];
+  const seasons = crisisV2SeasonsView(draft);
+  if (!seasons[seasonId]) seasons[seasonId] = {};
+  const season = seasons[seasonId]!;
   if (!season.permanent) season.permanent = {};
   const perm = season.permanent;
   if (perm.state == null) perm.state = 0;
@@ -381,7 +406,8 @@ function ensureCrisisV2Season(draft: any, seasonId: string): any {
   if (!Array.isArray(perm.comment)) perm.comment = [];
   if (!perm.reward) perm.reward = {};
   if (!season.temporary) season.temporary = {};
-  return season;
+  // 上方已逐个补齐生成模型声明的 permanent 字段；视图两侧兼容，故断言安全
+  return season as CrisisV2SeasonReady;
 }
 
 /**
@@ -395,7 +421,7 @@ function ensureCrisisV2Season(draft: any, seasonId: string): any {
  * @returns 包含各维度得分和符文ID列表的结果对象
  */
 function computeV2BattleScore(
-  rune: any,
+  rune: CrisisV2File,
   mapId: string,
   runeSlots: string[],
 ): { scoreCurrent: number[]; runeIds: string[]; satisfiedPacks: string[] } {
@@ -418,9 +444,10 @@ function computeV2BattleScore(
   } = {};
 
   /** 遍历所有节点，构建评分映射 */
-  for (const slot in mapData.nodeDataMap) {
+  const nodeDataMap = mapData.nodeDataMap ?? {};
+  for (const slot in nodeDataMap) {
     if (!slot.startsWith("node_")) continue;
-    const nodeData = mapData.nodeDataMap[slot];
+    const nodeData = nodeDataMap[slot];
     const slotPackId = nodeData.slotPackId;
     if (!slotPackId) continue;
     if (!nodes[slotPackId]) nodes[slotPackId] = {};
@@ -479,7 +506,10 @@ function computeV2BattleScore(
     const nodeData = mapData.nodeDataMap?.[slot];
     if (!nodeData) continue;
     if (nodeData.runeId !== undefined) {
-      const runeId = nodeData.runeId;
+      // 数据实测：START/END 节点的 runeId 显式为 null（如 cc1 的 node_1），而本判定只排除
+      // undefined。为保持既有运行时行为（不新增跳过分支），此处按符文 id 收窄为 string；
+      // 潜在缺陷（null 会被 push 进 runeIds）已在报告中登记，未改行为。
+      const runeId = nodeData.runeId as string;
       runeIds.push(runeId);
       const runeData = mapData.runeDataMap?.[runeId];
       if (runeData) {
@@ -507,7 +537,7 @@ function computeV2BattleScore(
  * @returns 本局新达成的挑战节点键列表
  */
 function evaluateV2NodeCompletion(
-  mapData: any,
+  mapData: CrisisV2MapDetailJson | undefined,
   scoreCurrent: number[],
   runeSlots: string[],
 ): string[] {
@@ -515,7 +545,7 @@ function evaluateV2NodeCompletion(
   const map = mapData?.challengeNodeDataMap;
   if (!map) return done;
   const slots = new Set(runeSlots ?? []);
-  for (const [key, node] of Object.entries<any>(map)) {
+  for (const [key, node] of Object.entries(map)) {
     const params: string[] = node?.missionParamList ?? [];
     const list = String(params[0] ?? "")
       .split(";")
@@ -545,7 +575,10 @@ function evaluateV2NodeCompletion(
  * @param season - crisisV2.seasons[seasonId]
  * @param permanentMapId - 该赛季主测试地（stageType=PERMANENT）的 mapId
  */
-function collectCompletedV2NodeIds(season: any, permanentMapId: string): string[] {
+function collectCompletedV2NodeIds(
+  season: CrisisV2SeasonView | undefined,
+  permanentMapId: string,
+): string[] {
   const ids: string[] = [];
   const perm = season?.permanent;
   if (perm && permanentMapId) {
@@ -555,11 +588,11 @@ function collectCompletedV2NodeIds(season: any, permanentMapId: string): string[
     for (const [k, v] of Object.entries(perm.runePack ?? {})) {
       if (Number(v) >= 2) ids.push(`${permanentMapId}^${k}`);
     }
-    for (const [k, v] of Object.entries<any>(perm.reward ?? {})) {
+    for (const [k, v] of Object.entries(perm.reward ?? {})) {
       if (Number(v?.state ?? 0) >= 2) ids.push(`${permanentMapId}^${k}`);
     }
   }
-  for (const [mid, m] of Object.entries<any>(season?.temporary ?? {})) {
+  for (const [mid, m] of Object.entries(season?.temporary ?? {})) {
     for (const [k, v] of Object.entries(m?.challenge ?? {})) {
       if (Number(v) >= 2) ids.push(`${mid}^${k}`);
     }
@@ -576,9 +609,9 @@ function collectCompletedV2NodeIds(season: any, permanentMapId: string): string[
 function getRecalRuneStageData(
   seasonId: string,
   stageId: string,
-): any | null {
-  const recalRuneData = (excel.CrisisV2SharedData as any)?.recalRuneData;
-  const stageData = recalRuneData?.seasons?.[seasonId]?.stages?.[stageId];
+): RecalRuneStageData | null {
+  const stageData =
+    excel.CrisisV2SharedData?.recalRuneData?.seasons?.[seasonId]?.stages?.[stageId];
   return stageData ?? null;
 }
 
@@ -593,7 +626,7 @@ const router = Router();
  * @route POST /crisis/getCrisisInfo（另有 /getInfo 别名——客户端实际调用 /crisis/getInfo）
  * @returns 危机合约信息和玩家增量数据
  */
-async function handleCrisisGetInfo(_req: any, res: any) {
+async function handleCrisisGetInfo(_req: Request, res: Response): Promise<void> {
   const player = getPlayer();
   const currentTime = now();
   const nextDay = currentTime + ONE_DAY_SECONDS;
@@ -838,8 +871,9 @@ router.post("/challengeRewardTask", validateBody(crisisChallengeRewardTaskSchema
 
   let claimed = false;
   await player.update(async (draft) => {
-    const season = (draft.crisis.season as any)?.[seasonId];
-    const task = season?.permanent?.challenge?.taskList?.[taskId];
+    const season = crisisV1SeasonView(draft, seasonId);
+    const perm = asCrisisV1Permanent(season?.permanent);
+    const task = perm.challenge?.taskList?.[taskId];
     // 修复（2026-09-09）：原实现无条件置 rts —— 未完成（fts = -1）的任务也能「领取」。
     // 官服形状 { fts, rts }（-1 = 未完成/未领取），故要求已完成且未领取。
     if (task && Number(task.fts ?? -1) >= 0 && Number(task.rts ?? -1) === -1) {
@@ -878,13 +912,14 @@ router.post("/challengeRewardPoint", validateBody(crisisChallengeRewardPointSche
   const { seasonId, pointId } = req.body as CrisisChallengeRewardPointRequest;
 
   await player.update(async (draft) => {
-    const season = (draft.crisis.season as any)?.[seasonId];
-    if (season?.permanent?.challenge?.pointList) {
+    const season = crisisV1SeasonView(draft, seasonId);
+    const perm = asCrisisV1Permanent(season?.permanent);
+    if (perm.challenge?.pointList) {
       const pointKey = String(pointId);
       // 修复（2026-09-09）：原实现写入字面量 1 —— 官服 pointList 的值为「领取时间戳」，
       // 未领取为 -1（存档样本：{"1":1591420215,…,"5":-1}）。
-      if (Number(season.permanent.challenge.pointList[pointKey] ?? -1) === -1) {
-        season.permanent.challenge.pointList[pointKey] = now();
+      if (Number(perm.challenge.pointList[pointKey] ?? -1) === -1) {
+        perm.challenge.pointList[pointKey] = now();
       }
     }
   });
@@ -908,12 +943,13 @@ router.post("/challengeRewardAll", validateBody(crisisChallengeRewardAllSchema),
   const { seasonId } = req.body as CrisisChallengeRewardAllRequest;
 
   await player.update(async (draft) => {
-    const season = (draft.crisis.season as any)?.[seasonId];
-    if (season?.permanent?.challenge?.pointList) {
-      for (const pointKey in season.permanent.challenge.pointList) {
+    const season = crisisV1SeasonView(draft, seasonId);
+    const perm = asCrisisV1Permanent(season?.permanent);
+    if (perm.challenge?.pointList) {
+      for (const pointKey in perm.challenge.pointList) {
         // 同上：领取标记应为时间戳而非 1
-        if (Number(season.permanent.challenge.pointList[pointKey] ?? -1) === -1) {
-          season.permanent.challenge.pointList[pointKey] = now();
+        if (Number(perm.challenge.pointList[pointKey] ?? -1) === -1) {
+          perm.challenge.pointList[pointKey] = now();
         }
       }
     }
@@ -984,11 +1020,12 @@ router.post("/unlockRune", validateBody(crisisUnlockRuneSchema), async (req, res
 
   let firstUnlock = false;
   await player.update(async (draft) => {
-    const season = (draft.crisis.season as any)?.[seasonId];
-    if (season?.permanent?.rune) {
+    const season = crisisV1SeasonView(draft, seasonId);
+    const perm = asCrisisV1Permanent(season?.permanent);
+    if (perm.rune) {
       // 幂等赋值；仅「首次解锁」计入勋章进度，重复请求不刷进度
-      firstUnlock = Number(season.permanent.rune[runeId] ?? 0) !== 3;
-      season.permanent.rune[runeId] = 3;
+      firstUnlock = Number(perm.rune[runeId] ?? 0) !== 3;
+      perm.rune[runeId] = 3;
     }
   });
 
@@ -1117,7 +1154,7 @@ router.post("/v2/battleFinish", validateBody(crisisV2BattleFinishSchema), async 
     const stageType = String(v2?.info?.mapStageDataMap?.[mapId]?.stageType ?? "");
     // 主测试地 mapId（勋章节点 id 前缀；permanent 段自身不存 mapId）
     const permanentMapId =
-      Object.entries<any>(v2?.info?.mapStageDataMap ?? {}).find(
+      Object.entries(v2?.info?.mapStageDataMap ?? {}).find(
         ([mid, mm]) =>
           String(mm?.stageType ?? "") === "PERMANENT" &&
           Boolean(v2?.info?.mapDetailDataMap?.[mid]),
@@ -1162,7 +1199,7 @@ router.post("/v2/battleFinish", validateBody(crisisV2BattleFinishSchema), async 
         // 挑战节点 / 指标集记录（2026-09-09 修复，B11 同批）：此前**从不写**
         // challenge 与 runePack —— CrisisV2NodeSome（25 枚）既无记录也无事件，
         // 官服存档中二者分别是 {keypoint_N:2} 与 {pack_N:2}。
-        const rec: any =
+        const rec =
           stageType === "PERMANENT" ? season.permanent : season.temporary[mapId];
         if (rec) {
           if (!rec.challenge) rec.challenge = {};
@@ -1178,7 +1215,7 @@ router.post("/v2/battleFinish", validateBody(crisisV2BattleFinishSchema), async 
       });
       // 事件在 update 之外发出（勋章订阅方内部会再次 update，避免嵌套 update 覆盖）
       completedNodeIds = collectCompletedV2NodeIds(
-        (player._playerdata.crisisV2?.seasons as any)?.[seasonId],
+        player._playerdata.crisisV2?.seasons?.[seasonId],
         permanentMapId,
       );
     }

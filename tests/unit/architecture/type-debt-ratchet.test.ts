@@ -176,6 +176,20 @@ describe("类型债守卫（any/unknown/object 棘轮）", { timeout: 180000 }, 
     ).toEqual([]);
   });
 
+  it("app+index 已全量清零：any 必须恒为 0（阶段 4 门禁，不得回退）", () => {
+    // 阶段 3 收尾后 app/ 与 index.ts 的 any 已累计 1516 → 0（见 PROGRESS.md 数字轨迹）。
+    // 棘轮只能保证「不上升」，无法阻止在**已清零**的目录里重新引入 any；本用例把
+    // 「app+index any === 0」锁成硬门禁。unknown/object 仍走上面的逐文件棘轮（尚未清零）。
+    const appScan = scanTypeDebt(REPO_ROOT, ["app"], ["index.ts"]);
+    const offenders = Object.entries(appScan)
+      .filter(([, counts]) => counts.any > 0)
+      .map(([file, counts]) => `${file}: any=${counts.any}`);
+    expect(
+      totalOf(appScan).any,
+      `app+index 不得再出现 any（该范围已全量清零，请改用精确类型）：\n  ${offenders.join("\n  ")}`,
+    ).toBe(0);
+  });
+
   it("基线不含已不存在的文件（防止基线失去约束力）", () => {
     const baseline = readBaseline();
     const ghosts = Object.keys(baseline.counts).filter(

@@ -19,6 +19,7 @@ import { readdir, readFile, copyFile, mkdir, writeFile } from "fs/promises";
 import { join, dirname } from "path";
 import config from "../../core/config";
 import excel from "@excel/excel";
+import { isJsonObject, JsonObject, JsonValue } from "@excel/json-value";
 import { exists } from "@utils/file";
 import { logger } from "@utils/logger";
 
@@ -36,6 +37,12 @@ const PREWARM_MAX_FILES = 400;
 /** assets 根目录 */
 const ASSETS_DIR = join(__dirname, "..", "..", "..", "assets");
 
+/** JsonValue（可缺省）→ JsonObject 视图（非对象按空表处理） */
+function asJsonDict(value: JsonValue | undefined): JsonObject {
+  if (value === undefined) return {};
+  return isJsonObject(value) ? value : {};
+}
+
 /** 版本目录识别：形如 YYYY-MM-DD-HH-MM-SS_6hex（可选 -m 后缀的 mod 版本） */
 const VERSION_DIR_RE = /^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}_[0-9a-f]{6}(?:-m[0-9a-f]{6})?$/;
 
@@ -44,7 +51,7 @@ const VERSION_DIR_RE = /^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}_[0-9a-f]{6}(?:-m[0-
  * @param platform - 平台键（Windows/Android）
  */
 export function officialVersion(platform: string): string {
-  const win = (config.version as any).windows;
+  const win = config.version.windows;
   return platform === "Windows" && win?.resVersion ? win.resVersion : config.version.resVersion;
 }
 
@@ -340,18 +347,25 @@ export async function crisisSeasonLevelRefs(seasonId: string, v2: boolean): Prom
         join(process.cwd(), "data", v2 ? "crisisV2" : "crisis", `${seasonId}.json`),
         "utf-8",
       ),
-    ) as Record<string, any>;
+    ) as JsonObject;
     const out: ActivityLevelRef[] = [];
-    const push = (stage: any): void => {
-      if (stage?.stageId) {
-        out.push({ stageId: stage.stageId, levelId: String(stage?.levelId ?? "") });
-      }
+    /** 提取单个关卡条目（非对象/无 stageId 跳过——与历史 any 实现的真值判定等价） */
+    const push = (stage: JsonValue): void => {
+      if (!isJsonObject(stage)) return;
+      const stageId = stage.stageId;
+      if (!stageId) return;
+      out.push({ stageId: String(stageId), levelId: String(stage.levelId ?? "") });
     };
     if (v2) {
-      for (const stage of Object.values(data?.info?.mapStageDataMap ?? {}) as any[]) push(stage);
+      const info = data.info;
+      const mapStageDataMap = isJsonObject(info) ? info.mapStageDataMap : undefined;
+      for (const stage of Object.values(asJsonDict(mapStageDataMap))) push(stage);
     } else {
-      for (const season of data?.data?.seasonInfo ?? []) {
-        for (const stage of Object.values(season?.stages ?? {}) as any[]) push(stage);
+      const root = data.data;
+      const seasonInfo = isJsonObject(root) ? root.seasonInfo : undefined;
+      for (const season of Array.isArray(seasonInfo) ? seasonInfo : []) {
+        const stages = isJsonObject(season) ? season.stages : undefined;
+        for (const stage of Object.values(asJsonDict(stages))) push(stage);
       }
     }
     return out;
@@ -394,7 +408,7 @@ function activityDictKey(type: string): string | undefined {
 
 /** 经 StageTable 按 zoneId 反查关卡 id */
 function stageIdsByZone(zoneId: string, out: Set<string>): void {
-  for (const stage of Object.values(excel.StageTable?.stages ?? {}) as any[]) {
+  for (const stage of Object.values(excel.StageTable?.stages ?? {})) {
     if (stage?.zoneId === zoneId && stage?.stageId) out.add(stage.stageId);
   }
 }
@@ -427,8 +441,10 @@ export async function collectActivityLevelRefs(activityId: string): Promise<Acti
   }
   const info = (excel.ActivityTable?.basicInfo ?? {})[activityId];
   if (info) {
-    const dict = (excel.ActivityTable?.activity ?? {}) as Record<string, any>;
-    const detail = dict[activityDictKey(info.type) ?? info.type]?.[activityId];
+    // activity 详情表为未建模 JSON（{ [typeKey]: { [actId]: JsonValue } }）
+    const dict = excel.ActivityTable?.activity ?? {};
+    const typeDict = dict[activityDictKey(info.type) ?? info.type];
+    const detail = isJsonObject(typeDict) ? typeDict[activityId] : undefined;
     if (detail) {
       const refs = new Set<string>();
       scanStageIds(detail, refs);
@@ -441,7 +457,7 @@ export async function collectActivityLevelRefs(activityId: string): Promise<Acti
   // 3) 解析 levelId（无 levelId 的引用剔除）
   const out: ActivityLevelRef[] = [];
   for (const stageId of stageIds) {
-    const levelId = (excel.StageTable?.stages as Record<string, any>)?.[stageId]?.levelId;
+    const levelId = excel.StageTable?.stages?.[stageId]?.levelId;
     if (levelId) out.push({ stageId, levelId: String(levelId) });
   }
   return out;
@@ -496,9 +512,7 @@ export async function startBackfillTask(target: string, platform = "Android"): P
         target === "all"
           ? Object.keys(excel.StageTable?.stages ?? {}).map((stageId) => ({
               stageId,
-              levelId: String(
-                (excel.StageTable?.stages as Record<string, any>)?.[stageId]?.levelId ?? "",
-              ),
+              levelId: String(excel.StageTable?.stages?.[stageId]?.levelId ?? ""),
             }))
           : await collectActivityLevelRefs(target);
       // 关卡 levelId → bundle 扁平下载名（去重）

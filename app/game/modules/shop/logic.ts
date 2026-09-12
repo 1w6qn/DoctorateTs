@@ -6,6 +6,8 @@
  */
 
 import { ItemBundle } from "@excel/excel";
+import type { Draft } from "mutative";
+import type { PlayerDataModel, PlayerShop } from "../../kernel/playerdata";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { readJsonSync } from "@utils/file";
 import { ChooseGPItem, ClassicGoodList, GPGoodList, HighGoodList, LevelGPItem, LMTGSGood, MonthlySubItem, NormalGPItem, PeriodicityGroup, PeriodicityGPItem, QCObject, REPGoodList, SocialGoodList, SocialShopData } from "@excel/excel";
@@ -120,6 +122,8 @@ import {
   getVoucherSkinGoodList,
   useVoucherSkin,
   checkForbidden,
+  type ShopDraftKey,
+  type ShopProgressLike,
 } from "./logic/misc";
 
 export class ShopManager {
@@ -292,7 +296,7 @@ export class ShopManager {
   }
 
   /** 委派至 {@link _issueCharItem}（logic/low-high.ts） */
-  async _issueCharItem(item: ItemBundle) : Promise<ItemBundle> {
+  async _issueCharItem(item: ItemBundle) : Promise<ItemBundle & { instId?: number }> {
     return _issueCharItem(this, item);
   }
 
@@ -404,12 +408,12 @@ export class ShopManager {
   }
 
   /** 委派至 {@link _boughtCount}（logic/misc.ts） */
-  _boughtCount(shopKey: string, goodId: string) : number {
+  _boughtCount(shopKey: ShopDraftKey, goodId: string) : number {
     return _boughtCount(this, shopKey, goodId);
   }
 
   /** 委派至 {@link _assertAvail}（logic/misc.ts） */
-  _assertAvail(shopKey: string,
+  _assertAvail(shopKey: ShopDraftKey,
     goodId: string,
     count: number,
     availCount?: number,) : void {
@@ -417,7 +421,7 @@ export class ShopManager {
   }
 
   /** 委派至 {@link _shopDraft}（logic/misc.ts） */
-  _shopDraft(draft: any, key: string) : any {
+  _shopDraft<K extends ShopDraftKey>(draft: Draft<PlayerDataModel>, key: K) : PlayerShop[K] & ShopProgressLike {
     return _shopDraft(this, draft, key);
   }
 

@@ -20,6 +20,9 @@ import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import excel from "@excel/excel";
 import type { ActAutoChessData } from "@excel/excel";
+import type { PlayerActivity, PlayerActivity_PlayerActAutoChessActivity_AutoChessSquadSlot } from "@excel/types-playerdata";
+import type { PlayerDataModel } from "../../kernel/playerdata";
+import type { Draft } from "mutative";
 import { logger } from "@utils/logger";
 import { generateBattleId } from "@utils/random";
 import { userTimestamp } from "@utils/time";
@@ -41,6 +44,12 @@ import type {
   AutoChessStartMatchResponse,
   AutoChessTeamInfo,
 } from "./autochess.protocol";
+
+/** 玩家赛季存档（draft.activity.AUTOCHESS_SEASON[actId]；形状登记见 playerdata-server-adapt.ts） */
+type AutoChessSeasonData = NonNullable<NonNullable<PlayerActivity["AUTOCHESS_SEASON"]>[string]>;
+
+/** 棋池槽位（user.chessSquad[chessId]） */
+type AutoChessSquadSlot = PlayerActivity_PlayerActAutoChessActivity_AutoChessSquadSlot;
 
 /** 进行中的 autochess 单局会话（私服内存态；官方由实时对战服务持有） */
 export interface AutoChessSession {
@@ -130,8 +139,8 @@ export class AutoChessManager {
    * @param actId - 活动 ID
    * @returns 玩家赛季存档（缺失返回 undefined）
    */
-  private userData(draft: any, actId: string): any | undefined {
-    return (draft?.activity as Record<string, any> | undefined)?.["AUTOCHESS_SEASON"]?.[actId];
+  private userData(draft: Draft<PlayerDataModel>, actId: string): AutoChessSeasonData | undefined {
+    return draft.activity.AUTOCHESS_SEASON?.[actId];
   }
 
   /**
@@ -142,11 +151,11 @@ export class AutoChessManager {
    * @param draft - player.update 的 draft
    * @param actId - 活动 ID
    */
-  private ensureState(draft: any, actId: string): void {
-    if (!draft.activity) draft.activity = {};
-    draft.activity.AUTOCHESS_SEASON = draft.activity.AUTOCHESS_SEASON ?? {};
-    if (!draft.activity.AUTOCHESS_SEASON[actId]) {
-      draft.activity.AUTOCHESS_SEASON[actId] = {
+  private ensureState(draft: Draft<PlayerDataModel>, actId: string): void {
+    const activity = (draft.activity ??= {});
+    const season = (activity.AUTOCHESS_SEASON ??= {});
+    if (!season[actId]) {
+      season[actId] = {
         mode: {},
         dailyMission: { process: 0, state: 0 },
         band: {},
@@ -197,7 +206,7 @@ export class AutoChessManager {
    * @param user    - 玩家赛季存档
    * @param actData - 赛季详情
    */
-  private refreshModeUnlocks(user: any, actData: ActAutoChessData | undefined): void {
+  private refreshModeUnlocks(user: AutoChessSeasonData, actData: ActAutoChessData | undefined): void {
     for (const [modeId, modeData] of Object.entries(actData?.modeDataDict ?? {})) {
       const preposed =
         (modeData?.preposedMode ?? "")
@@ -257,7 +266,7 @@ export class AutoChessManager {
       if (entries.length > maxDeck) return { ok: false, reason: "too-many" } as const;
       const user = this.userData(draft, body.actId);
       if (!user) return { ok: false, reason: "no-activity" } as const;
-      const squad: Record<string, any> = {};
+      const squad: Record<string, AutoChessSquadSlot> = {};
       for (const [chessId, deploy] of entries) {
         const shop = this.charShopData(actData, chessId);
         if (!shop) return { ok: false, reason: `invalid-chess:${chessId}` } as const;
@@ -599,7 +608,7 @@ export class AutoChessManager {
     await this._player.update(async (draft) => {
       this.ensureState(draft, body.activityId);
       draft.autochessSeason.trainingModeFin[trainingModeId] = 1;
-      const user = this.userData(draft, body.activityId);
+      const user = this.userData(draft, body.activityId)!;
       const mode = user.mode[trainingModeId] ?? { unlock: 0, completeCnt: 0 };
       mode.unlock = 1;
       mode.completeCnt += 1;
@@ -799,7 +808,7 @@ export class AutoChessManager {
       origChessId?: string;
       type?: number;
     },
-  ): any {
+  ): AutoChessSquadSlot {
     return {
       chessId,
       charId: options.diyChar ?? shop.charId ?? "",

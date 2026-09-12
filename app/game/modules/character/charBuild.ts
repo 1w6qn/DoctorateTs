@@ -143,11 +143,14 @@ export interface GetSpCharMissionRewardRequest {
 /** 获取特殊干员任务奖励响应（CS: GetSpCharMissionRewardResponse；服务端仅返回增量） */
 export type GetSpCharMissionRewardResponse = PlayerDeltaResponse;
 
-/** 使用道具精英化请求（CS: EvolveCharUseItemRequest；itemId 为精二直升券如 voucher_elite_II_6） */
+/** 使用道具精英化请求（CS: EvolveCharUseItemRequest；itemId 为精二直升券如 voucher_elite_II_6）
+ *  兼容 CS 别名：客户端实际字段为 charInsId/itemInsId（路由做归一化） */
 export interface EvolveCharUseItemRequest {
-  charInstId: number;
+  charInstId?: number;
+  charInsId?: number;
   itemId: string;
-  instId: number;
+  instId?: number;
+  itemInsId?: number;
 }
 
 /** 使用道具精英化响应（CS: EvolveCharUseItemResponse） */
@@ -159,9 +162,11 @@ export type EvolveCharUseItemResponse = PlayerDeltaResponse;
  * itemId 为满级直升券如 voucher_levelmax_6）
  */
 export interface UpgradeCharLevelMaxUseItemRequest {
-  charInstId: number;
+  charInstId?: number;
+  charInsId?: number;
   itemId: string;
-  instId: number;
+  instId?: number;
+  itemInsId?: number;
 }
 
 /** 使用道具升至满级响应（CS: UpgradeCharLevelMaxResponse） */
@@ -173,10 +178,12 @@ export type UpgradeCharLevelMaxUseItemResponse = PlayerDeltaResponse;
  * itemId 为专精直升券如 voucher_skill_specialLevelMax_6
  */
 export interface UpgradeSpecializedSkillUseItemRequest {
-  charInstId: number;
+  charInstId?: number;
+  charInsId?: number;
   skillIndex: number;
   itemId: string;
-  instId: number;
+  instId?: number;
+  itemInsId?: number;
 }
 
 /** 使用道具专精满级响应（CS: UpgradeSpecializedSkillUseItemResponse） */

@@ -287,6 +287,14 @@ export const EXCEL_FIELD_TYPE_OVERRIDES: Record<string, string> = {
   "RoguelikeUpgradeTicketFeature.rarityList": "(number | string)[]",
   "RoguelikeGameUpgradeTicketData.profession": "number | string",
   "RoguelikeGameUpgradeTicketData.rarity": "number | string",
+  // 公开招募特殊标签稀有度：JSON 为 `[{ key: 11, value: [5] }, { key: 14, value: [4] }]`
+  // （客户端 CS 模型声明为 Dictionary<int, List<int>>，与实际线格式分叉；code 兼容两种形态）
+  "GachaData.specialTagRarityTable":
+    "{ key: number; value: number[] }[] | { [key: string]: number[] }",
+  // 模组展示/解锁阶段：CS 模型为 EvolvePhase 字符串枚举，真 JSON 混用
+  // （showEvolvePhase="PHASE_2"、unlockEvolvePhase=0 数字）——见 character/char-skills.ts
+  "UniEquipData.showEvolvePhase": "EvolvePhase | number",
+  "UniEquipData.unlockEvolvePhase": "EvolvePhase | number",
   // 基建房间相位：客户端模型为 object（无字段），线格式相位结构由 building_excel.ts
   // 的访问器契约反推——原先 object 使访问器返回值与 JsonValue 不可赋值（TS2322）
   // RoomBean.phases 同时服务 rooms[roomId]（getRoomPhase）与 dormData（getDormPhase）

@@ -305,6 +305,10 @@ export interface PlayerStatus {
     avatarId: string;
     friendNumLimit: number;
     tipMonthlyCardExpireTs: number;
+    assistUsedDay?: number;
+    assistUsedCount?: number;
+    assistBeUsedDay?: number;
+    maxAccountResVersion?: string;
 }
 
 export interface AvatarInfo {
@@ -467,7 +471,7 @@ export interface PlayerSpecialOperatorNode {
     type: string;
 }
 
-export type PlayerActivity = { BOSS_RUSH?: { [actId: string]: { milestone?: { point?: number; got?: string[] }; relic?: { token?: { current?: number; total?: number }; unlockedRelicLevelDic?: { [key: string]: number }; selectingRelicId?: string }; bestWaveDic?: { [key: string]: number } } } ; ARK_HUB?: { [actId: string]: { coin?: number; secretary?: string; secretarySkinId?: string; secretarySkinSp?: number | boolean; protectTs?: number; squads?: (PlayerSquad | { slots?: ServerPayload[] })[]; globalBan?: number | boolean; duelCount?: number; dailySupplyDays?: number; dailySupplyLastDay?: string; creatureCollected?: number; activeCreatureCollected?: number; alterCollected?: number; pixelCollected?: number; pixelPublished?: number; pixelCollectedIds?: number[]; reviewedPixelArts?: { [key: string]: ServerPayload }; dex?: { [key: string]: { numId?: number; isAlter?: boolean; alterOf?: number; active?: boolean } }; scanBag?: { id: number; numId: number; isAlter?: boolean; alterOf?: number; fav?: boolean; sourceUid?: string }[]; scanSeq?: number; props?: { [key: string]: { count: number; uses: number } }; propSoldToday?: { date: string; sold: { [key: string]: number } }; shopToday?: { date?: string; ids?: number[] }; trade?: { wantSpecies?: number | null; offerNumIds?: number[]; ts?: number }; unlockedAreas?: { [key: string]: number }; stateMask?: number; settledDuels?: string[]; claimedRewards?: { [key: string]: number }; guideFlags?: { [key: string]: number | undefined }; arkdexState?: { activeLure?: number; activeEncounter?: { id?: string; areaId?: number | string; habitat?: string; isProtected?: boolean; cluster?: boolean; lureNumId?: number; creatures?: { numId?: number; name?: string; rarity?: number; isAlter?: boolean; active?: boolean; collected?: boolean }[] } } } } ; VEC_BREAK_V2?: { [actId: string]: { activatedBuff: string[]; defendStages: { [stageId: string]: { stageId: string; defendSquad: { charInstId?: number; currentTmpl?: string | null }[]; recvTimeLimited: number | boolean; recvNormal: number | boolean } }; milestone: { point: number; got: string[] }; bestShowTs?: number; squads?: ServerPayload[] } } ; CHECKIN_ONLY?: { [actId: string]: { lastTs: number; history: number[] } } ; CHECKIN_ALL_PLAYER?: { [actId: string]: { lastTs: number; history: number[] } } ; CHECKIN_VS?: { [actId: string]: { sweetVote: number; saltyVote: number; canVote: number | boolean; todayVoteState: number; voteRewardState: number; signedCnt: number; availSignCnt: number; socialState: number; actDay: number } } ; CHECKIN_ACCESS?: { [actId: string]: { rewardsCount: number; currentStatus: number; lastTs: number } } ; LOGIN_ONLY?: { [actId: string]: { reward: number } } ; SWITCH_ONLY?: { [actId: string]: { [rewardId: string]: number } } ; BLESS_ONLY?: { [actId: string]: { festivalHistory?: { charId?: string; state?: number }[]; history?: ServerPayload[]; lastTs?: number } } ; HALFIDLE_VERIFY1?: { [actId: string]: { coin?: number; globalBan?: number; troop?: { chars?: { [instId: string]: { instId?: number; charId?: string; level?: number; skillLvl?: number; skillLvlWithSpec?: number; evolvePhase?: number; isAssist?: number; defaultSkillId?: string; defaultEquipId?: string } }; trap?: string[]; npc?: string[]; assist?: ServerPayload[]; extraAssist?: number }; stage?: { [stageId: string]: { rate?: { [itemId: string]: number }; bossState?: number } }; settleInfo?: { rate?: { [itemId: string]: number }; bossState?: number; stageId?: string; progress?: number }; production?: { rate?: { [itemId: string]: number }; product?: { [itemId: string]: number }; harvestTs?: number; refreshTs?: number }; recruit?: { poolGain?: { [poolId: string]: string[] }; poolTimes?: { [poolId: string]: number } }; milestone?: { point?: number; got?: string[] }; inventory?: { [itemId: string]: number }; tech?: { unlock?: string[] } } } ; ENEMY_DUEL?: { [actId: string]: { milestone?: { point?: number; got?: string[] }; dailyMission?: { process?: number; state?: number }; modeInfo?: { [modeId: string]: { highScore?: number; curStage?: string; isUnlock?: number } }; globalBan?: number } } ; TYPE_ACT24SIDE?: { [actId: string]: { meal?: { chance?: number; digested?: number; id?: string; day?: string }; alchemy?: { price?: number; item?: { [key: string]: number }; gacha?: { [boxId: string]: { [goodId: string]: number } } }; tool?: { [key: string]: number }; favorList?: string[]; hunt?: { infoBook?: { [key: string]: number }; enemyKillCntStats?: { [key: string]: number }; collectRewards?: number }; unlockItemMap?: { [key: string]: number }; globalBan?: number } } ; TYPE_ACT42SIDE?: { [actId: string]: { coin?: number; favorList?: string[]; outerPlayerOpen?: number; taskMap?: { [taskId: string]: number | { state?: number } }; gunMap?: { [key: string]: number }; fileMap?: { [key: string]: number }; trustedItem?: { has?: number; got?: number; dailyState?: number }; dailyRewardState?: number } } ; TYPE_ACT44SIDE?: { [actId: string]: { coin?: number; favorList?: string[]; informantPt?: number; milestone?: { point?: number; got?: string[] }; businessDay?: number; unlockedCustomers?: { [customerId: string]: number }; unlockedTags?: { [tagId: string]: number }; isNew?: number | boolean; outerOpen?: number | boolean; game?: { state?: number; customerList?: number[]; curCustomer?: number; newsId?: string; customerId?: string; round?: number; boom?: number | boolean; tagId?: string; basicIncome?: number; customerLine?: string | null; keeperLine?: string | null; insightTimes?: number; insight?: { trustRE?: number; trustMAX?: number; attentionRE?: number; attentionMAX?: number } | null; tradeInfo?: { trust?: number; attention?: number; choices?: string[]; lastChoice?: string | null }; settle?: { customerId?: string; tagId?: string; success?: number | boolean; successRate?: number; incomeRate?: number; income?: number }[] } | null } } ; COLLECTION?: { [actId: string]: { [collectionId: number]: number } } ; MILESTONE_ONLY?: { [actId: string]: { [milestoneId: string]: number } } } & { [typeKey: string]: { [actId: string]: ServerPayload } };
+export type PlayerActivity = { BOSS_RUSH?: { [actId: string]: { milestone?: { point?: number; got?: string[] }; relic?: { token?: { current?: number; total?: number }; unlockedRelicLevelDic?: { [key: string]: number }; selectingRelicId?: string }; bestWaveDic?: { [key: string]: number } } } ; ARK_HUB?: { [actId: string]: { coin?: number; secretary?: string; secretarySkinId?: string; secretarySkinSp?: number | boolean; protectTs?: number; squads?: (PlayerSquad | { slots?: ServerPayload[] })[]; globalBan?: number | boolean; duelCount?: number; dailySupplyDays?: number; dailySupplyLastDay?: string; creatureCollected?: number; activeCreatureCollected?: number; alterCollected?: number; pixelCollected?: number; pixelPublished?: number; pixelCollectedIds?: number[]; reviewedPixelArts?: { [key: string]: ServerPayload }; dex?: { [key: string]: { numId?: number; isAlter?: boolean; alterOf?: number; active?: boolean } }; scanBag?: { id: number; numId: number; isAlter?: boolean; alterOf?: number; fav?: boolean; sourceUid?: string }[]; scanSeq?: number; props?: { [key: string]: { count: number; uses: number } }; propSoldToday?: { date: string; sold: { [key: string]: number } }; shopToday?: { date?: string; ids?: number[] }; trade?: { wantSpecies?: number | null; offerNumIds?: number[]; ts?: number }; unlockedAreas?: { [key: string]: number }; stateMask?: number; settledDuels?: string[]; claimedRewards?: { [key: string]: number }; guideFlags?: { [key: string]: number | undefined }; arkdexState?: { activeLure?: number; activeEncounter?: { id?: string; areaId?: number | string; habitat?: string; isProtected?: boolean; cluster?: boolean; lureNumId?: number; creatures?: { numId?: number; name?: string; rarity?: number; isAlter?: boolean; active?: boolean; collected?: boolean }[] } } } } ; VEC_BREAK_V2?: { [actId: string]: { activatedBuff: string[]; defendStages: { [stageId: string]: { stageId: string; defendSquad: { charInstId?: number; currentTmpl?: string | null }[]; recvTimeLimited: number | boolean; recvNormal: number | boolean } }; milestone: { point: number; got: string[] }; bestShowTs?: number; squads?: ServerPayload[] } } ; CHECKIN_ONLY?: { [actId: string]: { lastTs: number; history: number[] } } ; CHECKIN_ALL_PLAYER?: { [actId: string]: { lastTs: number; history: number[] } } ; CHECKIN_VS?: { [actId: string]: { sweetVote: number; saltyVote: number; canVote: number | boolean; todayVoteState: number; voteRewardState: number; signedCnt: number; availSignCnt: number; socialState: number; actDay: number } } ; CHECKIN_ACCESS?: { [actId: string]: { rewardsCount: number; currentStatus: number; lastTs: number } } ; LOGIN_ONLY?: { [actId: string]: { reward: number } } ; SWITCH_ONLY?: { [actId: string]: { [rewardId: string]: number } } ; BLESS_ONLY?: { [actId: string]: { festivalHistory?: { charId?: string; state?: number }[]; history?: ServerPayload[]; lastTs?: number } } ; HALFIDLE_VERIFY1?: { [actId: string]: { coin?: number; globalBan?: number; troop?: { chars?: { [instId: string]: { instId?: number; charId?: string; level?: number; skillLvl?: number; skillLvlWithSpec?: number; evolvePhase?: number; isAssist?: number; defaultSkillId?: string; defaultEquipId?: string } }; trap?: string[]; npc?: string[]; assist?: ServerPayload[]; extraAssist?: number }; stage?: { [stageId: string]: { rate?: { [itemId: string]: number }; bossState?: number } }; settleInfo?: { rate?: { [itemId: string]: number }; bossState?: number; stageId?: string; progress?: number }; production?: { rate?: { [itemId: string]: number }; product?: { [itemId: string]: number }; harvestTs?: number; refreshTs?: number }; recruit?: { poolGain?: { [poolId: string]: string[] }; poolTimes?: { [poolId: string]: number } }; milestone?: { point?: number; got?: string[] }; inventory?: { [itemId: string]: number }; tech?: { unlock?: string[] } } } ; ENEMY_DUEL?: { [actId: string]: { milestone?: { point?: number; got?: string[] }; dailyMission?: { process?: number; state?: number }; modeInfo?: { [modeId: string]: { highScore?: number; curStage?: string; isUnlock?: number } }; globalBan?: number } } ; TYPE_ACT24SIDE?: { [actId: string]: { meal?: { chance?: number; digested?: number; id?: string; day?: string }; alchemy?: { price?: number; item?: { [key: string]: number }; gacha?: { [boxId: string]: { [goodId: string]: number } } }; tool?: { [key: string]: number }; favorList?: string[]; hunt?: { infoBook?: { [key: string]: number }; enemyKillCntStats?: { [key: string]: number }; collectRewards?: number }; unlockItemMap?: { [key: string]: number }; globalBan?: number } } ; TYPE_ACT42SIDE?: { [actId: string]: { coin?: number; favorList?: string[]; outerPlayerOpen?: number; taskMap?: { [taskId: string]: number | { state?: number } }; gunMap?: { [key: string]: number }; fileMap?: { [key: string]: number }; trustedItem?: { has?: number; got?: number; dailyState?: number }; dailyRewardState?: number } } ; TYPE_ACT44SIDE?: { [actId: string]: { coin?: number; favorList?: string[]; informantPt?: number; milestone?: { point?: number; got?: string[] }; businessDay?: number; unlockedCustomers?: { [customerId: string]: number }; unlockedTags?: { [tagId: string]: number }; isNew?: number | boolean; outerOpen?: number | boolean; game?: { state?: number; customerList?: number[]; curCustomer?: number; newsId?: string; customerId?: string; round?: number; boom?: number | boolean; tagId?: string; basicIncome?: number; customerLine?: string | null; keeperLine?: string | null; insightTimes?: number; insight?: { trustRE?: number; trustMAX?: number; attentionRE?: number; attentionMAX?: number } | null; tradeInfo?: { trust?: number; attention?: number; choices?: string[]; lastChoice?: string | null }; settle?: { customerId?: string; tagId?: string; success?: number | boolean; successRate?: number; incomeRate?: number; income?: number }[] } | null } } ; COLLECTION?: { [actId: string]: { [collectionId: number]: number } } ; MILESTONE_ONLY?: { [actId: string]: { [milestoneId: string]: number } } ; AUTOCHESS_SEASON?: { [actId: string]: PlayerActivity_PlayerActAutoChessActivity } } & { [typeKey: string]: { [actId: string]: ServerPayload } };
 
 export interface PlayerActivity_PlayerDefaultActivity {
     coin: number;
@@ -1946,7 +1950,7 @@ export interface PlayerSixStarMilestoneItem {
 }
 
 export interface PlayerHiddenStage {
-    missions: MissionCalcState[];
+    missions?: MissionCalcState[];
     unlock: number;
 }
 
@@ -1955,7 +1959,7 @@ export interface PlayerSpecialStage {
     unlockTs: number;
     rewardTs: number;
     type: string;
-    val: number;
+    val: boolean[];
     fts: number;
     rts: number;
 }
@@ -2124,6 +2128,7 @@ export interface PlayerTroop {
     charMission: { [key: string]: { [key: string]: number } };
     spOperator: { [key: string]: { [key: string]: { [key: string]: PlayerSpecialOperatorNode } } };
     charGroup: { [key: string]: { favorPoint: number } };
+    sixStarReward: { [key: string]: { [key: string]: number } };
 }
 
 export interface PlayerGoodItemData {
@@ -2182,6 +2187,7 @@ export interface PlayerSocialShopData {
     info: PlayerGoodItemData[];
     curShopId: string;
     charPurchase: { [key: string]: number };
+    costSocialPoint?: number;
 }
 
 export interface PlayerFurnitureShopData {
@@ -2205,6 +2211,7 @@ export interface PlayerGiftProgressData {
     monthly: PlayerGiftProgressPerData;
     choose: PlayerGiftProgressPerData;
     conditionChoose: PlayerGiftProgressPerData;
+    monthlySub?: PlayerGiftProgressPerData;
 }
 
 export interface PlayerTemplateShop {
@@ -2213,7 +2220,7 @@ export interface PlayerTemplateShop {
     progressInfo: { [key: string]: PlayerGoodProgressData };
 }
 
-export type PlayerShop = { LS: PlayerLowQCShopProgressData; HS: PlayerHighQCShopProgressData; ES: PlayerCommonShopProgressData; CASH: PlayerCashProgressData; GP: PlayerGiftProgressData; FURNI: PlayerFurnitureShopData; SOCIAL: PlayerSocialShopData; EPGS: PlayerEPGSProgressData; REP: PlayerEPGSProgressData; CLASSIC: PlayerClassicQCShopProgressData; SKIN: PlayerSkinShopData };
+export type PlayerShop = { LS: PlayerLowQCShopProgressData; HS: PlayerHighQCShopProgressData; ES: PlayerCommonShopProgressData; CASH: PlayerCashProgressData; GP: PlayerGiftProgressData; FURNI: PlayerFurnitureShopData; SOCIAL: PlayerSocialShopData; EPGS: PlayerEPGSProgressData; REP: PlayerEPGSProgressData; CLASSIC: PlayerClassicQCShopProgressData; SKIN: PlayerSkinShopData; LMTGS?: PlayerLMTGSProgressData };
 
 export interface PlayerInviteInfo {
     uid: string;
@@ -2323,7 +2330,7 @@ export interface PlayerDexNav {
 export interface PlayerSkins {
     characterSkins: { [key: string]: number };
     skinTs: { [key: string]: number };
-    skinSp: { [key: string]: number };
+    skinSp: { [key: string]: number | boolean };
 }
 
 export interface PlayerPerMedal {
@@ -4182,19 +4189,19 @@ export interface PlayerSiracusaMap_Opera {
 }
 
 export interface PlayerFirework {
-    unlock: boolean;
-    plate: PlayerFirework_PlayerPlate;
-    animal: PlayerFirework_PlayerAnimal;
+    unlock?: boolean;
+    plate?: PlayerFirework_PlayerPlate;
+    animal?: PlayerFirework_PlayerAnimal;
 }
 
 export interface PlayerFirework_PlayerPlate {
-    unlock: { [key: string]: number };
-    slots: FireworkData_PlateSlotData[];
+    unlock?: { [key: string]: number };
+    slots?: FireworkData_PlateSlotData[];
 }
 
 export interface PlayerFirework_PlayerAnimal {
-    unlock: { [key: string]: number };
-    select: string;
+    unlock?: { [key: string]: number };
+    select?: string;
 }
 
 export interface PlayerTower {
@@ -4413,19 +4420,24 @@ export interface PlayerMainlineRecord {
     explore: PlayerMainlineExplore;
     clue: PlayerMainlineClue;
     version: number;
-    charVoiceRecord: { [key: string]: ServerPayload };
+    charVoiceRecord: { [key: string]: { isOpen: boolean; confirmEnterReward: boolean; nodes: { [key: string]: number } } };
 }
 
 export interface PlayerMainlineExplore {
-    game: PlayerMainlineExplore_PlayerExploreGameContext;
-    outer: PlayerMainlineExplore_PlayerExploreOuterContext;
+    game?: PlayerMainlineExplore_PlayerExploreGameContext;
+    outer?: PlayerMainlineExplore_PlayerExploreOuterContext;
 }
 
 export interface PlayerMainlineExplore_PlayerExploreGameContext {
-    state: PlayerMainlineExplore_PlayerExploreGameContextState;
-    node: PlayerMainlineExplore_PlayerExploreGameContextNode;
-    map: PlayerMainlineExplore_PlayerExploreGameContextMap;
-    log: PlayerMainlineExplore_PlayerExploreGameContextLog;
+    state?: PlayerMainlineExplore_PlayerExploreGameContextState;
+    node?: PlayerMainlineExplore_PlayerExploreGameContextNode;
+    map?: PlayerMainlineExplore_PlayerExploreGameContextMap;
+    log?: PlayerMainlineExplore_PlayerExploreGameContextLog;
+    eventChoice?: number;
+    targetChoice?: number;
+    passTarget?: number;
+    gaveUp?: number;
+    settled?: number;
 }
 
 export interface PlayerMainlineExplore_PlayerExploreGameContextState {
@@ -4486,10 +4498,12 @@ export interface PlayerMainlineExplore_PlayerExploreGameContextLog {
 }
 
 export interface PlayerMainlineExplore_PlayerExploreOuterContext {
-    isOpen: boolean;
-    mission: { [key: string]: PlayerMainlineExplore_PlayerExploreOuterContextMissionState };
-    lastGameResult: PlayerMainlineExplore_PlayerExploreGameResult;
-    historyPaths: PlayerMainlineExplore_PlayerExploreOuterContextHistoryPath[];
+    isOpen?: boolean;
+    mission?: { [key: string]: PlayerMainlineExplore_PlayerExploreOuterContextMissionState };
+    lastGameResult?: PlayerMainlineExplore_PlayerExploreGameResult;
+    historyPaths?: PlayerMainlineExplore_PlayerExploreOuterContextHistoryPath[];
+    missions?: { [key: string]: number };
+    initGroupId?: string;
 }
 
 export interface PlayerMainlineExplore_PlayerExploreGameResult {
@@ -5704,18 +5718,18 @@ export interface PlayerCharRotation {
 }
 
 export interface PlayerGallery {
-    firstRewards: number;
+    firstRewards?: number;
     leafMap: { [key: string]: PlayerArtMagazineLeafData };
-    magazineSquad: string[];
-    collectionRewards: { [key: string]: number };
-    stickerMap: { [key: string]: number };
-    offlineList: { [key: string]: { [key: string]: number } };
+    magazineSquad?: string[];
+    collectionRewards?: { [key: string]: number };
+    stickerMap?: { [key: string]: number };
+    offlineList?: { [key: string]: { [key: string]: number } };
 }
 
 export interface PlayerArtMagazineLeafData {
     leafId: string;
     decorList: ArtMagazineLeafElementData[];
-    charSkin: ArtMagazineLeafElementData;
+    charSkin: ArtMagazineLeafElementData | null;
     getTs: number;
     version: number;
 }
@@ -5727,7 +5741,7 @@ export interface PlayerArkOdc {
 export interface PlayerArkOdcTopic {
     varSeqs: { [key: string]: number };
     rewards: { [key: string]: number };
-    position: PlayerArkOdcTopic_Position;
+    position: PlayerArkOdcTopic_Position | null;
 }
 
 export interface PlayerArkOdcTopic_Position {
@@ -5788,7 +5802,7 @@ export interface PlayerDataModel {
     car: PlayerCartInfo;
     tower: PlayerTower;
     siracusaMap: PlayerSiracusaMap;
-    firework: PlayerFirework;
+    firework?: PlayerFirework;
     sandboxPerm: PlayerSandboxPerm;
     emoticon: PlayerEmoticon;
     share: PlayerCrossAppShare;

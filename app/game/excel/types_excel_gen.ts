@@ -8917,7 +8917,7 @@ export interface GachaData {
     potentialMaterialConverter: PotentialMaterialConverterConfig;
     classicPotentialMaterialConverter: PotentialMaterialConverterConfig;
     recruitRarityTable: { [key: number]: GachaData_RecruitRange };
-    specialTagRarityTable: { [key: number]: number[] };
+    specialTagRarityTable: { key: number; value: number[] }[] | { [key: string]: number[] };
     recruitDetail: string;
     showGachaLogEntry: boolean;
     carousel: GachaData_CarouselData[];
@@ -15106,8 +15106,8 @@ export interface UniEquipData {
     typeName1: string;
     typeName2: string;
     equipShiningColor: string;
-    showEvolvePhase: EvolvePhase;
-    unlockEvolvePhase: EvolvePhase;
+    showEvolvePhase: EvolvePhase | number;
+    unlockEvolvePhase: EvolvePhase | number;
     charId: string;
     tmplId: string;
     showLevel: number;

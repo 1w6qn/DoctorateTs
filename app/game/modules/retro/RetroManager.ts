@@ -1,6 +1,8 @@
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { ItemBundle } from "@excel/excel";
+import type { JsonValue } from "@excel/json-value";
+import { asRecord, asShape } from "../activities/shared/activity-json";
 import { now } from "@utils/time";
 
 export class RetroManager {
@@ -95,7 +97,7 @@ export class RetroManager {
   async unlockRetroBlock(args: { retroId: string }): Promise<boolean> {
     const cost = Math.max(
       0,
-      Number((this._player.excel.RetroTable as any)?.retroUnlockCost ?? 1),
+      Number(this._player.excel.RetroTable.retroUnlockCost ?? 1),
     );
     let unlocked = false;
     await this._player.update(async (draft) => {
@@ -140,15 +142,18 @@ export class RetroManager {
     const rewards: ItemBundle[] = [];
     const retroActivities = this._player.excel.ActivityTable.activity;
     for (const [, activities] of Object.entries(retroActivities)) {
-      for (const [id, activity] of Object.entries(activities as { [key: string]: any })) {
-        if (id === args.activityId && "retroData" in activity) {
-          const retroData = activity.retroData;
-          if (retroData?.rewards) {
-            const passReward = retroData.rewards.find((r: { id: string }) => r.id === retroId);
-            if (passReward?.items) {
-              rewards.push(...passReward.items);
-            }
-          }
+      // 活动详情为未建模 JSON（ActivityTable.activity 值为 JsonValue）——
+      // 按「是否存在通行证奖励」的局部形状收窄（activities/shared 共享辅助）
+      for (const [id, activity] of Object.entries(asRecord<JsonValue>(activities))) {
+        if (id !== args.activityId) continue;
+        const detail = asShape<{
+          retroData?: { rewards?: { id?: string; items?: ItemBundle[] }[] };
+        }>(activity);
+        const retroData = detail?.retroData;
+        if (!retroData) continue;
+        const passReward = (retroData.rewards ?? []).find((r) => r.id === retroId);
+        if (passReward?.items) {
+          rewards.push(...passReward.items);
         }
       }
     }

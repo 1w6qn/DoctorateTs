@@ -25,9 +25,9 @@ router.post("/setSquad", validateBody(setSquadSchema), async (req, res) => {
   const { squad } = req.body as CharmSetSquadRequest;
 
   // 修复：原实现只返回假 delta 从不落盘（客户端显示已设置、刷新即回退）——
-  // 写入玩家数据（charm.squad 为客户端所需字段，类型未声明用 any）
+  // 写入玩家数据（charm.squad 为客户端所需字段）
   await player.update(async (draft) => {
-    (draft as any).charm.squad = squad;
+    draft.charm.squad = squad;
   });
   res.send(player.delta satisfies CharmSetSquadResponse);
 });

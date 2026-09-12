@@ -193,9 +193,9 @@ export async function applyArkhubDocs(
     // 券取较大值（继承官服进度，不减少本地已有）
     hub.coin = Math.max(hub.coin ?? 0, docs.coin);
     // 计数刷新（任务 9-14 / 勋章 02/025 数据源）
-    const dexIds: number[] = Object.values(hub.dex).map((d: any) => Number(d.numId));
+    const dexIds: number[] = Object.values(hub.dex).map((d) => Number(d.numId));
     hub.creatureCollected = dexIds.length;
-    hub.alterCollected = Object.values(hub.dex).filter((d: any) => d.isAlter).length;
+    hub.alterCollected = Object.values(hub.dex).filter((d) => d.isAlter).length;
     hub.activeCreatureCollected = Object.keys(arkdexActiveMap(dexIds)).length;
   });
   return { dexAdded, bagAdded };

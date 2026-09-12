@@ -1,6 +1,10 @@
-import { PlayerFriendAssist, PlayerSocialReward } from "../../kernel/playerdata";
+import { PlayerFriendAssist, PlayerSocial, PlayerSocialReward } from "../../kernel/playerdata";
+import type { PlayerDataModel } from "../../kernel/playerdata";
+import type { AvatarInfo, SharedCharData } from "../../kernel/model";
+import type { Draft } from "mutative";
 import { settleDormComfortCredit } from "../building/public";
 import { accountManager } from "../account/AccountManager";
+import type { FriendDataWithNameCard } from "./social-model";
 import { pickKeys, pickLoose } from "@utils/object";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
@@ -11,6 +15,27 @@ enum FriendServiceType {
   SEARCH_FRIEND = 0,
   GET_FRIEND_LIST = 1,
   GET_FRIEND_REQUEST = 2,
+}
+
+/**
+ * 编队助战列表条目（quest/getAssistList 响应 list 项）
+ *
+ * 好友信息（FriendDataWithNameCard）+ 选中助战干员槽位 + 私服补的 powerScore；
+ * aliasName 非好友时为 null（协议允许）。
+ */
+interface AssistListEntry {
+  aliasName: string | null;
+  assistCharList: SharedCharData[];
+  assistSlotIndex: number;
+  avatar: AvatarInfo;
+  canRequestFriend: boolean;
+  isFriend: boolean;
+  lastOnlineTime: number;
+  level: number;
+  nickName: string;
+  nickNumber: string;
+  powerScore: number;
+  uid: string;
 }
 
 export class SocialManager {
@@ -58,15 +83,17 @@ export class SocialManager {
    *
    * 官服存档必有该字段；新号/迁移档缺失时按 CS 形状补零值，避免读 undefined 崩溃。
    */
-  private _rewardBucket(draft: any): PlayerSocialReward {
-    draft.social ??= {};
+  private _rewardBucket(draft: Draft<PlayerDataModel>): PlayerSocialReward {
+    // social 为客户端/服务端共有的必需子树，全新存档可能整体缺失 → 防御性建键
+    // （生成类型各字段必填，运行时只建最小子树，故此处放宽）
+    draft.social ??= {} as PlayerSocial;
     draft.social.yesterdayReward ??= {
       canReceive: 0,
       first: 0,
       assistAmount: 0,
       comfortAmount: 0,
     };
-    return draft.social.yesterdayReward as PlayerSocialReward;
+    return draft.social.yesterdayReward;
   }
 
   /**
@@ -307,12 +334,16 @@ export class SocialManager {
     const { profession } = args;
     const social = await accountManager.getSocial(this._uid);
     const friendUids = new Set(social.friends.map((f) => f.uid));
-    const assistList: any[] = [];
+    const assistList: AssistListEntry[] = [];
     const usedCharIds = new Set<string>();
     const MAX_LIST = 6;
 
-    const buildAssistInfo = (info: any, isFriend: boolean, alias: string) => {
-      const assistChars: any[] = info?.assistCharList || [];
+    const buildAssistInfo = (
+      info: FriendDataWithNameCard,
+      isFriend: boolean,
+      alias: string,
+    ): AssistListEntry | null => {
+      const assistChars = info.assistCharList;
       const matched = assistChars.find((c) => {
         const data = this._player.excel.charData(c?.charId);
         return data?.profession === profession;
@@ -340,7 +371,7 @@ export class SocialManager {
     //    结果保持洗牌序，失败项跳过）
     const friends = [...social.friends].sort(() => Math.random() - 0.5);
     const friendInfos = await Promise.all(
-      friends.map((f) => accountManager.getPlayerFriendInfo(f.uid).catch(() => null as any)),
+      friends.map((f) => accountManager.getPlayerFriendInfo(f.uid).catch(() => null)),
     );
     for (let i = 0; i < friendInfos.length && assistList.length < MAX_LIST; i++) {
       const info = friendInfos[i];
@@ -356,7 +387,7 @@ export class SocialManager {
         .filter((uid) => uid !== this._uid && !friendUids.has(uid))
         .sort(() => Math.random() - 0.5);
       const otherInfos = await Promise.all(
-        otherUids.map((uid) => accountManager.getPlayerFriendInfo(uid).catch(() => null as any)),
+        otherUids.map((uid) => accountManager.getPlayerFriendInfo(uid).catch(() => null)),
       );
       for (let i = 0; i < otherInfos.length && assistList.length < MAX_LIST; i++) {
         const info = otherInfos[i];

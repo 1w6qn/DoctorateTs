@@ -57,7 +57,10 @@ describe("playerdata-server-adapt", () => {
     const pool = out.find(c => c.name === "PlayerGacha_PlayerGachaPool")!;
     expect(pool.fields.find(f => f.name === "avail")!.type).toBe("boolean"); // 白名单保留
     const skins = out.find(c => c.name === "PlayerSkins")!;
-    expect(skins.fields.find(f => f.name === "skinSp")!.type).toBe("{ [key: string]: number }"); // 字典值递归改写
+    // 字典值递归改写本应得 `{ [key: string]: number }`，但字段级覆盖优先：
+    // 真实存档里 changeSkinSpState 按 CS Boolean 写 true/false，而客户端模型声明 number → 两态并存
+    // （覆盖表见 scripts/playerdata-server-adapt.ts#SERVER_FIELD_TYPE_OVERRIDES["PlayerSkins.skinSp"]）
+    expect(skins.fields.find(f => f.name === "skinSp")!.type).toBe("{ [key: string]: number | boolean }");
   });
 
   it("wire pass 字符串序列化枚举保留字面量联合 + 字段级类型覆盖", () => {

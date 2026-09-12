@@ -10,6 +10,7 @@ import {
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { BadRequestError } from "../../kernel/http/errors";
+import { isJsonObject } from "@excel/json-value";
 
 export class TroopManager {
   _trigger: TypedEventEmitter;
@@ -183,8 +184,8 @@ export class TroopManager {
    * @throws BadRequestError 归属或条件不符
    */
   private _assertAvgUnlockable(charId: string, storyId: string): void {
-    const sets: any[] =
-      (excel.HandbookInfoTable as any)?.handbookDict?.[charId]?.handbookAvgList ?? [];
+    const sets =
+      excel.HandbookInfoTable?.handbookDict?.[charId]?.handbookAvgList ?? [];
     const set = sets.find((s) => s?.storySetId === storyId);
     if (!set) {
       throw new BadRequestError(`干员 ${charId} 不存在密录 ${storyId}`);
@@ -195,7 +196,7 @@ export class TroopManager {
     if (!char) {
       throw new BadRequestError(`未持有干员 ${charId}，无法解锁密录 ${storyId}`);
     }
-    for (const p of (set.unlockParam ?? []) as any[]) {
+    for (const p of set.unlockParam ?? []) {
       const type = String(p?.unlockType ?? "");
       if (type === "AWAKE") {
         const phase = Number(p.unlockParam1 ?? 0);
@@ -223,10 +224,16 @@ export class TroopManager {
    * @returns 所需 favorPoint（表缺失时按 maxFavor/200 线性回退）
    */
   private _favorPointFor(favor: number): number {
-    const frames = ((excel.FavorTable as any)?.favorFrames ?? []) as any[];
-    const exact = frames.find((f) => Number(f?.data?.percent ?? -1) >= favor);
-    if (exact) return Number(exact.data?.favorPoint ?? 0);
-    const maxFavor = Number((excel.FavorTable as any)?.maxFavor ?? 25570);
+    const frames = excel.FavorTable?.favorFrames ?? [];
+    const exact = frames.find((f) => {
+      const data = isJsonObject(f?.data) ? f.data : undefined;
+      return Number(data?.percent ?? -1) >= favor;
+    });
+    if (exact) {
+      const data = isJsonObject(exact.data) ? exact.data : undefined;
+      return Number(data?.favorPoint ?? 0);
+    }
+    const maxFavor = Number(excel.FavorTable?.maxFavor ?? 25570);
     return Math.ceil((favor / 200) * maxFavor);
   }
 

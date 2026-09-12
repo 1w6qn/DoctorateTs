@@ -3,11 +3,14 @@
  * 请求/响应类型见 @game/modules/account/user（参考 CS 2.7.61 协议类）
  */
 import { Router } from "express";
+import type { Draft } from "mutative";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
+import type { PlayerDataModel } from "../../kernel/playerdata";
 import { parseMultipartForm } from "../../kernel/util/multipart";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/excel";
+import { isJsonObject, type JsonValue } from "@excel/json-value";
 import { now } from "@utils/time";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
@@ -116,6 +119,65 @@ const PLACEHOLDER_PNG = Buffer.from(
 );
 
 /**
+ * 杂志页服务端视图
+ *
+ * 客户端透传字段（charSkin/decorList 未经建模），写入 gallery.leafMap 与缩略图落盘共用。
+ * 值域用 JsonValue：这里确实是「客户端任意 JSON」的 I/O 边界，消费侧仅做存转不作结构假设。
+ */
+interface MagazineView {
+  leafId?: string;
+  charSkin?: JsonValue;
+  decorList?: JsonValue;
+}
+
+/**
+ * 将未知 JSON 收窄为杂志视图
+ *
+ * V1 body 已声明结构、V2（JSON/multipart）为 unknown，统一在此收窄：
+ * 非对象返回 undefined（调用侧按「无 magazine」处理，与旧实现 `magazine?.leafId` 等价）。
+ *
+ * @param value - 待收窄的杂志负载
+ * @returns 杂志视图；非对象时为 undefined
+ */
+function asMagazineView(value: unknown): MagazineView | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const rec = value as Record<string, JsonValue>;
+  return {
+    leafId: typeof rec.leafId === "string" ? rec.leafId : undefined,
+    charSkin: rec.charSkin,
+    decorList: rec.decorList,
+  };
+}
+
+/**
+ * 画廊叶子页服务端视图
+ *
+ * charSkin 服务端写 null（生成类型为必填元素结构）、decorList 为客户端透传元素——
+ * 两者保留 `unknown`：此处是「客户端任意 JSON 落存档」的 I/O 边界，且用 unknown 才能
+ * 让生成模型 Draft<PlayerArtMagazineLeafData> 与视图互相收窄（JsonValue 因递归不可用于 Draft）。
+ */
+interface GalleryLeafView {
+  leafId: string;
+  charSkin: unknown;
+  decorList: unknown;
+  getTs: number;
+  version: number;
+}
+
+/**
+ * 画廊服务端视图
+ *
+ * 生成类型 PlayerGallery 是客户端模型：firstRewards 声明为 number 而服务端写布尔 false/true；
+ * 子表（magazineSquad/collectionRewards）服务端惰性建键 → 可选。
+ */
+interface GalleryView {
+  firstRewards: number | boolean;
+  leafMap: { [key: string]: GalleryLeafView };
+  magazineSquad?: string[];
+  collectionRewards?: { [key: string]: number };
+}
+
+/**
  * 形艺特辑杂志缩略图存储目录
  *
  * 编辑保存的 base64 缩略图以 `{uid}_magazine_{leafId}.jpg` 落盘于此，
@@ -180,7 +242,7 @@ function removeGalleryThumbnail(uid: string, leafId: string): void {
  */
 function persistGalleryThumbnail(
   uid: string,
-  magazine: { leafId?: string; charSkin?: unknown; decorList?: unknown[] },
+  magazine: MagazineView | undefined,
   thumbnail?: string,
 ): void {
   const leafId = magazine?.leafId;
@@ -225,59 +287,66 @@ function collectRawBody(req: import("express").Request): Promise<Buffer> {
  * @returns 解析结果；非 multipart 或无可解析 part 时返回 null
  */
 async function parseMagazineMultipart(req: import("express").Request): Promise<{
-  magazine?: unknown;
+  magazine?: JsonValue;
   thumbnail?: string;
-  magazineSquad?: string[];
-  squad?: string[];
+  magazineSquad?: JsonValue[];
+  squad?: JsonValue[];
 } | null> {
-  const raw = (req as unknown as { rawBody?: Buffer }).rawBody ?? (await collectRawBody(req));
+  const raw =
+    (req as import("express").Request & { rawBody?: Buffer }).rawBody ?? (await collectRawBody(req));
   const parts = parseMultipartForm(raw, req.headers["content-type"]);
   if (parts.size === 0) return null;
 
   // 主负载：优先 `json` part（对齐 savePixelArt 约定），其次常见别名
-  let payload: any = {};
+  let payload: JsonValue = {};
   const jsonPart = parts.get("json") ?? parts.get("data") ?? parts.get("payload");
   if (jsonPart) {
     try {
-      payload = JSON.parse(jsonPart.toString("utf-8"));
+      payload = JSON.parse(jsonPart.toString("utf-8")) as JsonValue;
     } catch {
       payload = {};
     }
   }
+  // 非对象负载（字符串/数组/null）与旧实现同样取不到任何字段
+  const fields = isJsonObject(payload) ? payload : {};
 
   // thumbnail：独立二进制图片 part → base64 data URI
-  let thumbnail = payload.thumbnail;
+  let thumbnail = typeof fields.thumbnail === "string" ? fields.thumbnail : undefined;
   if (parts.get("thumbnail")) {
     thumbnail = `data:image/jpeg;base64,${parts.get("thumbnail")!.toString("base64")}`;
   }
 
   // magazine：主负载字段，或独立 JSON part
-  let magazine = payload.magazine;
+  let magazine: JsonValue | undefined = fields.magazine;
   if (!magazine && parts.get("magazine")) {
     const mPart = parts.get("magazine")!.toString("utf-8");
     try {
-      magazine = JSON.parse(mPart);
+      magazine = JSON.parse(mPart) as JsonValue;
     } catch {
       magazine = mPart;
     }
   }
 
   // magazineSquad：主负载字段，或独立 JSON part
-  let magazineSquad = Array.isArray(payload.magazineSquad) ? payload.magazineSquad : undefined;
+  let magazineSquad: JsonValue[] | undefined = Array.isArray(fields.magazineSquad)
+    ? fields.magazineSquad
+    : undefined;
   if (!magazineSquad && parts.get("magazineSquad")) {
     try {
-      magazineSquad = JSON.parse(parts.get("magazineSquad")!.toString("utf-8"));
+      const parsed = JSON.parse(parts.get("magazineSquad")!.toString("utf-8")) as JsonValue;
+      magazineSquad = Array.isArray(parsed) ? parsed : undefined;
     } catch {
       magazineSquad = undefined;
     }
   }
   // squad：官服 changeMagazineSquad 请求字段（R-1787473456620-0040），multipart 时同样兼容
-  let squad: string[] | undefined;
-  if (Array.isArray(payload.squad)) {
-    squad = payload.squad;
+  let squad: JsonValue[] | undefined;
+  if (Array.isArray(fields.squad)) {
+    squad = fields.squad;
   } else if (parts.get("squad")) {
     try {
-      squad = JSON.parse(parts.get("squad")!.toString("utf-8"));
+      const parsed = JSON.parse(parts.get("squad")!.toString("utf-8")) as JsonValue;
+      squad = Array.isArray(parsed) ? parsed : undefined;
     } catch {
       squad = undefined;
     }
@@ -341,8 +410,10 @@ router.post("/bindNickName", validateBody(bindNickNameSchema), async (req, res) 
   }
   if (result !== 0) res.send({ result } satisfies BindNickNameResponse);
   else {
-    // 注意：客户端字段为 nickName，管理器契约读取 nickname（既有不一致，保持原行为）
-    await player.status.bindNickName(body as unknown as { nickname: string });
+    // 修复（类型收紧暴露出真实缺陷）：客户端/schema 字段为 nickName，而管理器契约读取
+    // nickname——旧实现用 `as unknown as { nickname: string }` 把 body 原样透传，
+    // 运行时 args.nickname 恒为 undefined → 绑定昵称静默失效（与 useRenameCard 同源写法不一致）。
+    await player.status.bindNickName({ nickname: body.nickName });
     res.send(player.delta satisfies BindNickNameResponse);
   }
 });
@@ -352,7 +423,7 @@ router.post("/useRenameCard", validateBody(useRenameCardSchema), async (req, res
   const player = getPlayer();
   const body = req.body as UseRenameCardRequest;
   await player.status.bindNickName({ nickname: body.nickName });
-  player.gainItem.setTarget(body.itemId, undefined, 1, (body as any).instId);
+  player.gainItem.setTarget(body.itemId, undefined, 1, body.instId);
   await player.gainItem.use();
   res.send(player.delta satisfies UseRenameCardResponse);
 });
@@ -405,7 +476,7 @@ router.post("/useItem", validateBody(useItemSchema), async (req, res) => {
   if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) {
     return res.status(400).send({ status: 1, msg: "非法参数" });
   }
-  player.gainItem.setTarget(body.itemId, undefined, count, (body as any).instId);
+  player.gainItem.setTarget(body.itemId, undefined, count, body.instId);
   await player.gainItem.use();
   res.send(player.delta satisfies UseItemResponse);
 });
@@ -477,9 +548,8 @@ export default router;
 // （例如 /gallery/*、/cg/*、/medal/*、/mainlineClue/*、/general/v1/server_time）。
 // 因此通过独立的 rootRouter 导出，并在 app.ts 中挂载到根路径 "/"。
 //
-// 注意：gallery 与 mainline.clue 字段在当前手写的 PlayerDataModel 中尚未声明，
-// 但在实际玩家数据 JSON 与 excel 生成的类型（types-playerdata.ts）中均存在对应结构。
-// 此处使用 `(draft as any)` 访问这些字段，以确保 Immer 能够追踪变更并生成 delta。
+// 注意：gallery 与 mainline 字段已在 types-playerdata.ts 的生成模型中声明，
+// 直接经 Draft 访问即可保证 Immer 追踪变更并生成 delta（无需再 `as any`）。
 
 /**
  * 服务器内 CG 收藏集合（内存态）
@@ -523,7 +593,7 @@ rootRouter.post("/mainlineClue/unlockClue", validateBody(unlockClueSchema), asyn
   const body = req.body as UnlockClueRequest;
   const { id } = body;
   await player.update(async (draft) => {
-    const mainline = draft.mainline as any;
+    const mainline = draft.mainline;
     if (!mainline.clue) {
       mainline.clue = { unlock: false, state: {}, reward: {} };
     }
@@ -574,11 +644,29 @@ rootRouter.post("/user/recvLongTermCheckInReward", validateBody(recvLongTermChec
   res.send({ rewards, ...player.delta } satisfies RecvLongTermCheckInRewardResponse);
 });
 
+/**
+ * 语音档案条目（服务端自建；形状见 scripts/playerdata-server-adapt.ts 的 charVoiceRecord 登记）
+ */
+interface CharVoiceRecordView {
+  isOpen: boolean;
+  confirmEnterReward: boolean;
+  nodes: { [nodeId: string]: number };
+}
+
+/**
+ * mainline 语音档案写入视图
+ *
+ * 生成类型把 mainline 声明为必填，但旧存档/部分测试夹具可能整体缺失该分区，
+ * 旧实现用 `(draft.mainline as any) ??= {}` 兜底；此处保留同一行为（可选 + `??=`）。
+ */
+interface MainlineVoiceView {
+  mainline?: { charVoiceRecord?: { [topicId: string]: CharVoiceRecordView } };
+}
+
 /** 取语音档案 topic 的干员 id（取首个 clip 的 charId） */
 function missionArchiveCharId(topicId: string): string | undefined {
-  const ma = (excel.ActivityTable as any)?.missionArchives?.[topicId];
-  const clips: Array<{ charId: string }> =
-    ma?.nodes?.flatMap((n: any) => n?.clips ?? []) ?? ma?.hiddenClips ?? [];
+  const ma = excel.ActivityTable?.missionArchives?.[topicId];
+  const clips = ma?.nodes?.flatMap((n) => n?.clips ?? []) ?? ma?.hiddenClips ?? [];
   return clips[0]?.charId;
 }
 
@@ -593,8 +681,9 @@ rootRouter.post("/mainline/enterCharVoiceRecord", validateBody(enterCharVoiceRec
   const charId = missionArchiveCharId(topicId);
   let granted = false;
   await player.update(async (draft) => {
-    const mainline = (draft.mainline as any) ??= {};
-    mainline.charVoiceRecord = mainline.charVoiceRecord ?? {};
+    const view = draft as MainlineVoiceView;
+    const mainline = (view.mainline ??= {});
+    mainline.charVoiceRecord ??= {};
     const archive = (mainline.charVoiceRecord[topicId] ??= { isOpen: false, confirmEnterReward: false, nodes: {} });
     if (archive.confirmEnterReward) return;
     archive.isOpen = true;
@@ -618,13 +707,14 @@ rootRouter.post("/mainline/enterCharVoiceRecord", validateBody(enterCharVoiceRec
 rootRouter.post("/mainline/confirmCharVoiceRecordReward", validateBody(confirmCharVoiceRecordRewardSchema), async (req, res) => {
   const player = getPlayer();
   const { topicId, nodeId } = req.body as ConfirmCharVoiceRecordRewardRequest;
-  const topic = (excel.ActivityTable as any)?.missionArchives?.[topicId];
-  const node = topic?.nodes?.find((n: any) => n?.nodeId === nodeId);
+  const topic = excel.ActivityTable?.missionArchives?.[topicId];
+  const node = topic?.nodes?.find((n) => n?.nodeId === nodeId);
   const charId = node?.clips?.[0]?.charId ?? topic?.hiddenClips?.[0]?.charId;
   let granted = false;
   await player.update(async (draft) => {
-    const mainline = (draft.mainline as any) ??= {};
-    mainline.charVoiceRecord = mainline.charVoiceRecord ?? {};
+    const view = draft as MainlineVoiceView;
+    const mainline = (view.mainline ??= {});
+    mainline.charVoiceRecord ??= {};
     const archive = (mainline.charVoiceRecord[topicId] ??= { isOpen: false, confirmEnterReward: false, nodes: {} });
     if (!node || archive.nodes[nodeId] === 2) return;
     archive.nodes[nodeId] = 2;
@@ -650,7 +740,7 @@ rootRouter.post("/mainlineClue/readClue", validateBody(unlockClueSchema), async 
   const player = getPlayer();
   const { id } = req.body as { id: string };
   await player.update(async (draft) => {
-    const mainline = draft.mainline as any;
+    const mainline = draft.mainline;
     if (!mainline.clue) {
       mainline.clue = { unlock: false, state: {}, reward: {} };
     }
@@ -672,13 +762,10 @@ rootRouter.post("/mainlineClue/getRewards", validateBody(getRewardsSchema), asyn
   if (ids.length === 0) {
     return res.send({ ...player.delta, items: [] } satisfies GetClueRewardsResponse);
   }
-  const anniv = excel.ActivityTable?.anniv7thData as
-    | { clueRewardData?: Array<{ clueRecordId: string; clueRecord: number; rewards: ItemBundle[] }> }
-    | undefined;
-  const rewardConfig = anniv?.clueRewardData ?? [];
+  const rewardConfig = excel.ActivityTable?.anniv7thData?.clueRewardData ?? [];
   const pending: ItemBundle[] = [];
   await player.update(async (draft) => {
-    const mainline = draft.mainline as any;
+    const mainline = draft.mainline;
     if (!mainline.clue) mainline.clue = { unlock: false, state: {}, reward: {} };
     const clueState: Record<string, number> = mainline.clue.state ?? {};
     const gainedRecord = Object.values(clueState).filter((v) => v >= 2).length;
@@ -832,20 +919,22 @@ rootRouter.post("/cg/removeCgCollection", validateBody(cgCollectionSchema), asyn
  * 初始化或获取玩家 gallery 数据
  *
  * 辅助函数：在 Immer draft 中确保 gallery 字段存在，
- * 若不存在则初始化默认结构。gallery 字段在手写 PlayerDataModel 中未声明，
- * 但在 excel 生成的类型与实际玩家数据中存在对应结构。
+ * 若不存在则初始化默认结构（与旧行为一致：仅写 firstRewards/leafMap）。
+ * 写入侧经 GalleryView 视图访问——生成类型的 PlayerGallery 是客户端模型
+ * （firstRewards 声明 number 而服务端写布尔、charSkin 服务端写 null）。
  *
  * @param draft - Immer 可写草稿
  * @returns gallery 数据对象
  */
-function ensureGallery(draft: any): any {
-  if (!draft.gallery) {
-    draft.gallery = {
+function ensureGallery(draft: Draft<PlayerDataModel>): GalleryView {
+  const view = draft as { gallery?: GalleryView };
+  if (!view.gallery) {
+    view.gallery = {
       firstRewards: false,
       leafMap: {},
     };
   }
-  return draft.gallery;
+  return view.gallery;
 }
 
 /**
@@ -947,22 +1036,23 @@ rootRouter.post("/gallery/changeMagazineSquad", async (req, res) => {
   const player = getPlayer();
   const ct = String(req?.headers?.["content-type"] ?? "");
   // 解析客户端提交的编队列表（兼容 multipart 与 JSON body 的多种字段写法）
-  let squad: string[] | undefined;
+  let squad: JsonValue | undefined;
   if (ct.includes("multipart/form-data")) {
     const parsed = await parseMagazineMultipart(req);
     squad = parsed?.squad ?? parsed?.magazineSquad;
   } else {
-    const body = (req.body ?? {}) as Record<string, any>;
+    const body: JsonValue = (req.body ?? {}) as JsonValue;
+    const fields = isJsonObject(body) ? body : {};
     // 修复（2026-08-25）：官服请求字段是 `squad`（抓包 R-1787473456620-0040
     // {"squad":["leaf_default"]}）——原实现只解析 magazineSquad/leafIds/leafId/
     // magazineId，客户端"添加到当前陈列"发 squad → 无匹配 → magazineSquad 不更新、
     // delta 为空 → 界面无变化。squad 优先级最高，其余保留兼容旧写法。
     squad =
-      body.squad ??
-      body.magazineSquad ??
-      body.leafIds ??
-      (typeof body.leafId === "string" ? [body.leafId] : undefined) ??
-      (typeof body.magazineId === "string" ? [body.magazineId] : undefined);
+      fields.squad ??
+      fields.magazineSquad ??
+      fields.leafIds ??
+      (typeof fields.leafId === "string" ? [fields.leafId] : undefined) ??
+      (typeof fields.magazineId === "string" ? [fields.magazineId] : undefined);
   }
   await player.update(async (draft) => {
     const gallery = ensureGallery(draft);
@@ -990,7 +1080,8 @@ rootRouter.post("/gallery/changeMagazineSquad", async (req, res) => {
 rootRouter.post("/gallery/saveDiyMagazineV1", validateBody(saveDiyMagazineSchema), async (req, res) => {
   const player = getPlayer();
   const body = req.body as SaveDiyMagazineRequest;
-  const { magazine, thumbnail } = body;
+  const magazine = asMagazineView(body?.magazine);
+  const { thumbnail } = body;
   const uid = String(player.uid);
   await player.update(async (draft) => {
     saveDiyMagazine(draft, magazine);
@@ -1026,11 +1117,12 @@ rootRouter.post("/gallery/saveDiyMagazineV2", async (req, res) => {
     magazine = body?.magazine;
     thumbnail = body?.thumbnail;
   }
+  const magazineView = asMagazineView(magazine);
   await player.update(async (draft) => {
-    saveDiyMagazine(draft, magazine);
+    saveDiyMagazine(draft, magazineView);
   });
   // 编辑闭环：将客户端上传的缩略图落盘（页面清空时清理残留），供展示环节回传
-  persistGalleryThumbnail(uid, magazine as any, thumbnail);
+  persistGalleryThumbnail(uid, magazineView, thumbnail);
   res.send(player.delta satisfies SaveDiyMagazineResponse);
 });
 
@@ -1040,7 +1132,7 @@ rootRouter.post("/gallery/saveDiyMagazineV2", async (req, res) => {
  * @param draft - Immer 可写草稿
  * @param magazine - 杂志数据（leafId/charSkin/decorList）
  */
-function saveDiyMagazine(draft: any, magazine: any): void {
+function saveDiyMagazine(draft: Draft<PlayerDataModel>, magazine: MagazineView | undefined): void {
   const gallery = ensureGallery(draft);
   if (magazine?.leafId) {
     if (!gallery.leafMap[magazine.leafId]) {

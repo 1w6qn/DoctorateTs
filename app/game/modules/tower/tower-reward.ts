@@ -14,7 +14,69 @@
  * **已领取首通奖励的层号数组**（tower_n_01 best=8 reward=[1..8]；tower_n_07 best=4 reward=[1]
  * —— 通关 4 层但只领过第 1 层）。
  */
+import type { Draft } from "mutative";
+import type { ServerPayload } from "@excel/json-value";
+import type {
+  PlayerDataModel,
+  PlayerTower,
+  TowerCurrent,
+  TowerOuter,
+  TowerOuter_TowerData,
+  TowerSeason_TowerSeasonCardSquad,
+  TowerSeason_TowerSeasonMission,
+  TowerSeason_TowerSeasonPeriod,
+  TowerTactical,
+} from "../../kernel/playerdata";
 import excel, { ItemBundle } from "@excel/excel";
+
+/* ==================== 类型视图 ==================== */
+
+/** 爬塔 excel 表类型（由 excel 单例派生；业务代码不直连生成类型模块） */
+type ClimbTowerTableType = typeof excel.ClimbTowerTable;
+/** 表常量（物品 id 与上限、扫荡消耗） */
+type TowerDetailConst = ClimbTowerTableType["detailConst"];
+/** 赛季信息（`seasonInfos` 值类型） */
+type TowerSeasonInfoData = ClimbTowerTableType["seasonInfos"][string];
+/** 赛季任务定义（`missionData` 值类型） */
+type TowerMissionData = ClimbTowerTableType["missionData"][string];
+
+/**
+ * 赛季存档「已补齐」视图（`ensureTowerState` 逐个补齐下列字段）
+ *
+ * 生成模型 `TowerSeason` 各字段必填，而私服初始存档可能整块缺失；本视图只把
+ * `ensureTowerState` 保证存在的字段设为必填，供后续逻辑免判空访问。
+ */
+type TowerSeasonReady = {
+  id: string;
+  finishTs: number;
+  missions: { [missionId: string]: TowerSeason_TowerSeasonMission };
+  passWithGodCard: { [key: string]: string[] };
+  towerSlotsMap: { [key: string]: TowerSeason_TowerSeasonCardSquad[] };
+  slots: ServerPayload;
+  period: TowerSeason_TowerSeasonPeriod;
+};
+
+/** tower 存档视图（current/outer 仍为部分字段，season 已补齐） */
+type TowerStateView = {
+  current: Partial<TowerCurrent>;
+  outer: Partial<TowerOuter>;
+  season: TowerSeasonReady;
+};
+
+/**
+ * `outer.towers[towerId]` 的「已建记录」视图
+ *
+ * 服务端建记录时只写 4 个字段（best/reward/unlockHard/hardBest），
+ * `isHardValid`/`canSweep`/`canSweepHard` 由后续结算补写，故对生成模型可选化。
+ */
+type TowerOuterTowerReady = Partial<
+  Omit<TowerOuter_TowerData, "best" | "reward" | "unlockHard" | "hardBest">
+> & {
+  best: number;
+  reward: number[];
+  unlockHard: boolean;
+  hardBest: number;
+};
 
 /** 每层首通奖励档 */
 export interface TowerRewardRow {
@@ -40,8 +102,8 @@ export interface TowerMissionCtx {
  * 读 `climb_tower_table.detailConst`（缺表返回空对象）
  * @returns detailConst 原始对象
  */
-export function towerDetailConst(): Record<string, any> {
-  return ((excel.ClimbTowerTable as any)?.detailConst ?? {}) as Record<string, any>;
+export function towerDetailConst(): Partial<TowerDetailConst> {
+  return excel.ClimbTowerTable?.detailConst ?? {};
 }
 
 /**
@@ -50,9 +112,9 @@ export function towerDetailConst(): Record<string, any> {
  * @returns 奖励档数组
  */
 export function towerLayerRows(isHard: boolean): TowerRewardRow[] {
-  const table = excel.ClimbTowerTable as any;
+  const table = excel.ClimbTowerTable;
   const rows = (isHard ? table?.rewardInfoListHardMode : table?.rewardInfoList) ?? [];
-  return Array.isArray(rows) ? (rows as TowerRewardRow[]) : [];
+  return Array.isArray(rows) ? rows : [];
 }
 
 /**
@@ -71,7 +133,7 @@ export function towerLayerRewardRow(stageSort: number, isHard: boolean): TowerRe
  * @returns 层号；未知返回 0
  */
 export function towerLayerSort(levelId: string): number {
-  const level = (excel.ClimbTowerTable as any)?.levels?.[levelId];
+  const level = excel.ClimbTowerTable?.levels?.[levelId];
   return Number(level?.layerNum ?? 0) || 0;
 }
 
@@ -99,9 +161,9 @@ export function normalizeTowerLayers(layers: unknown): number[] {
  * @param nowTs - 当前时间（秒）
  * @returns `seasonInfos` 中命中的赛季；无命中返回 undefined
  */
-export function currentTowerSeason(nowTs: number): Record<string, any> | undefined {
-  const infos = (excel.ClimbTowerTable as any)?.seasonInfos ?? {};
-  for (const info of Object.values(infos) as any[]) {
+export function currentTowerSeason(nowTs: number): TowerSeasonInfoData | undefined {
+  const infos = excel.ClimbTowerTable?.seasonInfos ?? {};
+  for (const info of Object.values(infos)) {
     if (!info) continue;
     if (nowTs >= Number(info.startTs ?? 0) && nowTs <= Number(info.endTs ?? 0)) {
       return info;
@@ -118,9 +180,10 @@ export function currentTowerSeason(nowTs: number): Record<string, any> | undefin
  * @param draft - 玩家数据草稿
  * @returns `draft.tower`
  */
-export function ensureTowerState(draft: any): any {
-  if (!draft.tower) draft.tower = {};
-  const tower = draft.tower;
+export function ensureTowerState(draft: Draft<PlayerDataModel>): TowerStateView {
+  // 整块缺失时先建空对象（生成模型 tower 各字段必填，按「先建后补齐」的既有语义断言）
+  if (!draft.tower) draft.tower = {} as PlayerTower;
+  const tower: TowerStateView = draft.tower;
   if (!tower.current) tower.current = {};
   if (!tower.outer) tower.outer = {};
   const outer = tower.outer;
@@ -132,7 +195,8 @@ export function ensureTowerState(draft: any): any {
   if (!outer.tactical) outer.tactical = emptyTowerTactical();
   if (!outer.strategy) outer.strategy = "NONE";
   if (!Array.isArray(outer.squad)) outer.squad = [];
-  if (!tower.season) tower.season = {};
+  // 赛季块整体缺失时先建空对象，随后逐个补齐（各字段必填，故按既有语义断言）
+  if (!tower.season) tower.season = {} as TowerSeasonReady;
   const season = tower.season;
   if (season.id == null) season.id = "";
   if (season.finishTs == null) season.finishTs = 0;
@@ -147,7 +211,7 @@ export function ensureTowerState(draft: any): any {
 }
 
 /** 空战术配置（TowerTactical 八职业） */
-function emptyTowerTactical(): Record<string, string> {
+function emptyTowerTactical(): TowerTactical {
   return {
     PIONEER: "", WARRIOR: "", TANK: "", SNIPER: "",
     CASTER: "", SUPPORT: "", MEDIC: "", SPECIAL: "",
@@ -160,13 +224,18 @@ function emptyTowerTactical(): Record<string, string> {
  * @param towerId - 塔 id
  * @returns 该塔的进度记录（best/reward/unlockHard/hardBest）
  */
-export function ensureTowerOuterTower(draft: any, towerId: string): any {
+export function ensureTowerOuterTower(
+  draft: Draft<PlayerDataModel>,
+  towerId: string,
+): TowerOuterTowerReady {
   ensureTowerState(draft);
-  const towers = draft.tower.outer.towers;
+  const towers = draft.tower.outer.towers as {
+    [towerId: string]: TowerOuterTowerReady | undefined;
+  };
   if (!towers[towerId]) {
     towers[towerId] = { best: 0, reward: [], unlockHard: false, hardBest: 0 };
   }
-  const rec = towers[towerId];
+  const rec = towers[towerId]!;
   if (rec.best == null) rec.best = 0;
   if (!Array.isArray(rec.reward)) rec.reward = [];
   if (rec.unlockHard == null) rec.unlockHard = false;
@@ -182,8 +251,8 @@ export function ensureTowerOuterTower(draft: any, towerId: string): any {
  * @param mission - missionData 条目
  * @returns 目标值
  */
-export function towerMissionTarget(mission: any): number {
-  const param: any[] = Array.isArray(mission?.param) ? mission.param : [];
+export function towerMissionTarget(mission: TowerMissionData | undefined): number {
+  const param: string[] = Array.isArray(mission?.param) ? mission.param : [];
   switch (String(mission?.template ?? "")) {
     case "TowerRecruit":
       return Math.max(1, Number(param[1] ?? 1) || 1);
@@ -202,7 +271,7 @@ export function towerMissionTarget(mission: any): number {
  * @param draft - 玩家数据草稿
  * @param nowTs - 当前时间（秒）
  */
-export function ensureTowerSeasonMissions(draft: any, nowTs: number): void {
+export function ensureTowerSeasonMissions(draft: Draft<PlayerDataModel>, nowTs: number): void {
   const tower = ensureTowerState(draft);
   const season = tower.season;
   if (!season.id) {
@@ -212,10 +281,10 @@ export function ensureTowerSeasonMissions(draft: any, nowTs: number): void {
       season.finishTs = Number(cur.endTs ?? 0);
     }
   }
-  const groups = (excel.ClimbTowerTable as any)?.missionGroup ?? {};
+  const groups = excel.ClimbTowerTable?.missionGroup ?? {};
   const group = groups[season.id];
   const ids: string[] = Array.isArray(group?.missionIds) ? group.missionIds : [];
-  const missions = (excel.ClimbTowerTable as any)?.missionData ?? {};
+  const missions = excel.ClimbTowerTable?.missionData ?? {};
   for (const id of ids) {
     if (season.missions[id]) continue;
     season.missions[id] = {
@@ -235,7 +304,7 @@ export function ensureTowerSeasonMissions(draft: any, nowTs: number): void {
  * @returns 实际发放的物品、新领取的层号与数量
  */
 export function claimTowerLayerRewards(
-  draft: any,
+  draft: Draft<PlayerDataModel>,
   towerId: string,
   sorts: number[],
   isHard: boolean,
@@ -283,18 +352,18 @@ export function claimTowerLayerRewards(
  * @param ctx - 本次结算上下文
  * @returns 本次被推进的任务 id 列表
  */
-export function advanceTowerSeasonMissions(draft: any, ctx: TowerMissionCtx): string[] {
+export function advanceTowerSeasonMissions(draft: Draft<PlayerDataModel>, ctx: TowerMissionCtx): string[] {
   const tower = ensureTowerState(draft);
   const season = tower.season;
-  const missions = (excel.ClimbTowerTable as any)?.missionData ?? {};
+  const missions = excel.ClimbTowerTable?.missionData ?? {};
   const touched: string[] = [];
   const cleared = Number(ctx.clearedLayers ?? 0);
   const total = Number(ctx.totalLayers ?? 0);
   const fullClear = total > 0 && cleared >= total;
-  for (const [id, state] of Object.entries(season.missions ?? {}) as [string, any][]) {
+  for (const [id, state] of Object.entries(season.missions ?? {})) {
     const mission = missions[id];
     if (!mission || state.hasRecv) continue;
-    const param: any[] = Array.isArray(mission.param) ? mission.param : [];
+    const param: string[] = Array.isArray(mission.param) ? mission.param : [];
     const target = Math.max(1, Number(state.target ?? 1) || 1);
     let value = Number(state.value ?? 0);
     switch (String(mission.template ?? "")) {

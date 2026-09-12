@@ -4,6 +4,7 @@ import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { now } from "@utils/time";
 import type { Draft } from "mutative";
 import type { PlayerDataModel } from "../../kernel/playerdata";
+import type { PlayerSquad } from "../../kernel/model";
 import {
   VecBreakV2ChangeBuffRequest,
   VecBreakV2ChangeBuffResponse,
@@ -15,6 +16,7 @@ import {
   VecBreakV2SeasonRecordResponse,
   VecBreakV2SetDefendRequest,
   VecBreakV2SetDefendResponse,
+  VecBreakV2StageInfo,
   VecBreakV2StartBattleResponse,
   VecBreakV2PlayerData,
 } from "./vecbreak";
@@ -41,7 +43,7 @@ const router = Router();
 // 修复：模块级单例在多账号下互相串扰（A 开战 B 结算用错队伍）→ 按 uid 存储
 const vecBreakBattleCtxs = new Map<
   string,
-  { activityId: string; stageId: string; squad: any }
+  { activityId: string; stageId: string; squad: PlayerSquad }
 >();
 
 /** 按需初始化 VEC_BREAK_V2 活动数据 */
@@ -71,7 +73,7 @@ router.post("/vecBreakV2/getSeasonRecord", validateBody(getSeasonRecordSchema), 
   // 现按当前赛季配置取关卡清单，并回报 dungeon 中的真实 state（缺省 0）。
   const activityId = currentVecBreakActivityId();
   const stages = player._playerdata.dungeon?.stages ?? {};
-  const stageInfo: Record<string, any> = {};
+  const stageInfo: Record<string, VecBreakV2StageInfo> = {};
   for (const stageId of vecBreakStageIds(activityId)) {
     // CS: PlayerStageState 数值枚举（0=NONE … 3=COMPLETE），非字符串
     stageInfo[stageId] = { stageId, state: Number(stages[stageId]?.state ?? 0) };
@@ -92,7 +94,7 @@ router.post("/vecBreakV2/getSeasonRecord", validateBody(getSeasonRecordSchema), 
           buff: vb?.activatedBuff ?? [],
           showTs: Number(vb?.bestShowTs ?? now()),
           squad: vb?.squads ?? [],
-          assistChar: {} as any,
+          assistChar: {},
         },
         stageInfo,
       },
@@ -123,10 +125,16 @@ router.post("/vecBreakV2/defendBattleStart", validateBody(defendBattleStartSchem
   });
   const start = await player.battle.start({
     stageId: body.stageId,
-    squad: body.squad as any,
+    squad: body.squad,
     usePracticeTicket: 0,
     assistFriend: null,
-  } as any);
+    isRetro: 0,
+    pray: 0,
+    battleType: 0,
+    continuous: { battleTimes: 1 },
+    isReplay: 0,
+    startTs: 0,
+  });
   res.send({
     ...start,
     ...player.delta,
@@ -158,7 +166,7 @@ router.post("/vecBreakV2/defendBattleFinish", validateBody(defendBattleFinishSch
       if (firstClear) {
         data.defendStages[ctx.stageId] = {
           stageId: ctx.stageId,
-          defendSquad: (ctx.squad?.slots ?? []).map((s: any) => ({
+          defendSquad: (ctx.squad?.slots ?? []).map((s) => ({
             charInstId: s?.charInstId,
             currentTmpl: null,
           })),
@@ -234,10 +242,16 @@ router.post("/vecBreakV2/battleStart", validateBody(battleStartSchema), async (r
   });
   const start = await player.battle.start({
     stageId: body.stageId,
-    squad: body.squad as any,
+    squad: body.squad,
     usePracticeTicket: 0,
     assistFriend: body.assistFriend ?? null,
-  } as any);
+    isRetro: 0,
+    pray: 0,
+    battleType: 0,
+    continuous: { battleTimes: 1 },
+    isReplay: 0,
+    startTs: 0,
+  });
   res.send({
     ...start,
     ...player.delta,
@@ -267,7 +281,7 @@ router.post("/vecBreakV2/battleFinish", validateBody(battleFinishSchema), async 
   const result = await player.battle.finish({
     data: body.data,
     battleData: body.battleData,
-  } as any);
+  });
   let msBefore = 0;
   let msAfter = 0;
   await player.update(async (draft) => {

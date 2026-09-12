@@ -12,7 +12,8 @@
  * 2. 完成任务可获得任务点数，累计点数可兑换奖励
  * 3. 每日/每周任务到期自动重置进度
  */
-import { MissionCalcState } from "../../kernel/playerdata";
+import { MissionCalcState, MissionPlayerDataGroup, PlayerDataModel } from "../../kernel/playerdata";
+import type { Draft } from "mutative";
 import excel from "@excel/excel";
 import { ItemBundle, ItemType } from "@excel/excel";
 import { PlayerCharacter } from "../../kernel/model";
@@ -78,6 +79,12 @@ export const WEEKLY_START_LIST: readonly string[] = [
   "weekly_715", "weekly_716", "weekly_718", "weekly_720", "weekly_723",
   "weekly_725", "weekly_729", "weekly_732",
 ];
+
+/** 存档内单条任务记录（`任务类型 → 任务 id → 记录` 两层字典的叶类型） */
+type MissionEntry = MissionPlayerDataGroup[string][string];
+
+/** 任务记录的服务端视图：额外持久化 `confirmed` 防重复领取标记（官方结构无此字段） */
+type MissionEntryView = MissionEntry & { confirmed?: number };
 
 export class MissionManager {
   missions: { [key: string]: MissionProgress[] };
@@ -145,9 +152,9 @@ export class MissionManager {
     const groupIds = new Set<string>(
       Object.values(excel.MissionTable.weeklyRewards ?? {})
         .filter(
-          (r: any) => r && checkBetween(ts, r.beginTime, r.endTime),
+          (r) => r && checkBetween(ts, r.beginTime, r.endTime),
         )
-        .map((r: any) => r.groupId),
+        .map((r) => r.groupId),
     );
     return [...groupIds].sort()[0] ?? "";
   }
@@ -167,13 +174,8 @@ export class MissionManager {
    * @returns 生效组内、且确实存在于 MissionTable.missions 的任务 id（保持组内顺序）
    */
   private _activeSpecialOperatorWeeklyIds(): string[] {
-    const missions = (excel.MissionTable?.missions ?? {}) as Record<
-      string,
-      unknown
-    >;
-    const groups = (excel.MissionTable as any)?.soCharMissionGroupInfo as
-      | Record<string, { missionIds?: string[]; startTs?: number; endTs?: number }>
-      | undefined;
+    const missions = excel.MissionTable?.missions ?? {};
+    const groups = excel.MissionTable?.soCharMissionGroupInfo;
     if (groups && typeof groups === "object") {
       const ts = now();
       const active = Object.values(groups).filter(
@@ -194,7 +196,7 @@ export class MissionManager {
         ([, m]) =>
           !!m &&
           typeof m === "object" &&
-          (m as { type?: string }).type === "SPECIAL_OPERATOR_WEEKLY",
+          m.type === "SPECIAL_OPERATOR_WEEKLY",
       )
       .map(([id]) => id);
   }
@@ -217,7 +219,7 @@ export class MissionManager {
    * 播种条目 state 取 @@_isChainHead@@（@@preMissionIds@@ 为空 → 2 可见可做）。
    * @param draft - update() 配方的可写草稿（playerData）
    */
-  private seedSpecialOperatorWeeklyMissions(draft: any): void {
+  private seedSpecialOperatorWeeklyMissions(draft: Draft<PlayerDataModel>): void {
     if (!this._specialOperatorBoardUnlocked(draft)) return;
     const group = (draft.mission.missions["SPECIAL_OPERATOR_WEEKLY"] ??= {});
     for (const id of this._activeSpecialOperatorWeeklyIds()) {
@@ -237,9 +239,8 @@ export class MissionManager {
    * 依据 @@SpecialOperatorTable.constData.weeklyTaskBoardUnlock@@（实测 "main_03-08"）——
    * 该关通关（completeTimes > 0）或已达成星数（state ≥ 2）视为解锁；常量缺失时不设门槛。
    */
-  private _specialOperatorBoardUnlocked(draft: any): boolean {
-    const unlockStage = (excel.SpecialOperatorTable as any)?.constData
-      ?.weeklyTaskBoardUnlock as string | undefined;
+  private _specialOperatorBoardUnlocked(draft: Draft<PlayerDataModel>): boolean {
+    const unlockStage = excel.SpecialOperatorTable?.constData?.weeklyTaskBoardUnlock;
     if (!unlockStage) return true;
     const stage = draft?.dungeon?.stages?.[unlockStage];
     if (!stage) return false;
@@ -288,8 +289,8 @@ export class MissionManager {
    * 已有条目（旧存档/重复登录）保持不变，避免覆盖已完成进度。
    * @param draft update() 配方的可写草稿（playerData）
    */
-  private seedSpecialOperatorMissions(draft: any): void {
-    const missionData = (excel.SpecialOperatorTable as any)?.nodeUnlockMissionData;
+  private seedSpecialOperatorMissions(draft: Draft<PlayerDataModel>): void {
+    const missionData = excel.SpecialOperatorTable?.nodeUnlockMissionData;
     if (!missionData || typeof missionData !== "object") return;
     const group = (draft.mission.missions["SPECIAL_OPERATOR"] ??= {});
     for (const missionId of Object.keys(missionData)) {
@@ -460,23 +461,21 @@ export class MissionManager {
         draft.mission.missions["SPECIAL_OPERATOR_WEEKLY"] = {};
         return;
       }
-      const rebuilt: Record<string, unknown> = {};
+      const rebuilt: Record<string, MissionEntry> = {};
       for (const id of this._activeSpecialOperatorWeeklyIds()) {
         rebuilt[id] = {
           state: this._isChainHead(id) ? 2 : 1,
           progress: this._seedInitialProgress(id),
         };
       }
-      draft.mission.missions["SPECIAL_OPERATOR_WEEKLY"] = rebuilt as any;
+      draft.mission.missions["SPECIAL_OPERATOR_WEEKLY"] = rebuilt;
     });
     for (const m of this.missions["SPECIAL_OPERATOR_WEEKLY"] ?? []) {
       m.unsubscribe();
     }
     this.missions["SPECIAL_OPERATOR_WEEKLY"] = [];
     for (const id of Object.keys(
-      (this._player._playerdata.mission.missions[
-        "SPECIAL_OPERATOR_WEEKLY"
-      ] ?? {}) as Record<string, unknown>,
+      this._player._playerdata.mission.missions["SPECIAL_OPERATOR_WEEKLY"] ?? {},
     )) {
       const instance = new MissionProgress(id, "SPECIAL_OPERATOR_WEEKLY", this._player);
       await instance.init();
@@ -542,17 +541,14 @@ export class MissionManager {
     if (!missionInfo) {
       // 特勤干员任务（SpecialOperatorTable.nodeUnlockMissionData）：无 rewards，确认仅置
       // confirmed 防重复（节点解锁由客户端 SpecialOperatorUnlockNode 驱动），返回空奖励。
-      const soMission = (excel.SpecialOperatorTable as any)?.nodeUnlockMissionData?.[
-        missionId
-      ];
+      const soMission = excel.SpecialOperatorTable?.nodeUnlockMissionData?.[missionId];
       if (soMission) {
         await this._player.update(async (draft) => {
-          const data = (draft.mission.missions as any)?.["SPECIAL_OPERATOR"]?.[
-            missionId
-          ];
+          const data: MissionEntryView | undefined =
+            draft.mission.missions["SPECIAL_OPERATOR"]?.[missionId];
           if (data) {
             data.state = 3;
-            (data as any).confirmed = 1;
+            data.confirmed = 1;
           }
         });
         return [];
@@ -574,7 +570,8 @@ export class MissionManager {
     // 失败/旧存档未置 3（progress 已满但 state 仍为 2），仅查 state 会拒绝发放。
     if (mission?.confirmed) return items;
     await this._player.update(async (draft) => {
-      const data = draft.mission.missions[missionInfo.type]?.[missionId];
+      const data: MissionEntryView | undefined =
+        draft.mission.missions[missionInfo.type]?.[missionId];
       if (
         !data ||
         !Array.isArray(data.progress) ||
@@ -582,15 +579,15 @@ export class MissionManager {
       ) {
         return;
       }
-      // confirmed 为服务端持久化的防重复标记（官方结构无此字段，按 any 访问）
+      // confirmed 为服务端持久化的防重复标记（官方结构无此字段，见 MissionEntryView）
       const full = data.progress.every((p) => p.value >= p.target);
       // 修复：state=3 是"已完成可领取"而非"已领取"——任务进度填满时 init 事件回调即置 3
       //（见 init），此刻奖励尚未发放。原 guard 把 data.state===3 一并视为已领 → 已完成待领取
       // 的任务 confirmMission 直接 return（items 空、dailyPoint 不累计）→ 客户端"显示待领取
       // 却无法领取"。改以新增的 confirmed 标记判重（发放时置 1），state 不再参与判重。
-      if (!full || (data as any).confirmed) return;
+      if (!full || data.confirmed) return;
       data.state = 3;
-      (data as any).confirmed = 1;
+      data.confirmed = 1;
       if (mission) mission.confirmed = true;
       const missionRewards = draft.mission.missionRewards;
       switch (missionInfo.type) {
@@ -614,7 +611,7 @@ export class MissionManager {
           // 当前周期组：多组并存（历史组残留）时只兑换当前生效组，避免一次确认把多个
           // 奖励组的奖励全部发放（重复刷金币/材料/寻访凭证）。
           const rewardDefs = isWeekly
-            ? (excel.MissionTable.weeklyRewards ?? {} as Record<string, any>)
+            ? (excel.MissionTable.weeklyRewards ?? {})
             : (excel.MissionTable.periodicalRewards ?? {});
           const currentGroup = isWeekly
             ? this.weeklyRewardPeriod
@@ -693,24 +690,24 @@ export class MissionManager {
   private async _confirmActivityTableMission(
     missionId: string,
   ): Promise<ItemBundle[]> {
-    const missionInfo = (excel.ActivityTable as any)?.missionData?.find(
-      (m: any) => m.id === missionId,
+    const missionInfo = excel.ActivityTable?.missionData?.find(
+      (m) => m.id === missionId,
     );
     if (!missionInfo) return [];
-    const items: ItemBundle[] = (missionInfo.rewards ?? []).map((r: any) => ({
+    const items: ItemBundle[] = (missionInfo.rewards ?? []).map((r) => ({
       id: r.id,
       count: r.count,
-      type: String(r.type),
+      type: String(r.type) as ItemType,
     }));
     let newlyCompleted = false;
     let alreadyConfirmed = false;
     await this._player.update(async (draft) => {
-      const activityMissions = (draft.mission as any)?.missions?.["ACTIVITY"];
-      const data = activityMissions?.[missionId];
+      const activityMissions = draft.mission.missions?.["ACTIVITY"];
+      const data: MissionEntryView | undefined = activityMissions?.[missionId];
       // 修复：活动任务确认后还能重复确认刷奖励——原实现仅 state!=3 置 3，state 已为 3
       // 时仍无条件返回全部 rewards。现与普通任务一致：以持久化 confirmed 标记判重，
       // 已领取即返回空奖励并中止（不累加枢纽 ARK_HUB coin），避免重复发放。
-      if (data && (data as any).confirmed) {
+      if (data && data.confirmed) {
         alreadyConfirmed = true;
         return;
       }
@@ -718,10 +715,10 @@ export class MissionManager {
         data.state = 3;
         newlyCompleted = true;
       }
-      if (data) (data as any).confirmed = 1;
+      if (data) data.confirmed = 1;
       // 枢纽任务奖励 → ARK_HUB.coin / tshop.shop_act1arkhub.coin 同步累加
       const seal = (missionInfo.rewards ?? []).find(
-        (r: any) => r.id === "act1arkhub_token_seal",
+        (r) => r.id === "act1arkhub_token_seal",
       );
       if (seal?.count) {
         const hub = draft.activity.ARK_HUB?.act1arkhub;
@@ -1013,10 +1010,10 @@ export class MissionProgress {
       // 活动任务（奇象巡展 1arkhubActivity_* / 53sideActivity_* 等）不在 MissionTable——
       // 定义在 ActivityTable.missionData（id/template/param/rewards）。原实现直接 return
       // （无监听器、进度全假）；现按模板注册监听器，事件驱动真实进度。
-      // 注意：taskData 类型与 MissionData 同构（template/param），用 any 收窄。
-      const actMission = (excel.ActivityTable as any)?.missionData?.find(
-        (m: any) => m.id === this.missionId,
-      ) as MissionData | undefined;
+      // 注意：taskData 与 MissionData 同构（id/template/param），生成类型已声明为 MissionData[]。
+      const actMission = excel.ActivityTable?.missionData?.find(
+        (m) => m.id === this.missionId,
+      );
       if (!actMission) {
         this.valid = false;
         logger.debug("MissionManager", `Activity mission ${this.missionId} not found in ActivityTable.missionData`);
@@ -1026,7 +1023,7 @@ export class MissionProgress {
         template = actMission.template as keyof typeof MissionTemplates;
         this.param = actMission.param;
         // 后续 `if (mission)` 分支依赖 mission 非空——活动任务从 missionData 取
-        mission = actMission as MissionData;
+        mission = actMission;
       } else {
         this.valid = false;
         logger.debug("MissionManager", `Invalid activity template: ${actMission.template} (${this.missionId})`);
@@ -1058,9 +1055,7 @@ export class MissionProgress {
     } else if (this.type == "SPECIAL_OPERATOR") {
       // 特勤干员任务（电弧/机械师解锁任务）不在 MissionTable——
       // 定义在 SpecialOperatorTable.nodeUnlockMissionData（type=SPECIAL_OPERATOR）。
-      mission = (excel.SpecialOperatorTable as any)?.nodeUnlockMissionData?.[
-        this.missionId
-      ] as MissionData | undefined;
+      mission = excel.SpecialOperatorTable?.nodeUnlockMissionData?.[this.missionId];
       if (!mission) {
         this.valid = false;
         logger.debug("MissionManager", `Special operator mission ${this.missionId} not found in SpecialOperatorTable.nodeUnlockMissionData`);

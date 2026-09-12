@@ -57,11 +57,11 @@ export async function buyEPGSGood(mgr: ShopManager, args: {
     const item = { id: good.item.id, count: good.item.count * count, type: good.item.type as ItemType };
     await mgr._player.update(async (draft) => {
       const epgs = mgr._shopDraft(draft, "EPGS");
-      const existingItem = epgs.info.find((i: any) => i.id === goodId);
+      const existingItem = epgs.info.find((i) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        epgs.info.push({ id: goodId, count } as unknown as ItemBundle);
+        epgs.info.push({ id: goodId, count });
       }
     });
     await mgr._player.gainItem
@@ -98,11 +98,11 @@ export async function buyREPGood(mgr: ShopManager, args: {
     const item = excel.makeItem(good.item.id, good.item.count * count);
     await mgr._player.update(async (draft) => {
       const rep = mgr._shopDraft(draft, "REP");
-      const existingItem = rep.info.find((i: any) => i.id === goodId);
+      const existingItem = rep.info.find((i) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        rep.info.push({ id: goodId, count } as unknown as ItemBundle);
+        rep.info.push({ id: goodId, count });
       }
     });
     await mgr._player.gainItem
@@ -146,7 +146,7 @@ export async function buyClassicGood(mgr: ShopManager, args: {
       const progressGood =
         excel.ShopTable.classicGoodList.progressGoodList[good.progressGoodId];
       const order =
-        (mgr._player._playerdata.shop as any)?.CLASSIC?.progressInfo?.[
+        mgr._player._playerdata.shop?.CLASSIC?.progressInfo?.[
           good.progressGoodId
         ]?.order ?? 1;
       mgr._assertAffordable("4004", progressGood[order - 1]?.price ?? 0);
@@ -156,7 +156,7 @@ export async function buyClassicGood(mgr: ShopManager, args: {
       if (!good?.progressGoodId) {
         item = { id: good.item.id, count: good.item.count * count, type: good.item.type as ItemType };
         const existingItem = classic.info.find(
-          (i: any) => i.id === good.goodId,
+          (i) => i.id === good.goodId,
         );
         if (existingItem) {
           existingItem.count += count;
@@ -223,13 +223,13 @@ export async function buyLMTGSGood(mgr: ShopManager, args: {
     mgr._assertAvail("LMTGS", goodId, count, good.availCount);
     // 修复：记录购买（原不写任何记录 → 客户端 getGoodPurchaseState 永远可买）
     await mgr._player.update(async (draft) => {
-      const shop = draft.shop as any;
-      shop.LMTGS = shop.LMTGS ?? { info: [] };
-      const existing = shop.LMTGS.info.find((i: any) => i.id === goodId);
+      const shop = draft.shop;
+      shop.LMTGS ??= { info: [] };
+      const existing = shop.LMTGS.info.find((i) => i.id === goodId);
       if (existing) {
         existing.count += count;
       } else {
-        shop.LMTGS.info.push({ id: goodId, count } as unknown as ItemBundle);
+        shop.LMTGS.info.push({ id: goodId, count });
       }
     });
     await mgr._player.gainItem
@@ -305,7 +305,7 @@ export function buildLMTGSGoodList(mgr: ShopManager) : LMTGSGood[] {
       const up6 = up.filter((c: GachaPerChar) => c.rarityRank === 5);
       const up4 = up.find((c: GachaPerChar) => c.rarityRank === 4);
       // 寻访数据契约按池（JSON 键 lMTGSID，如 LMTGS_COIN_7601）
-      const token = (pool as any).lMTGSID || "LMTGS_COIN";
+      const token = pool.lMTGSID || "LMTGS_COIN";
       let seq = 0;
       const push = (
         item: ItemBundle,

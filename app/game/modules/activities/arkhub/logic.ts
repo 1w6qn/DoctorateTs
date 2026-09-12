@@ -5,6 +5,7 @@ import { collectRawBody, arkhubFullHost } from "../shared/shared";
 import * as ReqSchema from "../shared/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../kernel/http/request-context";
+import type { PlayerActivity } from "../../../kernel/playerdata";
 import config from "@core/config/index";
 import {
   arkhubPixelPublished,
@@ -182,9 +183,35 @@ export async function handleArkhubgetFriendUidList(player: PlayerDataManager, bo
   });
 }
 
+/**
+ * 方舟枢纽像素画查询请求（arkhubGetPixelArtSchema；服务端只读 pixelArtIds）
+ */
+interface ArkhubGetPixelArtRequest {
+  pixelArtIds?: number[];
+}
+
+/** 方舟枢纽设置秘书请求（arkhubSetSecretarySchema） */
+interface ArkhubSetSecretaryRequest {
+  secretary?: string;
+  secretarySkinId?: string;
+}
+
+/**
+ * 方舟枢纽设置队伍请求（arkhubSetSquadSchema）
+ *
+ * squads 整段存入 activity.ARK_HUB[actId].squads（不读元素字段）——形状取自
+ * playerdata-server-adapt.ts 的 ARK_HUB 登记。
+ */
+interface ArkhubSetSquadRequest {
+  squads?: NonNullable<NonNullable<PlayerActivity["ARK_HUB"]>[string]["squads"]>;
+}
 
 
-export async function handleArkhubgetPixelArt(player: PlayerDataManager, body: any) {
+
+export async function handleArkhubgetPixelArt(
+  player: PlayerDataManager,
+  body: ArkhubGetPixelArtRequest,
+) {
   const ids = Array.isArray(body.pixelArtIds) ? body.pixelArtIds : [];
   // 收集计数：非本人发布且未收集过的画像（computeNewCollects 去重）
   const hub = player._playerdata.activity?.ARK_HUB?.act1arkhub;
@@ -204,7 +231,10 @@ export async function handleArkhubgetPixelArt(player: PlayerDataManager, body: a
   });
 }
 
-export async function handleArkhubsetSecretary(player: PlayerDataManager, body: any) {
+export async function handleArkhubsetSecretary(
+  player: PlayerDataManager,
+  body: ArkhubSetSecretaryRequest,
+) {
   await player.update(async (draft) => {
     const act = draft.activity;
     if (!act.ARK_HUB) act.ARK_HUB = {};
@@ -223,7 +253,10 @@ export async function handleArkhubsetSecretary(player: PlayerDataManager, body: 
   return (player.delta satisfies ActivityStubResponse);
 }
 
-export async function handleArkhubsetSquad(player: PlayerDataManager, body: any) {
+export async function handleArkhubsetSquad(
+  player: PlayerDataManager,
+  body: ArkhubSetSquadRequest,
+) {
   await player.update(async (draft) => {
     const act = draft.activity;
     if (!act.ARK_HUB) act.ARK_HUB = {};
@@ -250,7 +283,7 @@ export async function handleArkhubsyncInfo(player: PlayerDataManager, body: Acti
   // 驱动真实进度（播种 value:0/target:N），此处仅防御性保证 progress 为数组。
   const pd = player._playerdata;
   await player.update(async (draft) => {
-    const actMissions = (draft.mission as any)?.missions?.["ACTIVITY"];
+    const actMissions = draft.mission.missions["ACTIVITY"];
     for (const id of Object.keys(actMissions ?? {})) {
       if (!id.startsWith("1arkhubActivity_")) continue;
       const m = actMissions[id];
@@ -259,7 +292,7 @@ export async function handleArkhubsyncInfo(player: PlayerDataManager, body: Acti
       }
     }
   });
-  const actMissions = (pd.mission as any)?.missions?.["ACTIVITY"] ?? {};
+  const actMissions = pd.mission.missions["ACTIVITY"] ?? {};
   const hubMissions: Record<string, unknown> = {};
   for (const id of Object.keys(actMissions)) {
     if (id.startsWith("1arkhubActivity_")) hubMissions[id] = actMissions[id];

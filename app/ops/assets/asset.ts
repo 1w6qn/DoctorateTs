@@ -56,7 +56,7 @@ router.get(
 
     // odpy 代理模式（downloadPeoxy）：直接转发官服 CDN（支持 Range 断点续传，不落盘）
     if (
-      (config.assets as any).downloadPeoxy &&
+      config.assets.downloadPeoxy &&
       fileName !== "hot_update_list.json" &&
       !mods.download.includes(fileName)
     ) {
@@ -402,7 +402,7 @@ export function getModVersionSuffix(platform: string): string {
 export function officialResVersion(platform: string): string {
   const region = resolveRegion();
   const version = region ? resolveRegionVersion(region, config.version) : config.version;
-  const win = (version as any).windows;
+  const win = version.windows;
   if (platform === "Windows" && win?.resVersion) return win.resVersion;
   return region ? resolveRegionCdnVersion(region, version) : version.resVersion;
 }

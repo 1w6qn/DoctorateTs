@@ -669,7 +669,7 @@ export async function gameSettle(mgr: RoguelikeV2Manager) : Promise<void> {
    */
 export function buildSettleResponse(mgr: RoguelikeV2Manager) {
     const theme = mgr.current.game!.theme;
-    const { brief, record } = mgr.current.record;
+    const { brief, record } = mgr.current.record!;
     // dorothinights gameSettle 对齐：score 仅按难度单次放大；生命游戏/难度 bump 的效率
     // （extra_grow_point → buff=1+extra、bp.cnt=floor(score×buff)）不放大 score 本体。
     const efficiency = mgr.blackstreamEfficiency(theme, mgr.current.game?.modeGrade ?? 0);

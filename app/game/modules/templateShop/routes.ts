@@ -23,7 +23,10 @@ import {
   templateBuyGoodSchema,
 } from "./templateShop.schema";
 import { readJsonSync } from "@utils/file";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
+import type { Draft } from "mutative";
+import type { PlayerDataModel, PlayerTemplateShop } from "../../kernel/playerdata";
+import { asShape } from "../activities/shared/activity-json";
 import {
   TemplateBuyGoodRequest,
   TemplateBuyGoodResponse,
@@ -33,15 +36,54 @@ import {
 
 const router = Router();
 
+/** 模板商店物品（data/shop/templateShop.json 的 item / progressGoods[].item） */
+interface TemplateShopGoodItem {
+  id: string;
+  count: number;
+  type: ItemType;
+}
+
+/** 模板商店商品（NORMAL 直接发 item；PROGRESS 的 item 为 null，按档位发放） */
+interface TemplateShopGood {
+  goodId: string;
+  goodType: string;
+  item: TemplateShopGoodItem | null;
+  progressGoodId: string | null;
+  price: number;
+  availCount: number;
+}
+
+/** PROGRESS 商品档位（progressGoods[progressGoodId][i]） */
+interface TemplateShopProgressTier {
+  order: number;
+  price: number;
+  item: TemplateShopGoodItem | null;
+}
+
+/** 模板商店分组 */
+interface TemplateShopGroup {
+  shopGood: { [goodId: string]: TemplateShopGood };
+  /**
+   * 档位表（键为 progressGoodId）。
+   * 注：现网 `shop_act42sre` 的 progressGoods 是单条目包装对象且键为 "0"（商品引用的
+   * progressGoodId 为 "char_rmixer_progress"）→ 该商品恒取不到档位、购买恒被拒绝
+   * （配置数据问题：键名不符，非本文件代码缺陷）。
+   */
+  progressGoods?: { [progressGoodId: string]: TemplateShopProgressTier[] };
+}
+
+/** 模板商店条目（data/shop/templateShop.json[shopId]） */
+interface TemplateShopEntry {
+  shopId: string;
+  price: { id: string; count: number; type: string };
+  startTime?: number;
+  shopGroup: { [groupId: string]: TemplateShopGroup };
+}
+
 /** 模板商店配置（启动时读一次） */
-const templateShopData = readJsonSync<{
-  [shopId: string]: {
-    shopId: string;
-    price: { id: string; count: number; type: string };
-    startTime?: number;
-    shopGroup: { [groupId: string]: { shopGood: { [goodId: string]: any }; progressGoods?: any } };
-  };
-}>("./data/shop/templateShop.json");
+const templateShopData = readJsonSync<{ [shopId: string]: TemplateShopEntry }>(
+  "./data/shop/templateShop.json",
+);
 
 /**
  * 计算购全店一次的货币总额（NORMAL 商品按 price；PROGRESS 商品按全部档位价之和——
@@ -49,15 +91,13 @@ const templateShopData = readJsonSync<{
  * @param shop - 商店配置
  * @returns 所需货币总额
  */
-function shopPurchasePower(shop: any): number {
+function shopPurchasePower(shop: TemplateShopEntry): number {
   let total = 0;
   for (const group of Object.values(shop?.shopGroup ?? {})) {
-    const g = group as any;
-    for (const good of Object.values(g?.shopGood ?? {})) {
-      const gd = good as any;
-      total += gd?.price ?? 0;
-      if (gd?.goodType === "PROGRESS" && gd?.progressGoodId) {
-        for (const tier of g?.progressGoods?.[gd.progressGoodId] ?? []) {
+    for (const good of Object.values(group?.shopGood ?? {})) {
+      total += good?.price ?? 0;
+      if (good?.goodType === "PROGRESS" && good?.progressGoodId) {
+        for (const tier of group?.progressGoods?.[good.progressGoodId] ?? []) {
           total += tier?.price ?? 0;
         }
       }
@@ -76,24 +116,26 @@ function shopPurchasePower(shop: any): number {
  * @returns 硬币读写引用（draft 内使用）；无法确定返回 null
  */
 function shopCoinRefs(
-  draft: any,
+  draft: Draft<PlayerDataModel>,
   shopId: string,
 ): { coin: number; set: (v: number) => void } | null {
   if (shopId === "shop_act1arkhub") {
-    const hub = draft?.activity?.ARK_HUB?.act1arkhub;
+    const hub = draft.activity?.ARK_HUB?.act1arkhub;
     return hub
       ? { coin: hub.coin ?? 0, set: (v: number) => (hub.coin = v) }
       : null;
   }
   if (shopId === "shop_act53side") {
-    const act = draft?.activity?.TYPE_ACT53SIDE?.act53side;
+    // TYPE_ACT53SIDE 未具名登记（走 PlayerActivity 兜底索引签名的 ServerPayload 两层），
+    // 第三层 actCoin 需显式收窄为存档形状。
+    const act = asShape<{ actCoin?: number }>(draft.activity?.TYPE_ACT53SIDE?.act53side);
     return act ? { coin: act.actCoin ?? 0, set: (v: number) => (act.actCoin = v) } : null;
   }
   return null;
 }
 
 /** 读取/创建 tshop 商店状态（playerdata.tshop.{shopId}.{coin, info, progressInfo}） */
-function ensureShopState(draft: any, shopId: string): any {
+function ensureShopState(draft: Draft<PlayerDataModel>, shopId: string): PlayerTemplateShop {
   draft.tshop = draft.tshop ?? {};
   const st = (draft.tshop[shopId] = draft.tshop[shopId] ?? {
     coin: 0,
@@ -184,8 +226,8 @@ router.post("/buyGood", validateBody(templateBuyGoodSchema), async (req, res) =>
   const shop = templateShopData?.[shopId];
 
   // 在全部 shopGroup 中查找商品及其所在 group（PROGRESS 商品按 group.progressGoods 档位发放）
-  let good: any;
-  let group: any;
+  let good: TemplateShopGood | undefined;
+  let group: TemplateShopGroup | undefined;
   if (shop) {
     for (const g of Object.values(shop.shopGroup ?? {})) {
       if (g?.shopGood?.[goodId]) {
@@ -201,13 +243,13 @@ router.post("/buyGood", validateBody(templateBuyGoodSchema), async (req, res) =>
     /** 本次扣币总额（recipe 内计算，块级承接——event ActivityCoinCost 用） */
     let costSpent = 0;
     /** PROGRESS 商品逐档发放的物品（非空时取代单一 grant 的 count 倍发放） */
-    let boughtTierItems: any[] = [];
+    let boughtTierItems: TemplateShopGoodItem[] = [];
     // 修复：限购/余额不足拒绝——update 透传 recipe 返回值标记失败，响应 result:1
     const rejected = await player.update(async (draft): Promise<boolean> => {
       const st = ensureShopState(draft, shopId);
       const coinRef = shopCoinRefs(draft, shopId);
       // 购买记录（官方 tshop.info）
-      const boughtRec = st.info.find((r: any) => r.id === goodId);
+      const boughtRec = st.info.find((r) => r.id === goodId);
       const bought = boughtRec?.count ?? 0;
       // 限购检查（availCount：仅 >0 限购——0/-1/缺省视为无限可购。
       // 修复：原 `good.availCount && ...` 会把 availCount=-1 的无限池商品判为恒超限拒绝购买）
@@ -224,7 +266,7 @@ router.post("/buyGood", validateBody(templateBuyGoodSchema), async (req, res) =>
         // 现按官方语义逐档计价：第 i 件取 `tiers[bought + i]` 的价格与物品，任一档缺失即整单拒绝。
         const tiers = group?.progressGoods?.[good.progressGoodId] ?? [];
         let totalPrice = 0;
-        const tierItems: any[] = [];
+        const tierItems: TemplateShopGoodItem[] = [];
         for (let i = 0; i < count; i++) {
           const tier = tiers[bought + i];
           if (!tier) return true; // 超出可得档位 → 整单拒绝

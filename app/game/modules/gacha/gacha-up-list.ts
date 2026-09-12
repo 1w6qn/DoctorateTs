@@ -12,6 +12,7 @@ import type {
   GachaPoolClientData,
 } from "@excel/excel";
 import type { PlayerGacha } from "../../kernel/playerdata";
+import { getIn } from "../../kernel/util/json-path";
 
 export const GACHA_RULE_TYPE: { [rule: string]: string } = {
     NORMAL: "normal",
@@ -69,8 +70,10 @@ export function resolveEffectiveUpPerCharList(
           gachaObjGroups: null,
         } as unknown as GachaDetailData);
   }
-  if (d && !("gachaObjGroups" in d)) {
-    (d as any).gachaObjGroups = null;
+  // 格式归一：CS GachaDetailData.gachaObjGroups 为客户端解析必需字段，缺失时补 null
+  // （用 hasOwnProperty 而非 `in`：TS 已知该属性为必填，`in` 反查会收窄成 never）
+  if (d && !Object.prototype.hasOwnProperty.call(d, "gachaObjGroups")) {
+    d.gachaObjGroups = null;
   }
   const base: GachaPerChar[] = (d.upCharInfo?.perCharList ?? []).map(
     (c) => ({ ...c, charIdList: [...c.charIdList] }),
@@ -78,7 +81,8 @@ export function resolveEffectiveUpPerCharList(
   // _selfSelectedUpDict 内联：字典形态（{稀有度: 干员列表}）才合并
   const cfg = poolConfigs.find((g) => g.gachaPoolId === poolId);
   const gachaType = GACHA_RULE_TYPE[cfg?.gachaRuleType ?? ""] ?? "single";
-  const upChar: unknown = (gacha as any)?.[gachaType]?.[poolId]?.upChar;
+  // gachaType 为运行时字符串（服务端按规则类型动态建键）→ 经 json-path 下钻，返回 JSON 域值
+  const upChar = getIn(gacha, [gachaType, poolId, "upChar"]);
   if (!upChar || typeof upChar !== "object" || Array.isArray(upChar)) {
     return base;
   }
@@ -88,14 +92,15 @@ export function resolveEffectiveUpPerCharList(
     if (!Number.isInteger(rank) || !Array.isArray(charIds) || !charIds.length) {
       continue;
     }
+    const charIdList = charIds as string[];
     const ex = result.find((c) => c.rarityRank === rank);
     if (ex) {
-      ex.charIdList = [...charIds];
+      ex.charIdList = [...charIdList];
       ex.count = 1;
     } else {
       result.push({
         rarityRank: rank,
-        charIdList: [...charIds],
+        charIdList: [...charIdList],
         percent: 0.35,
         count: 1,
       });

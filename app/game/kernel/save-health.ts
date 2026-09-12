@@ -17,6 +17,13 @@
  */
 import { logger } from "@utils/logger";
 import type { JsonValue } from "@excel/json-value";
+import type {
+  PlayerActivity,
+  PlayerBuildingTrainee,
+  PlayerBuildingTrainer,
+  PlayerCharPatch,
+  PlayerDungeon,
+} from "./playerdata";
 import type { CharEquipsLike, CharSkillsLike } from "../modules/character/char-skills";
 import {
   reconcileCharEquips,
@@ -51,8 +58,8 @@ interface SaveStatusEntry {
  * 使技能/模组回填可直接原地修改；阿米娅升变模板字段另行声明。
  */
 interface SaveCharEntry extends CharSkillsLike, CharEquipsLike {
-  /** 升变模板表（仅 char_002_amiya 合法携带） */
-  tmpl?: Record<string, JsonValue> | null;
+  /** 升变模板表（仅 char_002_amiya 合法携带；本模块只看有无/键数） */
+  tmpl?: Record<string, PlayerCharPatch> | null;
   /** 当前升变形态（无有效模板映射时须移除，否则客户端卡死） */
   currentTmpl?: string | null;
 }
@@ -65,8 +72,10 @@ interface SavePrivateRoom {
 
 /** 训练室（building.rooms.TRAINING[slotId]） */
 interface SaveTrainingRoom {
-  trainee?: Record<string, JsonValue> | null;
-  trainer?: Record<string, JsonValue> | null;
+  /** 受训干员（旧结算残留 null；修复分支重置为官方空态） */
+  trainee?: PlayerBuildingTrainee | null;
+  /** 教官（同上） */
+  trainer?: PlayerBuildingTrainer | null;
 }
 
 /** 干员图鉴条目（dexNav.character[charId]） */
@@ -89,10 +98,15 @@ interface SaveArkTopic {
 export interface SaveDataShape {
   status?: SaveStatusEntry;
   troop?: { chars?: Record<string, SaveCharEntry | null | undefined> };
-  /** 关卡进度（本模块只做存在性检查/重建，不读字段） */
-  dungeon?: Record<string, JsonValue>;
+  /**
+   * 关卡进度（本模块只做存在性检查/重建，不读字段）
+   *
+   * 联合生成模型（真实存档，接口无索引签名故不能直接收窄为 JsonValue 字典）
+   * 与通用 JSON 袋（测试夹具/未建模结构）。
+   */
+  dungeon?: PlayerDungeon | Record<string, JsonValue>;
   /** 活动状态（同上，仅存在性检查/重建） */
-  activity?: Record<string, JsonValue>;
+  activity?: PlayerActivity | Record<string, JsonValue>;
   building?: {
     rooms?: {
       PRIVATE?: Record<string, SavePrivateRoom | null | undefined>;

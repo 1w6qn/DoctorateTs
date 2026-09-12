@@ -10,6 +10,35 @@ import { ItemBundle, ItemType } from "@excel/excel";
 import { ShopError } from "../errors";
 import { ChooseGPItem, GPGoodList, LevelGPItem, MonthlySubItem, NormalGPItem, PeriodicityGroup, PeriodicityGPItem } from "@excel/excel";
 import { BadRequestError } from "../../../kernel/http/errors";
+import type { Draft } from "mutative";
+import type {
+  PlayerDataModel,
+  PlayerGiftProgressData,
+  PlayerGoodItemData,
+  PlayerGoodProgressData,
+  PlayerShop,
+} from "../../../kernel/playerdata";
+
+/** 商店类型键（PlayerShop 键集合，含服务端扩展的 LMTGS/GP） */
+export type ShopKey = keyof PlayerShop;
+
+/** 兜底初始化支持的键（GP 为嵌套礼包结构，不适用并集视图） */
+export type ShopDraftKey = Exclude<ShopKey, "GP">;
+
+/**
+ * 商店子表兜底字段视图
+ *
+ * PlayerShop 各商店形状不一（如 SKIN 无 progressInfo、FURNI 无 charPurchase），
+ * 而 {@link _shopDraft} 按并集逐字段补全；本视图描述该写入口径。
+ * `info` 在非 GP 的商店类型上本就存在，故交叉 `PlayerShop[K]` 后仍是必填数组。
+ */
+export interface ShopProgressLike {
+  curShopId?: string;
+  info?: PlayerGoodItemData[];
+  progressInfo?: { [key: string]: PlayerGoodProgressData };
+  charPurchase?: { [key: string]: number };
+  groupInfo?: { [key: string]: number };
+}
 
   /**
    * 校验购买数量为正整数
@@ -33,7 +62,7 @@ export function _assertBuyCount(mgr: ShopManager, count: number) : void {
    * @returns 当前持有量（未持有为 0）
    */
 export function _held(mgr: ShopManager, itemId: string) : number {
-    const st = mgr._player._playerdata.status as any;
+    const st = mgr._player._playerdata.status;
     switch (itemId) {
       case "4001":
         return st.gold ?? 0;
@@ -74,9 +103,9 @@ export function _assertAffordable(mgr: ShopManager, itemId: string, count: numbe
    * @param goodId - 商品 ID
    * @returns 已购数量
    */
-export function _boughtCount(mgr: ShopManager, shopKey: string, goodId: string) : number {
-    const shop = (mgr._player._playerdata.shop as any)?.[shopKey];
-    const rec = (shop?.info ?? []).find((i: any) => i.id === goodId);
+export function _boughtCount(mgr: ShopManager, shopKey: ShopDraftKey, goodId: string) : number {
+    const shop = mgr._player._playerdata.shop?.[shopKey];
+    const rec = (shop?.info ?? []).find((i) => i.id === goodId);
     return rec?.count ?? 0;
 }
 
@@ -90,7 +119,7 @@ export function _boughtCount(mgr: ShopManager, shopKey: string, goodId: string) 
    * @param count - 本次购买数量
    * @param availCount - 限购数量（<=0 不限）
    */
-export function _assertAvail(mgr: ShopManager, shopKey: string,
+export function _assertAvail(mgr: ShopManager, shopKey: ShopDraftKey,
     goodId: string,
     count: number,
     availCount?: number,) : void {
@@ -109,9 +138,14 @@ export function _assertAvail(mgr: ShopManager, shopKey: string,
    * 已存在但字段缺失（如官服迁移的 SKIN 无 info）时返回原对象，info 为 undefined →
    * `.info.find` 500。此处对已存在对象也逐字段补全（info/progressInfo 等保证类型）。
    */
-export function _shopDraft(mgr: ShopManager, draft: any, key: string) : any {
-    draft.shop = draft.shop ?? {};
-    const st = (draft.shop[key] = draft.shop[key] ?? {});
+export function _shopDraft<K extends ShopDraftKey>(
+  mgr: ShopManager,
+  draft: Draft<PlayerDataModel>,
+  key: K,
+) : PlayerShop[K] & ShopProgressLike {
+    const view = draft as { shop?: PlayerShop };
+    view.shop ??= {} as PlayerShop;
+    const st = (view.shop[key] ??= {} as PlayerShop[K]) as PlayerShop[K] & ShopProgressLike;
     st.curShopId = st.curShopId ?? "";
     st.info = Array.isArray(st.info) ? st.info : [];
     st.progressInfo = st.progressInfo ?? {};
@@ -130,7 +164,7 @@ export function _shopDraft(mgr: ShopManager, draft: any, key: string) : any {
    * @returns 皮肤表存在返回 true
    */
 export function _skinExists(mgr: ShopManager, skinId: string) : boolean {
-    return Boolean((excel.SkinTable as any)?.charSkins?.[skinId]);
+    return Boolean(excel.SkinTable?.charSkins?.[skinId]);
 }
 
   /**
@@ -159,7 +193,7 @@ export async function buySkinGood(mgr: ShopManager, args: { goodId: string }) : 
     // 修复：记录购买（原不写 SKIN.info → 客户端购买状态永远可买）
     await mgr._player.update(async (draft) => {
       const skin = mgr._shopDraft(draft, "SKIN");
-      const existing = skin.info.find((i: any) => i.id === good.goodId);
+      const existing = skin.info.find((i) => i.id === good.goodId);
       if (existing) {
         existing.count += 1;
       } else {
@@ -195,7 +229,7 @@ export async function buyCashGood(mgr: ShopManager, args: { goodId: string }) : 
     // 现金商店物品为钻石充值，发放钻石，并依据 doubleCount 判断是否为首充翻倍
     const isDouble = await mgr._player.update(async (draft) => {
       const cash = mgr._shopDraft(draft, "CASH");
-      const existingItem = cash.info.find((i: any) => i.id === goodId);
+      const existingItem = cash.info.find((i) => i.id === goodId);
       if (existingItem) {
         existingItem.count += 1;
         return 0;
@@ -258,7 +292,7 @@ export async function buyFurniGood(mgr: ShopManager, args: {
     }
     await mgr._player.update(async (draft) => {
       const furni = mgr._shopDraft(draft, "FURNI");
-      const existingItem = furni.info.find((i: any) => i.id === goodId);
+      const existingItem = furni.info.find((i) => i.id === goodId);
       if (existingItem) {
         existingItem.count += buyCount;
       } else {
@@ -301,11 +335,11 @@ export async function buyFurniGroup(mgr: ShopManager, args: {
         .use();
       await mgr._player.update(async (draft) => {
         const furni = mgr._shopDraft(draft, "FURNI");
-        const existing = furni.info.find((i: any) => i.id === g.id);
+        const existing = furni.info.find((i) => i.id === g.id);
         if (existing) {
           existing.count += count;
         } else {
-          furni.info.push({ id: g.id, count } as unknown as ItemBundle);
+          furni.info.push({ id: g.id, count });
         }
       });
       items.push({ id: good.furniId, type: "FURN" as ItemType, count });
@@ -392,47 +426,34 @@ export async function buyGoodWithTicket(mgr: ShopManager, args: {
 
     // 发放礼包内的所有物品
     if (configItems.length > 0) {
+      // 礼包分档键（服务端 GP.monthlySub 为扩展分档，见 playerdata-server-adapt）
+      const sub =
+        goodType === "Once"
+          ? "oneTime"
+          : goodType === "Lv"
+            ? "level"
+            : goodType === "gW"
+              ? "weekly"
+              : goodType === "gM"
+                ? "monthly"
+                : goodType === "NpOne"
+                  ? "choose"
+                  : "monthlySub";
       // 修复：限购检查（一次性/月卡等礼包 shop.GP.<type>.info 记录）
       if (availCount > 0) {
-        const gpInfo =
-          (mgr._player._playerdata.shop as any)?.GP?.[
-            goodType === "Once"
-              ? "oneTime"
-              : goodType === "Lv"
-                ? "level"
-                : goodType === "gW"
-                  ? "weekly"
-                  : goodType === "gM"
-                    ? "monthly"
-                    : goodType === "NpOne"
-                      ? "choose"
-                      : "monthlySub"
-          ]?.info ?? [];
-        const bought = (gpInfo.find((i: any) => i.id === goodId)?.count ?? 0);
+        const gpInfo = mgr._player._playerdata.shop?.GP?.[sub]?.info ?? [];
+        const bought = gpInfo.find((i) => i.id === goodId)?.count ?? 0;
         if (bought + 1 > availCount) {
           throw new ShopError(`礼包 ${goodId} 已达限购（${availCount}）`);
         }
         await mgr._player.update(async (draft) => {
-          const shop = draft.shop as any;
-          shop.GP = shop.GP ?? {};
-          const sub =
-            goodType === "Once"
-              ? "oneTime"
-              : goodType === "Lv"
-                ? "level"
-                : goodType === "gW"
-                  ? "weekly"
-                  : goodType === "gM"
-                    ? "monthly"
-                    : goodType === "NpOne"
-                      ? "choose"
-                      : "monthlySub";
-          shop.GP[sub] = shop.GP[sub] ?? { info: [], valid: [], curGroupId: "" };
-          const rec = shop.GP[sub].info.find((i: any) => i.id === goodId);
+          draft.shop.GP ??= {} as PlayerGiftProgressData;
+          draft.shop.GP[sub] ??= { info: [], valid: [], curGroupId: "" };
+          const rec = draft.shop.GP[sub].info.find((i) => i.id === goodId);
           if (rec) {
             rec.count += 1;
           } else {
-            shop.GP[sub].info.push(excel.makeItem(goodId, 1));
+            draft.shop.GP[sub].info.push(excel.makeItem(goodId, 1));
           }
         });
       }
@@ -515,7 +536,7 @@ export async function useVoucherSkin(mgr: ShopManager, args: { goodId: string })
     await mgr._player.update(async (draft) => {
       // 修复：兑换记录写入 SKIN 商店而非信用商店（原写 SOCIAL.info 污染信用记录）
       const skin = mgr._shopDraft(draft, "SKIN");
-      const existingItem = skin.info.find((i: any) => i.id === goodId);
+      const existingItem = skin.info.find((i) => i.id === goodId);
       if (existingItem) {
         existingItem.count += 1;
       } else {

@@ -26,6 +26,8 @@
  *   - sum（累计型）：累计某统计量达到 target
  */
 import excel from "@excel/excel";
+import type { Draft } from "mutative";
+import type { PlayerDataModel } from "../../kernel/playerdata";
 import { logger } from "@utils/logger";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { BattleInfo } from "../../kernel/battle-info-store";
@@ -185,15 +187,15 @@ export class EquipmentMissionManager {
     get: (id: string) => number | undefined,
   ): { value: number; computable: boolean } {
     let sum = 0;
-    let any = false;
+    let hasValue = false;
     for (const id of ids) {
       const v = get(id);
       if (v != null && Number.isFinite(v)) {
         sum += v;
-        any = true;
+        hasValue = true;
       }
     }
-    return { value: sum, computable: any };
+    return { value: sum, computable: hasValue };
   }
 
   /**
@@ -464,7 +466,7 @@ export class EquipmentMissionManager {
       const banned = new Set(spec.split(";").map((s) => s.trim()).filter(Boolean));
       if (!banned.size) return true;
       return !others.some((id) =>
-        banned.has(String((excel.charData(id) as any)?.profession ?? "")),
+        banned.has(String(excel.charData(id)?.profession ?? "")),
       );
     }
     if (template === "EquipmentSquadNum") {
@@ -477,7 +479,7 @@ export class EquipmentMissionManager {
     const constraint = String(rawConstraint ?? "").trim();
     if (!constraint) return true;
     for (const id of others) {
-      const info = excel.charData(id) as any;
+      const info = excel.charData(id);
       if (!info) return false;
       if (constraint === "MELEE" || constraint === "RANGED") {
         if (String(info.position ?? "") !== constraint) return false;
@@ -602,10 +604,10 @@ export class EquipmentMissionManager {
    * 序列化当前玩家存档的模组任务集合（缺失时初始化）
    * @param draft 当前可变存档 draft
    */
-  private _missionDict(draft: any): { [missionId: string]: EquipmentMissionEntry } {
-    if (!draft.equipment) draft.equipment = {};
-    if (!draft.equipment.missions) draft.equipment.missions = {};
-    return draft.equipment.missions as { [missionId: string]: EquipmentMissionEntry };
+  private _missionDict(draft: Draft<PlayerDataModel>): { [missionId: string]: EquipmentMissionEntry } {
+    draft.equipment ??= { missions: {} };
+    draft.equipment.missions ??= {};
+    return draft.equipment.missions;
   }
 
   /**
@@ -756,7 +758,7 @@ export class EquipmentMissionManager {
    * @param draft 解锁配方中的可变存档 draft
    * @throws 存在未完成任务时抛出（阻止解锁）
    */
-  assertUnlockable(_charId: string, missionIds: string[], draft: any): void {
+  assertUnlockable(_charId: string, missionIds: string[], draft: Draft<PlayerDataModel>): void {
     const missions = this._missionDict(draft);
     for (const missionId of missionIds) {
       const mission = excel.UniequipTable.missionList[missionId];

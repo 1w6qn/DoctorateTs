@@ -36,7 +36,7 @@ vi.mock("fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs")>();
   return {
     ...actual,
-    readFileSync: vi.fn((file: any) => {
+    readFileSync: vi.fn((file: Parameters<typeof actual.readFileSync>[0]) => {
       if (String(file).includes("config.json")) return "{}";
       if (String(file).includes("databases")) return templateContent;
       if (String(file).includes("users.json")) return usersContent;
@@ -60,11 +60,11 @@ describe("runMigration", () => {
   });
 
   it("应按账号逐行迁移并注册", async () => {
-    (syncPlayerData as any).mockResolvedValue({
+    vi.mocked(syncPlayerData).mockResolvedValue({
       status: { uid: "10001", nickName: "A" },
       troop: {},
     });
-    (registerImportedUser as any).mockResolvedValue({ uid: "2", nickName: "A" });
+    vi.mocked(registerImportedUser).mockResolvedValue({ uid: "2", nickName: "A" });
 
     const results = await runMigration({
       accounts: accountsContent,
@@ -80,10 +80,10 @@ describe("runMigration", () => {
   });
 
   it("单个账号失败不应中断其他账号", async () => {
-    (syncPlayerData as any)
+    vi.mocked(syncPlayerData)
       .mockRejectedValueOnce(new Error("login failed"))
       .mockResolvedValueOnce({ status: { uid: "10002", nickName: "B" }, troop: {} });
-    (registerImportedUser as any).mockResolvedValue({ uid: "3", nickName: "B" });
+    vi.mocked(registerImportedUser).mockResolvedValue({ uid: "3", nickName: "B" });
 
     const results = await runMigration({
       accounts: accountsContent,
@@ -95,13 +95,13 @@ describe("runMigration", () => {
   });
 
   it("convertedData 应使用模板兜底", async () => {
-    (syncPlayerData as any).mockResolvedValue({ status: { uid: "10001" } });
-    (registerImportedUser as any).mockResolvedValue({ uid: "2", nickName: "" });
+    vi.mocked(syncPlayerData).mockResolvedValue({ status: { uid: "10001" } });
+    vi.mocked(registerImportedUser).mockResolvedValue({ uid: "2", nickName: "" });
 
     await runMigration({ accounts: accountsContent, templateUid: "1" });
-    const call = (registerImportedUser as any).mock.calls[0][0];
+    const call = vi.mocked(registerImportedUser).mock.calls[0][0];
     const converted = call.convertedData;
     // 模板兜底字段（official-convert 内部逻辑）
-    expect(converted.status.uid).toBe("2");
+    expect(converted.status!.uid).toBe("2");
   });
 });

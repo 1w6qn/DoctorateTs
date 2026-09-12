@@ -6,7 +6,8 @@
  */
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { EventBus } from "@game/kernel/events/runtime";
-import { mockPlayerData } from "../../helpers";
+import { asPlayerManager, mockPlayerData, type MockSeed } from "../../helpers";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
 import {
   encodeFieldBytes as fb,
   encodeFieldVarint as fv,
@@ -40,14 +41,29 @@ function buildSceneFrame(): Buffer {
   return Buffer.concat([header, payload]);
 }
 
-function hubPlayer(overrides: Record<string, any> = {}) {
+/**
+ * 枢纽活动覆写夹具视图
+ *
+ * 生成模型 `PlayerActivity.ARK_HUB` 的值本身全为可选键，用例只覆写被测分支读到的
+ * `coin`/`props` 等；按 mock 种子的深可选视图表达，字段名与类型仍受真实模型约束。
+ */
+type ArkHubActivityFixture = MockSeed<NonNullable<PlayerDataModel["activity"]["ARK_HUB"]>[string]>;
+
+/** 构造挂载 EventBus 的枢纽玩家替身（overrides 合并进 act1arkhub 夹具） */
+function hubPlayer(overrides: ArkHubActivityFixture = {}) {
   const bus = new EventBus();
   const player = mockPlayerData({
-    status: { uid: 1, nickName: "T", nickNumber: 0, level: 1, exp: 0 } as any,
-    activity: { ARK_HUB: { act1arkhub: { coin: 0, ...overrides } } },
+    status: { uid: 1, nickName: "T", nickNumber: 0, level: 1, exp: 0 },
     tshop: { shop_act1arkhub: { coin: 0 } },
   });
-  (player as any)._trigger = bus;
+  // PlayerActivity 带 `{ [typeKey: string]: ... }` 索引签名，深可选种子视图在索引分支上
+  // 不接受夹具的 `props` 层级；经 Object.assign 写入 activity（运行期与种子展开一致）。
+  Object.assign(player._playerdata, {
+    activity: { ARK_HUB: { act1arkhub: { coin: 0, ...overrides } } },
+  });
+  // EventBus.on 的签名与 TypedEventEmitter 不同（不可直接赋值给 MockPlayerDataManager._trigger），
+  // 经 Object.assign 写入实例字段（运行期行为与直接赋值一致，且不被本用例消费）。
+  Object.assign(player, { _trigger: bus });
   return player;
 }
 
@@ -77,26 +93,26 @@ describe("官服枢纽宠物还原（arkhub-pets）", () => {
     const frames = parseGatewayStream(buildSceneFrame(), "down").frames;
     const docs = extractArkhubDocsFromSceneFrame(frames[0])!;
     const player = hubPlayer();
-    const first = await applyArkhubDocs(player as any, docs);
+    const first = await applyArkhubDocs(asPlayerManager(player), docs);
     expect(first).toEqual({ dexAdded: 3, bagAdded: 2 });
-    const hub = (player._playerdata as any).activity.ARK_HUB.act1arkhub;
+    const hub = player._playerdata.activity.ARK_HUB!.act1arkhub;
     expect(hub.creatureCollected).toBe(3);
     expect(hub.alterCollected).toBe(1); // 19002 亚种
     expect(hub.coin).toBe(120); // 券继承（官服 120 > 本地 0）
-    expect(hub.scanBag.every((b: any) => b.sourceUid === "official")).toBe(true);
+    expect(hub.scanBag!.every((b) => b.sourceUid === "official")).toBe(true);
     // 二次合并：全部去重，零新增
-    const second = await applyArkhubDocs(player as any, docs);
+    const second = await applyArkhubDocs(asPlayerManager(player), docs);
     expect(second).toEqual({ dexAdded: 0, bagAdded: 0 });
-    expect((player._playerdata as any).activity.ARK_HUB.act1arkhub.scanBag).toHaveLength(2);
+    expect(player._playerdata.activity.ARK_HUB!.act1arkhub.scanBag).toHaveLength(2);
   });
 
   it("applyArkhubDocs：券取较大值不减少本地已有；道具数量取较大值", async () => {
     const frames = parseGatewayStream(buildSceneFrame(), "down").frames;
     const docs = extractArkhubDocsFromSceneFrame(frames[0])!;
     const player = hubPlayer({ coin: 500, props: { "5006": { count: 3, uses: 2 } } });
-    await applyArkhubDocs(player as any, docs);
-    const hub = (player._playerdata as any).activity.ARK_HUB.act1arkhub;
+    await applyArkhubDocs(asPlayerManager(player), docs);
+    const hub = player._playerdata.activity.ARK_HUB!.act1arkhub;
     expect(hub.coin).toBe(500); // 本地 500 > 官服 120，不减少
-    expect(hub.props["5006"]).toEqual({ count: 3, uses: 2 }); // 本地更多，不覆盖
+    expect(hub.props!["5006"]).toEqual({ count: 3, uses: 2 }); // 本地更多，不覆盖
   });
 });

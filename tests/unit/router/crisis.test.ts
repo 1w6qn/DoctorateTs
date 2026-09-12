@@ -59,22 +59,97 @@ vi.mock("./crisis-seasons", () => ({
   CRISIS_JSON_BASE_PATH: "data/crisis/",
   CRISIS_V2_JSON_BASE_PATH: "data/crisisV2/",
 }));
+/** excel mock 行形状（本文件用到的字段子集） */
+interface ExcelRowMock {
+  name?: string;
+}
+
+/** 干员行夹具形状（本文件用到的字段子集） */
+interface ExcelCharRowMock {
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+}
+
 vi.mock("@excel/excel", () => ({
   default: {
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    CharacterTable: undefined as Record<string, ExcelCharRowMock> | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
+    getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    charData(charId: string): ExcelCharRowMock | undefined { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string): ExcelRowMock | undefined { return this.StageTable?.stages?.[stageId]; },
   },
 }));
 
+import type { Response } from "express";
 import httpContext from "express-http-context2";
 import crisisRouter from "@game/modules/crisis/routes";
 import { mockPlayerData } from "../../helpers";
+import type { MockPlayerDataManager, MockPlayerDataSeed } from "../../helpers";
+import type { EventMap } from "@game/kernel/events";
 
-function mockRes() {
-  return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };
+/** 危机合约请求体视图（本文件各端点字段合集） */
+interface CrisisBody {
+  mapId?: string;
+  runeSlots?: string[];
+  stageId?: string;
+  rune?: string[];
+  seasonId?: string;
+  runeId?: string;
+  nodeId?: string;
+  taskId?: string;
+  pointId?: string;
+  assistFriend?: { uid?: string } | null;
+}
+
+/** V1 赛季挑战视图（生成模型 crisis.season 值为两层 ServerPayload，读不到永久记录字段） */
+interface CrisisChallengeView {
+  topPoint?: number;
+  pointList?: { [pointId: string]: number };
+  taskList?: { [taskId: string]: { fts: number; rts: number } };
+}
+
+interface CrisisPermanentView {
+  point?: number;
+  rune?: { [runeId: string]: number };
+  challenge?: CrisisChallengeView;
+}
+
+interface CrisisSeasonView {
+  permanent?: CrisisPermanentView;
+}
+
+interface CrisisView {
+  season?: { [seasonId: string]: CrisisSeasonView };
+}
+
+/** 路由测试请求视图（只声明被测分支读到的三个成员） */
+interface MockReq {
+  method: string;
+  url: string;
+  body: CrisisBody;
+}
+
+/** 路由测试响应视图（只声明被测分支读到的四个方法） */
+interface MockRes {
+  send: Response["send"];
+  status: Response["status"];
+  sendStatus: Response["sendStatus"];
+  json: Response["json"];
+}
+
+type RouterReq = Parameters<typeof crisisRouter>[0];
+
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    json: vi.fn<Response["json"]>(),
+  };
 }
 
 /** 构造一个完成任务 + 一个未完成任务的赛季挑战表 */
@@ -88,26 +163,38 @@ function challengeWithTasks() {
 }
 
 describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
-  let player: any;
-  let res: any;
+  let player: MockPlayerDataManager;
+  let res: MockRes;
 
-  function makePlayer(extra: any = {}) {
+  function makePlayer(extra: MockPlayerDataSeed = {}): MockPlayerDataManager {
     return mockPlayerData({
       crisis: { season: {} },
       crisisV2: { seasons: {}, shop: { coin: 666, info: [] } },
       ...extra,
-    } as any);
+    });
+  }
+
+  /** 读取 V1 赛季子树（见 CrisisSeasonView 的说明） */
+  function crisisSeason(seasonId: string): CrisisSeasonView {
+    return (player._playerdata.crisis as CrisisView).season![seasonId];
+  }
+
+  /** 就地覆写 V1 赛季子树（键与值一字不改） */
+  function setCrisisSeasons(seasons: { [seasonId: string]: CrisisSeasonView }): void {
+    (player._playerdata.crisis as CrisisView).season = seasons;
   }
 
   beforeEach(() => {
     vi.clearAllMocks();
     player = makePlayer();
     res = mockRes();
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    vi.mocked(httpContext.get).mockReturnValue(player);
   });
 
-  async function call(url: string, body: any) {
-    crisisRouter({ method: "POST", url, body } as any, res, () => {});
+  async function call(url: string, body: CrisisBody) {
+    const req: MockReq = { method: "POST", url, body };
+    // mock 请求/响应只覆盖被测分支用到的成员，故按窄视图断言为 express Request/Response
+    crisisRouter(req as RouterReq, res as Response, () => {});
     await new Promise((r) => setTimeout(r, 30));
   }
 
@@ -115,7 +202,7 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
     // 选 node_1 → 指标集 pack_1 满足（rewardScore 5）+ 符文 rune_1（score 10）→ 维度 0 共 15 分
     await call("/v2/battleStart", { mapId: "crisis_v2_01_01", runeSlots: ["node_1"] });
     await call("/v2/battleFinish", {});
-    const sent = res.send.mock.calls.at(-1)![0];
+    const sent = vi.mocked(res.send).mock.calls.at(-1)![0];
     expect(sent.scoreCurrent[0]).toBe(15);
     expect(sent.isNewRecord).toBe(true);
     expect(sent.scoreRecord).toEqual([15, 0, 0, 0, 0, 0]);
@@ -141,7 +228,7 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
     await call("/v2/battleFinish", {});
     await call("/v2/battleStart", { mapId: "crisis_v2_01_01", runeSlots: ["node_1"] });
     await call("/v2/battleFinish", {});
-    const sent = res.send.mock.calls.at(-1)![0];
+    const sent = vi.mocked(res.send).mock.calls.at(-1)![0];
     expect(sent.isNewRecord).toBe(false);
     expect(sent.scoreRecord).toEqual([15, 0, 0, 0, 0, 0]);
   });
@@ -150,18 +237,16 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
     // rune_a 风险点数 4（对应官服存档 point = 4）
     await call("/battleStart", { stageId: "level_rune_03-01", rune: ["rune_a"] });
     await call("/battleFinish", {});
-    const sent = res.send.mock.calls.at(-1)![0];
+    const sent = vi.mocked(res.send).mock.calls.at(-1)![0];
     expect(sent.score).toBe(4);
     expect(sent.updateInfo.point).toEqual({ before: -1, after: 4 });
-    const perm = player._playerdata.crisis.season.rune_season_1_1.permanent;
+    const perm = crisisSeason("rune_season_1_1").permanent!;
     expect(perm.point).toBe(4);
-    expect(perm.challenge.topPoint).toBe(4);
+    expect(perm.challenge!.topPoint).toBe(4);
     // 记录只增不减：再打一次低风险不改动
     await call("/battleStart", { stageId: "level_rune_03-01", rune: [] });
     await call("/battleFinish", {});
-    expect(
-      player._playerdata.crisis.season.rune_season_1_1.permanent.point,
-    ).toBe(4);
+    expect(crisisSeason("rune_season_1_1").permanent!.point).toBe(4);
   });
 
   // 勋章（2026-09-09 修复）：危机合约批次此前零 emit —— 监听器虽注册却无事件可收，
@@ -169,11 +254,11 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
   it("battleFinish（V1）：派发 CrisisStageScoreSome / CrisisStageScoreBeforeTime（含赛季+关卡）", async () => {
     await call("/battleStart", { stageId: "level_rune_03-01", rune: ["rune_a"] });
     await call("/battleFinish", {});
-    const emitted = (player._trigger.emit as any).mock.calls.map((c: any[]) => c[0]);
+    const emitted = vi.mocked(player._trigger.emit).mock.calls.map((c) => c[0]);
     expect(emitted).toContain("CrisisStageScoreSome");
     expect(emitted).toContain("CrisisStageScoreBeforeTime");
-    const arg = (player._trigger.emit as any).mock.calls.find(
-      (c: any[]) => c[0] === "CrisisStageScoreSome",
+    const arg = vi.mocked(player._trigger.emit).mock.calls.find(
+      (c) => c[0] === "CrisisStageScoreSome",
     )![1][0];
     expect(arg).toEqual({
       seasonId: "rune_season_1_1",
@@ -183,13 +268,12 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
   });
 
   it("unlockRune：仅首次解锁派发 CrisisUnlockPermRuneSome（重复请求不刷进度）", async () => {
-    player = makePlayer({
-      crisis: { season: { rune_season_1_1: { permanent: { rune: {} } } } },
-    });
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    player = makePlayer();
+    setCrisisSeasons({ rune_season_1_1: { permanent: { rune: {} } } });
+    vi.mocked(httpContext.get).mockReturnValue(player);
     await call("/unlockRune", { seasonId: "rune_season_1_1", runeId: "enemy_reid_3" });
-    let calls = (player._trigger.emit as any).mock.calls.filter(
-      (c: any[]) => c[0] === "CrisisUnlockPermRuneSome",
+    let calls = vi.mocked(player._trigger.emit).mock.calls.filter(
+      (c) => c[0] === "CrisisUnlockPermRuneSome",
     );
     expect(calls).toHaveLength(1);
     expect(calls[0][1][0]).toEqual({
@@ -199,28 +283,25 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
     });
     // 重复解锁同一词条：不再派发
     await call("/unlockRune", { seasonId: "rune_season_1_1", runeId: "enemy_reid_3" });
-    calls = (player._trigger.emit as any).mock.calls.filter(
-      (c: any[]) => c[0] === "CrisisUnlockPermRuneSome",
+    calls = vi.mocked(player._trigger.emit).mock.calls.filter(
+      (c) => c[0] === "CrisisUnlockPermRuneSome",
     );
     expect(calls).toHaveLength(1);
   });
 
   it("challengeRewardTask：仅实际领取时派发 CrisisTaskSome", async () => {
-    player = makePlayer({
-      crisis: {
-        season: { rune_season_1_1: { permanent: { challenge: challengeWithTasks() } } },
-      },
-    });
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    player = makePlayer();
+    setCrisisSeasons({ rune_season_1_1: { permanent: { challenge: challengeWithTasks() } } });
+    vi.mocked(httpContext.get).mockReturnValue(player);
     await call("/challengeRewardTask", { seasonId: "rune_season_1_1", taskId: "freshTask" });
     expect(
-      (player._trigger.emit as any).mock.calls.filter(
-        (c: any[]) => c[0] === "CrisisTaskSome",
+      vi.mocked(player._trigger.emit).mock.calls.filter(
+        (c) => c[0] === "CrisisTaskSome",
       ),
     ).toHaveLength(0);
     await call("/challengeRewardTask", { seasonId: "rune_season_1_1", taskId: "doneTask" });
-    const calls = (player._trigger.emit as any).mock.calls.filter(
-      (c: any[]) => c[0] === "CrisisTaskSome",
+    const calls = vi.mocked(player._trigger.emit).mock.calls.filter(
+      (c) => c[0] === "CrisisTaskSome",
     );
     expect(calls).toHaveLength(1);
     expect(calls[0][1][0]).toEqual({
@@ -233,9 +314,9 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
   it("v2/battleFinish：派发 CrisisV2DimScoreSome（各维峰值）与 CrisisV2DimScoreTotal（各维之和）", async () => {
     await call("/v2/battleStart", { mapId: "crisis_v2_01_01", runeSlots: ["node_1"] });
     await call("/v2/battleFinish", {});
-    const calls = (player._trigger.emit as any).mock.calls;
-    const some = calls.find((c: any[]) => c[0] === "CrisisV2DimScoreSome")!;
-    const total = calls.find((c: any[]) => c[0] === "CrisisV2DimScoreTotal")!;
+    const calls = vi.mocked(player._trigger.emit).mock.calls;
+    const some = calls.find((c) => c[0] === "CrisisV2DimScoreSome")!;
+    const total = calls.find((c) => c[0] === "CrisisV2DimScoreTotal")!;
     expect(some[1][0]).toEqual({
       seasonId: "crisis_v2_season_1_1",
       mapId: "crisis_v2_01_01",
@@ -247,7 +328,7 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
       score: 15,
     });
     // 未携带助战 → 不派发 CrisisV2UseAssist
-    expect(calls.some((c: any[]) => c[0] === "CrisisV2UseAssist")).toBe(false);
+    expect(calls.some((c) => c[0] === "CrisisV2UseAssist")).toBe(false);
   });
 
   it("v2/battleFinish：battleStart 携带 assistFriend 时派发 CrisisV2UseAssist", async () => {
@@ -257,11 +338,11 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
       assistFriend: { uid: "2" },
     });
     await call("/v2/battleFinish", {});
-    const call2 = (player._trigger.emit as any).mock.calls.find(
-      (c: any[]) => c[0] === "CrisisV2UseAssist",
+    const call2 = vi.mocked(player._trigger.emit).mock.calls.find(
+      (c): c is ["CrisisV2UseAssist", EventMap["CrisisV2UseAssist"]] => c[0] === "CrisisV2UseAssist",
     );
     expect(call2).toBeTruthy();
-    expect(call2[1][0]).toEqual({ seasonId: "crisis_v2_season_1_1", used: 1 });
+    expect(call2![1][0]).toEqual({ seasonId: "crisis_v2_season_1_1", used: 1 });
   });
 
   // 勋章（2026-09-09 修复，Round 31）：CrisisV2NodeSome 的节点记录（challenge / runePack）
@@ -275,11 +356,11 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
     expect(perm.challenge).toEqual({ keypoint_1: 2, keypoint_2: 2 });
     // 指标集满足 → runePack 记 2（官服存档实证已完成值 = 2）
     expect(perm.runePack).toEqual({ pack_1: 2 });
-    const call2 = (player._trigger.emit as any).mock.calls.find(
-      (c: any[]) => c[0] === "CrisisV2NodeSome",
+    const call2 = vi.mocked(player._trigger.emit).mock.calls.find(
+      (c): c is ["CrisisV2NodeSome", EventMap["CrisisV2NodeSome"]] => c[0] === "CrisisV2NodeSome",
     );
-    expect(call2[1][0].seasonId).toBe("crisis_v2_season_1_1");
-    expect(call2[1][0].nodeIds.sort()).toEqual([
+    expect(call2![1][0].seasonId).toBe("crisis_v2_season_1_1");
+    expect(call2![1][0].nodeIds!.sort()).toEqual([
       "crisis_v2_01_01^keypoint_1",
       "crisis_v2_01_01^keypoint_2",
       "crisis_v2_01_01^pack_1",
@@ -293,19 +374,20 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
     // 无符文 → 得分 0，keypoint_1（≥10）不达成；且该图无 challengeNodeDataMap 时不应报错
     expect(season.temporary.crisis_v2_01_02.challenge).toEqual({});
     expect(season.permanent.challenge ?? {}).toEqual({});
-    const call2 = (player._trigger.emit as any).mock.calls.find(
-      (c: any[]) => c[0] === "CrisisV2NodeSome",
+    const call2 = vi.mocked(player._trigger.emit).mock.calls.find(
+      (c): c is ["CrisisV2NodeSome", EventMap["CrisisV2NodeSome"]] => c[0] === "CrisisV2NodeSome",
     );
-    expect(call2[1][0].nodeIds).toEqual([]);
+    expect(call2![1][0].nodeIds).toEqual([]);
   });
 
   it("challengeRewardPoint：领取标记写时间戳而非字面量 1，且不可重复领取", async () => {
-    player = makePlayer({
-      crisis: { season: { rune_season_1_1: { permanent: { challenge: { pointList: { "1": -1, "2": -1 } } } } } },
+    player = makePlayer();
+    setCrisisSeasons({
+      rune_season_1_1: { permanent: { challenge: { pointList: { "1": -1, "2": -1 } } } },
     });
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    vi.mocked(httpContext.get).mockReturnValue(player);
     await call("/challengeRewardPoint", { seasonId: "rune_season_1_1", pointId: "1" });
-    const list = player._playerdata.crisis.season.rune_season_1_1.permanent.challenge.pointList;
+    const list = crisisSeason("rune_season_1_1").permanent!.challenge!.pointList!;
     expect(list["1"]).toBe(timeMock.now);
     expect(list["2"]).toBe(-1);
     await call("/challengeRewardPoint", { seasonId: "rune_season_1_1", pointId: "1" });
@@ -313,15 +395,11 @@ describe("crisis（危机合约）分数/点数落盘与领取标记", () => {
   });
 
   it("challengeRewardTask：未完成（fts=-1）的任务不可领取，已完成的可领取", async () => {
-    player = makePlayer({
-      crisis: {
-        season: { rune_season_1_1: { permanent: { challenge: challengeWithTasks() } } },
-      },
-    });
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    player = makePlayer();
+    setCrisisSeasons({ rune_season_1_1: { permanent: { challenge: challengeWithTasks() } } });
+    vi.mocked(httpContext.get).mockReturnValue(player);
     /** mockPlayerData.update 会整体替换 crisis 子树，故每次断言前重新读取 */
-    const tasksOf = () =>
-      player._playerdata.crisis.season.rune_season_1_1.permanent.challenge.taskList;
+    const tasksOf = () => crisisSeason("rune_season_1_1").permanent!.challenge!.taskList!;
     await call("/challengeRewardTask", { seasonId: "rune_season_1_1", taskId: "freshTask" });
     expect(tasksOf().freshTask.rts).toBe(-1);
     await call("/challengeRewardTask", { seasonId: "rune_season_1_1", taskId: "doneTask" });

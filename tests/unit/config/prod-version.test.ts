@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
+import type { Request, Response } from "express";
+import type { RegionConfig } from "@core/config/region";
 
 vi.mock("@utils/file", () => ({
   readJsonSync: vi.fn(() => ({
@@ -20,31 +22,44 @@ import config from "@core/config/index";
 
 /** 保存/恢复 config 的 region 相关字段（version 伪装用例隔离；支持 async fn） */
 async function withCaptureRegion(
-  patch: { enabled: boolean; region?: string; regions?: Record<string, any> },
+  patch: { enabled: boolean; region?: string; regions?: Record<string, RegionConfig> },
   fn: () => Promise<void> | void,
 ): Promise<void> {
   const savedCapture = config.capture;
-  const savedRegions = (config as any).regions;
+  const savedRegions = config.regions;
   try {
-    (config as any).capture = {
+    config.capture = {
       ...(savedCapture ?? {}),
       enabled: patch.enabled,
       ...(patch.region !== undefined ? { region: patch.region } : {}),
     };
-    if (patch.regions !== undefined) (config as any).regions = patch.regions;
+    if (patch.regions !== undefined) config.regions = patch.regions;
     await fn();
   } finally {
-    (config as any).capture = savedCapture;
-    (config as any).regions = savedRegions;
+    config.capture = savedCapture;
+    config.regions = savedRegions;
   }
 }
 
-function mockRes() {
-  return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };
+/** 路由测试响应视图：只声明本文件读到的四个方法 */
+interface MockRes {
+  send: Response["send"];
+  status: Response["status"];
+  sendStatus: Response["sendStatus"];
+  json: Response["json"];
 }
 
-async function call(url: string, res: any) {
-  prod({ method: "GET", url } as any, res, () => {});
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    json: vi.fn<Response["json"]>(),
+  };
+}
+
+async function call(url: string, res: MockRes) {
+  prod({ method: "GET", url } as Request, res as Response, () => {});
   await new Promise((r) => setTimeout(r, 20));
   return res;
 }
@@ -68,13 +83,13 @@ describe("prod 版本路由（region 伪装）", () => {
       async () => {
         const android = mockRes();
         await call("/official/Android/version", android);
-        const arg = android.send.mock.calls[0][0];
+        const arg = vi.mocked(android.send).mock.calls[0][0];
         expect(arg.clientVersion).toBe("2.9.01");
         expect(arg.resVersion).toBe("26-08-17-11-25-42_dbc172");
 
         const windows = mockRes();
         await call("/official/Windows/version", windows);
-        expect(windows.send.mock.calls[0][0].resVersion).toBe("26-07-30-09-00-07_win");
+        expect(vi.mocked(windows.send).mock.calls[0][0].resVersion).toBe("26-07-30-09-00-07_win");
       },
     );
   });
@@ -89,7 +104,7 @@ describe("prod 版本路由（region 伪装）", () => {
       async () => {
         const res = mockRes();
         await call("/official/Android/version", res);
-        const arg = res.send.mock.calls[0][0];
+        const arg = vi.mocked(res.send).mock.calls[0][0];
         expect(arg.clientVersion).toBe("2.9.01");
         expect(arg.resVersion).toBe("25-05-20-12-36-22_4803e1");
       },
@@ -108,7 +123,7 @@ describe("prod 版本路由（region 伪装）", () => {
       async () => {
         const res = mockRes();
         await call("/official/refresh_config", res);
-        const arg = res.send.mock.calls[0][0];
+        const arg = vi.mocked(res.send).mock.calls[0][0];
         expect(arg.clientVersion).toBe("2.9.01");
       },
     );
@@ -120,7 +135,7 @@ describe("prod 版本路由（region 伪装）", () => {
       async () => {
         const res = mockRes();
         await call("/official/Android/version", res);
-        expect(res.send.mock.calls[0][0].clientVersion).toBe("2.5.60");
+        expect(vi.mocked(res.send).mock.calls[0][0].clientVersion).toBe("2.5.60");
       },
     );
   });
@@ -130,21 +145,21 @@ describe("prod 版本路由（多平台）", () => {
   it("Windows 平台版本应返回独立 windows resVersion", async () => {
     const res = mockRes();
     await call("/official/Windows/version", res);
-    const arg = res.send.mock.calls[0][0];
+    const arg = vi.mocked(res.send).mock.calls[0][0];
     expect(arg.resVersion).toBe("26-07-30-09-00-07_win");
   });
 
   it("Android 平台版本应返回默认 resVersion", async () => {
     const res = mockRes();
     await call("/official/Android/version", res);
-    const arg = res.send.mock.calls[0][0];
+    const arg = vi.mocked(res.send).mock.calls[0][0];
     expect(arg.resVersion).toBe("25-05-20-12-36-22_4803e1");
   });
 
   it("clientVersion 路径版本应返回默认版本", async () => {
     const res = mockRes();
     await call("/official/2.5.60/version", res);
-    const arg = res.send.mock.calls[0][0];
+    const arg = vi.mocked(res.send).mock.calls[0][0];
     expect(arg.clientVersion).toBe("2.5.60");
     expect(arg.resVersion).toBe("25-05-20-12-36-22_4803e1");
   });

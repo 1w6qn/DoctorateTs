@@ -1,14 +1,47 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { join } from "path";
 import { crc32 } from "crc";
+import type { Request, Response } from "express";
 
-const mockConfig = vi.hoisted(() => ({
+/** excel 行夹具视图（本文件不提供的表也要显式占位，否则门面方法的 `this.XxxTable` 报 TS2339/TS7023） */
+interface ExcelRowMock { name?: string }
+
+/** 配置替身视图：excel 门面方法 + 本文件读取的配置字段 */
+interface ExcelMockConfig {
+  // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+  getItem(id: string): ExcelRowMock | undefined;
+  itemName(id: string): string;
+  makeItem(id: string, count: number, type?: string): { id: string; count: number; type?: string };
+  charData(charId: string): ExcelRowMock | undefined;
+  stageData(stageId: string): ExcelRowMock | undefined;
+  ItemTable: { items?: Record<string, ExcelRowMock> } | undefined;
+  CharacterTable: Record<string, ExcelRowMock> | undefined;
+  StageTable: { stages?: Record<string, ExcelRowMock> } | undefined;
+  Host: string;
+  PORT: number;
+  version: {
+    resVersion: string;
+    clientVersion: string;
+  };
+  assets: {
+    enableMods: boolean;
+    downloadLocally: boolean;
+    autoUpdate: boolean;
+    downloadPeoxy: boolean;
+  };
+  NetworkConfig: Record<string, string>;
+}
+
+const mockConfig = vi.hoisted((): ExcelMockConfig => ({
   // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
   getItem(id: string) { return this.ItemTable?.items?.[id]; },
   itemName(id: string): string { return this.getItem(id)?.name ?? id; },
   makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
   charData(charId: string) { return this.CharacterTable?.[charId]; },
   stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+  ItemTable: undefined,
+  CharacterTable: undefined,
+  StageTable: undefined,
   Host: "http://127.0.0.1",
   PORT: 8443,
   version: {
@@ -22,6 +55,19 @@ const mockConfig = vi.hoisted(() => ({
     downloadPeoxy: false,
   },
   NetworkConfig: {},
+}));
+
+/**
+ * fs/promises 替身（精确重载）
+ *
+ * `vi.mocked(readdir)` 会落到 `readdir(path, { withFileTypes: true })` 这个**最后重载**
+ * （返回 `Dirent[]`），而被测代码走的是无 options 重载（返回 `string[]`）——故不借用
+ * `vi.mocked`，改为本地持有一组精确签名的 mock，并在模块工厂里原样安装（同一函数对象）。
+ */
+const fsMock = vi.hoisted(() => ({
+  readdir: vi.fn<(path: string) => Promise<string[]>>(),
+  readFile: vi.fn<(path: string) => Promise<Buffer | string | undefined>>(),
+  stat: vi.fn<(path: string) => Promise<{ mtimeMs: number; size: number }>>(),
 }));
 
 vi.mock("@utils/file", () => ({
@@ -38,11 +84,11 @@ vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();
   return {
     ...actual,
-    readdir: vi.fn(),
-    readFile: vi.fn(),
+    readdir: fsMock.readdir,
+    readFile: fsMock.readFile,
     writeFile: vi.fn().mockResolvedValue(undefined),
     mkdir: vi.fn().mockResolvedValue(undefined),
-    stat: vi.fn(),
+    stat: fsMock.stat,
   };
 });
 
@@ -63,7 +109,6 @@ vi.mock("yauzl", () => ({
 import assetRouter from "@ops/assets/asset";
 import { getModsList, getModVersionSuffix, refreshModsIfChanged, nextModBaseCid } from "@ops/assets/asset";
 import { exists, size } from "@utils/file";
-import { readdir, readFile, stat } from "fs/promises";
 
 /** asset.ts 的 mods 目录（app/.. / mods = 项目根 / mods） */
 const modsDir = join(__dirname, "..", "..", "mods");
@@ -75,7 +120,25 @@ function isPlatformSubdir(p: string): boolean {
   return p.replace(/\\/g, "/").endsWith("/android");
 }
 
-function manifestReq() {
+/** asset 路由的测试请求视图：只声明被测分支读到的三个成员（真实 express Request 可赋给它） */
+interface MockReq {
+  method: string;
+  url: string;
+  params: Record<string, string>;
+}
+
+/** asset 路由的测试响应视图：只声明被测分支调用的五个方法（真实 express Response 可赋给它） */
+interface MockRes {
+  sendFile: Response["sendFile"];
+  redirect: Response["redirect"];
+  send: Response["send"];
+  status: Response["status"];
+  setHeader: Response["setHeader"];
+}
+
+type RouterReq = Parameters<typeof assetRouter>[0];
+
+function manifestReq(): MockReq {
   return {
     method: "GET",
     url: "/official/Android/assets/26-08-07-14-53-29_30b8f0/hot_update_list.json",
@@ -84,10 +147,10 @@ function manifestReq() {
       assetsHash: "26-08-07-14-53-29_30b8f0",
       fileName: "hot_update_list.json",
     },
-  } as any;
+  };
 }
 
-function mockRes() {
+function mockRes(): MockRes {
   return {
     sendFile: vi.fn(),
     redirect: vi.fn(),
@@ -97,6 +160,11 @@ function mockRes() {
   };
 }
 
+/** 以窄替身调用 asset 路由（`req`/`res` 单向断言，见 {@link MockReq}/{@link MockRes}） */
+async function callRouter(req: MockReq, res: MockRes): Promise<void> {
+  await assetRouter(req as RouterReq, res as Response, () => {});
+}
+
 describe("asset mod（enableMods=true）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -104,11 +172,11 @@ describe("asset mod（enableMods=true）", () => {
   });
 
   it("mods 目录缺失时清单请求不 500，mod 列表为空", async () => {
-    vi.mocked(readdir).mockRejectedValue(new Error("ENOENT"));
+    fsMock.readdir.mockRejectedValue(new Error("ENOENT"));
     vi.mocked(exists).mockResolvedValue(false);
 
     const res = mockRes();
-    await assetRouter(manifestReq(), res, () => {});
+    await callRouter(manifestReq(), res);
     await new Promise((r) => setTimeout(r, 30));
 
     expect(res.sendFile).toHaveBeenCalled();
@@ -117,13 +185,13 @@ describe("asset mod（enableMods=true）", () => {
   });
 
   it("损坏的 .dat（zip 解析失败）自动跳过，清单请求正常返回", async () => {
-    vi.mocked(readdir).mockResolvedValue(["bad.dat"] as any);
-    vi.mocked(readFile).mockResolvedValue(Buffer.from("not a zip") as any);
+    fsMock.readdir.mockResolvedValue(["bad.dat"]);
+    fsMock.readFile.mockResolvedValue(Buffer.from("not a zip"));
     vi.mocked(exists).mockResolvedValue(false);
     vi.mocked(size).mockResolvedValue(16);
 
     const res = mockRes();
-    await assetRouter(manifestReq(), res, () => {});
+    await callRouter(manifestReq(), res);
     await new Promise((r) => setTimeout(r, 30));
 
     expect(res.sendFile).toHaveBeenCalled();
@@ -135,11 +203,11 @@ describe("asset mod（enableMods=true）", () => {
     const dat1 = Buffer.alloc(10);
     const dat2 = Buffer.alloc(11);
     // 平台专属目录不存在（readdir ENOENT）→ 仅共享根目录有 mod
-    vi.mocked(readdir).mockImplementation(async (d: string) => {
+    fsMock.readdir.mockImplementation(async (d: string) => {
       if (isPlatformSubdir(String(d))) throw new Error("ENOENT");
-      return mods as any;
+      return mods;
     });
-    vi.mocked(readFile).mockImplementation(async (p: string) => {
+    fsMock.readFile.mockImplementation(async (p: string) => {
       if (String(p).endsWith("mods.Android.json")) {
         return JSON.stringify({
           file: {
@@ -157,8 +225,8 @@ describe("asset mod（enableMods=true）", () => {
           },
         });
       }
-      if (String(p).endsWith("a.dat")) return dat1 as any;
-      if (String(p).endsWith("b.dat")) return dat2 as any;
+      if (String(p).endsWith("a.dat")) return dat1;
+      if (String(p).endsWith("b.dat")) return dat2;
       return undefined;
     });
     // 仅平台缓存文件存在；资产版本目录视为不存在（走 axios 下载分支）
@@ -168,7 +236,7 @@ describe("asset mod（enableMods=true）", () => {
     vi.mocked(size).mockResolvedValue(10);
 
     const res = mockRes();
-    await assetRouter(manifestReq(), res, () => {});
+    await callRouter(manifestReq(), res);
     await new Promise((r) => setTimeout(r, 30));
 
     expect(res.sendFile).toHaveBeenCalled();
@@ -181,14 +249,14 @@ describe("asset mod（enableMods=true）", () => {
     // 确定性后缀：非空且同 mod 集再次请求保持一致
     const s1 = getModVersionSuffix("Android");
     expect(s1).not.toBe("");
-    await assetRouter(manifestReq(), res, () => {});
+    await callRouter(manifestReq(), res);
     await new Promise((r) => setTimeout(r, 30));
     expect(getModVersionSuffix("Android")).toBe(s1);
   });
 
   it("旧格式绝对路径缓存判失效（不命中）", async () => {
-    vi.mocked(readdir).mockResolvedValue(["a.dat"] as any);
-    vi.mocked(readFile).mockImplementation(async (p: string) => {
+    fsMock.readdir.mockResolvedValue(["a.dat"]);
+    fsMock.readFile.mockImplementation(async (p: string) => {
       if (String(p).endsWith("mods.Android.json")) {
         return JSON.stringify({
           file: { [join(modsDir, "a.dat")]: { size: 10, crc32: 0 } },
@@ -201,7 +269,7 @@ describe("asset mod（enableMods=true）", () => {
           },
         });
       }
-      return Buffer.from("not a zip") as any;
+      return Buffer.from("not a zip");
     });
     vi.mocked(exists).mockImplementation(async (p: string) =>
       String(p).endsWith("mods.Android.json"),
@@ -209,7 +277,7 @@ describe("asset mod（enableMods=true）", () => {
     vi.mocked(size).mockResolvedValue(10);
 
     const res = mockRes();
-    await assetRouter(manifestReq(), res, () => {});
+    await callRouter(manifestReq(), res);
     await new Promise((r) => setTimeout(r, 30));
 
     // 缓存指纹不匹配 → 走 zip 解析（yauzl mock 失败）→ 空列表（而非使用旧路径缓存）
@@ -228,12 +296,12 @@ describe("asset mod（enableMods=true）", () => {
   });
 
   it("平台专属目录 mod（mods/windows/）下发返回真实子目录路径（回归：曾被拼接为根路径 404）", async () => {
-    vi.mocked(readdir).mockImplementation(async (d: string) => {
+    fsMock.readdir.mockImplementation(async (d: string) => {
       const p = String(d).replace(/\\/g, "/");
-      if (p.endsWith("/mods/windows")) return ["skinpack_char_4064_mlynar.dat"] as any;
-      return [] as any; // 根目录无 mod → 平台目录唯一来源
+      if (p.endsWith("/mods/windows")) return ["skinpack_char_4064_mlynar.dat"];
+      return []; // 根目录无 mod → 平台目录唯一来源
     });
-    vi.mocked(readFile).mockImplementation(async (p: string) => {
+    fsMock.readFile.mockImplementation(async (p: string) => {
       const s = String(p);
       if (s.endsWith("mods.Windows.json")) {
         return JSON.stringify({
@@ -248,8 +316,8 @@ describe("asset mod（enableMods=true）", () => {
           },
         });
       }
-      if (s.endsWith("skinpack_char_4064_mlynar.dat")) return Buffer.alloc(100) as any;
-      return undefined as any;
+      if (s.endsWith("skinpack_char_4064_mlynar.dat")) return Buffer.alloc(100);
+      return undefined;
     });
     vi.mocked(exists).mockImplementation(async (p: string) => {
       const s = String(p).replace(/\\/g, "/");
@@ -260,7 +328,7 @@ describe("asset mod（enableMods=true）", () => {
     });
     vi.mocked(size).mockResolvedValue(100);
 
-    const req = {
+    const req: MockReq = {
       method: "GET",
       url: "/official/Windows/assets/26-08-07-10-51-39_26e0fc-8ddfbe/skinpack_char_4064_mlynar.dat",
       params: {
@@ -268,9 +336,9 @@ describe("asset mod（enableMods=true）", () => {
         assetsHash: "26-08-07-10-51-39_26e0fc-8ddfbe",
         fileName: "skinpack_char_4064_mlynar.dat",
       },
-    } as any;
+    };
     const res = mockRes();
-    await assetRouter(req, res, () => {});
+    await callRouter(req, res);
     await new Promise((r) => setTimeout(r, 30));
 
     // 回归断言：sendFile 必须是 mods/windows/ 下的真实路径（旧代码拼成 mods/ 根 → ENOENT 404）
@@ -285,14 +353,14 @@ describe("asset mod（enableMods=true）", () => {
 
   it("refreshModsIfChanged：mod 文件指纹变化时触发重载，未变化时跳过（运行时重打包热更新）", async () => {    // loadMods 走 zip 解析（yauzl mock 失败 → 空列表）；仅验证指纹驱动的重载触发
     let mtime = 1000;
-    vi.mocked(readdir).mockImplementation(async (d: string) => {
+    fsMock.readdir.mockImplementation(async (d: string) => {
       if (isPlatformSubdir(String(d))) throw new Error("ENOENT");
-      return ["a.dat"] as any;
+      return ["a.dat"];
     });
-    vi.mocked(stat).mockImplementation(async () => ({ mtimeMs: mtime, size: 10 }) as any);
+    fsMock.stat.mockImplementation(async () => ({ mtimeMs: mtime, size: 10 }));
     vi.mocked(exists).mockResolvedValue(false); // 平台缓存文件不存在
     vi.mocked(size).mockResolvedValue(10);
-    vi.mocked(readFile).mockResolvedValue(Buffer.from("not a zip") as any);
+    fsMock.readFile.mockResolvedValue(Buffer.from("not a zip"));
 
     // 首次调用建立指纹基线 → 触发重载
     expect(await refreshModsIfChanged("Android")).toBe(true);

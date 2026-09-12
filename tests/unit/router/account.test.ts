@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
+import type { Mock } from "vitest";
+import type { JsonValue } from "@excel/json-value";
 
 vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
@@ -13,40 +15,104 @@ vi.mock("@game/modules/account/AccountManager", () => ({
   accountManager: accountMock,
 }));
 
+import type { Response } from "express";
 import accountRouter from "@game/modules/account/routes";
 import httpContext from "express-http-context2";
 
-function mockRes() {
-  return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn(), type: vi.fn().mockReturnThis() };
+/** 账号请求体视图（本文件各端点字段合集） */
+interface AccountBody {
+  token?: string;
 }
 
-async function call(req: any, res: any) {
-  accountRouter(req, res, () => {});
+/** 路由测试请求视图（只声明被测分支读到的三个成员） */
+interface MockReq {
+  method: string;
+  url: string;
+  body?: AccountBody;
+}
+
+/** 路由测试响应视图（只声明被测分支读到的四个方法） */
+interface MockRes {
+  send: Response["send"];
+  status: Response["status"];
+  sendStatus: Response["sendStatus"];
+  json: Response["json"];
+  type: Response["type"];
+}
+
+type RouterReq = Parameters<typeof accountRouter>[0];
+
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    json: vi.fn<Response["json"]>(),
+    type: vi.fn<Response["type"]>().mockReturnThis(),
+  };
+}
+
+async function call(req: MockReq, res: MockRes): Promise<MockRes> {
+  // mock 请求/响应只覆盖被测分支用到的成员，故按窄视图断言为 express Request/Response
+  accountRouter(req as RouterReq, res as Response, () => {});
   await new Promise((r) => setTimeout(r, 20));
   return res;
 }
 
+/** 账号存档 draft 夹具视图（只声明本用例读写的 pushFlags.status） */
+interface AccountDraftFixture {
+  pushFlags: { status: number };
+}
+
+/** account 玩家组合根替身视图 */
+interface AccountPlayerFixture {
+  delta: {
+    playerDataDelta: {
+      modified: { pushFlags: { status: number } };
+      deleted: Record<string, never>;
+    };
+  };
+  update: Mock<(recipe: (draft: AccountDraftFixture) => Promise<void>) => Promise<void>>;
+  toJSON: Mock<() => AccountDraftFixture>;
+  toJSONString: Mock<() => string>;
+  _playerdata: AccountDraftFixture;
+  _trigger: { emit: Mock<(eventName: string, payload: JsonValue[]) => Promise<void>> };
+  pushLoginNotice: Mock<() => void>;
+}
+
+/**
+ * 账号用例的组合根替身
+ *
+ * update 复刻真实组合根的「draft 回写」语义（本用例只关心 pushFlags.status）。
+ */
+function makeMockPlayer(): AccountPlayerFixture {
+  const self: AccountPlayerFixture = {
+    delta: {
+      playerDataDelta: { modified: { pushFlags: { status: 1234567890 } }, deleted: {} },
+    },
+    update: vi
+      .fn<(recipe: (draft: AccountDraftFixture) => Promise<void>) => Promise<void>>()
+      .mockImplementation(async (recipe) => {
+        const draft: AccountDraftFixture = { pushFlags: { status: 0 } };
+        await recipe(draft);
+        self._playerdata.pushFlags.status = draft.pushFlags.status;
+      }),
+    toJSON: vi.fn(() => self._playerdata),
+    toJSONString: vi.fn(() => JSON.stringify(self._playerdata)),
+    _playerdata: { pushFlags: { status: 0 } },
+    _trigger: { emit: vi.fn().mockResolvedValue(undefined) },
+    pushLoginNotice: vi.fn(),
+  };
+  return self;
+}
+
 describe("account 路由", () => {
-  let mockPlayer: any;
+  let mockPlayer: AccountPlayerFixture;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPlayer = {
-      delta: {
-        playerDataDelta: { modified: { pushFlags: { status: 1234567890 } }, deleted: {} },
-      },
-      update: vi.fn().mockImplementation(async (recipe: any) => {
-        const draft: any = { pushFlags: { status: 0 } };
-        await recipe(draft);
-        mockPlayer._playerdata.pushFlags.status = draft.pushFlags.status;
-      }),
-      toJSON: vi.fn(() => mockPlayer._playerdata),
-      toJSONString: vi.fn(() => JSON.stringify(mockPlayer._playerdata)),
-      _playerdata: { pushFlags: { status: 0 } },
-      _trigger: { emit: vi.fn().mockResolvedValue(undefined) },
-      pushLoginNotice: vi.fn(),
-    };
-    (vi.mocked(httpContext.get) as any).mockReturnValue(mockPlayer);
+    mockPlayer = makeMockPlayer();
+    vi.mocked(httpContext.get).mockReturnValue(mockPlayer);
   });
 
   it("login 应按 token 解析：single 模式任意 token 收敛到单例账号并返回账号 secret", async () => {
@@ -114,7 +180,7 @@ describe("account 路由", () => {
     expect(mockPlayer.update).toHaveBeenCalled();
     expect(mockPlayer._playerdata.pushFlags.status).toBe(1234567890);
     // 保留 playerDataDelta（Immer patches 增量）
-    const arg = JSON.parse(res.send.mock.calls[0][0] as string);
+    const arg = JSON.parse(vi.mocked(res.send).mock.calls[0][0] as string);
     // 契约形状对齐官服抓包（reference/tmp/account_syncData_*.json）：{ result, ts, user, playerDataDelta }
     expect(Object.keys(arg).sort()).toEqual([
       "playerDataDelta",
@@ -154,7 +220,7 @@ describe("account 路由", () => {
   });
 
   it("syncData 无 playerData（real 模式无 secret 头）应返回 401 而非 500", async () => {
-    (vi.mocked(httpContext.get) as any).mockReturnValue(undefined);
+    vi.mocked(httpContext.get).mockReturnValue(undefined);
     const res = mockRes();
     await call({ method: "POST", url: "/syncData" }, res);
     expect(res.status).toHaveBeenCalledWith(401);

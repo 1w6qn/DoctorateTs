@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Request } from "express";
 
 // 策略模块经 @game/modules/account/AccountManager 访问 accountManager —— mock 以便隔离验证
 vi.mock("@game/modules/account/AccountManager", () => ({
@@ -13,9 +14,9 @@ import {
 } from "@game/kernel/http/auth-strategy";
 import type { AuthAccountPort } from "@game/kernel/http/auth-strategy";
 
-/** 构造最小 Express 请求对象 */
-function mockReq(headers: Record<string, unknown> = {}): any {
-  return { headers };
+/** 构造最小 Express 请求对象（策略只读取 `headers.secret`；真实 Request 可赋给该替身形状） */
+function mockReq(headers: Request["headers"] = {}): Request {
+  return { headers } as Request;
 }
 
 describe("SingleAccountStrategy 单账号私服策略", () => {
@@ -46,7 +47,7 @@ describe("RealAccountStrategy 真实多账号策略", () => {
   });
 
   it("有效 secret（账号 token）→ 解析出对应 uid", async () => {
-    (accountManager.getUidByToken as any).mockResolvedValue("2221");
+    vi.mocked(accountManager.getUidByToken).mockResolvedValue("2221");
     const s = new RealAccountStrategy();
     expect(await s.resolveUid(mockReq({ secret: "secret_2221" }))).toBe("2221");
     expect(accountManager.getUidByToken).toHaveBeenCalledWith("secret_2221");
@@ -54,7 +55,7 @@ describe("RealAccountStrategy 真实多账号策略", () => {
   });
 
   it("无效 secret → undefined（中间件据此返回 401）", async () => {
-    (accountManager.getUidByToken as any).mockResolvedValue("");
+    vi.mocked(accountManager.getUidByToken).mockResolvedValue("");
     const s = new RealAccountStrategy();
     expect(await s.resolveUid(mockReq({ secret: "bad" }))).toBeUndefined();
   });
@@ -65,7 +66,7 @@ describe("RealAccountStrategy 真实多账号策略", () => {
   });
 
   it("registerUid 委托 AccountManager 真正建号", async () => {
-    (accountManager.registerUser as any).mockResolvedValue("42");
+    vi.mocked(accountManager.registerUser).mockResolvedValue("42");
     const s = new RealAccountStrategy();
     expect(await s.registerUid("13800000000", "pwd123456")).toBe("42");
     expect(accountManager.registerUser).toHaveBeenCalledWith("13800000000", "pwd123456");
@@ -95,7 +96,7 @@ describe("RealAccountStrategy 账号端口注入（AuthAccountPort）", () => {
   });
 
   it("缺省端口回落 accountManager 单例（行为与迁移前一致）", async () => {
-    (accountManager.getUidByToken as any).mockResolvedValue("2221");
+    vi.mocked(accountManager.getUidByToken).mockResolvedValue("2221");
     const s = new RealAccountStrategy();
     expect(await s.resolveUid(mockReq({ secret: "secret_2221" }))).toBe("2221");
   });

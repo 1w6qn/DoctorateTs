@@ -1,12 +1,117 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import { AdminService } from "@ops/admin/AdminService";
 import { accountManager } from "@game/modules/account/AccountManager";
+import type { UserConfig } from "@game/modules/account/AccountManager";
 import { mailManager } from "@game/modules/mail/MailManager";
-import { mockPlayerData } from "../../helpers";
+import type { MailItem } from "@game/modules/mail/mail.model";
+import { mockPlayerData, asModel, asPlayerManager } from "../../helpers";
+import type { MockPlayerDataManager, MockStatusManager } from "../../helpers";
+import type { PlayerCharacter, PlayerDataModel } from "@game/kernel/playerdata";
+import type { PlayerDataManager } from "@game/kernel/PlayerDataManager";
+import type { PlayerRoguelikeV2 } from "@game/modules/roguelike/rlv2-model";
+import type { ItemBundle } from "@excel/excel";
 import config from "@core/config/index";
 import { appendFile, mkdir } from "fs/promises";
 import { runMigration } from "../../../scripts/migrate-official";
 import { runOfficialAction, runOfficialCall, uploadPixelArtBatch as uploadPixelArtBatchMock, getPixelArtList as getPixelArtListMock, deletePixelArt as deletePixelArtMock } from "@ops/admin/official-ops";
+
+/** excel mock 物品/关卡行形状（本文件用到的字段即可） */
+interface ExcelRowMock {
+  name?: string;
+  classifyType?: string;
+  sortId?: number;
+}
+
+/** excel mock 干员行形状（名称解析/等级相位/技能） */
+interface ExcelCharRowMock {
+  name?: string;
+  rarity?: number;
+  maxPotentialLevel?: number;
+  phases?: { maxLevel?: number }[];
+  skills?: { skillId?: string }[];
+}
+
+/**
+ * UserConfig 夹具视图
+ *
+ * 历史夹具带 `social` 字段（UserConfig 已移除该键，社交数据以 social.db 为唯一源）；
+ * 按可选字段放宽以保留夹具原值，其余字段（含 `auth`/`gacha`）仍受 UserConfig 约束。
+ */
+interface UserConfigFixture extends UserConfig {
+  /** 历史夹具字段（当前用例不消费，保留原值） */
+  social?: Record<string, never>;
+}
+
+/**
+ * accountManager 夹具写入视图
+ *
+ * `data`/`configs` 是公开字段；用例写入的是 `mockPlayerData()` 替身与局部 UserConfig
+ * 夹具（真实 PlayerDataManager 含私有成员）。AdminService 只读 `data[uid]._playerdata`
+ * 与 `configs[uid]`，故按该读取面声明窄视图——真实公开字段可赋给本视图，无需断言。
+ */
+interface AccountManagerFixtureView {
+  data: { [uid: string]: { _playerdata: PlayerDataModel } };
+  configs: { [uid: string]: UserConfigFixture };
+}
+
+/** 把 accountManager 视作夹具写入视图（真实字段可赋给本视图） */
+function fixtureAccounts(manager: typeof accountManager): AccountManagerFixtureView {
+  return manager;
+}
+
+/** 夹具写入视图（与 accountManager 同一对象引用） */
+const accounts = fixtureAccounts(accountManager);
+
+/** onCharGet 替身返回（被测实现只读 isNew/charInstId） */
+interface GrantCharStubResult {
+  charInstId: number;
+  charId: string;
+  isNew: number;
+  itemGet?: ItemBundle[];
+}
+
+/** rogueSimState 夹具快照（用例只读 current.player.state） */
+interface Rlv2StateFixture {
+  current: { player: { state: string } };
+}
+
+/**
+ * admin-service 用例的玩家替身视图
+ *
+ * 在 `MockPlayerDataManager` 上按用例写入面补齐被测实现实际读取的子管理器桩
+ * （inventory/char/building/mission/rlv2——真实 `PlayerDataManager` 上存在，
+ * 但 mock 替身面未声明）。派生视图的共享成员与基类型同形，故 `mockPlayerData(...)`
+ * 结果可安全断言为本视图（单向：本视图可赋给 MockPlayerDataManager）。
+ */
+interface AdminFixturePlayer extends MockPlayerDataManager {
+  /** 物品管道替身（gainItem 为被测实现唯一读取入口） */
+  inventory: { gainItem: (item: ItemBundle) => Promise<void> };
+  /** 干员管理器替身 */
+  char: { onCharGet: (args: [string, { from: string }]) => Promise<GrantCharStubResult> };
+  /** 基建管理器替身 */
+  building: { advance: (secs: number) => Promise<number> };
+  /** 任务管理器替身 */
+  mission: { dailyRefresh: () => Promise<void> };
+  /** 肉鸽管理器替身 */
+  rlv2: { toJSON: () => Rlv2StateFixture };
+}
+
+/** 带 refreshTime 的状态替身视图（真实 StatusManager 入口，MockStatusManager 面未覆盖） */
+interface StatusStub extends MockStatusManager {
+  refreshTime: Mock<() => Promise<void>>;
+}
+
+/**
+ * 卡池 UP 选择视图（服务端自建键）
+ *
+ * AdminService.getPlayerPoolState/setPlayerPoolUp 经 json-path 在
+ * `_playerdata.gacha.<type>[poolId].upChar` 上读写；生成模型
+ * `PlayerGacha_PlayerGachaPool` 未声明该键，故按该键声明视图
+ * （真实模型可赋给本视图——全部成员可选，故为合法的单向断言）。
+ */
+interface GachaPoolUpCharView {
+  upChar?: string[];
+}
 
 // 官服迁移 mock（不真实联网/写库）
 vi.mock("../../../scripts/migrate-official", () => ({
@@ -25,91 +130,100 @@ vi.mock("@ops/admin/official-ops", () => ({
 }));
 
 // excel 表桩（名称解析/物品校验/满配/干员属性共用）
-vi.mock("@excel/excel", () => ({
-  default: {
-    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
-    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
-    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+vi.mock("@excel/excel", () => {
+  // 三张带 string 索引的表抽成显式 Record，避免门面方法的 `this.X[id]` 报 TS7053
+  /** 物品表夹具 */
+  const ItemTable: { items: Record<string, ExcelRowMock> } = {
+    items: {
+      "4001": { name: "龙门币", classifyType: "NORMAL", sortId: 100 },
+      "4003": { name: "合成玉", classifyType: "NORMAL", sortId: 100 },
+      "9999": { name: "未知材料", classifyType: "MATERIAL", sortId: 100 },
+      "consumable_x": { name: "消耗券", classifyType: "CONSUME", sortId: 100 },
+    },
+  };
+  /** 干员表夹具 */
+  const CharacterTable: Record<string, ExcelCharRowMock> = {
+    char_002_amiya: {
+      name: "阿米娅",
+      rarity: 4,
+      maxPotentialLevel: 5,
+      phases: [{ maxLevel: 30 }, { maxLevel: 55 }, { maxLevel: 90 }],
+      skills: [{ skillId: "skill_amiya_1" }],
+    },
+  };
+  /** 关卡表夹具 */
+  const StageTable: { stages: Record<string, ExcelRowMock> } = {
+    stages: {
+      "main_01-01": {},
+      "main_01-02": {},
+    },
+  };
+  return {
+    default: {
+      // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+      getItem(id: string): ExcelRowMock | undefined { return ItemTable.items[id]; },
+      itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+      makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+      charData(charId: string): ExcelCharRowMock | undefined { return CharacterTable[charId]; },
+      stageData(stageId: string): ExcelRowMock | undefined { return StageTable.stages[stageId]; },
 
-    ItemTable: {
-      items: {
-        "4001": { name: "龙门币", classifyType: "NORMAL", sortId: 100 },
-        "4003": { name: "合成玉", classifyType: "NORMAL", sortId: 100 },
-        "9999": { name: "未知材料", classifyType: "MATERIAL", sortId: 100 },
-        "consumable_x": { name: "消耗券", classifyType: "CONSUME", sortId: 100 },
-      },
-    },
-    CharacterTable: {
-      char_002_amiya: {
-        name: "阿米娅",
-        rarity: 4,
-        maxPotentialLevel: 5,
-        phases: [{ maxLevel: 30 }, { maxLevel: 55 }, { maxLevel: 90 }],
-        skills: [{ skillId: "skill_amiya_1" }],
-      },
-    },
-    SkinTable: {
-      charSkins: {
-        "char_002_amiya#2": { charId: "char_002_amiya", displaySkin: { skinName: "开初" } },
-      },
-    },
-    UniequipTable: { charEquip: { char_002_amiya: [] } },
-    BuildingData: { rooms: { room_1: { phases: [{}, {}, {}] } } },
-    GachaTable: {
-      gachaPoolClient: [
-        {
-          gachaPoolId: "NORMAL_0_1",
-          gachaPoolName: "测试卡池",
-          gachaRuleType: "NORMAL",
-          openTime: 0,
-          endTime: 9999999999,
-          guarantee5Count: 10,
-          guarantee5Avail: 1,
-          gachaPoolSummary: "test",
+      ItemTable,
+      CharacterTable,
+      StageTable,
+      SkinTable: {
+        charSkins: {
+          "char_002_amiya#2": { charId: "char_002_amiya", displaySkin: { skinName: "开初" } },
         },
-      ],
-    },
-    GachaDetailTable: {
-      details: {
-        NORMAL_0_1: {
-          upCharInfo: {
-            perCharList: [
-              { rarityRank: 5, charIdList: ["char_002_amiya"], percent: 2, count: 1 },
-            ],
+      },
+      UniequipTable: { charEquip: { char_002_amiya: [] } },
+      BuildingData: { rooms: { room_1: { phases: [{}, {}, {}] } } },
+      GachaTable: {
+        gachaPoolClient: [
+          {
+            gachaPoolId: "NORMAL_0_1",
+            gachaPoolName: "测试卡池",
+            gachaRuleType: "NORMAL",
+            openTime: 0,
+            endTime: 9999999999,
+            guarantee5Count: 10,
+            guarantee5Avail: 1,
+            gachaPoolSummary: "test",
           },
-          availCharInfo: {
-            perAvailList: [
-              { rarityRank: 4, charIdList: ["char_002_amiya"], totalPercent: 50 },
-            ],
+        ],
+      },
+      GachaDetailTable: {
+        details: {
+          NORMAL_0_1: {
+            upCharInfo: {
+              perCharList: [
+                { rarityRank: 5, charIdList: ["char_002_amiya"], percent: 2, count: 1 },
+              ],
+            },
+            availCharInfo: {
+              perAvailList: [
+                { rarityRank: 4, charIdList: ["char_002_amiya"], totalPercent: 50 },
+              ],
+            },
+            limitedChar: [],
           },
-          limitedChar: [],
         },
       },
-    },
-    StageTable: {
-      stages: {
-        "main_01-01": {},
-        "main_01-02": {},
-      },
-    },
-    CheckinTable: {
-      groups: {
-        group1: {
-          groupId: "group1",
-          title: "签到组",
-          signStartTime: 0,
-          signEndTime: 9999999999,
-          items: [{ itemId: "4001", itemType: "GOLD", count: 100 }],
+      CheckinTable: {
+        groups: {
+          group1: {
+            groupId: "group1",
+            title: "签到组",
+            signStartTime: 0,
+            signEndTime: 9999999999,
+            items: [{ itemId: "4001", itemType: "GOLD", count: 100 }],
+          },
         },
+        currentMonthlySubId: "",
+        monthlySubItem: {},
       },
-      currentMonthlySubId: "",
-      monthlySubItem: {},
     },
-  },
-}));
+  };
+});
 
 // 拦截所有 fs/promises 写操作（createUser 走 .tmp+rename 原子写；_audit 走 mkdir+appendFile，
 // 均避免写真实文件/目录）
@@ -126,10 +240,10 @@ vi.mock("fs/promises", async (importOriginal) => {
 });
 
 /** 构造带完整结构的 mock 玩家（满配/基建/干员用例共用） */
-function makeFullPd() {
-  return mockPlayerData({
+function makeFullPd(): AdminFixturePlayer {
+  const pd = mockPlayerData({
     status: {
-      uid: "1" as any,
+      uid: "1",
       nickName: "阿米娅",
       nickNumber: "1",
       level: 60,
@@ -141,7 +255,7 @@ function makeFullPd() {
       ap: 0,
       registerTs: 1000,
       lastOnlineTs: 2000,
-    } as any,
+    },
     troop: {
       curCharInstId: 5,
       chars: {
@@ -159,35 +273,41 @@ function makeFullPd() {
           skills: [{ skillId: "skill_amiya_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 }],
         },
       },
-    } as any,
+    },
     inventory: {},
     consumable: {},
-    skin: { characterSkins: {}, skinTs: {} } as any,
-    gacha: { normal: {}, limit: {} } as any,
-    dungeon: { stages: {} } as any,
-    mission: { missions: {}, missionRewards: {}, missionGroups: {} } as any,
-    medal: { medals: {}, custom: {} } as any,
-    shop: {} as any,
-    activity: {} as any,
+    skin: { characterSkins: {}, skinTs: {} },
+    gacha: { normal: {}, limit: {} },
+    dungeon: { stages: {} },
+    mission: { missions: {}, missionRewards: {}, missionGroups: {} },
+    medal: { medals: {}, custom: {} },
+    shop: {},
+    activity: {},
     checkIn: {
       canCheckIn: 1,
       checkInGroupId: "group1",
       checkInRewardIndex: 0,
       checkInHistory: [],
       newbiePackage: { open: false, groupId: "", finish: 0, stopSale: 0 },
-    } as any,
+    },
+  }) as AdminFixturePlayer;
+  // 基建夹具经 Object.assign 写入：roomId 用历史夹具值 "room_1"（真实
+  // BuildingData_RoomType 枚举无该值，而 AdminService.buildingMax 按该键查
+  // mock BuildingData.rooms；改值会改变用例驱动的相位数据，故保留原值）。
+  Object.assign(pd._playerdata, {
     building: {
       roomSlots: {
         slot_1: { level: 1, state: 1, roomId: "room_1", charInstIds: [], completeConstructTime: 0 },
       },
-    } as any,
+    },
   });
+  return pd;
 }
 
 /** 基本账号桩（listUsers/getUserInfo/sendMail 等只读与邮件路径用） */
-function stubAccounts(pd: any) {
-  (accountManager as any).configs = {
-    "1": {
+function stubAccounts(pd: AdminFixturePlayer) {
+  accounts.configs = {
+    "1": asModel<UserConfigFixture>({
       uid: "1",
       password: "1",
       auth: { phone: "13800000000" },
@@ -195,9 +315,9 @@ function stubAccounts(pd: any) {
       battle: {},
       gacha: {},
       rlv2: {},
-    },
+    }),
   };
-  (accountManager as any).data = { "1": pd };
+  accounts.data = { "1": pd };
 }
 
 describe("AdminService 只读能力", () => {
@@ -216,7 +336,7 @@ describe("AdminService 只读能力", () => {
   });
 
   it("getUserInfo 应返回资金与带中文名的道具摘要", async () => {
-    const pd = (accountManager as any).data["1"];
+    const pd = accounts.data["1"];
     pd._playerdata.inventory = { "4001": 100, "9999": 5 };
     const info = await service.getUserInfo("1");
     expect(info!.gold).toBe(99999);
@@ -249,9 +369,9 @@ describe("AdminService 只读能力", () => {
     const data = await service.getMapvizData();
     expect(data?.themes).toEqual({ rogue_1: { normal: ["ro1_n_1_1"], elite: [], boss: [], zones: {} } });
     // gridzone 构造数据（黑流树海 rogue_6 无相地图）
-    expect((data as any)?.grid?.constructions?.length).toBeGreaterThan(0);
-    expect((data as any)?.grid?.distanceRules?.length).toBeGreaterThan(0);
-    expect((data as any)?.grid?.countRules?.length).toBeGreaterThan(0);
+    expect(data?.grid?.constructions?.length).toBeGreaterThan(0);
+    expect(data?.grid?.distanceRules?.length).toBeGreaterThan(0);
+    expect(data?.grid?.countRules?.length).toBeGreaterThan(0);
     expect(readFileSpy).toHaveBeenCalled();
     readFileSpy.mockRestore();
   });
@@ -288,25 +408,25 @@ describe("AdminService 只读能力", () => {
 
 describe("AdminService 发放物品", () => {
   let service: AdminService;
-  let pd: any;
+  let pd: AdminFixturePlayer;
 
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
     pd = mockPlayerData({
-      status: { uid: "1" as any, nickName: "阿米娅", level: 1, gold: 0 } as any,
-      troop: { curCharInstId: 2 } as any,
-    });
+      status: { uid: "1", nickName: "阿米娅", level: 1, gold: 0 },
+      troop: { curCharInstId: 2 },
+    }) as AdminFixturePlayer;
     // mock 的 PlayerDataManager 没有 inventory 管理器，附加 stub 模拟 GOLD 分支
     pd.inventory = {
-      gainItem: vi.fn().mockImplementation(async (item: any) => {
+      gainItem: vi.fn<(item: ItemBundle) => Promise<void>>().mockImplementation(async (item) => {
         pd._playerdata.status.gold += item.count;
       }),
     };
     stubAccounts(pd);
     // 拦截落盘与审计，避免写真实文件
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
   });
@@ -342,7 +462,7 @@ describe("AdminService 发放物品", () => {
 
 describe("AdminService 干员/皮肤发放", () => {
   let service: AdminService;
-  let pd: any;
+  let pd: AdminFixturePlayer;
 
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -355,8 +475,8 @@ describe("AdminService 干员/皮肤发放", () => {
       gainItem: vi.fn().mockResolvedValue(undefined),
     };
     stubAccounts(pd);
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
   });
@@ -398,15 +518,15 @@ describe("AdminService 干员/皮肤发放", () => {
 
 describe("AdminService 干员管理", () => {
   let service: AdminService;
-  let pd: any;
+  let pd: AdminFixturePlayer;
 
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
     pd = makeFullPd();
     stubAccounts(pd);
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
   });
@@ -442,10 +562,14 @@ describe("AdminService 干员管理", () => {
   });
 
   it("getShopSummary 应汇总各商店类型购买记录数", async () => {
-    (pd._playerdata.shop as any) = {
-      LS: { curShopId: "shop1", info: [{ id: 1 }] },
-      SOCIAL: { curShopId: "shop2", info: [] },
-    };
+    // LS.info[].id 用历史数字夹具值（真实 PlayerGoodItemData.id 为 string）；
+    // AdminService.getShopSummary 只统计 info.length，故经 Object.assign 保留原值。
+    Object.assign(pd._playerdata, {
+      shop: {
+        LS: { curShopId: "shop1", info: [{ id: 1 }] },
+        SOCIAL: { curShopId: "shop2", info: [] },
+      },
+    });
     const st = await service.getShopSummary("1");
     expect(st.total).toBe(1);
     expect(st.types.find((t) => t.type === "LS")).toMatchObject({
@@ -480,15 +604,15 @@ describe("AdminService 干员管理", () => {
 
 describe("AdminService 一键满配与基建", () => {
   let service: AdminService;
-  let pd: any;
+  let pd: AdminFixturePlayer;
 
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
     pd = makeFullPd();
     stubAccounts(pd);
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
   });
@@ -549,8 +673,8 @@ describe("AdminService 邮件（群发/查看/删除）", () => {
     service = new AdminService();
     const pd = makeFullPd();
     stubAccounts(pd);
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
   });
@@ -558,7 +682,7 @@ describe("AdminService 邮件（群发/查看/删除）", () => {
   it("sendMailAll 应遍历所有用户发送", async () => {
     const spy = vi
       .spyOn(mailManager, "sendMail")
-      .mockResolvedValue({ mailId: 1000000 } as any);
+      .mockResolvedValue(asModel<MailItem>({ mailId: 1000000 }));
     const result = await service.sendMailAll({ subject: "公告", content: "hi", items: [] });
     expect(result).toEqual({ sent: 1 });
     expect(spy).toHaveBeenCalledWith(
@@ -569,7 +693,7 @@ describe("AdminService 邮件（群发/查看/删除）", () => {
 
   it("listMails 应返回带中文附件名的邮件摘要", async () => {
     vi.spyOn(mailManager, "listAllMail").mockReturnValue([
-      {
+      asModel<MailItem>({
         mailId: 1000001,
         subject: "欢迎",
         content: "",
@@ -579,7 +703,7 @@ describe("AdminService 邮件（群发/查看/删除）", () => {
         state: 0,
         hasItem: 1,
         items: [{ id: "4001", type: "GOLD", count: 100 }],
-      } as any,
+      }),
     ]);
     const mails = await service.listMails("1");
     expect(mails).toHaveLength(1);
@@ -598,24 +722,27 @@ describe("AdminService 邮件（群发/查看/删除）", () => {
 
 describe("AdminService 服务器控制与数据导出", () => {
   let service: AdminService;
-  let pd: any;
+  let pd: AdminFixturePlayer;
+  let statusStub: StatusStub;
 
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
     pd = makeFullPd();
-    pd.status = { refreshTime: vi.fn().mockResolvedValue(undefined) } as any;
-    pd.mission = { dailyRefresh: vi.fn().mockResolvedValue(undefined) } as any;
+    statusStub = Object.assign(pd.status, {
+      refreshTime: vi.fn().mockResolvedValue(undefined),
+    });
+    pd.mission = { dailyRefresh: vi.fn().mockResolvedValue(undefined) };
     stubAccounts(pd);
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
   });
 
   it("refreshUser 应触发每日刷新并落盘", async () => {
     await service.refreshUser("1");
-    expect(pd.status.refreshTime).toHaveBeenCalled();
+    expect(statusStub.refreshTime).toHaveBeenCalled();
     expect(pd.mission.dailyRefresh).toHaveBeenCalled();
     expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
   });
@@ -730,13 +857,22 @@ describe("AdminService 游戏协议代理", () => {
     });
     const r = await service.rogueSimStep("1", "moveTo", { to: { x: 0, y: 0 } });
     expect(r.ok).toBe(true);
-    expect((r.state as any).current.player.state).toBe("WAIT_MOVE");
+    expect(r.state!.current!.player!.state).toBe("WAIT_MOVE");
     expect(spy).toHaveBeenCalledWith("1", "/rlv2/moveTo", "POST", { to: { x: 0, y: 0 } });
   });
 
   it("rogueSimAuto 应编排开局链并推进至 END（mock gameProxy 响应序列）", async () => {
     // 伪造 rlv2 快照序列：INIT 开局 → WAIT_MOVE zone1 → PENDING SCENE → END
-    const snap = (state: string, zone: number, pending: any[] = [], zoneEndPos: any = null) => ({
+    /** 待处理事件夹具（被测实现只读 type 与 content.scene.choices） */
+    type PendingFixture = { type: string; content?: { scene?: { choices?: Record<string, number> } } };
+    /** 光标终点夹具 */
+    type PosFixture = { x: number; y: number };
+    const snap = (
+      state: string,
+      zone: number,
+      pending: PendingFixture[] = [],
+      zoneEndPos: PosFixture | null = null,
+    ) => ({
       current: {
         player: { state, cursor: { zone, position: zoneEndPos }, pending, property: { hp: { current: 10, max: 10 }, gold: 10 } },
         map: {
@@ -782,7 +918,7 @@ describe("AdminService 游戏协议代理", () => {
     const r = await service.rogueSimAuto("1", "rogue_1");
     expect(r.ok).toBe(true);
     expect(r.steps.length).toBeGreaterThan(0);
-    expect((r.final as any).current.player.state).toBe("END");
+    expect(r.final!.current!.player!.state).toBe("END");
     // 应调用过开局链 + moveTo + gameSettle
     const paths = spy.mock.calls.map((c) => c[1]);
     expect(paths).toContain("/rlv2/createGame");
@@ -801,11 +937,15 @@ describe("AdminService 游戏协议代理", () => {
   it("rogueSimState 应返回当前 rlv2 toJSON 快照", async () => {
     const pd = makeFullPd();
     stubAccounts(pd);
-    const spy = vi.spyOn(service, "getPlayer").mockResolvedValue(pd as any);
-    (pd as any).rlv2 = { toJSON: () => ({ current: { player: { state: "NONE" } } }) };
+    // getPlayer 为私有方法（不在 AdminService 公开类型面上），用具名桩替换实例方法
+    const getPlayer = vi
+      .fn<(uid: string) => Promise<PlayerDataManager>>()
+      .mockResolvedValue(asPlayerManager(pd));
+    Object.assign(service, { getPlayer });
+    pd.rlv2 = { toJSON: () => ({ current: { player: { state: "NONE" } } }) };
     const state = await service.rogueSimState("1");
-    expect((state as any).current.player.state).toBe("NONE");
-    expect(spy).toHaveBeenCalledWith("1");
+    expect(state.current.player!.state).toBe("NONE");
+    expect(getPlayer).toHaveBeenCalledWith("1");
   });
 
   it("uploadPixelArtBatch 应一次批量上传并返回逐张结果（登录/网关连接各一次）", async () => {
@@ -897,15 +1037,15 @@ describe("AdminService 游戏协议代理", () => {
 
 describe("AdminService 卡池管理", () => {
   let service: AdminService;
-  let pd: any;
+  let pd: AdminFixturePlayer;
 
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
     pd = makeFullPd();
     stubAccounts(pd);
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
   });
@@ -936,7 +1076,9 @@ describe("AdminService 卡池管理", () => {
   });
 
   it("getPlayerPoolState 应返回 UP 选择与保底计数", async () => {
-    (pd._playerdata.gacha as any).normal["NORMAL_0_1"] = { upChar: ["char_002_amiya"] };
+    pd._playerdata.gacha.normal["NORMAL_0_1"] = asModel<
+      PlayerDataModel["gacha"]["normal"][string] & GachaPoolUpCharView
+    >({ upChar: ["char_002_amiya"] });
     const st = await service.getPlayerPoolState("1", "NORMAL_0_1");
     expect(st.upCharIds).toEqual(["char_002_amiya"]);
     expect(st.upChars).toEqual([{ charId: "char_002_amiya", name: "阿米娅" }]);
@@ -946,16 +1088,18 @@ describe("AdminService 卡池管理", () => {
 
   it("setPlayerPoolUp 应写入 gacha[gachaType][poolId].upChar 并支持中文名", async () => {
     await service.setPlayerPoolUp("1", "NORMAL_0_1", ["阿米娅"]);
-    expect((pd._playerdata.gacha as any).normal["NORMAL_0_1"].upChar).toEqual([
+    expect((pd._playerdata.gacha.normal["NORMAL_0_1"] as GachaPoolUpCharView).upChar).toEqual([
       "char_002_amiya",
     ]);
     expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
   });
 
   it("setPlayerPoolUp 空数组应清除 UP", async () => {
-    (pd._playerdata.gacha as any).normal["NORMAL_0_1"] = { upChar: ["char_002_amiya"] };
+    pd._playerdata.gacha.normal["NORMAL_0_1"] = asModel<
+      PlayerDataModel["gacha"]["normal"][string] & GachaPoolUpCharView
+    >({ upChar: ["char_002_amiya"] });
     await service.setPlayerPoolUp("1", "NORMAL_0_1", []);
-    expect((pd._playerdata.gacha as any).normal["NORMAL_0_1"].upChar).toEqual([]);
+    expect((pd._playerdata.gacha.normal["NORMAL_0_1"] as GachaPoolUpCharView).upChar).toEqual([]);
   });
 
   it("setPlayerPoolUp 对不存在卡池应抛错", async () => {
@@ -967,7 +1111,7 @@ describe("AdminService 卡池管理", () => {
   it("setPlayerPity 应写入账号配置并落盘", async () => {
     const r = await service.setPlayerPity("1", "normal", 42);
     expect(r).toEqual({ uid: "1", ruleType: "NORMAL", beforeNonHitCnt: 42 });
-    expect((accountManager as any).configs["1"].gacha.NORMAL.beforeNonHitCnt).toBe(42);
+    expect(accounts.configs["1"].gacha.NORMAL.beforeNonHitCnt).toBe(42);
     expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
   });
 
@@ -976,7 +1120,7 @@ describe("AdminService 卡池管理", () => {
   });
 
   it("getPlayerPity / listPlayerPity 应读取保底", async () => {
-    (accountManager as any).configs["1"].gacha = { NORMAL: { beforeNonHitCnt: 5 } };
+    accounts.configs["1"].gacha = { NORMAL: { beforeNonHitCnt: 5 } };
     expect((await service.getPlayerPity("1", "NORMAL")).beforeNonHitCnt).toBe(5);
     expect(await service.listPlayerPity("1")).toEqual([
       { ruleType: "NORMAL", beforeNonHitCnt: 5 },
@@ -986,15 +1130,15 @@ describe("AdminService 卡池管理", () => {
 
 describe("AdminService 批量工具", () => {
   let service: AdminService;
-  let pd: any;
+  let pd: AdminFixturePlayer;
 
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
     pd = makeFullPd();
     stubAccounts(pd);
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
   });
@@ -1026,10 +1170,10 @@ describe("AdminService 批量工具", () => {
   });
 
   it("listStages 应返回推图进度统计", async () => {
-    (pd._playerdata.dungeon as any).stages = {
+    pd._playerdata.dungeon.stages = asModel<PlayerDataModel["dungeon"]["stages"]>({
       "main_01-01": { stageId: "main_01-01", completeTimes: 3, startTimes: 3, practiceTimes: 0, state: 3, hasBattleReplay: 1, noCostCnt: 0 },
       "main_01-02": { stageId: "main_01-02", completeTimes: 0, startTimes: 1, practiceTimes: 0, state: 1, hasBattleReplay: 0, noCostCnt: 0 },
-    };
+    });
     const st = await service.listStages("1");
     expect(st.total).toBe(2);
     expect(st.done).toBe(1);
@@ -1038,8 +1182,9 @@ describe("AdminService 批量工具", () => {
 
   it("repairChars 应补齐缺失字段与阿米娅 tmpl", async () => {
     const ch = pd._playerdata.troop.chars["1"];
-    delete ch.voiceLan;
-    delete ch.skills;
+    // voiceLan/skills 在生成模型里是必填，用例刻意删除以驱动补齐——按深可选视图删除
+    delete (ch as Partial<PlayerCharacter>).voiceLan;
+    delete (ch as Partial<PlayerCharacter>).skills;
     // starMark/equip/currentEquip 本就不存在，阿米娅无 currentTmpl/tmpl
     const r = await service.repairChars("1");
     expect(r.chars).toBe(1);
@@ -1070,15 +1215,15 @@ describe("AdminService 批量工具", () => {
 
 describe("AdminService 关卡/物品/任务", () => {
   let service: AdminService;
-  let pd: any;
+  let pd: AdminFixturePlayer;
 
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
     pd = makeFullPd();
     stubAccounts(pd);
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
   });
@@ -1097,7 +1242,7 @@ describe("AdminService 关卡/物品/任务", () => {
   });
 
   it("unlockAllStages 应补全缺失关卡并跳过已有进度", async () => {
-    (pd._playerdata.dungeon as any).stages["main_01-01"] = { state: 3, completeTimes: 3 };
+    pd._playerdata.dungeon.stages["main_01-01"] = asModel<PlayerDataModel["dungeon"]["stages"][string]>({ state: 3, completeTimes: 3 });
     const r = await service.unlockAllStages("1");
     expect(r).toEqual({ stages: 1, total: 2 });
     expect(pd._playerdata.dungeon.stages["main_01-02"].state).toBe(3);
@@ -1112,12 +1257,12 @@ describe("AdminService 关卡/物品/任务", () => {
   });
 
   it("listMissionStats 应统计各组完成数", async () => {
-    (pd._playerdata.mission as any).missions = {
+    pd._playerdata.mission.missions = asModel<PlayerDataModel["mission"]["missions"]>({
       daily: {
         m1: { state: 2, progress: [] },
         m2: { state: 0, progress: [] },
       },
-    };
+    });
     const st = await service.listMissionStats("1");
     expect(st.total).toBe(2);
     expect(st.done).toBe(1);
@@ -1125,10 +1270,10 @@ describe("AdminService 关卡/物品/任务", () => {
   });
 
   it("listMedals 应统计已解锁勋章（fts>0）", async () => {
-    (pd._playerdata.medal as any).medals = {
+    pd._playerdata.medal.medals = asModel<PlayerDataModel["medal"]["medals"]>({
       medal_1: { id: "medal_1", val: [], fts: 100, rts: 0 },
       medal_2: { id: "medal_2", val: [], fts: 0, rts: 0 },
-    };
+    });
     const st = await service.listMedals("1");
     expect(st.total).toBe(2);
     expect(st.unlocked).toBe(1);
@@ -1136,10 +1281,10 @@ describe("AdminService 关卡/物品/任务", () => {
   });
 
   it("getActivitySummary 应统计各类型活动数", async () => {
-    (pd._playerdata.activity as any) = {
+    pd._playerdata.activity = asModel<PlayerDataModel["activity"]>({
       LOGIN_ONLY: { act1: {}, act2: {} },
       MISSION_ONLY: { act3: {} },
-    };
+    });
     const st = await service.getActivitySummary("1");
     expect(st.total).toBe(3);
     expect(st.types.find((t) => t.type === "LOGIN_ONLY")!.activities).toBe(2);
@@ -1155,8 +1300,8 @@ describe("AdminService 官服迁移", () => {
     service = new AdminService();
     const pd = makeFullPd();
     stubAccounts(pd);
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
     vi.mocked(runMigration).mockResolvedValue([
@@ -1248,12 +1393,12 @@ describe("AdminService checkData 干员校验", () => {
   };
 
   it("正常干员应通过（含阿米娅三形态结构）", async () => {
-    (accountManager as any).data = {
+    accounts.data = {
       "1": {
-        _playerdata: {
+        _playerdata: asModel<PlayerDataModel>({
           status: { uid: "1" },
           troop: { chars: { "1": { ...validChar, currentTmpl: "char_002_amiya", tmpl: {} } } },
-        },
+        }),
       },
     };
     const r = await service.checkData();
@@ -1262,8 +1407,13 @@ describe("AdminService checkData 干员校验", () => {
 
   it("干员缺字段应报错", async () => {
     const { mainSkillLvl, ...noSkill } = validChar;
-    (accountManager as any).data = {
-      "1": { _playerdata: { status: { uid: "1" }, troop: { chars: { "1": noSkill as any } } } },
+    accounts.data = {
+      "1": {
+        _playerdata: asModel<PlayerDataModel>({
+          status: { uid: "1" },
+          troop: { chars: { "1": noSkill } },
+        }),
+      },
     };
     const r = await service.checkData();
     expect(r.ok).toBe(false);
@@ -1271,8 +1421,13 @@ describe("AdminService checkData 干员校验", () => {
   });
 
   it("干员不在 CharacterTable 应报错", async () => {
-    (accountManager as any).data = {
-      "1": { _playerdata: { status: { uid: "1" }, troop: { chars: { "1": { ...validChar, charId: "char_999" } } } } },
+    accounts.data = {
+      "1": {
+        _playerdata: asModel<PlayerDataModel>({
+          status: { uid: "1" },
+          troop: { chars: { "1": { ...validChar, charId: "char_999" } } },
+        }),
+      },
     };
     const r = await service.checkData();
     expect(r.ok).toBe(false);
@@ -1280,8 +1435,13 @@ describe("AdminService checkData 干员校验", () => {
   });
 
   it("阿米娅缺 currentTmpl/tmpl 应报错", async () => {
-    (accountManager as any).data = {
-      "1": { _playerdata: { status: { uid: "1" }, troop: { chars: { "1": validChar } } } },
+    accounts.data = {
+      "1": {
+        _playerdata: asModel<PlayerDataModel>({
+          status: { uid: "1" },
+          troop: { chars: { "1": validChar } },
+        }),
+      },
     };
     const r = await service.checkData();
     expect(r.ok).toBe(false);
@@ -1291,15 +1451,16 @@ describe("AdminService checkData 干员校验", () => {
 
 describe("AdminService 签到", () => {
   let service: AdminService;
-  let pd: any;
+  let pd: AdminFixturePlayer;
+  let statusStub: StatusStub;
 
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
     pd = makeFullPd();
     stubAccounts(pd);
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
   });
@@ -1317,7 +1478,7 @@ describe("AdminService 签到", () => {
   });
 
   it("resetCheckIn 应调用月刷新并落盘", async () => {
-    pd.checkIn = { monthlyRefresh: vi.fn().mockResolvedValue(undefined) };
+    Object.assign(pd.checkIn, { monthlyRefresh: vi.fn().mockResolvedValue(undefined) });
     const st = await service.resetCheckIn("1");
     expect(pd.checkIn.monthlyRefresh).toHaveBeenCalled();
     expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
@@ -1325,31 +1486,31 @@ describe("AdminService 签到", () => {
   });
 
   it("doCheckIn 应返回带中文名的奖励并落盘", async () => {
-    pd.checkIn = {
+    Object.assign(pd.checkIn, {
       checkIn: vi.fn().mockResolvedValue({
         signInRewards: [{ id: "4001", type: "GOLD", count: 100 }],
         subscriptionRewards: [],
       }),
-    };
+    });
     const r = await service.doCheckIn("1");
     expect(r.rewards).toEqual([{ id: "4001", name: "龙门币", count: 100 }]);
     expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
   });
 
   it("dailyRoutine 应刷新+代签并落盘", async () => {
-    pd.status = { refreshTime: vi.fn().mockResolvedValue(undefined) };
+    statusStub = Object.assign(pd.status, { refreshTime: vi.fn().mockResolvedValue(undefined) });
     pd.mission = { dailyRefresh: vi.fn().mockResolvedValue(undefined) };
-    pd.checkIn = { checkIn: vi.fn().mockResolvedValue({ signInRewards: [{ id: "4001", count: 1 }] }) };
+    Object.assign(pd.checkIn, { checkIn: vi.fn().mockResolvedValue({ signInRewards: [{ id: "4001", count: 1 }] }) });
     const r = await service.dailyRoutine("1");
     expect(r.checkin).toBe("已签");
-    expect(pd.status.refreshTime).toHaveBeenCalled();
+    expect(statusStub.refreshTime).toHaveBeenCalled();
     expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
   });
 
   it("dailyRoutine 不可签应返回不可签且不报错", async () => {
-    pd.status = { refreshTime: vi.fn().mockResolvedValue(undefined) };
+    statusStub = Object.assign(pd.status, { refreshTime: vi.fn().mockResolvedValue(undefined) });
     pd.mission = { dailyRefresh: vi.fn().mockResolvedValue(undefined) };
-    pd.checkIn = { checkIn: vi.fn().mockResolvedValue(undefined) };
+    Object.assign(pd.checkIn, { checkIn: vi.fn().mockResolvedValue(undefined) });
     const r = await service.dailyRoutine("1");
     expect(r.checkin).toBe("不可签");
   });
@@ -1378,8 +1539,8 @@ describe("AdminService 统计", () => {
   });
 
   it("stats 对空用户表应返回零值", async () => {
-    (accountManager as any).data = {};
-    (accountManager as any).configs = {};
+    accounts.data = {};
+    accounts.configs = {};
     const s = await service.stats();
     expect(s.userCount).toBe(0);
     expect(s.avgLevel).toBe(0);
@@ -1392,12 +1553,12 @@ describe("AdminService 邮件与建号", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     // createUser 走 real 模式建号（single 模式下 registerUser 已短路为收敛固定账号）
-    (config as any).authMode = "real";
+    config.authMode = "real";
     service = new AdminService();
     const pd = makeFullPd();
     stubAccounts(pd);
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
   });
@@ -1405,7 +1566,7 @@ describe("AdminService 邮件与建号", () => {
   it("sendMail 应调用 mailManager 并返回邮件", async () => {
     const spy = vi
       .spyOn(mailManager, "sendMail")
-      .mockResolvedValue({ mailId: 1000000 } as any);
+      .mockResolvedValue(asModel<MailItem>({ mailId: 1000000 }));
     const mail = await service.sendMail("1", {
       subject: "欢迎",
       content: "你好",
@@ -1427,8 +1588,8 @@ describe("AdminService 邮件与建号", () => {
   it("createUser 应生成新 uid 并更新 configs", async () => {
     const uid = await service.createUser("13900000000", "pw123");
     expect(uid).toBe("2");
-    expect((accountManager as any).configs[uid]).toBeDefined();
-    expect((accountManager as any).configs[uid].auth.phone).toBe("13900000000");
+    expect(accounts.configs[uid]).toBeDefined();
+    expect(accounts.configs[uid].auth.phone).toBe("13900000000");
     expect(accountManager.saveUserConfig).toHaveBeenCalled();
   });
 
@@ -1449,8 +1610,8 @@ describe("pushMessage 发放推送信息", () => {
     const pd = mockPlayerData({
       status: { uid: "1" },
       pushFlags: { hasGifts: 0, hasFriendRequest: 0, hasClues: 0, hasFreeLevelGP: 0, status: 0 },
-    } as any);
-    vi.spyOn(accountManager, "data" as any, "get").mockReturnValue({ "1": pd });
+    }) as AdminFixturePlayer;
+    vi.spyOn(accountManager, "data", "get").mockReturnValue({ "1": asPlayerManager(pd) });
     const result = await service.pushMessage("1", { hasGifts: 1, hasClues: 1 });
     expect(result.hasGifts).toBe(1);
     expect(result.hasClues).toBe(1);
@@ -1463,8 +1624,8 @@ describe("pushMessage 发放推送信息", () => {
     const pd = mockPlayerData({
       status: { uid: "1" },
       pushFlags: { hasGifts: 1, hasFriendRequest: 0, hasClues: 1, hasFreeLevelGP: 0, status: 0 },
-    } as any);
-    vi.spyOn(accountManager, "data" as any, "get").mockReturnValue({ "1": pd });
+    }) as AdminFixturePlayer;
+    vi.spyOn(accountManager, "data", "get").mockReturnValue({ "1": asPlayerManager(pd) });
     const result = await service.pushMessage("1", { hasGifts: 0 });
     expect(result.hasGifts).toBe(0);
     expect(result.hasClues).toBe(1); // 未传的键不变

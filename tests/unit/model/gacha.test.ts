@@ -3,6 +3,18 @@ import { GachaType } from '@game/modules/gacha/gacha';
 import type { GachaResult } from '@game/modules/gacha/gacha';
 import type { ItemBundle } from '@excel/excel';
 
+/**
+ * 掉落物组合夹具视图
+ *
+ * `ItemBundle.type` 真实为枚举 `ItemType`（大写，如 `MATERIAL`/`CHAR`），本用例沿用早期
+ * 小写字面量夹具（仅形状冒烟，断言比较的也是小写值）。为不改夹具数据，仅就地放宽 `type`；
+ * 其余字段仍受真实模型约束。
+ */
+type ItemBundleFixture = Omit<ItemBundle, 'type'> & { type: string; instId?: number };
+
+/** 抽卡结果夹具视图：仅 `itemGet` 放宽（见 {@link ItemBundleFixture}） */
+type GachaResultFixture = Omit<GachaResult, 'itemGet'> & { itemGet: ItemBundleFixture[] };
+
 describe('Gacha 模型', () => {
   describe('GachaType 枚举', () => {
     it('应包含所有抽卡类型', () => {
@@ -54,12 +66,12 @@ describe('Gacha 模型', () => {
 
   describe('GachaResult', () => {
     it('应包含抽卡结果的所有字段', () => {
-      const itemGet: ItemBundle[] = [
+      const itemGet: ItemBundleFixture[] = [
         { id: 'item_001', count: 10, type: 'material' },
         { id: 'item_002', count: 1, type: 'char', instId: 2001 },
       ];
 
-      const result: GachaResult = {
+      const result: GachaResultFixture = {
         charInstId: 2001,
         charId: 'char_001',
         isNew: 1,
@@ -81,7 +93,7 @@ describe('Gacha 模型', () => {
     });
 
     it('isNew 为 0 时表示非新干员', () => {
-      const result: GachaResult = {
+      const result: GachaResultFixture = {
         charInstId: 1001,
         charId: 'char_existing',
         isNew: 0,
@@ -93,7 +105,7 @@ describe('Gacha 模型', () => {
     });
 
     it('potent 字段可选，未设置时应为 undefined', () => {
-      const result: GachaResult = {
+      const result: GachaResultFixture = {
         charInstId: 3001,
         charId: 'char_no_potent',
         isNew: 1,
@@ -104,7 +116,7 @@ describe('Gacha 模型', () => {
     });
 
     it('多个 itemGet 应正确记录', () => {
-      const result: GachaResult = {
+      const result: GachaResultFixture = {
         charInstId: 4001,
         charId: 'char_multi_drop',
         isNew: 1,
@@ -122,7 +134,7 @@ describe('Gacha 模型', () => {
     });
 
     it('potent 应正确记录潜能变化', () => {
-      const result: GachaResult = {
+      const result: GachaResultFixture = {
         charInstId: 5001,
         charId: 'char_potent_up',
         isNew: 0,

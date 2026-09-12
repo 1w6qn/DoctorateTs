@@ -1,8 +1,8 @@
 {
   "totals": {
-    "any": 869,
-    "unknown": 445,
-    "object": 45
+    "any": 0,
+    "unknown": 413,
+    "object": 26
   },
   "counts": {
     "app/core/auth/auth.ts": {
@@ -560,11 +560,6 @@
       "unknown": 2,
       "object": 0
     },
-    "scripts/lib/type-debt-scan.ts": {
-      "any": 4,
-      "unknown": 4,
-      "object": 4
-    },
     "scripts/proxy-harness.ts": {
       "any": 0,
       "unknown": 6,
@@ -575,149 +570,14 @@
       "unknown": 2,
       "object": 0
     },
-    "tests/unit/admin/activity-switch.test.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/admin/admin-auth.test.ts": {
-      "any": 15,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/admin/admin-files.test.ts": {
-      "any": 31,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/admin/admin-official-ops.test.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/admin/admin-openapi.test.ts": {
-      "any": 4,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/admin/admin-plugin.test.ts": {
-      "any": 5,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/admin/admin-router.test.ts": {
-      "any": 9,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/admin/admin-service.test.ts": {
-      "any": 94,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/admin/arkhub-pets.test.ts": {
-      "any": 10,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/admin/asset-admin.test.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/admin/cli-exec.test.ts": {
-      "any": 9,
-      "unknown": 0,
-      "object": 0
-    },
     "tests/unit/admin/rlv2-modify.test.ts": {
-      "any": 7,
+      "any": 0,
       "unknown": 6,
       "object": 0
     },
-    "tests/unit/admin/server-repl.test.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/architecture/type-debt-ratchet.test.ts": {
-      "any": 15,
-      "unknown": 15,
-      "object": 15
-    },
     "tests/unit/asset-mod.test.ts": {
-      "any": 16,
+      "any": 0,
       "unknown": 1,
-      "object": 0
-    },
-    "tests/unit/asset.test.ts": {
-      "any": 11,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/auth/auth-result.test.ts": {
-      "any": 5,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/auth/auth.test.ts": {
-      "any": 11,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/config/config.test.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/config/host-router.test.ts": {
-      "any": 23,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/config/launcher.test.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/config/pay-gate.test.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/config/prod-version.test.ts": {
-      "any": 8,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/config/region.test.ts": {
-      "any": 5,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/config/remote-config.test.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/data/mission-node-values.test.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/data/recruit-groups.test.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/db/dialect.test.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/db/migrate.test.ts": {
-      "any": 3,
-      "unknown": 0,
       "object": 0
     },
     "tests/unit/db/player-data-repo.test.ts": {
@@ -725,74 +585,14 @@
       "unknown": 1,
       "object": 0
     },
-    "tests/unit/db/replay-repo.test.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/db/user-repo.test.ts": {
-      "any": 11,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/excel/excel-data-dir.test.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/excel/excel-init.test.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/excel/stage-normalize.test.ts": {
-      "any": 5,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/game/app-error.test.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/game/app-middleware.test.ts": {
-      "any": 10,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/game/auth-strategy.test.ts": {
-      "any": 5,
-      "unknown": 1,
-      "object": 0
-    },
     "tests/unit/game/model/events.test.ts": {
-      "any": 1,
+      "any": 0,
       "unknown": 6,
       "object": 0
     },
     "tests/unit/game/modules/activities/arkhub/gateway/gateway.test.ts": {
       "any": 0,
       "unknown": 1,
-      "object": 0
-    },
-    "tests/unit/game/modules/activities/arkhub/gateway/protocol.test.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/game/request-chain.test.ts": {
-      "any": 5,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/game/router/plugin-heartbeat.test.ts": {
-      "any": 1,
-      "unknown": 1,
-      "object": 0
-    },
-    "tests/unit/game/routes.test.ts": {
-      "any": 8,
-      "unknown": 0,
       "object": 0
     },
     "tests/unit/manager/freshPlayer.test.ts": {
@@ -815,16 +615,6 @@
       "unknown": 1,
       "object": 0
     },
-    "tests/unit/model/events.test.ts": {
-      "any": 1,
-      "unknown": 6,
-      "object": 0
-    },
-    "tests/unit/model/playerdata.test.ts": {
-      "any": 21,
-      "unknown": 0,
-      "object": 0
-    },
     "tests/unit/modules/autochess/autochess-manager.test.ts": {
       "any": 0,
       "unknown": 2,
@@ -833,256 +623,6 @@
     "tests/unit/modules/character/team-power.test.ts": {
       "any": 0,
       "unknown": 1,
-      "object": 0
-    },
-    "tests/unit/proxy/forwarder.test.ts": {
-      "any": 21,
-      "unknown": 3,
-      "object": 0
-    },
-    "tests/unit/router/account.test.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/activity-act1vhalfidle.test.ts": {
-      "any": 17,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/activity-act24side.test.ts": {
-      "any": 9,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/activity-act25side.test.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/activity-act44side.test.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/activity-bossrush.test.ts": {
-      "any": 12,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/activity-charm.test.ts": {
-      "any": 15,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/activity-checkin-tier1.test.ts": {
-      "any": 12,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/activity-enemyduel.test.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/arkodc.test.ts": {
-      "any": 11,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/campaignSweep.test.ts": {
-      "any": 24,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/capture-422.test.ts": {
-      "any": 3,
-      "unknown": 1,
-      "object": 0
-    },
-    "tests/unit/router/charBuild.test.ts": {
-      "any": 5,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/crisis.test.ts": {
-      "any": 33,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/depot.test.ts": {
-      "any": 16,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/gacha.test.ts": {
-      "any": 9,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/home-batch-event.test.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/home-misc.test.ts": {
-      "any": 10,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/mail.test.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/mailCollection.test.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/pay.test.ts": {
-      "any": 14,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/quest-assist.test.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/quest.test.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/retro.test.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/rlv2-schema.test.ts": {
-      "any": 11,
-      "unknown": 1,
-      "object": 0
-    },
-    "tests/unit/router/rlv2.test.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/roguelike-upgrade-buff.test.ts": {
-      "any": 13,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/shop.test.ts": {
-      "any": 8,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/social.test.ts": {
-      "any": 4,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/templateShop.test.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/tower.test.ts": {
-      "any": 12,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/user-cg.test.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/user-char-voice-record.test.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/user-gallery.test.ts": {
-      "any": 11,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/user-long-term-checkin.test.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/user-mainline-clue.test.ts": {
-      "any": 9,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/user-medal.test.ts": {
-      "any": 14,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/user-misc.test.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/user-status.test.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/user-troop.test.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/router/vecbreak.test.ts": {
-      "any": 9,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/scripts/generate-max-account.test.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/scripts/migrate-official.test.ts": {
-      "any": 8,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/scripts/official-api.test.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/scripts/official-convert.test.ts": {
-      "any": 10,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/scripts/official-register.test.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/scripts/update-data-sync.test.ts": {
-      "any": 8,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/util/save-health.test.ts": {
-      "any": 26,
-      "unknown": 0,
-      "object": 0
-    },
-    "tests/unit/utils/traffic-recorder.test.ts": {
-      "any": 7,
-      "unknown": 0,
       "object": 0
     }
   }

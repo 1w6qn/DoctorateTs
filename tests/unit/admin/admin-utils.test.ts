@@ -5,8 +5,21 @@ import {
   nextMailId,
   MailDB,
 } from "@game/modules/mail/MailManager";
+import type { ItemBundle } from "@excel/excel";
 import { now } from "@utils/time";
 import { parseArgs } from "../../../scripts/admin-cli";
+import { asModel } from "../../helpers";
+
+/**
+ * 邮件物品夹具视图
+ *
+ * 历史夹具在 `ItemBundle` 之外多带一个 `ts: 0`（其真值性不被被测实现读取，
+ * 但改夹具数据值属规则禁止），故按 `ItemBundle` 的扩展视图收口该键。
+ */
+interface MailItemFixture extends ItemBundle {
+  /** 历史夹具时间戳字段（ItemBundle 未声明） */
+  ts?: number;
+}
 
 describe("admin 配置", () => {
   it("应能从 config 中读取 enable 与 token", () => {
@@ -21,7 +34,7 @@ describe("buildMailItem", () => {
     const mail = buildMailItem("1", {
       subject: "测试标题",
       content: "测试内容",
-      items: [{ id: "4001", type: "GOLD", count: 100, ts: 0 }],
+      items: asModel<MailItemFixture[]>([{ id: "4001", type: "GOLD", count: 100, ts: 0 }]),
     }, 9000001);
     expect(mail.uid).toBe("1");
     expect(mail.subject).toBe("测试标题");

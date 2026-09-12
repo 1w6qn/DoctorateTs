@@ -16,17 +16,61 @@ vi.mock("express-http-context2", () => ({
 }));
 vi.mock("@utils/time", () => ({ now: () => 1234567890 }));
 
+import type { Request, Response } from "express";
 import { rootRouter } from "@game/modules/user/routes";
 import httpContext from "express-http-context2";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData, asModel } from "../../helpers";
+import type { MockPlayerDataManager } from "../../helpers";
+import type { PlayerGallery } from "@game/kernel/playerdata";
 
-function mockRes() {
-  return { send: vi.fn(), type: vi.fn().mockReturnThis(), status: vi.fn().mockReturnThis(), json: vi.fn() };
+/** 形艺特辑请求体视图（各端点字段合集） */
+interface GalleryBody {
+  magazine?: {
+    leafId?: string;
+    charSkin?: string | null;
+    decorList?: { id?: string; type?: number; sub?: number; pos?: number[]; scale?: number }[];
+  };
+  thumbnail?: string;
+  idList?: string[];
+  magazineSquad?: string[];
+  leafId?: string;
+  squad?: string[];
+}
+
+/** 路由测试请求视图（只声明被测分支读到的成员） */
+interface MockReq {
+  method: string;
+  url: string;
+  body?: GalleryBody;
+  protocol?: string;
+  get?: (field: string) => string | string[] | undefined;
+  params?: { jpgName?: string };
+  headers?: Request["headers"];
+  rawBody?: Buffer;
+}
+
+/** 路由测试响应视图（只声明被测分支读到的四个方法） */
+interface MockRes {
+  send: Response["send"];
+  type: Response["type"];
+  status: Response["status"];
+  json: Response["json"];
+}
+
+type RouterReq = Parameters<typeof rootRouter>[0];
+
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    type: vi.fn<Response["type"]>().mockReturnThis(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    json: vi.fn<Response["json"]>(),
+  };
 }
 
 describe("形艺特辑 gallery 编辑→展示闭环", () => {
-  let player: any;
-  let res: any;
+  let player: MockPlayerDataManager;
+  let res: MockRes;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -37,15 +81,16 @@ describe("形艺特辑 gallery 编辑→展示闭环", () => {
     fsMock.existsSync.mockReset();
     fsMock.readFileSync.mockReset();
     player = mockPlayerData({
-      status: { uid: "1" } as any,
+      status: { uid: "1" },
     });
     res = mockRes();
-    (httpContext.get as any).mockReturnValue(player);
+    vi.mocked(httpContext.get).mockReturnValue(player);
   });
 
-  async function call(req: any) {
+  async function call(req: MockReq): Promise<MockRes> {
     const r = mockRes();
-    rootRouter(req, r, () => {});
+    // mock 请求/响应只覆盖被测分支用到的成员，故按窄视图断言为 express Request/Response
+    rootRouter(req as RouterReq, r as Response, () => {});
     await new Promise((resolve) => setTimeout(resolve, 20));
     return r;
   }
@@ -95,7 +140,7 @@ describe("形艺特辑 gallery 编辑→展示闭环", () => {
 
   it("getThumbnailUrl：页面有内容时返回真实绝对 URL，空页面返回 null", async () => {
     // 预置 gallery：leaf_1 有内容，leaf_2 为空
-    (player._playerdata.gallery as any) = {
+    player._playerdata.gallery = asModel<PlayerGallery>({
       firstRewards: 0,
       leafMap: {
         leaf_1: { leafId: "leaf_1", charSkin: null, decorList: [{ id: "s1" }], getTs: 1, version: 0 },
@@ -105,7 +150,7 @@ describe("形艺特辑 gallery 编辑→展示闭环", () => {
       collectionRewards: {},
       stickerMap: {},
       offlineList: {},
-    };
+    });
     const r = await call({
       method: "POST",
       url: "/gallery/getThumbnailUrl",
@@ -113,7 +158,7 @@ describe("形艺特辑 gallery 编辑→展示闭环", () => {
       protocol: "http",
       get: () => "localhost:8080",
     });
-    const response = r.send.mock.calls[0][0];
+    const response = vi.mocked(r.send).mock.calls[0][0];
     expect(response.url).toEqual([
       "http://localhost:8080/gallery/jpg/1_magazine_leaf_1.jpg",
       null,
@@ -124,11 +169,8 @@ describe("形艺特辑 gallery 编辑→展示闭环", () => {
     fsMock.existsSync.mockReturnValueOnce(true);
     fsMock.readFileSync.mockReturnValue(Buffer.from("jpgdata"));
     const r = mockRes();
-    rootRouter(
-      { method: "GET", url: "/gallery/jpg/1_magazine_leaf_1.jpg" } as any,
-      r,
-      () => {},
-    );
+    const getReq: MockReq = { method: "GET", url: "/gallery/jpg/1_magazine_leaf_1.jpg" };
+    rootRouter(getReq as RouterReq, r as Response, () => {});
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(fsMock.existsSync).toHaveBeenCalledWith(join("./data/user/gallery", "1_magazine_leaf_1.jpg"));
     expect(r.type).toHaveBeenCalledWith("image/jpeg");
@@ -138,18 +180,15 @@ describe("形艺特辑 gallery 编辑→展示闭环", () => {
   it("GET /gallery/jpg：缩略图缺失时回退 1x1 透明占位 PNG", async () => {
     fsMock.existsSync.mockReturnValueOnce(false);
     const r = mockRes();
-    rootRouter(
-      { method: "GET", url: "/gallery/jpg/missing.jpg", params: { jpgName: "missing.jpg" } } as any,
-      r,
-      () => {},
-    );
+    const getReq: MockReq = { method: "GET", url: "/gallery/jpg/missing.jpg", params: { jpgName: "missing.jpg" } };
+    rootRouter(getReq as RouterReq, r as Response, () => {});
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(r.type).toHaveBeenCalledWith("png");
     expect(r.send).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
   it("changeMagazineSquad：JSON body 实际写入 gallery.magazineSquad（去重）", async () => {
-    (player._playerdata.gallery as any) = { firstRewards: 0, leafMap: {}, magazineSquad: [], collectionRewards: {}, stickerMap: {}, offlineList: {} };
+    player._playerdata.gallery = { firstRewards: 0, leafMap: {}, magazineSquad: [], collectionRewards: {}, stickerMap: {}, offlineList: {} };
     const r = await call({
       method: "POST",
       url: "/gallery/changeMagazineSquad",
@@ -161,7 +200,7 @@ describe("形艺特辑 gallery 编辑→展示闭环", () => {
   });
 
   it("changeMagazineSquad：单叶 leafId 字段兼容写法", async () => {
-    (player._playerdata.gallery as any) = { firstRewards: 0, leafMap: {}, magazineSquad: [], collectionRewards: {}, stickerMap: {}, offlineList: {} };
+    player._playerdata.gallery = { firstRewards: 0, leafMap: {}, magazineSquad: [], collectionRewards: {}, stickerMap: {}, offlineList: {} };
     await call({
       method: "POST",
       url: "/gallery/changeMagazineSquad",
@@ -172,7 +211,7 @@ describe("形艺特辑 gallery 编辑→展示闭环", () => {
   });
 
   it("changeMagazineSquad：官服字段 squad 写入当前陈列（修复前无匹配 → 不更新）", async () => {
-    (player._playerdata.gallery as any) = { firstRewards: 0, leafMap: {}, magazineSquad: [], collectionRewards: {}, stickerMap: {}, offlineList: {} };
+    player._playerdata.gallery = { firstRewards: 0, leafMap: {}, magazineSquad: [], collectionRewards: {}, stickerMap: {}, offlineList: {} };
     // 官服抓包（R-1787473456620-0040）：请求体 {"squad":["leaf_default"]}
     const r = await call({
       method: "POST",

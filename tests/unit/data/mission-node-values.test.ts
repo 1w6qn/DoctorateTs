@@ -1,6 +1,18 @@
 import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 
+/** `data/excel/roguelike_topic_table.json` 的主题行视图（本守护只读 `nodeTypeData`） */
+interface RoguelikeTopicRow {
+  /** 节点类型位值表（键为 2 的幂的字符串形式） */
+  nodeTypeData?: Record<string, number>;
+}
+
+/** `data/excel/roguelike_topic_table.json` 读取视图（本守护只读 `details` 主题字典） */
+interface RoguelikeTopicTable {
+  /** 主题 id → 主题行 */
+  details: Record<string, RoguelikeTopicRow>;
+}
+
 /** 肉鸽任务节点语义名→位值 vs excel nodeTypeData 一致性守护（data/rlv2/mission-node-values.json） */
 describe("mission-node-values.json 一致性", () => {
   const values = JSON.parse(
@@ -8,11 +20,11 @@ describe("mission-node-values.json 一致性", () => {
   ) as Record<string, number>;
   const topic = JSON.parse(
     readFileSync(`${__dirname}/../../../data/excel/roguelike_topic_table.json`, "utf-8"),
-  );
+  ) as RoguelikeTopicTable;
 
   it("每个位值均为 2 的幂且存在于某主题 nodeTypeData 键", () => {
     const allKeys = new Set<number>();
-    for (const det of Object.values(topic.details) as any[]) {
+    for (const det of Object.values(topic.details)) {
       for (const k of Object.keys(det.nodeTypeData ?? {})) allKeys.add(Number(k));
     }
     for (const [name, value] of Object.entries(values)) {

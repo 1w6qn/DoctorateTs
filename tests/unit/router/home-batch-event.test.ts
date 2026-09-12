@@ -6,12 +6,41 @@ vi.mock("express-http-context2", () => ({
 
 import homeRouter from "@game/modules/home/routes";
 
-function mockRes() {
-  return { send: vi.fn(), sendStatus: vi.fn(), status: vi.fn().mockReturnThis(), json: vi.fn() };
+import type { Response } from "express";
+/** 路由测试请求体视图（本文件各端点字段合集） */
+interface HomeBatchBody {
+  events?: { id?: number }[];
 }
 
-async function call(req: any, res: any) {
-  homeRouter(req, res, () => {});
+/** 路由测试请求视图（只声明被测分支读到的三个成员） */
+interface MockReq {
+  method: string;
+  url: string;
+  body: HomeBatchBody;
+}
+
+/** 路由测试响应视图（只声明被测分支读到的四个方法） */
+interface MockRes {
+  send: Response["send"];
+  status: Response["status"];
+  sendStatus: Response["sendStatus"];
+  json: Response["json"];
+}
+
+type RouterReq = Parameters<typeof homeRouter>[0];
+
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    json: vi.fn<Response["json"]>(),
+  };
+}
+
+async function call(req: MockReq, res: MockRes): Promise<MockRes> {
+  // mock 请求/响应只覆盖被测分支用到的成员，故按窄视图断言为 express Request/Response
+  homeRouter(req as RouterReq, res as Response, () => {});
   await new Promise((r) => setTimeout(r, 20));
   return res;
 }

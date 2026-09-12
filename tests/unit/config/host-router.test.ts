@@ -1,16 +1,37 @@
 import { describe, it, expect, vi } from "vitest";
+import type { Request, Response } from "express";
 import { createHostRouter } from "@core/config/host-router";
 
-function mockReq(host: string, url: string) {
-  return { headers: { host }, url } as any;
+/**
+ * 中间件请求窄视图
+ *
+ * 生产实现只读取/重写 `req.url` 与 `req.headers.host`（见 app/core/config/host-router.ts）。
+ * 真实 Express `Request` 可赋给该视图，故单向断言只放宽未被使用的成员（不改变运行期对象）。
+ */
+interface HostRouterRequest {
+  headers: { host: string };
+  url: string;
 }
+
+/** 构造请求替身 */
+function mockReq(host: string, url: string): HostRouterRequest {
+  return { headers: { host }, url };
+}
+
+/** 请求替身 → Express Request（单向断言，见 {@link HostRouterRequest}） */
+function asRequest(req: HostRouterRequest): Request {
+  return req as Request;
+}
+
+/** 空响应替身（本中间件不读写 res） */
+const emptyRes = {} as Response;
 
 describe("createHostRouter（子域名分发）", () => {
   it("as.hypergryph.com 请求应保持原样（auth 挂根直接命中登录）", () => {
     const handler = createHostRouter();
     const req = mockReq("as.hypergryph.com", "/user/auth/v1/token_by_phone_password");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/user/auth/v1/token_by_phone_password");
     expect(next).toHaveBeenCalled();
   });
@@ -19,7 +40,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("as.hypergryph.com", "/u8/user/v1/getToken");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/u8/user/v1/getToken");
   });
 
@@ -27,7 +48,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("ak-conf.hypergryph.com", "/config/prod/official/network_config");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/config/prod/official/network_config");
   });
 
@@ -35,7 +56,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("ak-conf.hypergryph.com", "/api/remote_config/1/prod/default/Windows/network_config");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/api/remote_config/1/prod/default/Windows/network_config");
   });
 
@@ -43,7 +64,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("game-config.hypergryph.com", "/game-config/api/remote_config/1/prod/default/Windows/network_config");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/api/remote_config/1/prod/default/Windows/network_config");
     expect(next).toHaveBeenCalled();
   });
@@ -52,7 +73,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("ak-gs-gf.hypergryph.com", "/account/syncData");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/account/syncData");
   });
 
@@ -60,7 +81,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("ak-gs-gf.hypergryph.com", "/game/account/login");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/account/login");
   });
 
@@ -68,7 +89,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("as.hypergryph.com", "/auth/user/info/v1/basic");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/auth/user/info/v1/basic");
   });
 
@@ -76,7 +97,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("game-config.hypergryph.com", "/api/remote_config/1/prod/default/Windows/remote_config");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/api/remote_config/1/prod/default/Windows/remote_config");
   });
 
@@ -84,7 +105,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/as/app/v1/config?appCode=7318def77669979d&platform=2");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/auth/app/v1/config?appCode=7318def77669979d&platform=2");
   });
 
@@ -92,7 +113,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("localhost:8443", "/account/syncData");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/account/syncData");
   });
 
@@ -104,7 +125,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/app/v1/config?appCode=7318def77669979d&platform=2");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/app/v1/config?appCode=7318def77669979d&platform=2");
   });
 
@@ -112,7 +133,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/u8/user/v1/getToken");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/u8/user/v1/getToken");
   });
 
@@ -120,7 +141,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/user/auth/v1/login");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/user/auth/v1/login");
   });
 
@@ -128,7 +149,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/user/auth");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/user/auth");
   });
 
@@ -136,7 +157,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/user/info/v1/basic?token=abc");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/user/info/v1/basic?token=abc");
   });
 
@@ -144,7 +165,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/user/online/v1/ping");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/user/online/v1/ping");
   });
 
@@ -152,7 +173,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/user/oauth2/v2/grant");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/user/oauth2/v2/grant");
   });
 
@@ -160,7 +181,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/user/changeSecretary");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/user/changeSecretary");
   });
 
@@ -168,7 +189,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/game/account/login");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/account/login");
   });
 
@@ -176,7 +197,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/batch_event");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/batch_event");
   });
 
@@ -184,7 +205,7 @@ describe("createHostRouter（子域名分发）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/auth/user/info/v1/basic");
     const next = vi.fn();
-    handler(req, {} as any, next);
+    handler(asRequest(req), emptyRes, next);
     expect(req.url).toBe("/auth/user/info/v1/basic");
   });
 });

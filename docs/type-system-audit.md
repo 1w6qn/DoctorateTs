@@ -36,6 +36,38 @@
 每条 `any` 的归宿只有四种——① 精确手写类型；② 生成器覆盖表登记 + 重生成；③ I/O 边界
 改 `unknown` + 就地收窄；④ 路由契约用 `z.json()`/精确 schema。
 
+### 1.2 终局结果（2026-09-12，全仓 `any` = 0）
+
+| 范围 | any 起始 → 终局 | unknown | object | tsc 配置 |
+| --- | --- | --- | --- | --- |
+| `app/**` + `index.ts` | 1516 → **0** | 376 | 26 | ✅ `tsconfig.json`（0 错误） |
+| `tests/**` | 5511 → **0** | 26 | 0 | ✅ `tsconfig.tests.json`（0 错误） |
+| `scripts/**` | 104 → **0** | 10 | 0 | ✅ `tsconfig.scripts.json`（0 错误） |
+| `hook/` | 0 → **0** | 1 | 0 | ❌（`hook/main.ts` 由 frida-compile 构建） |
+| **合计** | **7131 → 0** | **413** | **26** | — |
+
+`any` 已由守卫固化：`tests/unit/architecture/type-debt-ratchet.test.ts` 的
+「全仓 `any === 0`」用例（`totalOf(scanTypeDebt(REPO_ROOT)).any === 0`）在任何位置
+重新引入 `any` 时红灯。`unknown`/`object` 尚未清零，仍走逐文件棘轮（只减不增 +
+新文件必须零模糊类型）。
+
+**扫描器口径修正（假阳性）**：`scripts/lib/type-debt-scan.ts` 的裸关键字正则
+`(?<![\w$.])kw\b(?!\s*:)` 中，`(?!\s*:)` 排除**属性名**位置（`{ any: 0 }`、
+`interface X { object: string }` 不是类型债；负样本见守卫的
+「负样本自证：注释、字符串、正则中的关键字不计为类型债」用例）。此前扫描器自身的
+`const any = …` 与简写属性 `return { any, unknown, object }` 会被自计（属假阳性），
+现已把局部变量改名 `cntAny`/`cntUnknown`/`cntObject`、返回语句写显式属性名，
+**公开键名 `TypeDebtCounts.any/unknown/object` 保持不变**（基线与消费点依赖）。
+遗留边界：简写属性 `{ any }` 仍会被计入（无 `:` 可判），故扫描器自身及新代码避免
+用这三个词做局部标识符。
+
+**集中 suppression 政策**：全仓 `any` 清零后，`as any` / `as unknown as` 一律不再允许
+直接出现在调用点。仅存的两处「替身 → 契约」硬边界集中在 `tests/helpers`：
+`asPlayerManager`（`PlayerDataManager` 含私有实现，鸭子替身不可结构兼容）与
+`asExcelPort`（`ExcelData` 是 32 个成员全必填的 `Pick<Excel, …>`）；两者均带 JSDoc 说明
+断言方向与运行期同一对象引用，禁止用它掩盖字段名/字段类型不匹配（后者必须就地修夹具）。
+`asChildModules`（子模块注入视图）方向合法，**无需** suppression。
+
 | 文件 | 初始 object |
 | --- | --- |
 | `app/game/excel/types_excel_gen.ts` | 86 |
@@ -135,21 +167,34 @@ mutative 的 `Draft<T>` 会**递归映射** T 的每个属性。把递归类型�
   `{ ...具名字段 } & { [key: string]: JsonValue }`，既保留精确字段又保留字典访问。
 - **索引签名掩盖具名字段**：`StoryReviewGroupClientData.rewards` 曾被索引签名吞掉。
 
-## 4. 剩余债务与优先级
+## 4. 剩余债务与后续专项轮
 
-按「权重 = any×3 + unknown×1 + object×2」排序的 Top 违规文件：
+`any` 已归零（§1.2），本节的「Top 违规文件」清单随之作废。剩余工作分两类：
 
-| 文件 | any | unknown | object | 建议 |
-| --- | --- | --- | --- | --- |
-| `app/game/modules/medal/medal.ts` | 179 | 1 | 0 | 事件分发表 `{ [k: string]: (args: any) => void }` 与 `(this as any)[template]` —— 应为每个模板定义具名 handler 类型 + 映射表 |
-| `app/ops/admin/AdminService.ts` | 62 | 25 | 3 | 运维层动态路径读写 `(cur as any)[key]`，应抽 `JsonPath` 工具函数统一收窄 |
-| `app/game/modules/roguelike/settle.ts` | 62 | 0 | 0 | `excel.RoguelikeTopicTable.details[theme] as any` 类；多数可由生成类型直接覆盖 |
-| `app/game/modules/roguelike/incident.ts` | 56 | 0 | 0 | 同上 |
-| `app/game/modules/roguelike/logic.ts` | 53 | 5 | 0 | 同上 |
-| `app/game/modules/activities/act1vhalfidle/logic.ts` | 37 | 0 | 0 | 活动状态建模 |
+### 4.1 `unknown` / `object` 存量（继续棘轮）
 
-优先级：**medal 事件分发**（模式可复用、收益最大）→ **roguelike 三件套**（同一根因）
-→ **admin 运维层**（可抽统一工具）→ 活动模块。
+按「权重 = unknown×1 + object×2」的现存量（实测）：`app` unknown 376 / object 26、
+`tests` unknown 26 / object 0、`scripts` unknown 10 / object 0、`hook` unknown 1。
+集中在：`activities/shared/activity.ts` 19、`activities/arkhub/gateway/protocol.ts` 14、
+`battle.ts` 9、`building/models.ts` 7、`user/routes.ts` 6 等——多为可信边界（zod/I-O）
+或未建模 JSON 域。**不设清零期限**：`unknown` 在不信任输入边界是正确类型，只在
+「确实已收窄」时才下降；`object` 按 §2.2 两条替换（精确类型 / 严格 JSON 域）。
+
+### 4.2 两个专项轮（不混入 any 清零提交，单独立项）
+
+- **轮 A：生成器登记回收**——把「生成类型未覆盖服务端真值 → 测试只能就地收窄/局部视图」
+  的登记缺口一次性补进 `scripts/playerdata-server-adapt.ts` / `excel-server-adapt.ts` 后重生成。
+  清单见 `tmp/probe/PROGRESS.md` 台账 **#28**（PlayerGacha.classic、CampaignsV2State.missions、
+  MissionPlayerDataGroup.confirmed、BattleStats.packedRuneDataList/idList、pinned、ItemBundle.type）
+  与 **#32**（BattleData、RoguelikeStageEarn、Game.mode、OuterData.Record、Blackboard_DataPair、
+  PlayerRoguelikePendingEvent、cursor.position、Buff.capsule、Troop.expeditionReturn、Inventory.trap、
+  RecruitChar.instId、eventChoices.incidents、PlayerSkinShopData）。
+- **轮 B：helpers 替身补全 + R1 配方复核**——补齐 `MockBattleManager.finish`（改可选）/
+  `getActiveBattle`、`MockPlayerDataManager.modules/bossRush`；按 R1 配方（`SERVER_OVERRIDE_FIELDS.PlayerActivity`）
+  具名登记三层活动子树（halfidle / act44 / act24 / bossrush）与 `PlayerCrisisSeason`，消除种子
+  `Object.assign` 绕行与两层 `ServerPayload` 的类型不可达。
+
+两轮的已知真实缺陷台账同见 `tmp/probe/PROGRESS.md`（#6~#32），修缺陷需「补测试 + 说明行为差异」。
 
 ## 5. 工作流
 
@@ -159,13 +204,13 @@ pnpm run type:debt -- --write                 # 刷新基线（棘轮只紧不�
 pnpm run type:debt -- --write --expand-scope  # 扫描范围扩容时刷新（只放行新增文件）
 pnpm exec vitest run tests/unit/architecture/type-debt-ratchet.test.ts
 pnpm run typecheck                            # app + index（tsconfig.json）
-pnpm run typecheck:scripts                    # scripts + app + index（tsconfig.scripts.json）
+pnpm run typecheck:scripts                    # app + index + scripts（tsconfig.scripts.json）
+pnpm run typecheck:tests                      # app + index + tests（tsconfig.tests.json）
 pnpm exec vitest run
 ```
 
-`tests/` 的类型检查（`tsconfig.tests.json`）在测试侧模糊类型收敛后接入：直接纳入会暴露
-1260 个既有错误（TS18048 383 / TS2339 227 / TS7023 143 / TS7053 89 …），需先按根因
-（优先类型化 `tests/helpers/` 测试桩）清理。
+三份 tsc 配置均为 0 错误；**注意增量模式**：`tsc` 的 `.tsbuildinfo` 会吞掉未变更文件的错误，
+判「0 错误」时加 `--incremental false`（或先删 `.tsbuildinfo`），否则可能得到假绿。
 
 修复一个文件后，该文件计数下降无需手工改基线；**清零后必须**从
 `tests/unit/architecture/type-debt-baseline.json` 移除该条目（守卫会红灯提醒）。

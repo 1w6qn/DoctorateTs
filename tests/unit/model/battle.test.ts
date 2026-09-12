@@ -6,6 +6,45 @@ import type {
   CommonStartBattleRequest,
 } from '@game/kernel/battle-model';
 import type { PlayerSquad, SquadFriendData } from '@game/kernel/model';
+import type { PlayerSquadItem } from '@game/kernel/playerdata';
+
+/**
+ * 战斗统计夹具视图
+ *
+ * 四处与真实模型不符（缺陷台账 #28④：`BattleStats` 的生成声明滞后于服务端真值）：
+ * 真值 `charStats`/`skillTrigStats` 是「干员/技能 id + 数值」的扁平记录，模型声明为
+ * `ListCounterPool<Key>`（`{ Key, Value }` 数组）；`charAdvancedStats` 真值为数值映射，
+ * 模型声明为 `CharAdvancedStats` 对象；`idList` 真值为 `string[]`，模型声明 `object[]`。
+ * 断言只读形状，故就地放宽这四处字段，其余仍受真实模型约束。
+ */
+type BattleStatsFixture = Omit<BattleStats, 'charStats' | 'skillTrigStats' | 'charAdvancedStats' | 'idList'> & {
+  charStats: { charId: string; dmg: number }[];
+  skillTrigStats: { skillId: string; count: number }[];
+  charAdvancedStats: { [charId: string]: number };
+  idList: string[];
+};
+
+/**
+ * 编队夹具视图
+ *
+ * 三处与真实模型不符（仅形状冒烟）：`PlayerSquad.slots` 真值为 `PlayerSquadItem[]`（条目
+ * `tmpl` 必填），用例沿用「空位 null + 缺 tmpl」的早期夹具；`squadId`/`name` 真值为
+ * string，用例用 `null` 表示回放/无编队。
+ */
+type PlayerSquadFixture = Omit<PlayerSquad, 'squadId' | 'name' | 'slots'> & {
+  squadId: string | null;
+  name: string | null;
+  slots: (Omit<PlayerSquadItem, 'tmpl'> | null)[];
+};
+
+/** 协助好友夹具视图：`avatar.type` 真值为枚举 `PlayerAvatarType`，用例沿用 `'t'` */
+type SquadFriendDataFixture = Omit<SquadFriendData, 'avatar'> & { avatar: { type: string; id: string } };
+
+/** 开始战斗请求夹具视图：仅 `squad`/`assistFriend` 放宽（见上面两个视图） */
+type CommonStartBattleRequestFixture = Omit<CommonStartBattleRequest, 'squad' | 'assistFriend'> & {
+  squad: PlayerSquadFixture;
+  assistFriend: SquadFriendDataFixture | null;
+};
 
 describe('Battle 模型', () => {
   describe('BattleData', () => {
@@ -172,7 +211,7 @@ describe('Battle 模型', () => {
 
   describe('BattleStats', () => {
     it('应包含完整的战斗统计字段', () => {
-      const stats: BattleStats = {
+      const stats: BattleStatsFixture = {
         killedEnemiesCnt: 10,
         unnatrualRecoveredCost: 5,
         charStats: [{ charId: 'c1', dmg: 5000 }],
@@ -240,7 +279,7 @@ describe('Battle 模型', () => {
 
   describe('CommonStartBattleRequest', () => {
     it('应包含开始战斗所需的全部字段', () => {
-      const squad: PlayerSquad = {
+      const squad: PlayerSquadFixture = {
         squadId: 'squad_001',
         name: 'Alpha',
         slots: [
@@ -249,7 +288,7 @@ describe('Battle 模型', () => {
         ],
       };
 
-      const request: CommonStartBattleRequest = {
+      const request: CommonStartBattleRequestFixture = {
         isRetro: 0,
         pray: 0,
         battleType: 1,
@@ -271,7 +310,7 @@ describe('Battle 模型', () => {
     });
 
     it('应支持协助好友数据', () => {
-      const assistFriend: SquadFriendData = {
+      const assistFriend: SquadFriendDataFixture = {
         nickName: 'Helper',
         uid: 'helper_001',
         serverName: 'CN',
@@ -295,7 +334,7 @@ describe('Battle 模型', () => {
         assistSlotIndex: 0,
       };
 
-      const request: CommonStartBattleRequest = {
+      const request: CommonStartBattleRequestFixture = {
         isRetro: 0,
         pray: 0,
         battleType: 1,
@@ -318,7 +357,7 @@ describe('Battle 模型', () => {
     });
 
     it('isReplay 为 1 时表示回放模式', () => {
-      const request: CommonStartBattleRequest = {
+      const request: CommonStartBattleRequestFixture = {
         isRetro: 0,
         pray: 0,
         battleType: 2,
@@ -340,7 +379,7 @@ describe('Battle 模型', () => {
     });
 
     it('连续战斗次数应正确设置', () => {
-      const request: CommonStartBattleRequest = {
+      const request: CommonStartBattleRequestFixture = {
         isRetro: 0,
         pray: 0,
         battleType: 1,

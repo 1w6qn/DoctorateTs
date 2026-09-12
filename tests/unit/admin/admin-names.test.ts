@@ -9,33 +9,53 @@ import {
   COMMON_ITEMS,
 } from "@ops/admin/admin-names";
 
-vi.mock("@excel/excel", () => ({
-  default: {
-    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
-    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
-    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+/** excel mock 物品/关卡行形状（本文件用到的字段即可） */
+interface ExcelRowMock {
+  name?: string;
+}
 
-    ItemTable: {
-      items: {
-        "4001": { name: "龙门币" },
-        "4003": { name: "合成玉" },
+/** excel mock 干员行形状（rarity 兼容字符串 TIER_x 与数字两种夹具） */
+interface ExcelCharRowMock {
+  name?: string;
+  rarity?: string | number;
+}
+
+vi.mock("@excel/excel", () => {
+  // 表抽成带索引签名的 const，避免 `this.ItemTable.items[id]`（id: string）报 TS7053
+  /** 物品表夹具 */
+  const ItemTable: { items: Record<string, ExcelRowMock> } = {
+    items: {
+      "4001": { name: "龙门币" },
+      "4003": { name: "合成玉" },
+    },
+  };
+  /** 干员表夹具 */
+  const CharacterTable: Record<string, ExcelCharRowMock> = {
+    char_002_amiya: { name: "阿米娅", rarity: "TIER_5" },
+    char_285_medic2: { name: "Lancet-2", rarity: "TIER_1" },
+    char_100_akafuyu: { name: "赤冬", rarity: 3 },
+  };
+  return {
+    default: {
+      // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+      getItem(id: string): ExcelRowMock | undefined { return this.ItemTable.items[id]; },
+      itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+      makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+      charData(charId: string): ExcelCharRowMock | undefined { return this.CharacterTable[charId]; },
+      stageData(stageId: string): ExcelRowMock | undefined { return this.StageTable?.stages?.[stageId]; },
+
+      ItemTable,
+      CharacterTable,
+      // 本文件不提供的表也显式占位，否则门面方法的 `this.StageTable` 报 TS2339
+      StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
+      SkinTable: {
+        charSkins: {
+          "char_002_amiya#2": { charId: "char_002_amiya", displaySkin: { skinName: "开初" } },
+        },
       },
     },
-    CharacterTable: {
-      char_002_amiya: { name: "阿米娅", rarity: "TIER_5" },
-      char_285_medic2: { name: "Lancet-2", rarity: "TIER_1" },
-      char_100_akafuyu: { name: "赤冬", rarity: 3 },
-    },
-    SkinTable: {
-      charSkins: {
-        "char_002_amiya#2": { charId: "char_002_amiya", displaySkin: { skinName: "开初" } },
-      },
-    },
-  },
-}));
+  };
+});
 
 describe("admin-names 名称解析", () => {
   it("itemName 应返回物品中文名，未知原样返回 ID", () => {

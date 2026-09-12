@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { MockedFunction } from "vitest";
+import type { readJson } from "@utils/file";
 
 vi.mock("@utils/file", () => ({
   readJson: vi.fn(),
@@ -10,7 +12,8 @@ vi.mock("@utils/logger", () => ({
 import excel from "@game/excel/excel";
 
 describe("Excel.init 并行加载", () => {
-  let readJsonMock: any;
+  /** `readJson` 的替身（`vi.mocked` 后仍是真实签名：`<T>(filePath: string) => Promise<T>`） */
+  let readJsonMock: MockedFunction<typeof readJson>;
 
   beforeEach(async () => {
     vi.restoreAllMocks();
@@ -37,7 +40,7 @@ describe("Excel.init 并行加载", () => {
     await excel.init();
     expect(readJsonMock.mock.calls.length).toBeGreaterThan(40);
     // 覆盖关键路径
-    const paths = readJsonMock.mock.calls.map((c: any) => c[0]);
+    const paths = readJsonMock.mock.calls.map((c) => c[0]);
     expect(paths).toContain("./data/excel/mission_table.json");
     expect(paths).toContain("./data/excel/character_table.json");
     // RoguelikeConsts 由本表派生（不再读取 data/rlv2.json）

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+/** excel 行形状（本文件用到的字段子集） */
+interface ExcelRowMock {
+  name?: string;
+}
+
 const mockConfig = vi.hoisted(() => ({
   Host: "http://127.0.0.1",
   PORT: 8443,
@@ -27,12 +32,15 @@ vi.mock("@utils/file", () => ({
 vi.mock("@excel/excel", () => ({
   default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
- ActivityTable: { basicInfo: {}, activity: {}, zoneToActivity: {} }, StageTable: { stages: {} } },
+    charData(charId: string): ExcelRowMock | undefined { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string): ExcelRowMock | undefined { return this.StageTable?.stages?.[stageId]; },
+    // 本文件不提供的表显式占位（`undefined` 与「键不存在」在 `?.` 读取下运行时等价）
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    CharacterTable: undefined as Record<string, ExcelRowMock> | undefined,
+ ActivityTable: { basicInfo: {}, activity: {}, zoneToActivity: {} }, StageTable: { stages: {} } as { stages?: Record<string, ExcelRowMock> } },
 }));
 
 const mockReadFile = vi.hoisted(() => vi.fn());

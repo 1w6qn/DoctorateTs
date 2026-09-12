@@ -1,6 +1,27 @@
 import { describe, it, expect, vi } from "vitest";
+import type { Request, Response } from "express";
+import type { JsonValue } from "@excel/json-value";
 
-const configMock = vi.hoisted(() => ({
+/** excel 行夹具视图（本文件不提供的表也要显式占位，否则门面方法的 `this.XxxTable` 报 TS2339/TS7023） */
+interface ExcelRowMock { name?: string }
+
+/** 配置替身视图：excel 门面方法 + authMode/Host/PORT */
+interface AuthConfigMock {
+  // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+  getItem(id: string): ExcelRowMock | undefined;
+  itemName(id: string): string;
+  makeItem(id: string, count: number, type?: string): { id: string; count: number; type?: string };
+  charData(charId: string): ExcelRowMock | undefined;
+  stageData(stageId: string): ExcelRowMock | undefined;
+  ItemTable: { items?: Record<string, ExcelRowMock> } | undefined;
+  CharacterTable: Record<string, ExcelRowMock> | undefined;
+  StageTable: { stages?: Record<string, ExcelRowMock> } | undefined;
+  authMode: string;
+  Host: string;
+  PORT: number;
+}
+
+const configMock = vi.hoisted((): { default: AuthConfigMock } => ({
   default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
@@ -8,13 +29,16 @@ const configMock = vi.hoisted(() => ({
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
     charData(charId: string) { return this.CharacterTable?.[charId]; },
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    ItemTable: undefined,
+    CharacterTable: undefined,
+    StageTable: undefined,
  authMode: "real", Host: "http://127.0.0.1", PORT: 8443 },
 }));
 vi.mock("@core/config/index", () => configMock);
 
 // mock accountManager：提供 configs（login/register 用）+ 基础方法
 vi.mock("@game/modules/account/AccountManager", () => {
-  const configs: any = {
+  const configs = {
     "10000": {
       uid: "10000",
       password: "pwd123456",
@@ -44,18 +68,36 @@ vi.mock("@utils/logger", () => ({ logger: { info: vi.fn(), error: vi.fn(), warn:
 import authRouter from "@core/auth/auth";
 import { accountManager } from "@game/modules/account/AccountManager";
 
-function mockRes() {
-  const res: any = {
-    send: vi.fn(),
-    status: vi.fn().mockReturnThis(),
-    sendStatus: vi.fn(),
-    json: vi.fn(),
-  };
-  return res;
+/** auth 路由的测试请求视图：只声明用例传入且被测分支读到的成员（真实 express Request 可赋给它） */
+interface MockReq {
+  method: string;
+  url: string;
+  body?: JsonValue;
+  query?: Request["query"];
 }
 
-async function call(router: any, req: any, res: any) {
-  router(req, res, () => {});
+/** auth 路由的测试响应视图：只声明被测分支调用的四个方法（真实 express Response 可赋给它） */
+interface MockRes {
+  send: Response["send"];
+  status: Response["status"];
+  sendStatus: Response["sendStatus"];
+  json: Response["json"];
+}
+
+type AuthRouter = typeof authRouter;
+
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    json: vi.fn<Response["json"]>(),
+  };
+}
+
+async function call(router: AuthRouter, req: MockReq, res: MockRes): Promise<MockRes> {
+  // mock 请求/响应只覆盖被测分支用到的成员，故按窄视图断言为 express Request/Response
+  router(req as Parameters<AuthRouter>[0], res as Response, () => {});
   await new Promise((r) => setTimeout(r, 20));
   return res;
 }
@@ -192,7 +234,7 @@ describe("auth 结果补全（参考 DoctoratePy）", () => {
   it("POST /u8/user/auth/v1/agreement_version 应返回协议版本（agreementUrl 动态跟随服务器地址）", async () => {
     const res = mockRes();
     await call(authRouter, { method: "POST", url: "/u8/user/auth/v1/agreement_version" }, res);
-    const arg = res.send.mock.calls[0][0];
+    const arg = vi.mocked(res.send).mock.calls[0][0];
     expect(arg.status).toBe(0);
     expect(arg.msg).toBe("OK");
     expect(arg.data.authorized).toBe(true);
@@ -205,7 +247,7 @@ describe("auth 结果补全（参考 DoctoratePy）", () => {
   it("GET /u8/user/auth/v1/agreement_version 应返回协议版本（同 POST 结构）", async () => {
     const res = mockRes();
     await call(authRouter, { method: "GET", url: "/u8/user/auth/v1/agreement_version" }, res);
-    const arg = res.send.mock.calls[0][0];
+    const arg = vi.mocked(res.send).mock.calls[0][0];
     expect(arg.data.agreementUrl.childrenPrivacy).toContain("/protocol/plain/ak/children_privacy");
     expect(arg.data.authorized).toBe(true);
   });
@@ -227,7 +269,7 @@ describe("auth 结果补全（参考 DoctoratePy）", () => {
       },
       res,
     );
-    const arg = res.send.mock.calls[0][0];
+    const arg = vi.mocked(res.send).mock.calls[0][0];
     expect(arg).toEqual(
       expect.objectContaining({
         result: 0,
@@ -249,7 +291,7 @@ describe("auth 结果补全（参考 DoctoratePy）", () => {
       { method: "GET", url: "/user/info/v1/basic", query: { token: "secret_10000" } },
       res,
     );
-    const arg = res.send.mock.calls[0][0];
+    const arg = vi.mocked(res.send).mock.calls[0][0];
     expect(arg.data).toEqual(
       expect.objectContaining({
         phone: "13800000001",

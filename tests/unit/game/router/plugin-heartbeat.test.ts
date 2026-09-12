@@ -10,27 +10,42 @@ import { AddressInfo } from "net";
  * GET /plugin/config/:id/:value    —— 客户端启停状态同步（value=0/1）
  *
  * 通过 vi.mock 拦截 pluginConfigService，避免测试触碰真实 data/plugin/config.json。
+ * mock 路径与生产 import 一致取 `@plugin/index`（裸 `@plugin` 无法被 TS 路径映射解析）。
  */
-vi.mock("@plugin", () => {
-  const has = vi.fn((id: string) => id === "enemy_hp");
-  const setEnabled = vi.fn(async (_id: string, _v: boolean) => true);
-  const getAll = vi.fn(async () => [
-    { id: "enemy_hp", name: "敌人血量显示", desc: "", module: "Plugin/EnemyHpPlugin", enabled: true },
-    { id: "plugin_panel", name: "插件管理面板", desc: "", module: "Plugin/PanelPlugin", enabled: false },
-  ]);
-  return { pluginConfigService: { has, setEnabled, getAll } };
-});
+
+/** 插件目录行（getAll 的返回面，见 app/ops/plugin/PluginConfigService.ts） */
+interface PluginCatalogRow {
+  id: string;
+  name: string;
+  desc: string;
+  module: string;
+  enabled: boolean;
+}
+
+const pluginServiceMock = vi.hoisted(() => ({
+  has: vi.fn((id: string) => id === "enemy_hp"),
+  setEnabled: vi.fn(async (_id: string, _v: boolean) => true),
+  getAll: vi.fn(
+    async (): Promise<PluginCatalogRow[]> => [
+      { id: "enemy_hp", name: "敌人血量显示", desc: "", module: "Plugin/EnemyHpPlugin", enabled: true },
+      { id: "plugin_panel", name: "插件管理面板", desc: "", module: "Plugin/PanelPlugin", enabled: false },
+    ],
+  ),
+}));
+vi.mock("@plugin/index", () => ({ pluginConfigService: pluginServiceMock }));
 
 // eslint-disable-next-line import/first
 import pluginHeartbeatRouter from "@game/modules/system/plugin-heartbeat";
-// eslint-disable-next-line import/first
-import { pluginConfigService } from "@plugin";
 
-const mockedService = pluginConfigService as unknown as {
-  has: ReturnType<typeof vi.fn>;
-  setEnabled: ReturnType<typeof vi.fn>;
-  getAll: ReturnType<typeof vi.fn>;
-};
+const mockedService = pluginServiceMock;
+
+/** 端点响应体读取视图（本用例只读这四个字段） */
+interface PluginEndpointBody {
+  status: number;
+  pluginCount: number;
+  enabled: number;
+  catalog: { id: string; enabled: boolean }[];
+}
 
 describe("plugin-heartbeat 路由", () => {
   let server: Server;
@@ -48,7 +63,7 @@ describe("plugin-heartbeat 路由", () => {
     return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   }
 
-  function getJson(url: string): Promise<{ statusCode: number; body: any }> {
+  function getJson(url: string): Promise<{ statusCode: number; body: PluginEndpointBody }> {
     return new Promise((resolve, reject) => {
       const req = request(url, { method: "GET" }, (res) => {
         const chunks: Buffer[] = [];

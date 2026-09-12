@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { NextFunction, Request, Response } from "express";
 
 vi.mock("@ops/admin/AdminService", () => ({
   adminService: {
@@ -7,7 +8,7 @@ vi.mock("@ops/admin/AdminService", () => ({
   },
 }));
 vi.mock("@ops/admin/admin-auth", () => ({
-  adminAuth: vi.fn((_req: any, _res: any, next: any) => next()),
+  adminAuth: vi.fn((_req: Request, _res: Response, next: NextFunction) => next()),
 }));
 vi.mock("@ops/admin/cli-exec", () => ({ cliExec: vi.fn() }));
 vi.mock("@core/config/index", () => ({ default: {} }));
@@ -29,7 +30,7 @@ const eventList = { items: assetLineage.events, total: 1 };
 
 vi.mock("@asset/asset-service", () => ({
   assetRegistry: {
-    listAssets: vi.fn((q: any) => Promise.resolve(assetList)),
+    listAssets: vi.fn(() => Promise.resolve(assetList)),
     getAssetLineage: vi.fn(() => Promise.resolve(assetLineage)),
     listEvents: vi.fn(() => Promise.resolve(eventList)),
     subscribe: vi.fn(() => () => {}),
@@ -43,19 +44,41 @@ vi.mock("@utils/sse", () => ({
 import adminRouter from "@ops/admin/admin-router";
 import { assetRegistry } from "@asset/asset-service";
 
-function mockRes() {
+/** res.sendFile 的单签名视图（真实为重载签名，vitest Mock 不可赋给重载函数类型） */
+type SendFileFn = (...args: Parameters<Response["sendFile"]>) => void;
+
+/** 资产路由测试请求视图：只声明被测分支读到的成员 */
+interface MockReq {
+  method: string;
+  url: string;
+  query?: Request["query"];
+}
+
+/** 资产路由测试响应视图：只声明被测分支读到的成员 */
+interface MockRes {
+  send: Response["send"];
+  sendFile: SendFileFn;
+  status: Response["status"];
+  json: Response["json"];
+  sendStatus: Response["sendStatus"];
+  set: Response["set"];
+}
+
+function mockRes(): MockRes {
   return {
-    send: vi.fn(),
-    sendFile: vi.fn(),
-    status: vi.fn().mockReturnThis(),
-    json: vi.fn(),
-    sendStatus: vi.fn(),
-    set: vi.fn().mockReturnThis(),
+    send: vi.fn<Response["send"]>(),
+    sendFile: vi.fn<SendFileFn>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    json: vi.fn<Response["json"]>(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    set: vi.fn<Response["set"]>().mockReturnThis(),
   };
 }
 
-async function call(req: any, res: any) {
-  adminRouter(req, res, () => {});
+type RouterReq = Parameters<typeof adminRouter>[0];
+
+async function call(req: MockReq, res: MockRes) {
+  adminRouter(req as RouterReq, res as Response, () => {});
   await new Promise((r) => setTimeout(r, 20));
   return res;
 }

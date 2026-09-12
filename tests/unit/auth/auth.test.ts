@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
+import type { Request, Response } from "express";
+import type { JsonValue } from "@excel/json-value";
 
 const configMock = vi.hoisted(() => ({ default: { authMode: "single" } }));
 vi.mock("@core/config/index", () => configMock);
@@ -17,19 +19,49 @@ vi.mock("@utils/file", () => ({
 
 import authRouter from "@core/auth/auth";
 import { accountManager } from "@game/modules/account/AccountManager";
+import type { UserConfig } from "@game/modules/account/AccountManager";
+import { asModel } from "../../helpers";
 
-function mockRes() {
-  const res: any = {
-    send: vi.fn(),
-    status: vi.fn().mockReturnThis(),
-    sendStatus: vi.fn(),
-    json: vi.fn(),
-  };
-  return res;
+/** auth 路由的测试请求视图：只声明用例传入且被测分支读到的成员（真实 express Request 可赋给它） */
+interface MockReq {
+  method: string;
+  url: string;
+  body?: JsonValue;
+  query?: Request["query"];
 }
 
-async function call(router: any, req: any, res: any) {
-  router(req, res, () => {});
+/** auth 路由的测试响应视图：只声明被测分支调用的四个方法（真实 express Response 可赋给它） */
+interface MockRes {
+  send: Response["send"];
+  status: Response["status"];
+  sendStatus: Response["sendStatus"];
+  json: Response["json"];
+}
+
+type AuthRouter = typeof authRouter;
+
+/**
+ * getUserConfig 缺失分支夹具
+ *
+ * 真实实现 `return this.configs[uid]!`（AccountManager.ts:231）在 uid 不存在时返回 undefined，
+ * 用例模拟该分支；返回类型声明为 `UserConfig | undefined`，调用点按非空分支做一次单向（收窄）断言。
+ */
+function missingUserConfig(): UserConfig | undefined {
+  return undefined;
+}
+
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    json: vi.fn<Response["json"]>(),
+  };
+}
+
+async function call(router: AuthRouter, req: MockReq, res: MockRes): Promise<MockRes> {
+  // mock 请求/响应只覆盖被测分支用到的成员，故按窄视图断言为 express Request/Response
+  router(req as Parameters<AuthRouter>[0], res as Response, () => {});
   // 等待异步 handler 完成
   await new Promise((r) => setTimeout(r, 20));
   return res;
@@ -82,7 +114,7 @@ describe("auth 路由", () => {
 
   it("GET /user/info/v1/basic token 无效（用户不存在）应返回 200 + 空 auth（不卡流程）", async () => {
     configMock.default.authMode = "single";
-    (accountManager.getUserConfig as any).mockResolvedValueOnce(undefined);
+    vi.mocked(accountManager.getUserConfig).mockResolvedValueOnce(missingUserConfig() as UserConfig);
     const res = mockRes();
     await call(authRouter, { method: "GET", url: "/user/info/v1/basic", query: { token: "invalid" } }, res);
     expect(res.status).not.toHaveBeenCalled();
@@ -93,7 +125,7 @@ describe("auth 路由", () => {
 
   it("real 模式：token 无效应返回 404（严格校验）", async () => {
     configMock.default.authMode = "real";
-    (accountManager.getUidByToken as any).mockResolvedValueOnce("");
+    vi.mocked(accountManager.getUidByToken).mockResolvedValueOnce("");
     const res = mockRes();
     await call(authRouter, { method: "GET", url: "/user/info/v1/basic", query: { token: "invalid" } }, res);
     expect(res.status).toHaveBeenCalledWith(404);
@@ -163,16 +195,16 @@ describe("real 模式用户管理闭环（change_password/change_phone）", () =
   // 扩展 mock：configs + updatePassword/updatePhone
   beforeEach(() => {
     vi.restoreAllMocks();
-    (accountManager as any).configs = {
-      "10000": {
+    accountManager.configs = {
+      "10000": asModel<UserConfig>({
         auth: { phone: "13800000000" },
         password: "sha256$old",
         secret: "secret_10000",
-      },
+      }),
     };
-    (accountManager as any).updatePassword = vi.fn().mockResolvedValue(true);
-    (accountManager as any).updatePhone = vi.fn().mockResolvedValue(true);
-    (accountManager as any).getUidByToken = vi
+    accountManager.updatePassword = vi.fn().mockResolvedValue(true);
+    accountManager.updatePhone = vi.fn().mockResolvedValue(true);
+    accountManager.getUidByToken = vi
       .fn()
       .mockImplementation(async (t: string) =>
         t === "secret_10000" ? "10000" : "",
@@ -212,10 +244,10 @@ describe("real 模式用户管理闭环（change_password/change_phone）", () =
   });
 
   it("change_phone 新手机已被占用应返回 result 8", async () => {
-    (accountManager as any).configs["20000"] = {
+    accountManager.configs["20000"] = asModel<UserConfig>({
       auth: { phone: "13899998888" },
       secret: "secret_20000",
-    };
+    });
     const res = mockRes();
     await call(
       authRouter,

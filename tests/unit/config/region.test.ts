@@ -37,20 +37,20 @@ function withRegionConfig(
 ): void {
   const savedCapture = config.capture;
   const savedRegion = config.region;
-  const savedRegions = (config as any).regions;
+  const savedRegions = config.regions;
   try {
-    (config as any).capture = {
+    config.capture = {
       ...(savedCapture ?? {}),
       enabled: patch.captureEnabled,
       ...(patch.captureRegion !== undefined ? { region: patch.captureRegion } : {}),
     };
     if (patch.region !== undefined) config.region = patch.region;
-    if (patch.regions !== undefined) (config as any).regions = patch.regions;
+    if (patch.regions !== undefined) config.regions = patch.regions;
     fn();
   } finally {
-    (config as any).capture = savedCapture;
+    config.capture = savedCapture;
     config.region = savedRegion;
-    (config as any).regions = savedRegions;
+    config.regions = savedRegions;
   }
 }
 

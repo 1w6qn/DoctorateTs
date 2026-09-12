@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { JsonValue } from "@excel/json-value";
 
 // 模拟官服 HTTP 响应
 const fetchMock = vi.fn();
@@ -11,7 +12,14 @@ import {
   u8Sign,
 } from "../../../scripts/official-api";
 
-function jsonRes(body: any, headers: Record<string, string> = {}) {
+/** 官服 HTTP 响应替身（被测实现只读 ok/headers/json） */
+interface JsonResponseStub {
+  ok: boolean;
+  headers: Headers;
+  json: () => Promise<JsonValue>;
+}
+
+function jsonRes(body: JsonValue, headers: Record<string, string> = {}): JsonResponseStub {
   return { ok: true, headers: new Headers(headers), json: async () => body };
 }
 
@@ -69,8 +77,8 @@ describe("official-api", () => {
       .mockResolvedValueOnce(jsonRes({ secret: "s1" })) // /account/login
       .mockResolvedValueOnce(jsonRes({ user: { status: { uid: "10001", nickName: "A" }, troop: {} } })); // syncData
     const data = await syncPlayerData("13800000000", "pwd");
-    expect(data.status.uid).toBe("10001");
-    expect(data.status.nickName).toBe("A");
+    expect(data.status!.uid).toBe("10001");
+    expect(data.status!.nickName).toBe("A");
     expect(fetchMock).toHaveBeenCalledTimes(6);
   });
 });

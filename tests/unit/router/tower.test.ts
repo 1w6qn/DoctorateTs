@@ -8,17 +8,31 @@ const timeMock = vi.hoisted(() => ({ now: 1735000000 })); // tower_season_1 时�
 vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
 
 // 保全派驻数据（climb_tower_table）：首通奖励档 / 上限常量 / 层号 / 赛季任务
+/** excel mock 行形状（本文件用到的字段子集） */
+interface ExcelRowMock {
+  name?: string;
+}
+
+/** 干员行夹具形状（本文件用到的字段子集） */
+interface ExcelCharRowMock {
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+}
+
 vi.mock("@excel/excel", () => ({
   default: {
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
+    getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    charData(charId: string): ExcelCharRowMock | undefined { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string): ExcelRowMock | undefined { return this.StageTable?.stages?.[stageId]; },
 
     CharacterTable: {
       char_sniper: { charId: "char_sniper", profession: "SNIPER", rarity: "TIER_4" },
-    },
+    } as Record<string, ExcelCharRowMock>,
 
     ClimbTowerTable: {
       rewardInfoList: [
@@ -69,19 +83,52 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
+import type { Response } from "express";
 import httpContext from "express-http-context2";
 import towerRouter from "@game/modules/tower/routes";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData, asModel } from "../../helpers";
+import type { MockPlayerDataManager, MockPlayerDataSeed } from "../../helpers";
+import type { TowerOuter_TowerData } from "@game/kernel/playerdata";
 
-function mockRes() {
-  return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };
+/** 保全派驻请求体视图（本文件各端点字段合集） */
+interface TowerBody {
+  tower?: string;
+  layers?: (number | string)[];
+  charId?: string;
+  giveUp?: number;
+}
+
+/** 路由测试请求视图（只声明被测分支读到的三个成员） */
+interface MockReq {
+  method: string;
+  url: string;
+  body: TowerBody;
+}
+
+/** 路由测试响应视图（只声明被测分支读到的四个方法） */
+interface MockRes {
+  send: Response["send"];
+  status: Response["status"];
+  sendStatus: Response["sendStatus"];
+  json: Response["json"];
+}
+
+type RouterReq = Parameters<typeof towerRouter>[0];
+
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    json: vi.fn<Response["json"]>(),
+  };
 }
 
 describe("tower（保全派驻）奖励与记录落盘", () => {
-  let player: any;
-  let res: any;
+  let player: MockPlayerDataManager;
+  let res: MockRes;
 
-  function makePlayer(extra: any = {}) {
+  function makePlayer(extra: MockPlayerDataSeed = {}): MockPlayerDataManager {
     return mockPlayerData({
       inventory: {},
       tower: {
@@ -90,18 +137,20 @@ describe("tower（保全派驻）奖励与记录落盘", () => {
         season: {},
       },
       ...extra,
-    } as any);
+    });
   }
 
   beforeEach(() => {
     vi.clearAllMocks();
     player = makePlayer();
     res = mockRes();
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    vi.mocked(httpContext.get).mockReturnValue(player);
   });
 
-  async function call(url: string, body: any) {
-    towerRouter({ method: "POST", url, body } as any, res, () => {});
+  async function call(url: string, body: TowerBody) {
+    const req: MockReq = { method: "POST", url, body };
+    // mock 请求/响应只覆盖被测分支用到的成员，故按窄视图断言为 express Request/Response
+    towerRouter(req as RouterReq, res as Response, () => {});
     await new Promise((r) => setTimeout(r, 20));
   }
 
@@ -129,7 +178,7 @@ describe("tower（保全派驻）奖励与记录落盘", () => {
 
   it("layerReward：层号可用关卡 id 表达（levels[].layerNum），且受 detailConst 上限封顶", async () => {
     player = makePlayer({ inventory: { mod_update_token_1: 59, } });
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    vi.mocked(httpContext.get).mockReturnValue(player);
     await call("/layerReward", { tower: "tower_n_17", layers: ["lt_17_02"] });
     // 第 2 层应发 3 个，但只剩 1 个额度
     expect(player._playerdata.inventory.mod_update_token_1).toBe(60);
@@ -144,7 +193,7 @@ describe("tower（保全派驻）奖励与记录落盘", () => {
         season: { id: "tower_season_1", missions: { tower_season1_1: { value: 1, target: 1, hasRecv: false } } },
       },
     });
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    vi.mocked(httpContext.get).mockReturnValue(player);
     await call("/seasonMissionsAward", {});
     expect(res.sendStatus).not.toHaveBeenCalled();
     expect(player._playerdata.tower.season.missions.tower_season1_1.hasRecv).toBe(true);
@@ -172,9 +221,9 @@ describe("tower（保全派驻）奖励与记录落盘", () => {
         season: {},
       },
     });
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    vi.mocked(httpContext.get).mockReturnValue(player);
     await call("/settleGame", {});
-    const sent = res.send.mock.calls[0][0];
+    const sent = vi.mocked(res.send).mock.calls[0][0];
     // 全 3 层首通：low = 2+3+3 = 8，high = 0+1+2 = 3
     expect(sent.reward.low).toEqual({ cnt: 8, from: 0, to: 8 });
     expect(sent.reward.high).toEqual({ cnt: 3, from: 0, to: 3 });
@@ -209,7 +258,7 @@ describe("tower（保全派驻）奖励与记录落盘", () => {
         season: {},
       },
     });
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    vi.mocked(httpContext.get).mockReturnValue(player);
     await call("/settleGame", {});
     const rec = player._playerdata.tower.outer.towers.tower_n_16;
     expect(rec.best).toBe(1);
@@ -219,11 +268,11 @@ describe("tower（保全派驻）奖励与记录落盘", () => {
 
   it("sweepGame：未解锁扫荡时拒绝；解锁后一次性领取全部未领层", async () => {
     await call("/sweepGame", { tower: "tower_n_17" });
-    expect(res.send.mock.calls[0][0].result).toBe(1);
+    expect(vi.mocked(res.send).mock.calls[0][0].result).toBe(1);
     expect(res.sendStatus).not.toHaveBeenCalled();
 
     player._playerdata.tower.outer.towers = {
-      tower_n_17: { best: 3, reward: [1], unlockHard: true, hardBest: 0, canSweep: true },
+      tower_n_17: asModel<TowerOuter_TowerData>({ best: 3, reward: [1], unlockHard: true, hardBest: 0, canSweep: true }),
     };
     await call("/sweepGame", { tower: "tower_n_17" });
     // 第 2、3 层：low 3+3=6，high 1+2=3
@@ -248,7 +297,7 @@ describe("tower（保全派驻）奖励与记录落盘", () => {
         season: { id: "tower_season_1", missions: { tower_season1_7: { value: 0, target: 2, hasRecv: false } } },
       },
     });
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    vi.mocked(httpContext.get).mockReturnValue(player);
     await call("/recruit", { charId: "char_sniper", giveUp: 0 });
     expect(player._playerdata.tower.season.missions.tower_season1_7.value).toBe(1);
   });

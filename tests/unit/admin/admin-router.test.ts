@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
+import type { NextFunction, Request, Response } from "express";
+import type { JsonValue } from "@excel/json-value";
+import { asModel } from "../../helpers";
 
 vi.mock("@ops/admin/AdminService", () => ({
   adminService: {
@@ -68,7 +71,7 @@ vi.mock("@ops/admin/AdminService", () => ({
   },
 }));
 vi.mock("@ops/admin/admin-auth", () => ({
-  adminAuth: vi.fn((_req: any, _res: any, next: any) => next()),
+  adminAuth: vi.fn((_req: Request, _res: Response, next: NextFunction) => next()),
 }));
 vi.mock("@ops/admin/cli-exec", () => ({
   cliExec: vi.fn(),
@@ -113,19 +116,62 @@ import { captureManager } from "@capture/capture-manager";
 import { logService } from "@logs/log-service";
 import { createSse, sseSend } from "@utils/sse";
 
-function mockRes() {
+/** rogueSimAuto 成功/失败返回值（含可选 error） */
+type RogueSimAutoResult = Awaited<ReturnType<typeof adminService.rogueSimAuto>>;
+
+/** rogueSimStep 成功/失败返回值（含可选 error） */
+type RogueSimStepResult = Awaited<ReturnType<typeof adminService.rogueSimStep>>;
+
+/** res.sendFile 的单签名视图（真实为重载签名，vitest Mock 不可赋给重载函数类型） */
+type SendFileFn = (...args: Parameters<Response["sendFile"]>) => void;
+
+/** res.write 的单签名视图（真实为重载签名） */
+type ResWriteFn = (...args: Parameters<Response["write"]>) => boolean;
+
+/** 路由测试请求视图：只声明被测分支读到的成员 */
+interface MockReq {
+  method: string;
+  url: string;
+  query?: Request["query"];
+  params?: Request["params"];
+  body?: Record<string, JsonValue>;
+  on?: Request["on"];
+}
+
+/** 路由测试响应视图：只声明被测分支读到的成员（SSE 流另需 write/flushHeaders） */
+interface MockRes {
+  send: Response["send"];
+  sendFile: SendFileFn;
+  status: Response["status"];
+  json: Response["json"];
+  sendStatus: Response["sendStatus"];
+  set: Response["set"];
+  write: ResWriteFn;
+  flushHeaders: () => void;
+}
+
+/** /api/spec 响应体视图（用例只读 endpoints 的 path） */
+interface SpecPayload {
+  endpoints: { path: string }[];
+}
+
+function mockRes(): MockRes {
   return {
-    send: vi.fn(),
-    sendFile: vi.fn(),
-    status: vi.fn().mockReturnThis(),
-    json: vi.fn(),
-    sendStatus: vi.fn(),
-    set: vi.fn().mockReturnThis(),
+    send: vi.fn<Response["send"]>(),
+    sendFile: vi.fn<SendFileFn>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    json: vi.fn<Response["json"]>(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    set: vi.fn<Response["set"]>().mockReturnThis(),
+    write: vi.fn<ResWriteFn>(),
+    flushHeaders: vi.fn(),
   };
 }
 
-async function call(req: any, res: any) {
-  adminRouter(req, res, () => {});
+type RouterReq = Parameters<typeof adminRouter>[0];
+
+async function call(req: MockReq, res: MockRes) {
+  adminRouter(req as RouterReq, res as Response, () => {});
   await new Promise((r) => setTimeout(r, 20));
   return res;
 }
@@ -361,7 +407,7 @@ describe("admin 路由（扩展能力）", () => {
     );
 
     // 数据缺失 → 404
-    (adminService.getMapvizData as any).mockResolvedValueOnce(null);
+    vi.mocked(adminService.getMapvizData).mockResolvedValueOnce(null);
     const res2 = mockRes();
     await call({ method: "GET", url: "/api/mapviz-data" }, res2);
     expect(res2.status).toHaveBeenCalledWith(404);
@@ -376,7 +422,9 @@ describe("admin 路由（扩展能力）", () => {
     );
 
     // 模拟失败 → 400
-    (adminService.rogueSimAuto as any).mockResolvedValueOnce({ ok: false, error: "rlv2 失败" });
+    vi.mocked(adminService.rogueSimAuto).mockResolvedValueOnce(
+      asModel<RogueSimAutoResult>({ ok: false, error: "rlv2 失败" }),
+    );
     const res2 = mockRes();
     await call({ method: "POST", url: "/api/rogue/sim-auto", body: { uid: "1", theme: "rogue_1" } }, res2);
     expect(res2.status).toHaveBeenCalledWith(400);
@@ -389,7 +437,9 @@ describe("admin 路由（扩展能力）", () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, state: expect.any(Object) }));
 
     // 非法 action → 400
-    (adminService.rogueSimStep as any).mockResolvedValueOnce({ ok: false, error: "非法操作: hack" });
+    vi.mocked(adminService.rogueSimStep).mockResolvedValueOnce(
+      asModel<RogueSimStepResult>({ ok: false, error: "非法操作: hack" }),
+    );
     const res2 = mockRes();
     await call({ method: "POST", url: "/api/rogue/sim-step", body: { uid: "1", action: "hack" } }, res2);
     expect(res2.status).toHaveBeenCalledWith(400);
@@ -435,11 +485,11 @@ describe("admin 路由（扩展能力）", () => {
     expect(res.json).toHaveBeenCalledWith({
       endpoints: expect.any(Array),
     });
-    const payload = res.json.mock.calls[0][0];
+    const payload = vi.mocked(res.json).mock.calls[0][0] as SpecPayload;
     expect(payload.endpoints.length).toBeGreaterThan(10);
     // 规范里应含游戏代理端点（供控制台使用）
     expect(
-      payload.endpoints.some((e: any) => e.path === "/api/game-proxy"),
+      payload.endpoints.some((e) => e.path === "/api/game-proxy"),
     ).toBe(true);
   });
 
@@ -601,7 +651,7 @@ describe("admin 路由（扩展能力）", () => {
   it("GET /api/openapi.json 应返回 OpenAPI 文档", async () => {
     const res = mockRes();
     await call({ method: "GET", url: "/api/openapi.json" }, res);
-    const payload = res.json.mock.calls[0][0];
+    const payload = vi.mocked(res.json).mock.calls[0][0];
     expect(payload.openapi).toBe("3.0.3");
     expect(payload.paths["/api/users/{uid}"]).toBeDefined();
   });

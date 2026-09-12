@@ -150,12 +150,19 @@ export function stripCommentsAndStrings(src: string): string {
 }
 
 /**
- * 类型位置的裸关键字：排除成员访问（`z.object(...)` 等 API 调用不是类型债）
+ * 类型位置的裸关键字
+ *
+ * 两条排除规则：
+ *  - `(?<![\w$.])`：排除成员访问（`z.object(...)` 等 API 调用不是类型债）；
+ *  - `(?!\s*:)`：排除**对象字面量/接口成员的属性名**（`{ any: 0 }`、`{ object: 2 }`）。
+ *    类型位置的 `any`/`unknown`/`object` 后面永远不是 `:`：`(a: any)` → `)`、
+ *    `Record<string, any>` → `>`、`as any` → 语句结束、`{ [k: string]: any }` → `}`、
+ *    `T extends any ? … : …` → `?`；而作为属性名时必然紧跟 `:`。
  * @param kw - 关键字（any / unknown / object）
  * @returns 全局正则
  */
 function bareKeyword(kw: DebtKey): RegExp {
-  return new RegExp(`(?<![\\w$.])${kw}\\b`, "g");
+  return new RegExp(`(?<![\\w$.])${kw}\\b(?!\\s*:)`, "g");
 }
 
 /**
@@ -173,7 +180,8 @@ function zodEscape(kw: DebtKey): RegExp {
  *
  * 口径（与 docs/type-system-audit.md §2 一致）：
  *  - 裸 `any`/`unknown`/`object` 关键字（类型位置）：`(?<![\w$.])` 排除成员访问，
- *    因此 `z.object({...})` 不计——它是精确的 zod schema，不是模糊类型。
+ *    因此 `z.object({...})` 不计——它是精确的 zod schema，不是模糊类型；
+ *    `(?!\s*:)` 排除属性名（`{ any: 0 }` 的键名不是类型债，见 {@link bareKeyword}）。
  *  - zod 逃生口 `z.any()`/`z.unknown()`：计入对应关键字；`z.object()` 不计。
  * @param src - 源码全文（未经剥离）
  * @returns 三个受控关键字的出现次数
@@ -181,10 +189,14 @@ function zodEscape(kw: DebtKey): RegExp {
 export function countVagueTypes(src: string): TypeDebtCounts {
   const code = stripCommentsAndStrings(src);
   const count = (re: RegExp): number => (code.match(re) || []).length;
-  const object = count(bareKeyword("object"));
-  const any = count(bareKeyword("any")) + count(zodEscape("any"));
-  const unknown = count(bareKeyword("unknown")) + count(zodEscape("unknown"));
-  return { any, unknown, object };
+  // 局部变量刻意避开 `any` / `unknown` / `object` 三个标识符：它们本身不是类型位置，
+  // 但 `const any = …`、`{ any, unknown, object }`（简写属性）会被 {@link bareKeyword}
+  // 误计（属性名排除规则只认 `key:` 形式）。改用 cntXxx + 显式属性名，扫描器自计归零，
+  // 公开键名（TypeDebtCounts）保持不变。
+  const cntObject = count(bareKeyword("object"));
+  const cntAny = count(bareKeyword("any")) + count(zodEscape("any"));
+  const cntUnknown = count(bareKeyword("unknown")) + count(zodEscape("unknown"));
+  return { any: cntAny, unknown: cntUnknown, object: cntObject };
 }
 
 /**

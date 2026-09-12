@@ -16,6 +16,13 @@ import { describeDatabase } from "@core/db/config";
  * MySQL / PostgreSQL 需要真实服务端才能端到端验证，此处覆盖可离线验证的部分——
  * SQL 生成、占位符改写、参数归一化、建表 DDL、可选驱动缺失时的错误文案。
  */
+interface OptionalDriverView {
+  /** 连接池工厂（mysql2；驱动为 optionalDependencies，未安装时无本地类型可引用） */
+  createPool: (...args: never[]) => void;
+  /** 连接池构造函数（pg；仅声明本用例断言的存在性，不虚构驱动内部结构） */
+  Pool: new (...args: never[]) => void;
+}
+
 describe("dialect：忽略冲突插入（insertIgnoreSql）", () => {
   it("三种后端各自生成正确语法", () => {
     const cols = ["uid", "friend_uid"];
@@ -172,9 +179,9 @@ describe("可选驱动加载（loadOptionalDriver）", () => {
   });
 
   it("已安装的可选驱动可正常加载", async () => {
-    const mysql2 = await loadOptionalDriver<any>("mysql2/promise", "mysql2", "MySQL 后端");
+    const mysql2 = await loadOptionalDriver<OptionalDriverView>("mysql2/promise", "mysql2", "MySQL 后端");
     expect(typeof mysql2.createPool).toBe("function");
-    const pg = await loadOptionalDriver<any>("pg", "pg", "PostgreSQL 后端");
+    const pg = await loadOptionalDriver<OptionalDriverView>("pg", "pg", "PostgreSQL 后端");
     expect(typeof pg.Pool).toBe("function");
   });
 });

@@ -15,8 +15,8 @@ describe("cliExec（CLI 集成默认服务）", () => {
   });
 
   it("应捕获 console 输出并返回", async () => {
-    (parseArgs as any).mockReturnValue({ command: "users", args: ["list"], flags: {} });
-    (dispatch as any).mockImplementation(async () => {
+    vi.mocked(parseArgs).mockReturnValue({ command: "users", args: ["list"], flags: {} });
+    vi.mocked(dispatch).mockImplementation(async () => {
       console.log("hello");
       console.log(JSON.stringify([{ uid: "1" }]));
     });
@@ -27,16 +27,16 @@ describe("cliExec（CLI 集成默认服务）", () => {
   });
 
   it("强制 --json 注入结构化输出", async () => {
-    (parseArgs as any).mockReturnValue({ command: "gacha", args: ["pools"], flags: {} });
-    (dispatch as any).mockImplementation(async (_c: string, _a: string[], flags: any) => {
+    vi.mocked(parseArgs).mockReturnValue({ command: "gacha", args: ["pools"], flags: {} });
+    vi.mocked(dispatch).mockImplementation(async (_c: string, _a: string[], flags: { [key: string]: string }) => {
       expect(flags.json).toBe("true"); // cliExec 强制注入
     });
     await cliExec("gacha pools");
   });
 
   it("dispatch 抛错应返回 error 且不恢复 console 失败", async () => {
-    (parseArgs as any).mockReturnValue({ command: "users", args: ["bad"], flags: {} });
-    (dispatch as any).mockRejectedValue(new Error("boom"));
+    vi.mocked(parseArgs).mockReturnValue({ command: "users", args: ["bad"], flags: {} });
+    vi.mocked(dispatch).mockRejectedValue(new Error("boom"));
     const r = await cliExec("users bad");
     expect(r.ok).toBe(false);
     expect(r.error).toBe("boom");
@@ -49,8 +49,8 @@ describe("cliExec（CLI 集成默认服务）", () => {
   });
 
   it("dispatch 设 exitCode=1 应返回 ok:false 并恢复进程 exitCode", async () => {
-    (parseArgs as any).mockReturnValue({ command: "users", args: ["badcmd"], flags: {} });
-    (dispatch as any).mockImplementation(async () => {
+    vi.mocked(parseArgs).mockReturnValue({ command: "users", args: ["badcmd"], flags: {} });
+    vi.mocked(dispatch).mockImplementation(async () => {
       process.exitCode = 1; // CLI 未知子命令语义
       console.error("未知 users 子命令");
     });

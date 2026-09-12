@@ -3,7 +3,19 @@ import { AdminService } from "@ops/admin/AdminService";
 import { accountManager } from "@game/modules/account/AccountManager";
 import { readJsonSync, writeJson } from "@utils/file";
 import config from "@core/config/index";
-import { mockPlayerData } from "../../helpers";
+import type { UserConfig } from "@game/modules/account/AccountManager";
+import { mockPlayerData, asPlayerManager, asModel } from "../../helpers";
+
+/** excel mock 行形状（本文件用到的字段即可） */
+interface ExcelRowMock {
+  name?: string;
+}
+
+/** excel mock 干员行形状（本文件不提供数据，仅占位） */
+interface ExcelCharRowMock {
+  name?: string;
+  rarity?: string | number;
+}
 
 // 配置读写走 mock（不落盘真实 data/config.json）
 vi.mock("@utils/file", () => ({
@@ -21,11 +33,15 @@ vi.mock("@utils/file", () => ({
 vi.mock("@excel/excel", () => ({
   default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    charData(charId: string): ExcelCharRowMock | undefined { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string): ExcelRowMock | undefined { return this.StageTable?.stages?.[stageId]; },
+
+    // 本文件不提供的表也显式占位，否则门面方法的 `this.XxxTable` 报 TS2339
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    CharacterTable: undefined as Record<string, ExcelCharRowMock> | undefined,
 
     ActivityTable: {
       basicInfo: {
@@ -44,7 +60,7 @@ vi.mock("@excel/excel", () => ({
       missionData: [],
       activity: {},
     },
-    StageTable: { stages: {} },
+    StageTable: { stages: {} as Record<string, ExcelRowMock> },
   },
 }));
 
@@ -72,8 +88,8 @@ describe("AdminService 活动切换（activity switch）", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
-    (accountManager as any).data = { "1": mockPlayerData({ status: { uid: 1 } as any }) };
-    (accountManager as any).configs = { "1": { uid: "1", auth: { phone: "" } } };
+    accountManager.data = { "1": asPlayerManager(mockPlayerData({ status: { uid: 1 } })) };
+    accountManager.configs = { "1": asModel<UserConfig>({ uid: "1", auth: { phone: "" } }) };
     vi.mocked(readJsonSync).mockReturnValue({
       Host: "http://127.0.0.1",
       PORT: 8443,

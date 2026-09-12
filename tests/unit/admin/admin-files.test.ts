@@ -1,9 +1,52 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AdminService } from "@ops/admin/AdminService";
 import { accountManager } from "@game/modules/account/AccountManager";
+import type { UserConfig } from "@game/modules/account/AccountManager";
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
+import type { PlayerDataModel } from "@game/kernel/playerdata";
+import type { JsonValue } from "@excel/json-value";
 import { exists, readJson, writeJson } from "@utils/file";
 import { copyFile, mkdir, readFile, readdir, appendFile, rm, writeFile } from "fs/promises";
+import { asModel } from "../../helpers";
+
+/**
+ * readdir 的「仅文件名」重载视图
+ *
+ * `fs/promises.readdir` 为多重载声明，`vi.mocked(readdir)` 缺省推导到末位
+ * `Dirent[]` 重载；本用例与 AdminService 用的都是无 options 的 `string[]` 重载，
+ * 故显式给出单签名类型参数。
+ */
+type ReaddirNames = (path: string) => Promise<string[]>;
+
+/**
+ * accountManager 夹具写入视图
+ *
+ * `data`/`configs` 是 AccountManager 的公开字段；用例写入的是只含 `_playerdata`
+ * 的局部夹具（真实 `PlayerDataManager` 含私有成员，无法结构兼容）。AdminService
+ * 只从 `data[uid]._playerdata` 读存档，故按该读取面声明窄视图——真实公开字段与
+ * 本视图同形，可直接赋值，无需任何断言。
+ */
+interface AccountManagerFixtureView {
+  data: { [uid: string]: { _playerdata?: PlayerDataModel } };
+  configs: { [uid: string]: UserConfig };
+}
+
+/** 把 accountManager 视作夹具写入视图（真实字段可赋给本视图） */
+function fixtureAccounts(manager: typeof accountManager): AccountManagerFixtureView {
+  return manager;
+}
+
+/** 夹具写入视图（与 accountManager 同一对象引用） */
+const accounts = fixtureAccounts(accountManager);
+
+/**
+ * syncGachaPools 写回的卡池详情表读取视图
+ *
+ * `writeJson` 的形参声明为普通对象类型，用例只读 `details` 一层键，故具名窄视图收口。
+ */
+interface GachaDetailWriteView {
+  details: Record<string, JsonValue>;
+}
 
 // 备份/恢复/审计日志：全部文件操作走 mock，不落盘、不读真实存档
 vi.mock("@utils/file", () => ({
@@ -44,14 +87,13 @@ describe("AdminService 备份/恢复", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
-    (accountManager as any).data = { "1": {} };
-    (accountManager as any).configs = { "1": { uid: "1", auth: { phone: "" } } };
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    accounts.data = { "1": {} };
+    accounts.configs = { "1": asModel<UserConfig>({ uid: "1", auth: { phone: "" } }) };
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     // SQLite 感知读取（方案 A+C：存档主体在库，admin 备份/导出经 readPlayerData）
     vi.spyOn(accountManager, "readPlayerData").mockImplementation(
-      async (uid: string) =>
-        ((accountManager as any).data as any)[uid]?._playerdata ?? null,
+      async (uid: string) => accounts.data[uid]?._playerdata ?? null,
     );
     // 恢复默认 mock 行为（restoreAllMocks 会清空实现）
     vi.mocked(mkdir).mockResolvedValue(undefined);
@@ -59,12 +101,12 @@ describe("AdminService 备份/恢复", () => {
     vi.mocked(writeFile).mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(readFile).mockRejectedValue({ code: "ENOENT" });
-    vi.mocked(readdir).mockRejectedValue({ code: "ENOENT" });
+    vi.mocked<ReaddirNames>(readdir).mockRejectedValue({ code: "ENOENT" });
     vi.mocked(exists).mockResolvedValue(true);
   });
 
   it("backup 应写存档 JSON 到备份目录并返回文件信息", async () => {
-    (accountManager as any).data["1"] = { _playerdata: { status: { uid: "1" } } };
+    accounts.data["1"] = { _playerdata: asModel<PlayerDataModel>({ status: { uid: "1" } }) };
     const json = JSON.stringify({ status: { uid: "1" } });
     vi.mocked(readFile).mockResolvedValue(Buffer.from(json));
     const info = await service.backup("1");
@@ -85,7 +127,7 @@ describe("AdminService 备份/恢复", () => {
   });
 
   it("listBackups 应只列出该用户备份并按时间倒序", async () => {
-    vi.mocked(readdir).mockResolvedValue([
+    vi.mocked<ReaddirNames>(readdir).mockResolvedValue([
       "1-20250102000000.json",
       "2-20250101000000.json",
       "readme.txt",
@@ -102,7 +144,7 @@ describe("AdminService 备份/恢复", () => {
   });
 
   it("cleanBackups 应保留最近 N 个并删除旧备份", async () => {
-    vi.mocked(readdir).mockResolvedValue([
+    vi.mocked<ReaddirNames>(readdir).mockResolvedValue([
       "1-20250101000000.json",
       "1-20250102000000.json",
       "1-20250103000000.json",
@@ -134,7 +176,7 @@ describe("AdminService 备份/恢复", () => {
 
   it("restore 应加载备份替换内存并落盘", async () => {
     const backupData = { status: { uid: "1", nickName: "恢复号" } };
-    vi.mocked(readJson).mockResolvedValue(backupData as any);
+    vi.mocked(readJson).mockResolvedValue(backupData);
     await service.restore("1", "1-20250101000000.json");
     expect(PlayerDataManager).toHaveBeenCalledWith(backupData);
     expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
@@ -192,10 +234,10 @@ describe("AdminService 存档导出/导入/校验", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
-    (accountManager as any).data = { "1": {} };
-    (accountManager as any).configs = { "1": { uid: "1", auth: { phone: "" } } };
-    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    accounts.data = { "1": {} };
+    accounts.configs = { "1": asModel<UserConfig>({ uid: "1", auth: { phone: "" } }) };
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(mkdir).mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(readFile).mockResolvedValue(Buffer.from("{}"));
@@ -204,8 +246,8 @@ describe("AdminService 存档导出/导入/校验", () => {
   });
 
   it("exportUser 应读存档并写入目标路径", async () => {
-    const data = { status: { uid: "1" } };
-    (accountManager as any).data["1"] = { _playerdata: data };
+    const data = asModel<PlayerDataModel>({ status: { uid: "1" } });
+    accounts.data["1"] = { _playerdata: data };
     const r = await service.exportUser("1", "./tmp/out.json");
     expect(r.path).toBe("./tmp/out.json");
     expect(r.size).toBe(2);
@@ -213,7 +255,7 @@ describe("AdminService 存档导出/导入/校验", () => {
   });
 
   it("exportUser 缺省路径应落在 ./exports/ 且带时间戳", async () => {
-    (accountManager as any).data["1"] = { _playerdata: { status: { uid: "1" } } };
+    accounts.data["1"] = { _playerdata: asModel<PlayerDataModel>({ status: { uid: "1" } }) };
     const r = await service.exportUser("1");
     expect(r.path).toMatch(/^\.\/exports\/1-\d{8}-\d{6}\.json$/);
   });
@@ -224,49 +266,49 @@ describe("AdminService 存档导出/导入/校验", () => {
 
   it("importUser 应从文件读取并替换指定 uid", async () => {
     const data = { status: { uid: "1" } };
-    vi.mocked(readJson).mockResolvedValue(data as any);
+    vi.mocked(readJson).mockResolvedValue(data);
     await service.importUser("./tmp/in.json", "1");
     expect(PlayerDataManager).toHaveBeenCalledWith(data);
     expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
   });
 
   it("importUser 缺省 uid 应取文件内 status.uid", async () => {
-    vi.mocked(readJson).mockResolvedValue({ status: { uid: "9" } } as any);
+    vi.mocked(readJson).mockResolvedValue({ status: { uid: "9" } });
     await service.importUser("./tmp/in.json");
     expect(accountManager.savePlayerData).toHaveBeenCalledWith("9");
   });
 
   it("importUser 对缺少 status.uid 的存档应抛错", async () => {
-    vi.mocked(readJson).mockResolvedValue({ troop: {} } as any);
+    vi.mocked(readJson).mockResolvedValue({ troop: {} });
     await expect(service.importUser("./tmp/bad.json")).rejects.toThrow(/status\.uid/);
   });
 
   it("checkData 应报告异常用户", async () => {
-    const good = { _playerdata: { status: { uid: "1" }, troop: {} } };
-    const bad = { _playerdata: { status: { uid: "2" } } }; // 缺 troop
-    (accountManager as any).data = { "1": good, "2": bad };
+    const good = { _playerdata: asModel<PlayerDataModel>({ status: { uid: "1" }, troop: {} }) };
+    const bad = { _playerdata: asModel<PlayerDataModel>({ status: { uid: "2" } }) }; // 缺 troop
+    accounts.data = { "1": good, "2": bad };
     const r = await service.checkData();
     expect(r.ok).toBe(false);
-    expect(r.users.find((u: any) => u.uid === "2")!.ok).toBe(false);
-    expect(r.users.find((u: any) => u.uid === "1")!.ok).toBe(true);
+    expect(r.users.find((u) => u.uid === "2")!.ok).toBe(false);
+    expect(r.users.find((u) => u.uid === "1")!.ok).toBe(true);
   });
 
   it("checkDataFiles 应校验磁盘全部存档（含未加载/损坏文件）", async () => {
-    vi.mocked(readdir).mockResolvedValue(["1.json", "bad.json", "readme.txt"]);
+    vi.mocked<ReaddirNames>(readdir).mockResolvedValue(["1.json", "bad.json", "readme.txt"]);
     vi.mocked(readJson).mockImplementation(async (p: string) => {
       if (String(p).includes("bad.json")) return { troop: {} }; // 缺 status
       return { status: { uid: "1" }, troop: {} };
     });
     const r = await service.checkDataFiles();
     expect(r.files).toHaveLength(2); // 只算 .json
-    expect(r.files.find((f: any) => f.uid === "1")!.ok).toBe(true);
-    expect(r.files.find((f: any) => f.uid === "bad")!.ok).toBe(false);
+    expect(r.files.find((f) => f.uid === "1")!.ok).toBe(true);
+    expect(r.files.find((f) => f.uid === "bad")!.ok).toBe(false);
     expect(r.ok).toBe(false);
   });
 
   it("checkDataFiles 目录不存在应返回空", async () => {
     // restoreAllMocks 不重置模块 mock 的 readdir，显式恢复默认（目录不存在）
-    vi.mocked(readdir).mockRejectedValue({ code: "ENOENT" });
+    vi.mocked<ReaddirNames>(readdir).mockRejectedValue({ code: "ENOENT" });
     const r = await service.checkDataFiles();
     expect(r.files).toEqual([]);
     expect(r.ok).toBe(true);
@@ -304,9 +346,9 @@ describe("AdminService 官服卡池同步", () => {
       expect.stringContaining(".bak"),
     );
     // 合并写回：新池更新 + 旧池保留
-    const writeCall = (writeJson as any).mock.calls.find((c: any) => String(c[0]).includes("gacha_detail"));
+    const writeCall = vi.mocked(writeJson).mock.calls.find((c) => String(c[0]).includes("gacha_detail"));
     expect(writeCall).toBeDefined();
-    const written = writeCall[1];
+    const written = writeCall![1] as GachaDetailWriteView;
     expect(written.details["NORM_0_1_3"]).toBeDefined();
     expect(written.details["OLD_POOL"]).toBeDefined(); // 未抓取的旧池保留
     expect(written.details["BAD"]).toBeUndefined(); // 失败的池不写入
@@ -360,12 +402,12 @@ describe("AdminService 删除用户", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     service = new AdminService();
-    (accountManager as any).data = { "1": {}, "2": {} };
-    (accountManager as any).configs = {
-      "1": { uid: "1", auth: { phone: "" } },
-      "2": { uid: "2", auth: { phone: "" } },
+    accounts.data = { "1": {}, "2": {} };
+    accounts.configs = {
+      "1": asModel<UserConfig>({ uid: "1", auth: { phone: "" } }),
+      "2": asModel<UserConfig>({ uid: "2", auth: { phone: "" } }),
     };
-    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(exists).mockResolvedValue(true);
     vi.mocked(rm).mockClear().mockResolvedValue(undefined);
@@ -380,8 +422,8 @@ describe("AdminService 删除用户", () => {
   });
 
   it("deleteUser 不能删除最后一个用户", async () => {
-    (accountManager as any).data = { "1": {} };
-    (accountManager as any).configs = { "1": { uid: "1", auth: { phone: "" } } };
+    accounts.data = { "1": {} };
+    accounts.configs = { "1": asModel<UserConfig>({ uid: "1", auth: { phone: "" } }) };
     await expect(service.deleteUser("1", "DELETE")).rejects.toThrow(/最后一个用户/);
   });
 
@@ -389,8 +431,8 @@ describe("AdminService 删除用户", () => {
     await service.deleteUser("2", "DELETE");
     // deleteAccount（B-2 统一清理）以 force 选项删除存档
     expect(rm).toHaveBeenCalledWith("./data/user/databases/2.json", { force: true });
-    expect((accountManager as any).data["2"]).toBeUndefined();
-    expect((accountManager as any).configs["2"]).toBeUndefined();
+    expect(accounts.data["2"]).toBeUndefined();
+    expect(accounts.configs["2"]).toBeUndefined();
     expect(accountManager.saveUserConfig).toHaveBeenCalled();
   });
 });

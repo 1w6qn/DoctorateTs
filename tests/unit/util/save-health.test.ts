@@ -1,7 +1,142 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { checkAndRepairSave, hasRepairableIssues } from "@game/kernel/save-health";
+import { checkAndRepairSave, hasRepairableIssues, type SaveDataShape } from "@game/kernel/save-health";
 
-vi.mock("@excel/excel", () => ({
+/** excel 行夹具视图（门面方法只读取 `name`） */
+interface ExcelRowMock {
+  name?: string;
+}
+
+/** 干员表行夹具视图（本文件提供的字段） */
+interface ExcelCharRowMock {
+  skills?: { skillId: string; unlockCond?: { phase: number | string; level: number } }[];
+  allSkillLvlup?: { unlockCond?: { phase: string | number; level: number } }[];
+}
+
+/** 模组表行夹具视图（本文件提供的字段） */
+interface UniequipRowMock {
+  uniEquipId: string;
+  charId: string;
+  showEvolvePhase: string;
+  unlockEvolvePhase: number;
+  unlockLevel: number;
+  missionList: string[];
+  itemCost: Record<string, number[]>;
+}
+
+/**
+ * excel 替身夹具视图
+ *
+ * 门面方法按 excel.ts 实现索引替身表，故各表按可索引形状声明；
+ * 本文件未提供的表声明为可选（`this.X?.` 读取，与「键不存在」运行期等价）。
+ */
+interface ExcelMockFixture {
+  getItem(id: string): ExcelRowMock | undefined;
+  itemName(id: string): string;
+  makeItem(id: string, count: number, type?: string): { id: string; count: number; type?: string };
+  charData(charId: string): ExcelCharRowMock | undefined;
+  stageData(stageId: string): ExcelRowMock | undefined;
+  CharacterTable: Record<string, ExcelCharRowMock>;
+  UniequipTable: {
+    charEquip: Record<string, string[]>;
+    equipDict: Record<string, UniequipRowMock>;
+  };
+  ItemTable?: { items?: Record<string, ExcelRowMock> };
+  StageTable?: { stages?: Record<string, ExcelRowMock> };
+}
+
+/** 干员技能条目夹具（与 char-skills 的 CharSkillEntry 同形） */
+interface SaveFixtureSkill {
+  skillId: string;
+  unlock: number;
+  state: number;
+  specializeLevel: number;
+  completeUpgradeTime: number;
+}
+
+/** 升变模板子对象夹具（本文件只读有无/键数） */
+interface SaveFixturePatch {
+  skinId?: string | null;
+  skills?: SaveFixtureSkill[];
+}
+
+/** 干员条目夹具 */
+interface SaveFixtureChar {
+  instId?: number;
+  charId?: string;
+  level?: number;
+  evolvePhase?: number;
+  defaultSkillIndex?: number;
+  skills?: SaveFixtureSkill[] | null;
+  equip?: Record<string, { hide: number; locked: number; level: number }> | null;
+  currentEquip?: string | null;
+  tmpl?: Record<string, SaveFixturePatch> | null;
+  currentTmpl?: string | null;
+}
+
+/** 训练室受训干员夹具（历史残留 null） */
+interface SaveFixtureTrainee {
+  state?: number;
+  charInstId?: number;
+  targetSkill?: number;
+}
+
+/**
+ * 存档夹具视图（本文件用例的不可信 JSON 输入）
+ *
+ * 与 `SaveDataShape` 同形但更宽，以容纳夹具的历史形状（全部字段可选、
+ * 干员条目可带生成模型未声明的 `instId`/`tmpl` 子对象等）。真实 `SaveDataShape`
+ * 可赋给本视图，故 {@link asSaveData} 的单向断言成立；运行期对象不变。
+ */
+interface SaveFixtureView {
+  status?: {
+    uid?: string | number;
+    nickName?: string;
+    nickNumber?: string;
+    level?: number;
+    exp?: number;
+    gold?: number;
+  };
+  troop?: { chars?: Record<string, SaveFixtureChar | null | undefined> };
+  dungeon?: SaveDataShape["dungeon"];
+  activity?: SaveDataShape["activity"];
+  building?: {
+    rooms?: {
+      PRIVATE?: Record<
+        string,
+        { owners?: (number | null)[] | null; comfort?: number } | null | undefined
+      >;
+      TRAINING?: Record<
+        string,
+        {
+          trainee?: SaveFixtureTrainee | null;
+          trainer?: { charInstId?: number; state?: number } | null;
+        } | null | undefined
+      >;
+    };
+  };
+  dexNav?: {
+    character?: Record<string, { charInstId?: number; count?: number } | null | undefined>;
+  };
+  arkodc?: {
+    topics?: Record<
+      string,
+      | {
+          varSeqs?: { [key: string]: number };
+          rewards?: { [key: string]: number };
+          position?: { x: number; y: number; z: number } | null;
+        }
+      | null
+      | undefined
+    >;
+  };
+}
+
+/** 夹具视图 → 被测入参（单向断言，见 {@link SaveFixtureView}） */
+function asSaveData(fixture: SaveFixtureView): SaveDataShape {
+  return fixture as SaveDataShape;
+}
+
+vi.mock("@excel/excel", (): { default: ExcelMockFixture } => ({
   default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
@@ -57,7 +192,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
         },
       },
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     expect(issues.some((i) => i.path.includes("slot_47") && i.fixed)).toBe(true);
     expect(data.building.rooms.PRIVATE.slot_47.owners).toEqual([]);
     // 合规房间不受影响
@@ -66,9 +201,11 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
 
   it("缺失必填顶层结构应重建", () => {
     const data = { status: { uid: "1" } };
-    const issues = checkAndRepairSave(data as any);
-    for (const key of ["troop", "dungeon", "activity", "building"]) {
-      expect(data[key]).toBeDefined();
+    // 同一对象引用：类型按存档视图读取（运行期仍是上面的夹具，被 checkAndRepairSave 原地重建）
+    const store = asSaveData(data);
+    const issues = checkAndRepairSave(store);
+    for (const key of ["troop", "dungeon", "activity", "building"] as const) {
+      expect(store[key]).toBeDefined();
     }
     expect(issues.filter((i) => i.fixed).length).toBeGreaterThanOrEqual(3);
   });
@@ -81,7 +218,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     expect(data.troop.chars["2"]).toBeUndefined();
     expect(data.troop.chars["1"]).toBeDefined();
     expect(issues.some((i) => i.path === "troop.chars[2]" && i.fixed)).toBe(true);
@@ -95,7 +232,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    checkAndRepairSave(data as any);
+    checkAndRepairSave(asSaveData(data));
     expect(data.status.uid).toBe("2222");
   });
 
@@ -121,13 +258,15 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: { rooms: { PRIVATE: { slot_1: { owners: [1] } } } },
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     expect(issues.filter((i) => i.fixed)).toHaveLength(0);
-    expect(hasRepairableIssues(data)).toBe(false);
+    expect(hasRepairableIssues(asSaveData(data))).toBe(false);
   });
 
   it("非对象根节点应标记不可修复", () => {
-    const issues = checkAndRepairSave(null as any);
+    // 非对象根节点：原始 JSON 读取产物为 null（走「不可自动修复」分支）
+    const nonObjectRoot: SaveDataShape = JSON.parse("null");
+    const issues = checkAndRepairSave(nonObjectRoot);
     expect(issues.some((i) => !i.fixed)).toBe(true);
   });
 
@@ -152,7 +291,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     expect(data.dexNav.character.char_002.charInstId).toBe(2);
     expect(data.dexNav.character.char_101_sora.charInstId).toBe(101);
     expect(issues.filter((i) => i.fixed && i.path.startsWith("dexNav"))).toHaveLength(2);
@@ -167,7 +306,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    checkAndRepairSave(data as any);
+    checkAndRepairSave(asSaveData(data));
     expect(data.dexNav.character.char_ghost).toBeUndefined();
     expect(data.dexNav.character.char_002).toBeDefined();
   });
@@ -178,14 +317,14 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       troop: {
         chars: {
           "380": { instId: 380, charId: "char_4178_alanna", currentTmpl: "char_4178_alanna", tmpl: {} },
-          "381": { instId: 381, charId: "char_4026_vulpis" },
+          "381": { instId: 381, charId: "char_4026_vulpis" } as SaveFixtureChar,
         },
       },
       dungeon: {},
       activity: {},
       building: {},
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     expect(data.troop.chars["380"].currentTmpl).toBeUndefined();
     expect(data.troop.chars["380"].tmpl).toBeUndefined();
     // 合规干员（无模板字段）不受影响
@@ -201,7 +340,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    checkAndRepairSave(data as any);
+    checkAndRepairSave(asSaveData(data));
     expect(data.troop.chars["1"].currentTmpl).toBeUndefined();
   });
 
@@ -222,7 +361,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    checkAndRepairSave(data as any);
+    checkAndRepairSave(asSaveData(data));
     expect(data.troop.chars["7"].currentTmpl).toBeUndefined();
     expect(data.troop.chars["7"].tmpl.char_007).toBeDefined();
   });
@@ -244,7 +383,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     expect(data.troop.chars["1"].currentTmpl).toBe("char_1037_amiya3");
     expect(Object.keys(data.troop.chars["1"].tmpl)).toHaveLength(3);
     expect(issues.filter((i) => i.fixed && i.path.includes("troop.chars"))).toHaveLength(0);
@@ -261,7 +400,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
             level: 2,
             evolvePhase: 0,
             defaultSkillIndex: -1,
-            skills: [],
+            skills: [] as SaveFixtureSkill[],
           },
           "381": {
             instId: 381,
@@ -269,7 +408,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
             level: 1,
             evolvePhase: 1, // 精1 → 技能1+2 均解锁
             defaultSkillIndex: -1,
-            skills: [],
+            skills: [] as SaveFixtureSkill[],
           },
         },
       },
@@ -277,9 +416,9 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     // E0：官方线格式仍列出全部技能，技能2 为 unlock:0 锁定占位
-    expect(data.troop.chars["380"].skills.map((s: any) => s.skillId)).toEqual([
+    expect(data.troop.chars["380"].skills.map((s) => s.skillId)).toEqual([
       "skchr_test_1",
       "skchr_test_2",
     ]);
@@ -287,7 +426,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
     expect(data.troop.chars["380"].skills[1].unlock).toBe(0);
     expect(data.troop.chars["380"].defaultSkillIndex).toBe(0);
     // E1：技能2 解锁，unlock 置 1
-    expect(data.troop.chars["381"].skills.map((s: any) => s.skillId)).toEqual([
+    expect(data.troop.chars["381"].skills.map((s) => s.skillId)).toEqual([
       "skchr_test_1",
       "skchr_test_2",
     ]);
@@ -314,7 +453,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     expect(issues.filter((i) => i.path.includes("troop.chars[2].skills"))).toHaveLength(0);
   });
 
@@ -340,9 +479,9 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     // 完全采用官服线格式：技能2 保留为 unlock:0 锁定占位，而不是删除
-    expect(data.troop.chars["380"].skills.map((s: any) => s.skillId)).toEqual([
+    expect(data.troop.chars["380"].skills.map((s) => s.skillId)).toEqual([
       "skchr_test_1",
       "skchr_test_2",
     ]);
@@ -372,9 +511,9 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     // 官方线格式：未解锁技能以 unlock:0 占位，不应被健康检查移除
-    expect(data.troop.chars["380"].skills.map((s: any) => s.skillId)).toEqual([
+    expect(data.troop.chars["380"].skills.map((s) => s.skillId)).toEqual([
       "skchr_test_1",
       "skchr_test_2",
     ]);
@@ -404,9 +543,9 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    checkAndRepairSave(data as any);
+    checkAndRepairSave(asSaveData(data));
     // 技能2 有专精 2 → 保留；按官服策略未精一时 unlock 校正为 0 占位
-    expect(data.troop.chars["380"].skills.map((s: any) => s.skillId)).toEqual([
+    expect(data.troop.chars["380"].skills.map((s) => s.skillId)).toEqual([
       "skchr_test_1",
       "skchr_test_2",
     ]);
@@ -429,19 +568,19 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
               buff: {},
               state: 0,
               lastUpdateTime: 0,
-              trainee: null,
+              trainee: null as SaveFixtureTrainee | null,
               trainer: { charInstId: 210, state: 3 },
             },
           },
         },
       },
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     const trainee = data.building.rooms.TRAINING.slot_13.trainee;
     expect(trainee).not.toBeNull();
-    expect(trainee.charInstId).toBe(-1);
-    expect(trainee.state).toBe(0); // EMPTY 官方空态
-    expect(trainee.targetSkill).toBe(-1);
+    expect(trainee!.charInstId).toBe(-1);
+    expect(trainee!.state).toBe(0); // EMPTY 官方空态
+    expect(trainee!.targetSkill).toBe(-1);
     expect(issues.some((i) => i.path.includes("trainee") && i.fixed)).toBe(true);
     // 合规 trainer 不受影响
     expect(data.building.rooms.TRAINING.slot_13.trainer.charInstId).toBe(210);
@@ -461,7 +600,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
         },
       },
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     expect(data.arkodc.topics["undefined"]).toBeUndefined();
     // 合规主题保留，且 position null 重置为原点
     expect(data.arkodc.topics["ark_odc_act53side"]).toBeDefined();
@@ -490,7 +629,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     const mod = data.troop.chars["10"].equip.mod_001;
     expect(mod.hide).toBe(0); // 精二后显示
     expect(mod.locked).toBe(0); // 已解锁的保持
@@ -511,7 +650,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       activity: {},
       building: {},
     };
-    const issues = checkAndRepairSave(data as any);
+    const issues = checkAndRepairSave(asSaveData(data));
     expect(issues.some((i) => i.path.includes("equip") && i.fixed)).toBe(false);
   });
 });

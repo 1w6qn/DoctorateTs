@@ -11,6 +11,23 @@
  */
 import { describe, it, expect } from "vitest";
 import { FBO, type FieldInfo, type Schema } from "../../../scripts/vendor/fbo";
+import type { JsonValue } from "@excel/json-value";
+
+/**
+ * 标量字段解码结果视图
+ *
+ * `FBO.toJson()` 声明为 `JsonValue | null`（解码器面向任意 schema，无法静态知道顶层键）。
+ * 本文件用手工构造的 schema（根表只含单个标量字段），故就地声明顶层键视图；该视图可赋给
+ * `JsonValue`（单向可比），断言与运行期行为都不变。
+ */
+type ScalarDecodeResult = {
+  Value: JsonValue;
+};
+
+/** `hg__internal__` 子表解码结果视图（根表只含单个 `DynMeta` 字段） */
+type DynMetaDecodeResult = {
+  DynMeta: { Base64: string };
+};
 
 /**
  * 构造「根表只含一个标量字段（slot 4）」的缓冲区
@@ -42,7 +59,7 @@ describe("FBO 标量读取", () => {
       b[off + 2] = 0xff;
       b[off + 3] = 0xff;
     });
-    expect(new FBO(buf, schema("ubyte")).toJson().Value).toBe(200);
+    expect((new FBO(buf, schema("ubyte")).toJson() as ScalarDecodeResult).Value).toBe(200);
   });
 
   it("sbyte 按有符号 1 字节读", () => {
@@ -50,7 +67,7 @@ describe("FBO 标量读取", () => {
       b[off] = 0x80; // -128
       b[off + 1] = 0xff;
     });
-    expect(new FBO(buf, schema("sbyte")).toJson().Value).toBe(-128);
+    expect((new FBO(buf, schema("sbyte")).toJson() as ScalarDecodeResult).Value).toBe(-128);
   });
 
   it("short / ushort 按 2 字节读", () => {
@@ -60,12 +77,12 @@ describe("FBO 标量读取", () => {
       b[off + 2] = 0xff;
       b[off + 3] = 0xff;
     });
-    expect(new FBO(sBuf, schema("short")).toJson().Value).toBe(-32768);
+    expect((new FBO(sBuf, schema("short")).toJson() as ScalarDecodeResult).Value).toBe(-32768);
     const uBuf = scalarBuf("ushort", (b, off) => {
       b[off] = 0xff;
       b[off + 1] = 0xff; // 65535
     });
-    expect(new FBO(uBuf, schema("ushort")).toJson().Value).toBe(65535);
+    expect((new FBO(uBuf, schema("ushort")).toJson() as ScalarDecodeResult).Value).toBe(65535);
   });
 
   it("负样本自证：同一数据按 int 读会越读相邻字节", () => {
@@ -76,7 +93,7 @@ describe("FBO 标量读取", () => {
       b[off + 3] = 0xff;
     });
     // 0xffffffc8 → -56：正是「用 i32 读 ubyte」时的错误值
-    expect(new FBO(buf, schema("int")).toJson().Value).toBe(-56);
+    expect((new FBO(buf, schema("int")).toJson() as ScalarDecodeResult).Value).toBe(-56);
   });
 });
 
@@ -94,7 +111,7 @@ describe("FBO 向量与内建表", () => {
     buf[40] = 7;
     buf[41] = 8;
     buf[42] = 9;
-    expect(new FBO(buf, schema("vec:ubyte")).toJson().Value).toEqual([7, 8, 9]);
+    expect((new FBO(buf, schema("vec:ubyte")).toJson() as ScalarDecodeResult).Value).toEqual([7, 8, 9]);
   });
 
   it("hg__internal__ 前缀按子表读（不再是 null）", () => {
@@ -126,6 +143,6 @@ describe("FBO 向量与内建表", () => {
     // slot 6 的字段项在 vtable 偏移 6 处（= 字节 10）
     dv.setUint16(10, 8, true); // 字段在 16 + 8 = 24
     dv.setUint16(4, 8, true); // vtable 扩到 2 个字段
-    expect(new FBO(buf, s).toJson().DynMeta).toEqual({ Base64: "hi" });
+    expect((new FBO(buf, s).toJson() as DynMetaDecodeResult).DynMeta).toEqual({ Base64: "hi" });
   });
 });

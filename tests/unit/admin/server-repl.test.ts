@@ -37,7 +37,7 @@ describe("startServerRepl（服务器内嵌命令行）", () => {
       close: vi.fn(),
       on: vi.fn(),
     };
-    rlMock.createInterface.mockReturnValue(rl as any);
+    rlMock.createInterface.mockReturnValue(rl);
     startServerRepl();
     expect(rlMock.createInterface).toHaveBeenCalled();
     expect(rl.prompt).toHaveBeenCalled();
@@ -47,7 +47,7 @@ describe("startServerRepl（服务器内嵌命令行）", () => {
   it("line handler 收到 help 应打印完整命令帮助", async () => {
     process.stdin.isTTY = true;
     const rl = { prompt: vi.fn(), close: vi.fn(), on: vi.fn() };
-    rlMock.createInterface.mockReturnValue(rl as any);
+    rlMock.createInterface.mockReturnValue(rl);
     startServerRepl();
     // 取出 line handler 并模拟输入 help
     const lineHandler = rl.on.mock.calls.find((c) => c[0] === "line")![1];

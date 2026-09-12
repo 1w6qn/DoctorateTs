@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EventBus, Priority, globalEventBus } from "@game/kernel/events/runtime";
+import type { EventMap } from "@game/kernel/events";
 
 describe("EventBus", () => {
   let bus: EventBus;
@@ -525,8 +526,12 @@ describe("EventBus", () => {
         receivedArgs = args;
       });
 
-      const items = [{ id: 1 }, { id: 2 }];
-      await bus.emit("item:get", { items: items as any });
+      /** item:get 载荷夹具视图（真实元素为 ItemBundle，`id` 为 string；本用例以数字 id 占位验证透传） */
+      interface ItemGetPayloadFixture {
+        items: { id: string | number }[];
+      }
+      const items: ItemGetPayloadFixture["items"] = [{ id: 1 }, { id: 2 }];
+      await bus.emit("item:get", { items } as EventMap["item:get"][0]);
 
       expect(receivedArgs).toEqual([{ items: items }]);
     });

@@ -1,5 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EventBus, Priority, globalEventBus } from "@game/kernel/events/runtime";
+import type { EventMap } from "@game/kernel/events";
+import type { MockSeed } from "../../helpers/mockPlayerData";
+
+/** `item:get` 载荷里的物品元素真实类型（`ItemBundle`） */
+type ItemBundleReal = EventMap["item:get"][0]["items"][number];
+
+/**
+ * `item:get` 载荷物品夹具视图
+ *
+ * 本用例只验证「emit 可变参数透传」，物品沿用最小 `{ id: number }` 夹具，而真实
+ * `ItemBundle.id` 为 string。视图让真实 `ItemBundle` 可赋值给它（单向comparable），
+ * 故可一次性断言回事件载荷位置，运行期夹具数据一字不改。
+ */
+type ItemBundleFixture = Omit<MockSeed<ItemBundleReal>, "id"> & { id: string | number };
+
+/** 被 mock 的 `console.log` 形参类型（与真实签名一致，避免手写宽松数组） */
+type ConsoleLogArgs = Parameters<typeof console.log>;
 
 describe("EventBus", () => {
   let bus: EventBus;
@@ -273,7 +290,7 @@ describe("EventBus", () => {
   describe("日志功能", () => {
     it("启用日志后应输出日志", async () => {
       const logs: string[] = [];
-      const spy = vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      const spy = vi.spyOn(console, 'log').mockImplementation((...args: ConsoleLogArgs) => {
         logs.push(args.join(" "));
       });
 
@@ -289,7 +306,7 @@ describe("EventBus", () => {
 
     it("禁用日志后不应输出日志", async () => {
       const logs: string[] = [];
-      const spy = vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      const spy = vi.spyOn(console, 'log').mockImplementation((...args: ConsoleLogArgs) => {
         logs.push(args.join(" "));
       });
 
@@ -305,7 +322,7 @@ describe("EventBus", () => {
 
     it("日志应包含事件名和参数", async () => {
       const logs: string[] = [];
-      const spy = vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      const spy = vi.spyOn(console, 'log').mockImplementation((...args: ConsoleLogArgs) => {
         logs.push(args.join(" "));
       });
 
@@ -389,7 +406,7 @@ describe("EventBus", () => {
     });
 
     it("验证器应接收正确的参数", async () => {
-      let receivedArgs: unknown = null;
+      let receivedArgs: EventMap["mission:complete"] | null = null;
 
       bus.addValidator("mission:complete", (args) => {
         receivedArgs = args;
@@ -519,14 +536,14 @@ describe("EventBus", () => {
     });
 
     it("emit 应接受可变参数", async () => {
-      let receivedArgs: unknown = null;
+      let receivedArgs: EventMap["item:get"] | null = null;
 
-      bus.on("item:get", (...args: unknown[]) => {
+      bus.on("item:get", (...args) => {
         receivedArgs = args;
       });
 
-      const items = [{ id: 1 }, { id: 2 }];
-      await bus.emit("item:get", { items: items as any });
+      const items: ItemBundleFixture[] = [{ id: 1 }, { id: 2 }];
+      await bus.emit("item:get", { items: items as ItemBundleReal[] });
 
       expect(receivedArgs).toEqual([{ items: items }]);
     });

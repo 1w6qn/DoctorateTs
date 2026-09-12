@@ -26,6 +26,16 @@ function frame(msgId: number, payload: Buffer, seq = 0, flag = 0): Buffer {
   return Buffer.concat([head, payload]);
 }
 
+/**
+ * `framesToJson` 输出行读取视图
+ *
+ * `framesToJson`（protocol.ts）声明返回 `unknown[]`（JSON 边界），其行形状为
+ * `{len,msgId,name,seq,flag,…,payload?:字段行[]}`；本用例只读 `payload` 首项。
+ */
+interface FrameJsonRow {
+  payload?: { field: number; str?: string }[];
+}
+
 describe("decodeProtobuf（通用 protobuf 解码）", () => {
   it("varint / length-delimited / fixed64 / fixed32", () => {
     const buf = Buffer.concat([
@@ -84,8 +94,8 @@ describe("splitGatewayFrames / parseGatewayStream（帧切分）", () => {
     expect(result.frames[0].fields).toContainEqual(expect.objectContaining({ field: 1, str: "100566259" }));
     expect(result.frames[1]).toMatchObject({ msgId: 8, name: "MoveReq" });
     // framesToJson 可序列化
-    const json = framesToJson(result.frames) as any[];
-    expect(json[0].payload[0]).toMatchObject({ field: 1, str: "100566259" });
+    const json = framesToJson(result.frames) as FrameJsonRow[];
+    expect(json[0].payload![0]).toMatchObject({ field: 1, str: "100566259" });
   });
 
   it("未知 msgId 命名为 Msg<N>", () => {

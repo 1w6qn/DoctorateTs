@@ -4,6 +4,24 @@ import type { SqlDatabase } from "@core/db/types";
 import { FriendRepository } from "@core/db/friend-repo";
 import { migrateFromUserConfigs } from "@core/db/migrate";
 import { accountManager } from "@game/modules/account/AccountManager";
+import type { UserConfig } from "@game/modules/account/AccountManager";
+import { asModel } from "../../helpers";
+
+/**
+ * 迁移用例的遗留配置视图
+ *
+ * 旧 users.json 内嵌 `social`（迁移模块按同款遗留形状读取，见 app/core/db/migrate.ts:18 的
+ * `UserConfig & { social?: LegacyUserConfigSocial }`）；UserConfig 已不再声明该字段，
+ * 而本用例沿用历史夹具（其真值性被被测实现读取，改值即改运行期夹具数据），
+ * 故就地声明该键的读写视图。
+ */
+interface LegacyUserConfig extends UserConfig {
+  social?: {
+    friends?: { uid: string; alias?: string }[];
+    friendRequests?: string[];
+    visited?: string[];
+  };
+}
 
 describe("社交数据迁移", () => {
   let db: SqlDatabase;
@@ -19,8 +37,8 @@ describe("社交数据迁移", () => {
   });
 
   it("应从 users.json 的 social 字段迁移好友/申请/访问记录", async () => {
-    (accountManager as any).configs = {
-      "1": {
+    accountManager.configs = {
+      "1": asModel<LegacyUserConfig>({
         uid: "1",
         social: {
           friends: [
@@ -30,8 +48,8 @@ describe("社交数据迁移", () => {
           friendRequests: ["4"],
           visited: ["5"],
         },
-      },
-      "2": { uid: "2", social: { friends: [], friendRequests: [], visited: [] } },
+      }),
+      "2": asModel<LegacyUserConfig>({ uid: "2", social: { friends: [], friendRequests: [], visited: [] } }),
     };
 
     await migrateFromUserConfigs(db, accountManager.configs);
@@ -44,7 +62,7 @@ describe("社交数据迁移", () => {
     expect(await repo.getFriendRequests("1")).toEqual(["4"]);
     expect(await repo.getVisited("1")).toEqual(["5"]);
     // 迁移后 JSON 中的 social 被重置为空结构（社交表为唯一事实源）
-    expect((accountManager.configs as any)["1"].social).toEqual({
+    expect((accountManager.configs["1"] as LegacyUserConfig).social).toEqual({
       friends: [],
       friendRequests: [],
       visited: [],
@@ -52,7 +70,7 @@ describe("社交数据迁移", () => {
   });
 
   it("configs 缺失 social 字段时不应报错", async () => {
-    (accountManager as any).configs = { "1": { uid: "1" } };
+    accountManager.configs = { "1": asModel<LegacyUserConfig>({ uid: "1" }) };
     await expect(
       migrateFromUserConfigs(db, accountManager.configs),
     ).resolves.toBeUndefined();

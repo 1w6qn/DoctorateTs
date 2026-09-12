@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { JsonValue } from "@excel/json-value";
 
 // mock 官服登录三步（不真实联网）
 vi.mock("../../../scripts/official-api", () => ({
@@ -52,7 +53,19 @@ import {
   validateCgi,
 } from "@ops/admin/official-ops";
 
-function fakeRes(body: any, seqnum: string | null = null) {
+/**
+ * 官服请求 init 夹具视图
+ *
+ * `OfficialSession.post` 组装的 `headers`/`body` 在本用例读回；`RequestInit` 的
+ * `headers` 是 HeadersInit 联合（不可索引），故按读取面声明窄视图
+ * （本视图可赋给 RequestInit，断言合法）。
+ */
+interface OfficialFetchInit {
+  headers: Record<string, string>;
+  body: string;
+}
+
+function fakeRes(body: JsonValue, seqnum: string | null = null) {
   return Promise.resolve({
     ok: true,
     status: 200,
@@ -83,8 +96,9 @@ describe("OfficialSession", () => {
     const r = await s.post("/user/checkIn", {});
     expect(r.result).toBe(0);
     expect(s.seqnum).toBe(5);
-    const [url, opts] = (fetch as any).mock.calls[0];
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("https://ak-gs-gf.hypergryph.com/user/checkIn");
+    const opts = init as OfficialFetchInit;
     expect(opts.headers.secret).toBe("s");
     expect(opts.headers.seqnum).toBe("3");
     vi.unstubAllGlobals();
@@ -153,7 +167,7 @@ describe("runOfficialAction", () => {
     const r = await runOfficialAction("13800000000", "pwd", "signin");
     expect(r.ok).toBe(false);
     expect(r.reason).toContain("已签到");
-    expect(fetchMock.mock.calls.some((c: any) => c[0].endsWith("/user/checkIn"))).toBe(false);
+    expect(fetchMock.mock.calls.some((c) => c[0].endsWith("/user/checkIn"))).toBe(false);
     vi.unstubAllGlobals();
   });
 
@@ -166,7 +180,7 @@ describe("runOfficialAction", () => {
     vi.stubGlobal("fetch", fetchMock);
     const r = await runOfficialAction("13800000000", "pwd", "signin");
     expect(r.ok).toBe(true);
-    expect(fetchMock.mock.calls.some((c: any) => c[0].endsWith("/user/checkIn"))).toBe(true);
+    expect(fetchMock.mock.calls.some((c) => c[0].endsWith("/user/checkIn"))).toBe(true);
     vi.unstubAllGlobals();
   });
 
@@ -206,7 +220,7 @@ describe("validateCgi / runOfficialCall", () => {
     const r = await runOfficialCall("13800000000", "pwd", "/mail/getMetaInfoList", { from: 0 });
     expect(r.cgi).toBe("/mail/getMetaInfoList");
     expect(r.result.result).toHaveLength(1);
-    const [, opts] = fetchMock.mock.calls.find((c: any) => c[0].includes("/mail/getMetaInfoList"))!;
+    const [, opts] = fetchMock.mock.calls.find((c) => c[0].includes("/mail/getMetaInfoList"))!;
     expect(JSON.parse(opts.body)).toEqual({ from: 0 });
     vi.unstubAllGlobals();
   });
@@ -259,7 +273,7 @@ describe("uploadPixelArtBatch（复用登录 + 网关连接）", () => {
     expect(gwMocks.confirmSave).toHaveBeenCalledTimes(2);
     expect(gwMocks.close).toHaveBeenCalledTimes(1);
     // HTTP 上传 2 次（multipart）
-    const uploadCalls = fetchMock.mock.calls.filter((c: any[]) => String(c[0]).includes("savePixelArt"));
+    const uploadCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes("savePixelArt"));
     expect(uploadCalls).toHaveLength(2);
     vi.unstubAllGlobals();
   });

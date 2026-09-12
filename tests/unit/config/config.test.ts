@@ -5,7 +5,28 @@ vi.mock("os", () => ({
 }));
 
 import os from "os";
+import type { NetworkInterfaceInfo } from "node:os";
 import config, { detectLocalIp, resolvePortOverride } from "@core/config/index";
+
+/**
+ * 网络接口夹具视图
+ *
+ * `detectLocalIp` 只读取 `family`/`address`/`internal`（见 app/core/config/index.ts 的
+ * `detectLocalIp`），而真实 `NetworkInterfaceInfo` 另有 mac/netmask/cidr 等必填字段；
+ * 补字段会改变运行期夹具，故按视图构造后单向断言为返回类型（真实类型可赋给该视图）。
+ */
+interface NetworkInterfaceFixture {
+  family: string;
+  address: string;
+  internal: boolean;
+}
+
+/** 覆写 os.networkInterfaces 的返回值（单向断言，见 {@link NetworkInterfaceFixture}） */
+function mockNetworkInterfaces(interfaces: Record<string, NetworkInterfaceFixture[]>): void {
+  vi.mocked(os.networkInterfaces).mockReturnValue(
+    interfaces as NodeJS.Dict<NetworkInterfaceInfo[]>,
+  );
+}
 
 describe("config Host 处理", () => {
   beforeEach(() => {
@@ -18,7 +39,7 @@ describe("config Host 处理", () => {
   });
 
   it("detectLocalIp 应返回第一个非回环 IPv4", () => {
-    (os.networkInterfaces as any).mockReturnValue({
+    mockNetworkInterfaces({
       eth0: [{ family: "IPv4", address: "192.168.1.50", internal: false }],
       lo: [{ family: "IPv4", address: "127.0.0.1", internal: true }],
     });
@@ -26,14 +47,14 @@ describe("config Host 处理", () => {
   });
 
   it("无局域网 IP 时应回退 127.0.0.1", () => {
-    (os.networkInterfaces as any).mockReturnValue({
+    mockNetworkInterfaces({
       lo: [{ family: "IPv4", address: "127.0.0.1", internal: true }],
     });
     expect(detectLocalIp()).toBe("127.0.0.1");
   });
 
   it("Host 含 auto 时应自动检测替换", () => {
-    (os.networkInterfaces as any).mockReturnValue({
+    mockNetworkInterfaces({
       eth0: [{ family: "IPv4", address: "10.0.0.8", internal: false }],
     });
     // 模拟 auto 配置替换逻辑

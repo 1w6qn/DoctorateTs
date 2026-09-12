@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { openDatabase, SCHEMA_SQL, closeDatabase } from "@core/db/database";
 import type { SqlDatabase } from "@core/db/types";
 import { ReplayRepository } from "@core/db/replay-repo";
+import type { BattleRecord } from "@game/kernel/battle-info-store";
+import { asModel } from "../../helpers";
 
 describe("ReplayRepository 战斗回放独立存储（R4）", () => {
   let repo: ReplayRepository;
@@ -44,18 +46,18 @@ describe("ReplayRepository 战斗回放独立存储（R4）", () => {
   });
 
   it("saveRecord / listRecords 结束记录往返（按创建时间倒序）", async () => {
-    await repo.saveRecord({
+    await repo.saveRecord(asModel<BattleRecord>({
       battleId: "b1",
       uid: "1",
       stageId: "st_01",
       createdTs: 1000,
-    } as any);
-    await repo.saveRecord({
+    }));
+    await repo.saveRecord(asModel<BattleRecord>({
       battleId: "b2",
       uid: "1",
       stageId: "st_02",
       createdTs: 2000,
-    } as any);
+    }));
     const list = await repo.listRecords("1");
     expect(list.map((r) => r.battleId)).toEqual(["b2", "b1"]);
     await expect(repo.getRecord("1", "b1")).resolves.toMatchObject({ stageId: "st_01" });

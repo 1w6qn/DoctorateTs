@@ -5,21 +5,41 @@
  * 防止后续收紧 schema 再次误伤正常客户端请求。
  */
 import { describe, it, expect, vi } from "vitest";
+import type { NextFunction, Response } from "express";
+import type { ZodSchema } from "zod";
+import type { JsonValue } from "@excel/json-value";
 import * as Building from "@game/modules/building/schemas";
 import * as BusinessCard from "@game/modules/businessCard/businessCard.schema";
 import { validateBody } from "@game/kernel/http/validate-body";
 
-function makeRes() {
-  const json = vi.fn();
-  const status = vi.fn().mockReturnThis();
-  return { json, status };
+/** 校验中间件的请求视图：只声明被测分支读到的 body */
+interface MockReq {
+  body: JsonValue;
+}
+
+/** 校验中间件的响应视图：只声明被测分支读到的两个方法 */
+interface MockRes {
+  json: Response["json"];
+  status: Response["status"];
+}
+
+type ValidateMiddleware = ReturnType<typeof validateBody>;
+type RouterReq = Parameters<ValidateMiddleware>[0];
+
+function makeRes(): MockRes {
+  return {
+    json: vi.fn<Response["json"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+  };
 }
 
 /** 断言合法 body 通过（next 被调用且未返回 4xx） */
-function expectPass(schema: any, body: unknown): void {
+function expectPass(schema: ZodSchema, body: JsonValue): void {
   const res = makeRes();
-  const next = vi.fn();
-  validateBody(schema)({ body } as any, res as any, next);
+  const next: NextFunction = vi.fn();
+  const req: MockReq = { body };
+  // mock 请求/响应只覆盖被测分支用到的成员，故按窄视图断言为 express Request/Response
+  validateBody(schema)(req as RouterReq, res as Response, next);
   expect(next).toHaveBeenCalledTimes(1);
   expect(res.status).not.toHaveBeenCalled();
 }

@@ -91,6 +91,17 @@ describe("类型债守卫（any/unknown/object 棘轮）", { timeout: 180000 }, 
       object: 0,
     });
     expect(countVagueTypes("const t = foo.object;")).toEqual({ any: 0, unknown: 0, object: 0 });
+    // 对象字面量/接口成员的**属性名**不是类型位置（守卫断言里的 `{ any: 0, unknown: 0, object: 0 }` 即此类）
+    expect(countVagueTypes("const x = { any: 0, unknown: 1, object: 2 };")).toEqual({
+      any: 0,
+      unknown: 0,
+      object: 0,
+    });
+    expect(countVagueTypes("interface X { any: number; object: string }")).toEqual({
+      any: 0,
+      unknown: 0,
+      object: 0,
+    });
   });
 
   it("负样本自证：真实类型位置的关键字被计入", () => {
@@ -176,17 +187,18 @@ describe("类型债守卫（any/unknown/object 棘轮）", { timeout: 180000 }, 
     ).toEqual([]);
   });
 
-  it("app+index 已全量清零：any 必须恒为 0（阶段 4 门禁，不得回退）", () => {
-    // 阶段 3 收尾后 app/ 与 index.ts 的 any 已累计 1516 → 0（见 PROGRESS.md 数字轨迹）。
-    // 棘轮只能保证「不上升」，无法阻止在**已清零**的目录里重新引入 any；本用例把
-    // 「app+index any === 0」锁成硬门禁。unknown/object 仍走上面的逐文件棘轮（尚未清零）。
-    const appScan = scanTypeDebt(REPO_ROOT, ["app"], ["index.ts"]);
-    const offenders = Object.entries(appScan)
+  it("全仓 any 已清零：必须恒为 0（阶段 7 门禁，不得回退）", () => {
+    // 累计轨迹：any 7131 → 0（app+index 1516→0、tests 5511→0、scripts 104→0；见 PROGRESS.md）。
+    // 棘轮只能保证「不上升」，无法阻止在**已清零**的范围里重新引入 any；本用例把
+    // 「全仓 any === 0」锁成硬门禁（复用 currentScan() 缓存，不额外扫描）。
+    // unknown/object 尚未清零，仍走上面的逐文件棘轮（不得上升、不得新增文件）。
+    const current = currentScan();
+    const offenders = Object.entries(current)
       .filter(([, counts]) => counts.any > 0)
       .map(([file, counts]) => `${file}: any=${counts.any}`);
     expect(
-      totalOf(appScan).any,
-      `app+index 不得再出现 any（该范围已全量清零，请改用精确类型）：\n  ${offenders.join("\n  ")}`,
+      totalOf(current).any,
+      `全仓不得再出现 any（已全量清零，请改用精确类型）：\n  ${offenders.join("\n  ")}`,
     ).toBe(0);
   });
 

@@ -4,14 +4,29 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
+/** excel mock 行形状（本文件用到的字段子集） */
+interface ExcelRowMock {
+  name?: string;
+}
+
+/** 干员行夹具形状（本文件用到的字段子集） */
+interface ExcelCharRowMock {
+  charId?: string;
+  rarity?: string;
+  profession?: string;
+}
+
 vi.mock("@excel/excel", () => ({
   default: {
+    ItemTable: undefined as { items?: Record<string, ExcelRowMock> } | undefined,
+    CharacterTable: undefined as Record<string, ExcelCharRowMock> | undefined,
+    StageTable: undefined as { stages?: Record<string, ExcelRowMock> } | undefined,
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    getItem(id: string): ExcelRowMock | undefined { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+    charData(charId: string): ExcelCharRowMock | undefined { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string): ExcelRowMock | undefined { return this.StageTable?.stages?.[stageId]; },
 
     ShopTable: {
       skinGoodList: { goodList: [] },
@@ -26,56 +41,103 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
+import type { Response } from "express";
 import httpContext from "express-http-context2";
 import shopRouter from "@game/modules/shop/handler";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData, asModel } from "../../helpers";
+import type { SkinGoodList } from "@excel/excel";
+import type { SkinTable } from "@excel/types_excel_gen";
+import type { PlayerShop } from "@game/kernel/playerdata";
 
-function mockRes() {
-  return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };
+/** 商店请求体视图（本文件各端点字段合集） */
+interface ShopBody {
+  goodIdMap?: { [shopKey: string]: string[] };
 }
 
-describe("shop 路由", () => {
-  let player: any;
-  let res: any;
+/** 路由测试请求视图（只声明被测分支读到的三个成员） */
+interface MockReq {
+  method: string;
+  url: string;
+  body: ShopBody;
+}
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    player = mockPlayerData({
-      shop: {
-        LS: { info: [{ id: "LS_good_1", count: 2 }] },
-        HS: { info: [] },
-        GP: {
-          oneTime: { info: [{ id: "GP_Once_330", count: 1 }] },
-          weekly: { info: [] },
-        },
-        CASH: { info: [{ id: "CS_1_r1", count: 1 }] },
-        SOCIAL: { info: [] },
-        CLASSIC: { info: [] },
-      } as any,
-    });
+/** 路由测试响应视图（只声明被测分支读到的四个方法） */
+interface MockRes {
+  send: Response["send"];
+  status: Response["status"];
+  sendStatus: Response["sendStatus"];
+  json: Response["json"];
+}
+
+type RouterReq = Parameters<typeof shopRouter>[0];
+
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    json: vi.fn<Response["json"]>(),
+  };
+}
+
+/**
+ * 组装 shop 用例的玩家组合根
+ *
+ * 路由跨周期刷新经 `player.modules.shop` 访问（组合根替身的窄接口不含 modules），
+ * 故用 `Object.assign` 在运行时挂载管理器替身，其余成员保持 mock 原样。
+ */
+function makePlayer() {
+  const mock = mockPlayerData({
+    shop: {
+      LS: { info: [{ id: "LS_good_1", count: 2 }] },
+      HS: { info: [] },
+      GP: {
+        oneTime: { info: [{ id: "GP_Once_330", count: 1 }] },
+        weekly: { info: [] },
+      },
+      CASH: { info: [{ id: "CS_1_r1", count: 1 }] },
+      SOCIAL: { info: [] },
+      CLASSIC: { info: [] },
+    },
+  });
+  return Object.assign(mock, {
     // 商店管理器（路由跨周期刷新依赖，经 player.modules.shop 访问）
-    player.modules = {
+    modules: {
       shop: {
         todayLowShopId: () => "lggShdShopnumber88",
         todayExtraShopId: () => "xShdShopnumber5",
         monthlyRefresh: vi.fn(async () => {
-          player._playerdata.shop.LS.curShopId = "lggShdShopnumber88";
-          player._playerdata.shop.LS.info = [];
+          mock._playerdata.shop.LS.curShopId = "lggShdShopnumber88";
+          mock._playerdata.shop.LS.info = [];
         }),
         refreshExtraShop: vi.fn(async () => {
-          player._playerdata.shop.ES.curShopId = "xShdShopnumber5";
-          player._playerdata.shop.ES.info = [];
+          mock._playerdata.shop.ES.curShopId = "xShdShopnumber5";
+          mock._playerdata.shop.ES.info = [];
         }),
         todaySocialShopId: () => "SOCIAL20260818",
         refreshSocialShop: vi.fn(async () => {}),
       },
-    };
+    },
+  });
+}
+
+type PlayerFixture = ReturnType<typeof makePlayer>;
+
+describe("shop 路由", () => {
+  let player: PlayerFixture;
+  let res: MockRes;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    player = makePlayer();
     res = mockRes();
-    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    vi.mocked(httpContext.get).mockReturnValue(player);
   });
 
-  async function call(url: string, body: any) {
-    shopRouter({ method: "POST", url, body } as any, res, () => {});
+  async function call(url: string, body: ShopBody) {
+    const req: MockReq = { method: "POST", url, body };
+    // mock 请求/响应只覆盖被测分支用到的成员，故按窄视图断言为 express Request/Response
+    shopRouter(req as RouterReq, res as Response, () => {});
     await new Promise((r) => setTimeout(r, 20));
   }
 
@@ -88,7 +150,7 @@ describe("shop 路由", () => {
         HS: [],
       },
     });
-    const sent = res.send.mock.calls[0][0];
+    const sent = vi.mocked(res.send).mock.calls[0][0];
     expect(sent.result).toEqual({
       LS_good_1: -1, // 已购买
       LS_not_bought: 1, // 可购买
@@ -100,35 +162,37 @@ describe("shop 路由", () => {
 
   it("getGoodPurchaseState 空 goodIdMap 应返回空 result", async () => {
     await call("/getGoodPurchaseState", { goodIdMap: {} });
-    const sent = res.send.mock.calls[0][0];
+    const sent = vi.mocked(res.send).mock.calls[0][0];
     expect(sent.result).toEqual({});
   });
 
   it("getSkinGoodList 应过滤皮肤表缺失条目并重排唯一 slotId", async () => {
     const excelMock = await import("@excel/excel");
-    const excel = excelMock.default as any;
-    // 构造含冲突 slotId + 无效皮肤的数据
-    excel.ShopTable.skinGoodList = {
+    const excel = excelMock.default;
+    // 构造含冲突 slotId + 无效皮肤的数据（夹具只声明被测分支读到的字段）
+    excel.ShopTable.skinGoodList = asModel<SkinGoodList>({
       goodList: [
         { goodId: "SS_skin_a#1", skinId: "skin_a#1", charId: "char_a", price: 18, slotId: 45 },
         { goodId: "SS_skin_b#1", skinId: "skin_b#1", charId: "char_b", price: 18, slotId: 45 }, // 与上冲突
         { goodId: "SS_bad#1", skinId: "not_in_table#1", charId: "char_b", price: 18, slotId: 46 }, // 皮肤表缺失
       ],
-    };
-    excel.SkinTable = {
+    });
+    excel.SkinTable = asModel<SkinTable>({
       charSkins: {
         "skin_a#1": { charId: "char_a", skinId: "skin_a#1", isBuySkin: true },
         "skin_b#1": { charId: "char_b", skinId: "skin_b#1", isBuySkin: true },
       },
-    };
+    });
     // 注：data/config.json 的 config.shop.skinSellAll=true → 走「售卖全部可购买皮肤」自动
     // 生成路径（仅收录 charSkins 中 isBuySkin 的皮肤，天然过滤皮肤表缺失条目并重排 slotId）
     await call("/getSkinGoodList", {});
-    const sent = res.send.mock.calls[0][0];
+    const sent = vi.mocked(res.send).mock.calls[0][0];
     // 无效皮肤被过滤（2 条）
     expect(sent.goodList).toHaveLength(2);
     // slotId 唯一连续（1..n），无冲突
-    const ids = sent.goodList.map((g: any) => g.slotId);
+    /** 皮肤商品行响应视图（本用例读 slotId） */
+    interface SkinGoodRowView { slotId: number }
+    const ids = (sent.goodList as SkinGoodRowView[]).map((g) => g.slotId);
     expect(new Set(ids).size).toBe(2);
     expect(ids.sort((a: number, b: number) => a - b)).toEqual([1, 2]);
   });
@@ -144,7 +208,7 @@ describe("shop 路由", () => {
   });
 
   it("getExtraGoodList 旧年份 curShopId 应跨年重置（剩余时间不为负）", async () => {
-    player._playerdata.shop.ES = { curShopId: "xShdShopnumber2", info: [{ id: "ES_xShdShopnumber2_1", count: 6 }] };
+    player._playerdata.shop.ES = asModel<PlayerShop["ES"]>({ curShopId: "xShdShopnumber2", info: [{ id: "ES_xShdShopnumber2_1", count: 6 }] });
     await call("/getExtraGoodList", {});
     expect(player.modules.shop.refreshExtraShop).toHaveBeenCalled();
     expect(player._playerdata.shop.ES.curShopId).toBe("xShdShopnumber5");

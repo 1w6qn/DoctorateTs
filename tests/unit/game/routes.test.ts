@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import type { NextFunction, Request, Response } from "express";
 import {
   routes,
   crisisV2Rewrite,
@@ -11,6 +12,20 @@ import {
  * 断言声明式路由表把每个客户端关键前缀解析到意图 router 模块、根级 rootRouter 挂载、
  * 以及内联 URL 重写函数（crisisV2 / sandboxPerm）的重写行为。
  */
+
+/** URL 重写函数的请求窄视图（只读取/重写 url） */
+interface RewriteReq {
+  url: string;
+}
+
+/** 以窄视图调用内联 URL 重写函数（真实 Request 可赋给该视图；重写函数不读 res） */
+function runRewrite(
+  rewrite: (req: Request, res: Response, next: NextFunction) => void,
+  req: RewriteReq,
+  next: () => void,
+): void {
+  rewrite(req as Request, {} as Response, next);
+}
 
 /** 客户端关键单前缀 → 意图 router 模块（默认导出） */
 const expectedPrefixes: Array<[string, string]> = [
@@ -131,29 +146,29 @@ describe("集中路由注册表 routes", () => {
   });
 
   it("crisisV2Rewrite 将去前缀后的 url 前补 /v2", () => {
-    const req: any = { url: "/battleStart" };
+    const req: RewriteReq = { url: "/battleStart" };
     const next = vi.fn();
-    crisisV2Rewrite(req, {} as any, next);
+    runRewrite(crisisV2Rewrite, req, next);
     expect(req.url).toBe("/v2/battleStart");
     expect(next).toHaveBeenCalledTimes(1);
   });
 
   it("sandboxPermRewrite 映射 /sandboxV2|V3 段并保留其余路径", () => {
-    const v2: any = { url: "/sandboxV2/foo/bar" };
+    const v2: RewriteReq = { url: "/sandboxV2/foo/bar" };
     const n2 = vi.fn();
-    sandboxPermRewrite(v2, {} as any, n2);
+    runRewrite(sandboxPermRewrite, v2, n2);
     expect(v2.url).toBe("/v2/foo/bar");
     expect(n2).toHaveBeenCalledTimes(1);
 
-    const v3: any = { url: "/sandboxV3/baz" };
+    const v3: RewriteReq = { url: "/sandboxV3/baz" };
     const n3 = vi.fn();
-    sandboxPermRewrite(v3, {} as any, n3);
+    runRewrite(sandboxPermRewrite, v3, n3);
     expect(v3.url).toBe("/v3/baz");
     expect(n3).toHaveBeenCalledTimes(1);
 
-    const other: any = { url: "/changeTopic" };
+    const other: RewriteReq = { url: "/changeTopic" };
     const no = vi.fn();
-    sandboxPermRewrite(other, {} as any, no);
+    runRewrite(sandboxPermRewrite, other, no);
     expect(other.url).toBe("/changeTopic");
     expect(no).toHaveBeenCalledTimes(1);
   });

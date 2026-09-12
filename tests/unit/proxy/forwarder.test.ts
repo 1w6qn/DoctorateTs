@@ -7,11 +7,22 @@
  * 新增：自定义上游经 createProxyForwarder 生效、request/response 变换器接入转发链。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Request, Response } from "express";
+import type { AxiosRequestConfig, AxiosResponse } from "axios";
+import type { JsonValue } from "@excel/json-value";
+import type { RegionConfig } from "@core/config/region";
 
-vi.mock("axios", () => ({ default: vi.fn() }));
+/**
+ * axios 替身
+ *
+ * `vi.mock` 全量替换模块 default 为同一个 vi.fn；转发中间件走单 config 形式调用
+ * （见 app/ops/proxy/forwarder.ts:160），故按该调用面声明签名，供调用记录与响应重放取型。
+ */
+const axiosMock = vi.hoisted(() => vi.fn<(config: AxiosRequestConfig) => Promise<AxiosResponse>>());
+vi.mock("axios", () => ({ default: axiosMock }));
 
-import axios from "axios";
 import { createProxyForwarder } from "@ops/proxy/forwarder";
+import type { ProxyForwarderOptions } from "@ops/proxy/forwarder";
 import { OFFICIAL_AS_HOST, OFFICIAL_GS_HOST } from "@ops/proxy/upstream";
 import {
   registerUpstream,
@@ -26,31 +37,82 @@ import {
 import { getGatewayTarget } from "@game/modules/activities/arkhub/public";
 import config from "@core/config/index";
 
+/** 转发响应替身只声明中间件实际读取的字段（status/data，见 forwarder.ts:174） */
+interface ProxyResponseStub {
+  status: number;
+  data: JsonValue;
+}
+
+/**
+ * 构造 axios 响应替身
+ *
+ * 真实 `AxiosResponse` 可赋给 {@link ProxyResponseStub}（单向），故按该窄视图做一次断言后
+ * 交给 mock——不虚构 headers/config 等中间件不读的响应字段。
+ */
+function axiosResponse(stub: ProxyResponseStub): AxiosResponse {
+  return stub as AxiosResponse;
+}
+
+/**
+ * 转发中间件读取的请求面
+ *
+ * 中间件读取 method/url/headers/body/query/originalUrl 与 server.ts 捕获的 rawBody
+ * （见 app/ops/proxy/forwarder.ts:119-144）；真实 express Request 可赋给本视图，
+ * 故以一次单向断言把替身交给中间件。
+ */
+interface MockReq {
+  method: string;
+  url: string;
+  headers: Request["headers"];
+  body: Request["body"];
+  query: Request["query"];
+  originalUrl: string;
+  rawBody?: Buffer;
+}
+
+/** 转发中间件的响应替身视图：仅 status/send */
+interface MockRes {
+  status: Response["status"];
+  send: Response["send"];
+}
+
+/** 转发中间件替身调用面：以窄 req/res 视图调用（真实 Request/Response 可赋给两者，单向） */
+type ForwarderUnderTest = (
+  req: MockReq,
+  res: MockRes,
+  next: () => void,
+) => Promise<void>;
+
+/** 创建被测转发中间件（返回类型收窄到测试替身调用面） */
+function makeForwarder(opts?: ProxyForwarderOptions): ForwarderUnderTest {
+  return createProxyForwarder(opts) as ForwarderUnderTest;
+}
+
 /** 保存/恢复 config 的 region 相关字段（region 主机用例隔离；支持 async fn） */
 async function withCaptureRegion(
-  patch: { enabled: boolean; region?: string; regions?: Record<string, any> },
+  patch: { enabled: boolean; region?: string; regions?: Record<string, RegionConfig> },
   fn: () => Promise<void> | void,
 ): Promise<void> {
   const savedCapture = config.capture;
-  const savedRegions = (config as any).regions;
+  const savedRegions = config.regions;
   try {
-    (config as any).capture = {
+    config.capture = {
       ...(savedCapture ?? {}),
       enabled: patch.enabled,
       ...(patch.region !== undefined ? { region: patch.region } : {}),
     };
-    if (patch.regions !== undefined) (config as any).regions = patch.regions;
+    if (patch.regions !== undefined) config.regions = patch.regions;
     await fn();
   } finally {
-    (config as any).capture = savedCapture;
-    (config as any).regions = savedRegions;
+    config.capture = savedCapture;
+    config.regions = savedRegions;
   }
 }
 
-const mockAxios = axios as unknown as ReturnType<typeof vi.fn>;
+const mockAxios = axiosMock;
 
-/** 最小 Express req（rawBody 可覆写） */
-function makeReq(partial: Record<string, unknown> = {}): any {
+/** 最小 Express req（partial 覆盖默认字段，如 rawBody / 自定义头） */
+function makeReq(partial: Partial<MockReq> = {}): MockReq {
   return {
     method: "POST",
     url: "/account/login",
@@ -71,10 +133,10 @@ describe("createProxyForwarder（转发中间件）", () => {
   });
 
   it("转发命中时不 next()，原样透传官服状态与响应体", async () => {
-    mockAxios.mockResolvedValueOnce({ status: 200, data: { ok: true } });
-    const handler = createProxyForwarder();
+    mockAxios.mockResolvedValueOnce(axiosResponse({ status: 200, data: { ok: true } }));
+    const handler = makeForwarder();
     const req = makeReq();
-    const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+    const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
     const next = vi.fn();
 
     await handler(req, res, next);
@@ -92,8 +154,8 @@ describe("createProxyForwarder（转发中间件）", () => {
   });
 
   it("剥离 host/content-length/transfer-encoding（防 content-length 透传导致官服挂起），其余头保留", async () => {
-    mockAxios.mockResolvedValueOnce({ status: 200, data: {} });
-    const handler = createProxyForwarder();
+    mockAxios.mockResolvedValueOnce(axiosResponse({ status: 200, data: {} }));
+    const handler = makeForwarder();
     const req = makeReq({
       url: "/user/oauth2/v2/grant",
       originalUrl: "/user/oauth2/v2/grant",
@@ -106,30 +168,30 @@ describe("createProxyForwarder（转发中间件）", () => {
       },
       body: { token: "x", type: 0 },
     });
-    const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+    const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
     const next = vi.fn();
 
     await handler(req, res, next);
 
     const [call] = mockAxios.mock.calls;
-    const headers = call[0].headers as Record<string, unknown>;
-    expect(headers["host"]).toBeUndefined();
-    expect(headers["content-length"]).toBeUndefined();
-    expect(headers["transfer-encoding"]).toBeUndefined();
+    const headers = call[0].headers;
+    expect(headers?.["host"]).toBeUndefined();
+    expect(headers?.["content-length"]).toBeUndefined();
+    expect(headers?.["transfer-encoding"]).toBeUndefined();
     // 其余业务头保留透传
-    expect(headers["content-type"]).toBe("application/json");
-    expect(headers["x-deviceid"]).toBe("06cfbdc4f24e55eea40ef8b5cab88b0c");
+    expect(headers?.["content-type"]).toBe("application/json");
+    expect(headers?.["x-deviceid"]).toBe("06cfbdc4f24e55eea40ef8b5cab88b0c");
   });
 
   it("未命中转发目标时 next()，不改写响应", async () => {
-    const handler = createProxyForwarder();
+    const handler = makeForwarder();
     const req = makeReq({
       method: "GET",
       url: "/config/prod/official/network_config",
       originalUrl: "/config/prod/official/network_config",
       body: {},
     });
-    const res = { status: vi.fn(), send: vi.fn() } as any;
+    const res: MockRes = { status: vi.fn(), send: vi.fn() };
     const next = vi.fn();
 
     await handler(req, res, next);
@@ -141,9 +203,9 @@ describe("createProxyForwarder（转发中间件）", () => {
 
   it("网络层错误（官服不可达）返回 502", async () => {
     mockAxios.mockRejectedValueOnce(new Error("ENOTFOUND"));
-    const handler = createProxyForwarder();
+    const handler = makeForwarder();
     const req = makeReq();
-    const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+    const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
     const next = vi.fn();
 
     await handler(req, res, next);
@@ -153,7 +215,7 @@ describe("createProxyForwarder（转发中间件）", () => {
   });
 
   it("arkhub enterHall 转发官服并改写 endpoint/port 指向代理（网关转发器运行中）", async () => {
-    mockAxios.mockResolvedValueOnce({
+    mockAxios.mockResolvedValueOnce(axiosResponse({
       status: 200,
       data: {
         result: 0,
@@ -161,8 +223,8 @@ describe("createProxyForwarder（转发中间件）", () => {
         port: 30000,
         playerDataDelta: { modified: {}, deleted: {} },
       },
-    });
-    const handler = createProxyForwarder({
+    }));
+    const handler = makeForwarder({
       arkhubGateway: { endpoint: "127.0.0.1", port: 30000 },
     });
     const req = makeReq({
@@ -170,7 +232,7 @@ describe("createProxyForwarder（转发中间件）", () => {
       originalUrl: "/activity/arkhub/enterHall",
       body: { activityId: "act1arkhub", createHall: 0 },
     });
-    const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+    const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
     const next = vi.fn();
 
     await handler(req, res, next);
@@ -191,17 +253,17 @@ describe("createProxyForwarder（转发中间件）", () => {
   });
 
   it("未传 arkhubGateway（转发器未启动）时 enterHall 响应不改写但仍更新转发目标", async () => {
-    mockAxios.mockResolvedValueOnce({
+    mockAxios.mockResolvedValueOnce(axiosResponse({
       status: 200,
       data: { result: 0, endpoint: "arkhub-gateway-canary.hypergryph.com", port: 30000, playerDataDelta: {} },
-    });
-    const handler = createProxyForwarder(); // 无 arkhubGateway
+    }));
+    const handler = makeForwarder(); // 无 arkhubGateway
     const req = makeReq({
       url: "/activity/arkhub/enterHall",
       originalUrl: "/activity/arkhub/enterHall",
       body: { activityId: "act1arkhub", createHall: 0 },
     });
-    const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+    const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
     const next = vi.fn();
 
     await handler(req, res, next);
@@ -216,8 +278,8 @@ describe("createProxyForwarder（转发中间件）", () => {
   });
 
   it("非 enterHall 的 arkhub 接口（syncInfo）仍转发官服（抓真实响应）", async () => {
-    mockAxios.mockResolvedValueOnce({ status: 200, data: { playerDataDelta: {} } });
-    const handler = createProxyForwarder({
+    mockAxios.mockResolvedValueOnce(axiosResponse({ status: 200, data: { playerDataDelta: {} } }));
+    const handler = makeForwarder({
       arkhubGateway: { endpoint: "127.0.0.1", port: 30000 },
     });
     const req = makeReq({
@@ -225,7 +287,7 @@ describe("createProxyForwarder（转发中间件）", () => {
       originalUrl: "/activity/arkhub/syncInfo",
       body: { activityId: "act1arkhub" },
     });
-    const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+    const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
     const next = vi.fn();
 
     await handler(req, res, next);
@@ -235,8 +297,8 @@ describe("createProxyForwarder（转发中间件）", () => {
   });
 
   it("multipart（req.rawBody 存在）原样透传原始字节，不用空 req.body", async () => {
-    mockAxios.mockResolvedValueOnce({ status: 200, data: {} });
-    const handler = createProxyForwarder();
+    mockAxios.mockResolvedValueOnce(axiosResponse({ status: 200, data: {} }));
+    const handler = makeForwarder();
     const raw = Buffer.from('--C880D0B0\r\nContent-Disposition: form-data; name="test"\r\n\r\npixel-data\r\n--C880D0B0--\r\n');
     const req = makeReq({
       url: "/activity/arkhub/savePixelArt",
@@ -248,7 +310,7 @@ describe("createProxyForwarder（转发中间件）", () => {
       body: {},
       rawBody: raw,
     });
-    const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+    const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
     const next = vi.fn();
 
     await handler(req, res, next);
@@ -257,11 +319,11 @@ describe("createProxyForwarder（转发中间件）", () => {
     // 转发体是原始 Buffer（multipart 字节原样），而不是 {}
     expect(call[0].data).toBe(raw);
     expect(call[0].data).not.toBe(req.body);
-    expect(call[0].headers["content-type"]).toBe('multipart/form-data; boundary="C880D0B0"');
+    expect(call[0].headers?.["content-type"]).toBe('multipart/form-data; boundary="C880D0B0"');
   });
 
   it("capture + region.as/gs → 转发目标使用 region 主机（yostar 登录路径 → region.as）", async () => {
-    mockAxios.mockResolvedValueOnce({ status: 200, data: {} });
+    mockAxios.mockResolvedValueOnce(axiosResponse({ status: 200, data: {} }));
     await withCaptureRegion(
       {
         enabled: true,
@@ -275,13 +337,13 @@ describe("createProxyForwarder（转发中间件）", () => {
         },
       },
       async () => {
-        const handler = createProxyForwarder();
+        const handler = makeForwarder();
         const req = makeReq({
           url: "/account/yostar_auth_request",
           originalUrl: "/account/yostar_auth_request",
           body: { account: "x", password: "y" },
         });
-        const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+        const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
         const next = vi.fn();
 
         await handler(req, res, next);
@@ -294,13 +356,13 @@ describe("createProxyForwarder（转发中间件）", () => {
   });
 
   it("capture 未启用 → 转发目标回退现状（OFFICIAL_GS_HOST）", async () => {
-    mockAxios.mockResolvedValueOnce({ status: 200, data: {} });
+    mockAxios.mockResolvedValueOnce(axiosResponse({ status: 200, data: {} }));
     await withCaptureRegion(
       { enabled: false, regions: { jp: { gs: "https://gs.example.jp" } } },
       async () => {
-        const handler = createProxyForwarder();
+        const handler = makeForwarder();
         const req = makeReq();
-        const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+        const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
         const next = vi.fn();
 
         await handler(req, res, next);
@@ -314,19 +376,19 @@ describe("createProxyForwarder（转发中间件）", () => {
 
   describe("自定义上游与变换器接入", () => {
     it("自定义上游（registerUpstream）命中 → 转发到自定义 baseUrl", async () => {
-      mockAxios.mockResolvedValueOnce({ status: 200, data: { from: "custom" } });
+      mockAxios.mockResolvedValueOnce(axiosResponse({ status: 200, data: { from: "custom" } }));
       registerUpstream({
         id: "obs",
         baseUrl: "https://obs.example.com",
         rules: [{ paths: ["/arkodc"] }],
       });
-      const handler = createProxyForwarder();
+      const handler = makeForwarder();
       const req = makeReq({
         url: "/arkodc/odp",
         originalUrl: "/arkodc/odp",
         body: { act: 1 },
       });
-      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
       const next = vi.fn();
 
       await handler(req, res, next);
@@ -338,7 +400,7 @@ describe("createProxyForwarder（转发中间件）", () => {
     });
 
     it("request 变换器改 header/body → axios 收到修改后参数", async () => {
-      mockAxios.mockResolvedValueOnce({ status: 200, data: {} });
+      mockAxios.mockResolvedValueOnce(axiosResponse({ status: 200, data: {} }));
       registerRequestTransform({
         path: "/account",
         fn: (ctx) => {
@@ -347,20 +409,20 @@ describe("createProxyForwarder（转发中间件）", () => {
           return ctx;
         },
       });
-      const handler = createProxyForwarder();
+      const handler = makeForwarder();
       const req = makeReq();
-      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
       const next = vi.fn();
 
       await handler(req, res, next);
 
       const [call] = mockAxios.mock.calls;
-      expect(call[0].headers["x-transform"]).toBe("yes");
+      expect(call[0].headers?.["x-transform"]).toBe("yes");
       expect(call[0].data).toEqual({ uid: "injected" });
     });
 
     it("response 变换器改 status/body → res.send 收到修改后响应", async () => {
-      mockAxios.mockResolvedValueOnce({ status: 200, data: { ok: true } });
+      mockAxios.mockResolvedValueOnce(axiosResponse({ status: 200, data: { ok: true } }));
       registerResponseTransform({
         path: "/account",
         fn: (ctx) => {
@@ -369,9 +431,9 @@ describe("createProxyForwarder（转发中间件）", () => {
           return ctx;
         },
       });
-      const handler = createProxyForwarder();
+      const handler = makeForwarder();
       const req = makeReq();
-      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
       const next = vi.fn();
 
       await handler(req, res, next);
@@ -381,7 +443,7 @@ describe("createProxyForwarder（转发中间件）", () => {
     });
 
     it("变换器仅在命中上游时执行（upstreamId 过滤作用于转发链）", async () => {
-      mockAxios.mockResolvedValueOnce({ status: 200, data: {} });
+      mockAxios.mockResolvedValueOnce(axiosResponse({ status: 200, data: {} }));
       registerResponseTransform({
         upstreamId: "custom-only",
         path: "/account",
@@ -390,9 +452,9 @@ describe("createProxyForwarder（转发中间件）", () => {
           return ctx;
         },
       });
-      const handler = createProxyForwarder();
+      const handler = makeForwarder();
       const req = makeReq(); // 走官方 gs → 变换器不命中
-      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const res: MockRes = { status: vi.fn().mockReturnThis(), send: vi.fn() };
       const next = vi.fn();
 
       await handler(req, res, next);

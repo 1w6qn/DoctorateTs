@@ -19,12 +19,44 @@ import mailRouter from "@game/modules/mail/routes";
 import httpContext from "express-http-context2";
 import { mailManager } from "@game/modules/mail/MailManager";
 
-function mockRes() {
-  return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };
+import type { Response } from "express";
+/** 路由测试请求体视图（本文件各端点字段合集） */
+interface MailBody {
+  mailIdList?: number[];
+  mailId?: number;
+  type?: number;
+  from?: number;
 }
 
-async function call(req: any, res: any) {
-  mailRouter(req, res, () => {});
+/** 路由测试请求视图（只声明被测分支读到的三个成员） */
+interface MockReq {
+  method: string;
+  url: string;
+  body: MailBody;
+}
+
+/** 路由测试响应视图（只声明被测分支读到的四个方法） */
+interface MockRes {
+  send: Response["send"];
+  status: Response["status"];
+  sendStatus: Response["sendStatus"];
+  json: Response["json"];
+}
+
+type RouterReq = Parameters<typeof mailRouter>[0];
+
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    json: vi.fn<Response["json"]>(),
+  };
+}
+
+async function call(req: MockReq, res: MockRes): Promise<MockRes> {
+  // mock 请求/响应只覆盖被测分支用到的成员，故按窄视图断言为 express Request/Response
+  mailRouter(req as RouterReq, res as Response, () => {});
   await new Promise((r) => setTimeout(r, 20));
   return res;
 }
@@ -32,7 +64,7 @@ async function call(req: any, res: any) {
 describe("mail 路由", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (vi.mocked(httpContext.get) as any).mockReturnValue({
+    vi.mocked(httpContext.get).mockReturnValue({
       uid: "10000",
       status: { uid: "10000" },
       // receiveMail/receiveAllMail 领奖后经 player.gainItem 管道入账

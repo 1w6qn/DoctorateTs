@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import type { Request, Response } from "express";
 
 import {
   buildNetworkConfig,
@@ -7,16 +8,37 @@ import {
   remoteConfigRouter,
 } from "@core/config/remote-config";
 
-function mockRes() {
-  return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };
+/** 路由测试响应视图：只声明本文件读到的四个方法 */
+interface MockRes {
+  send: Response["send"];
+  status: Response["status"];
+  sendStatus: Response["sendStatus"];
+  json: Response["json"];
 }
 
-async function call(url: string, res: any) {
-  remoteConfigRouter(
-    { method: "GET", url, params: { version: "1", platform: "Windows" } } as any,
-    res,
-    () => {},
-  );
+/** 路由测试请求视图：remote-config 只读 method/url/params */
+interface MockReq {
+  method: Request["method"];
+  url: Request["url"];
+  params: Request["params"];
+}
+
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    json: vi.fn<Response["json"]>(),
+  };
+}
+
+async function call(url: string, res: MockRes) {
+  const req: MockReq = {
+    method: "GET",
+    url,
+    params: { version: "1", platform: "Windows" },
+  };
+  remoteConfigRouter(req as Request, res as Response, () => {});
   await new Promise((r) => setTimeout(r, 20));
   return res;
 }
@@ -68,7 +90,7 @@ describe("remoteConfigRouter", () => {
   it("network_config 应返回官方格式网络配置", async () => {
     const res = mockRes();
     await call("/1/prod/default/Windows/network_config", res);
-    const arg = res.send.mock.calls[0][0];
+    const arg = vi.mocked(res.send).mock.calls[0][0];
     expect(arg.gs).toMatch(/^http/);
     expect(arg.configVer).toBeDefined();
   });
@@ -76,7 +98,7 @@ describe("remoteConfigRouter", () => {
   it("remote_config 应返回空对象（2026-08-08 起路由固定返回 {}，buildRemoteConfig 函数保留）", async () => {
     const res = mockRes();
     await call("/1/prod/default/Windows/remote_config", res);
-    const arg = res.send.mock.calls[0][0];
+    const arg = vi.mocked(res.send).mock.calls[0][0];
     expect(arg).toEqual({});
     // 否定旧行为：不再返回默认功能开关（防回归）
     expect(arg.fapv2).toBeUndefined();

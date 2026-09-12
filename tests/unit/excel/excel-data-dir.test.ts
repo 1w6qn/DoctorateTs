@@ -55,7 +55,7 @@ describe("excel 数据目录解析", () => {
       setExcelDataDir(dir);
       const { Excel } = await import("@excel/excel");
       const excel = new Excel();
-      expect((excel as any).ClueData).toEqual({ mafia: { id: "mafia", name: "叙拉古" } });
+      expect(excel.ClueData).toEqual({ mafia: { id: "mafia", name: "叙拉古" } });
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

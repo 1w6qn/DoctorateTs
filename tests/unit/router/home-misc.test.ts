@@ -4,15 +4,73 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
+import type { Response } from "express";
 import homeRouter from "@game/modules/home/routes";
 import httpContext from "express-http-context2";
 
-function mockRes() {
-  return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };
+/** home 请求体视图（本文件各端点字段合集） */
+interface HomeBody {
+  slots?: { x?: number }[];
+  animal?: string;
+  car?: { carId?: string };
+  trapDomainId?: string;
+  trapSquad?: number[];
+  instId?: string;
 }
 
-async function call(req: any, res: any) {
-  homeRouter(req, res, () => {});
+/** 路由测试请求视图（只声明被测分支读到的三个成员） */
+interface MockReq {
+  method: string;
+  url: string;
+  body: HomeBody;
+}
+
+/** 路由测试响应视图（只声明被测分支读到的四个方法） */
+interface MockRes {
+  send: Response["send"];
+  status: Response["status"];
+  sendStatus: Response["sendStatus"];
+  json: Response["json"];
+}
+
+/** 各端点写入的 draft 夹具视图（每个用例只喂一棵子树，故取并集） */
+interface FireworkPlateDraft {
+  firework: { plate: { slots?: { x?: number }[] } };
+}
+interface FireworkAnimalDraft {
+  firework: { animal: { select?: string } };
+}
+interface CarDraft {
+  car: { battleCar?: { carId?: string } };
+}
+interface TemplateTrapDraft {
+  templateTrap: { domains: { [domainId: string]: { squad?: number[] } } };
+}
+interface TroopDraft {
+  troop: { chars: { [instId: string]: { charId?: string } } };
+  mission: { pinnedSpecialOperator?: string };
+}
+type HomeDraftFixture =
+  | FireworkPlateDraft
+  | FireworkAnimalDraft
+  | CarDraft
+  | TemplateTrapDraft
+  | TroopDraft;
+
+type RouterReq = Parameters<typeof homeRouter>[0];
+
+function mockRes(): MockRes {
+  return {
+    send: vi.fn<Response["send"]>(),
+    status: vi.fn<Response["status"]>().mockReturnThis(),
+    sendStatus: vi.fn<Response["sendStatus"]>(),
+    json: vi.fn<Response["json"]>(),
+  };
+}
+
+async function call(req: MockReq, res: MockRes): Promise<MockRes> {
+  // mock 请求/响应只覆盖被测分支用到的成员，故按窄视图断言为 express Request/Response
+  homeRouter(req as RouterReq, res as Response, () => {});
   await new Promise((r) => setTimeout(r, 20));
   return res;
 }
@@ -22,11 +80,11 @@ describe("home 路由（OBS misc_bp 移植端点）", () => {
     vi.clearAllMocks();
   });
 
-  function mockUpdate(draft: any) {
-    const update = vi.fn(async (fn: (d: any) => void) => {
-      fn(draft);
+  function mockUpdate(draft: HomeDraftFixture) {
+    const update = vi.fn<(recipe: (draft: HomeDraftFixture) => void) => Promise<void>>(async (recipe) => {
+      recipe(draft);
     });
-    (vi.mocked(httpContext.get) as any).mockReturnValue({
+    vi.mocked(httpContext.get).mockReturnValue({
       update,
       delta: { modified: {} },
     });
@@ -34,7 +92,7 @@ describe("home 路由（OBS misc_bp 移植端点）", () => {
   }
 
   it("firework/savePlateSlots 应写入 firework.plate.slots", async () => {
-    const draft: any = { firework: { plate: {} } };
+    const draft: FireworkPlateDraft = { firework: { plate: {} } };
     mockUpdate(draft);
     const res = mockRes();
     await call({ method: "POST", url: "/firework/savePlateSlots", body: { slots: [{ x: 1 }] } }, res);
@@ -43,7 +101,7 @@ describe("home 路由（OBS misc_bp 移植端点）", () => {
   });
 
   it("firework/changeAnimal 应写入 firework.animal.select 并回显 animal", async () => {
-    const draft: any = { firework: { animal: {} } };
+    const draft: FireworkAnimalDraft = { firework: { animal: {} } };
     mockUpdate(draft);
     const res = mockRes();
     await call({ method: "POST", url: "/firework/changeAnimal", body: { animal: "dog" } }, res);
@@ -52,7 +110,7 @@ describe("home 路由（OBS misc_bp 移植端点）", () => {
   });
 
   it("car/confirmBattleCar 应写入 car.battleCar", async () => {
-    const draft: any = { car: {} };
+    const draft: CarDraft = { car: {} };
     mockUpdate(draft);
     const res = mockRes();
     await call({ method: "POST", url: "/car/confirmBattleCar", body: { car: { carId: "car_1" } } }, res);
@@ -61,7 +119,7 @@ describe("home 路由（OBS misc_bp 移植端点）", () => {
   });
 
   it("templateTrap/setTrapSquad 应写入 templateTrap.domains[id].squad 并回显", async () => {
-    const draft: any = { templateTrap: { domains: { d1: {} } } };
+    const draft: TemplateTrapDraft = { templateTrap: { domains: { d1: {} } } };
     mockUpdate(draft);
     const res = mockRes();
     await call(
@@ -75,7 +133,7 @@ describe("home 路由（OBS misc_bp 移植端点）", () => {
   });
 
   it("troop/pinSpecialOperator 应写入 mission.pinnedSpecialOperator", async () => {
-    const draft: any = { troop: { chars: { "10": { charId: "char_1001" } } }, mission: {} };
+    const draft: TroopDraft = { troop: { chars: { "10": { charId: "char_1001" } } }, mission: {} };
     mockUpdate(draft);
     const res = mockRes();
     await call({ method: "POST", url: "/troop/pinSpecialOperator", body: { instId: "10" } }, res);

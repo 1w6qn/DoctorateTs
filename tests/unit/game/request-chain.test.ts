@@ -7,16 +7,15 @@ import httpContext from "express-http-context2";
 
 // —— 模块级 mock（需在 import 被测模块前建立）——
 
-/** 被测模块 app/core/config 的 mock：authMode/singleUid 可热切换 */
+/** 被测模块 app/core/config 的 mock：authMode/singleUid 可热切换
+ *
+ * （此前的 excel 门面方法为历史复制粘贴残留，config 模块并无这些成员、也无调用方，故移除）
+ */
 const configMock = vi.hoisted(() => ({
   default: {
-    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
-    getItem(id: string) { return this.ItemTable?.items?.[id]; },
-    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
-    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
-    charData(charId: string) { return this.CharacterTable?.[charId]; },
-    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
- authMode: "single", singleUid: "1" },
+    authMode: "single",
+    singleUid: "1",
+  },
 }));
 vi.mock("@core/config/index", () => configMock);
 
@@ -29,8 +28,31 @@ const accountMock = vi.hoisted(() => ({
 }));
 vi.mock("@game/modules/account/AccountManager", () => accountMock);
 
+/** excel 行夹具视图（本文件不读取行字段） */
+interface ExcelRowMock {
+  name?: string;
+}
+
+/**
+ * excel 替身夹具视图
+ *
+ * 门面方法按 excel.ts 实现索引替身表；本文件未提供的表声明为可选
+ * （`this.X?.` 读取与「键不存在」运行期等价，不改变替身形状）。
+ */
+interface ExcelMockFixture {
+  getItem(id: string): ExcelRowMock | undefined;
+  itemName(id: string): string;
+  makeItem(id: string, count: number, type?: string): { id: string; count: number; type?: string };
+  charData(charId: string): ExcelRowMock | undefined;
+  stageData(stageId: string): ExcelRowMock | undefined;
+  ItemTable?: { items?: Record<string, ExcelRowMock> };
+  CharacterTable?: Record<string, ExcelRowMock>;
+  StageTable?: { stages?: Record<string, ExcelRowMock> };
+  DisplayMetaTable: null;
+}
+
 /** 避免加载真实 excel 数据表（重量级磁盘 IO），仅满足路由 import 的依赖形状 */
-vi.mock("@excel/excel", () => ({
+vi.mock("@excel/excel", (): { default: ExcelMockFixture } => ({
   default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
@@ -46,6 +68,16 @@ import userRouter from "@game/modules/user/routes";
 import miscAlignmentRouter from "@game/modules/misc-alignment/routes";
 import auditRouter from "@game/modules/system/routes";
 
+/** mock 玩家的存档种子（链路只经 update recipe 读写；delta 由 getter 提供） */
+interface RequestChainPlayerData {
+  status: { uid: number; nickName: string };
+}
+
+/** update 配方（draft 与 mock 存档同形） */
+type RequestChainRecipe = (
+  draft: RequestChainPlayerData,
+) => RequestChainPlayerData | Promise<RequestChainPlayerData>;
+
 /**
  * 创建可满足被测路由契约的 mock 玩家
  *
@@ -56,11 +88,11 @@ import auditRouter from "@game/modules/system/routes";
  */
 function createMockPlayer(opts: { uid?: string } = {}) {
   const uid = opts.uid ?? "1";
-  const playerdata: any = { status: { uid: Number(uid), nickName: "TestUser" } };
+  const playerdata: RequestChainPlayerData = { status: { uid: Number(uid), nickName: "TestUser" } };
   return {
     uid,
     _playerdata: playerdata,
-    update: vi.fn(async (recipe: (draft: any) => any | Promise<any>) => {
+    update: vi.fn(async (recipe: RequestChainRecipe) => {
       await recipe(playerdata);
     }),
     checkIn: { checkIn: vi.fn(async () => ({ result: 0 })) },
@@ -68,7 +100,7 @@ function createMockPlayer(opts: { uid?: string } = {}) {
     get delta() {
       return { playerDataDelta: { modified: {}, deleted: {} } };
     },
-  } as any;
+  };
 }
 
 /**

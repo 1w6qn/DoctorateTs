@@ -42,11 +42,12 @@ router.post("/user/yostar_createlogin", validateBody(miscAlignmentStubSchema), a
   res.send({ result: 0, uid: "", token: "" });
 });
 
-/** ODPY 独有 app/api 端点（stub） */
-router.get("/app/getCode", validateBody(miscAlignmentStubSchema), async (req, res) => {
+/** ODPY 独有 app/api 端点（stub）——ODPY 注册为 POST（appGetCode/appGetSettings 转发 passport），
+ *  本地既有为 GET，改为 all 覆盖两种方法（全量对齐按「路径可达」口径） */
+router.all("/app/getCode", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ code: "0" });
 });
-router.get("/app/getSettings", validateBody(miscAlignmentStubSchema), async (req, res) => {
+router.all("/app/getSettings", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({});
 });
 router.get("/api/gacha/cate", validateBody(miscAlignmentStubSchema), async (req, res) => {
@@ -68,9 +69,9 @@ router.post("/api/is/rogue_1/bulletinVersion", validateBody(miscAlignmentStubSch
   res.send({ version: 0 });
 });
 
-/** 用户协议（ODPY 独有，stub） */
-router.post("/user/agreement", validateBody(miscAlignmentStubSchema), async (req, res) => {
-  res.send({ result: 0 });
+/** 用户协议（ODPY 独有：GET 返回协议正文占位；POST 为本地既有 stub——两种方法都覆盖） */
+router.all("/user/agreement", validateBody(miscAlignmentStubSchema), async (_req, res) => {
+  res.send({ result: 0, data: [], version: "1.0.0" });
 });
 router.post("/user/auth/v2/token_by_phone_code", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ result: 3, msg: "token_by_phone_code 已由 /user/auth/v1 替代" });
@@ -95,6 +96,40 @@ for (const payVariantPath of [
       result: 0,
       ...(player ? player.delta : { playerDataDelta: { modified: {}, deleted: {} } }),
     });
+  });
+}
+
+/**
+ * 支付查询端点（ODPY 注册为 GET，本地原为 POST——补 GET 变体，其余方法不受影响）
+ *
+ * - GET /pay/order/v1/state：订单状态查询（ODPY pay.state 返回成功态样例）
+ * - GET /user/pay/v1/query_payment_config：可用支付渠道列表（ODPY 返回 alipay/wechat 列表）
+ */
+router.get("/pay/order/v1/state", validateBody(miscAlignmentStubSchema), async (_req, res) => {
+  res.send({
+    status: 101,
+    msg: "支付成功",
+    data: { endTime: Math.floor(Date.now() / 1000) - 10, productList: [] },
+  });
+});
+router.get("/user/pay/v1/query_payment_config", validateBody(miscAlignmentStubSchema), async (_req, res) => {
+  res.send({ data: { payment: [] } });
+});
+
+/**
+ * 寻访记录 / 卫戍协议战绩 webview 页面（客户端以网页形式打开）
+ *
+ * ODPY 直接返回官方页面 HTML；私服无对应网页资源，返回最小 HTML 占位保证路径可达
+ * （不伪造记录内容，避免误导）。
+ */
+for (const webviewPath of ["/gacha", "/autoChess/act1autochess", "/autoChess/act2autochess"]) {
+  router.get(webviewPath, validateBody(miscAlignmentStubSchema), async (_req, res) => {
+    res.type("html").send(
+      "<!doctype html><html lang=\"zh-cn\"><head><meta charset=\"utf-8\">" +
+        "<title>DoctorateTs</title></head><body>" +
+        "<p>该页面为官方网页版记录页，本地服务端不提供其内容。</p>" +
+        "</body></html>",
+    );
   });
 }
 

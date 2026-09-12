@@ -37,6 +37,15 @@ export function buildClassClosure(classes: ClassDef[], roots: string[]): Set<str
 export interface TypesBuildConfig {
   /** 根类名（闭包起点，多根） */
   roots: string[];
+  /** 输出文件顶部的 import 行（生成文件不产生隐式全局依赖） */
+  importLines?: string[];
+  /**
+   * 未建模字段（哨兵 `object`）归一化后的类型名
+   *
+   * 默认 `JsonValue`（递归，适用于只读的 excel 表数据）。
+   * 玩家存档域必须传 `ServerPayload`：`Draft<PlayerDataModel>` 无法承受递归类型。
+   */
+  jsonTypeName?: string;
   /** 域适配函数（playerdata：服务端协议 + wire pass；excel：表结构适配）；第二个参数为闭包枚举名 */
   adapt: (classes: ClassDef[], enumNames: Set<string>) => ClassDef[];
   /** 枚举值补充（JSON 含客户端枚举未定义的新值） */
@@ -53,6 +62,20 @@ export interface BuildResult {
   enums: string[];
 }
 
+/**
+ * 把生成类型里的 `object` 关键字改写为严格的 JSON 域类型 `JsonValue`
+ *
+ * `object`（TS 关键字）既不可索引也不可取属性，调用方只能靠 `as any` 逃生，
+ * 是历史类型债的主要来源。生成器把它统一收敛到 app/game/excel/json-value.ts
+ * 的 `JsonValue` 递归联合——语义相同（未校验 JSON），但保持严格可检查。
+ * 只匹配类型位置的裸 `object`：排除成员访问（`z.object`）与更长的标识符（`objectId`）。
+ * @param type - 生成器内部的 TS 类型字符串（哨兵值可为 `object`）
+ * @returns 归一化后的 TS 类型字符串（不再含裸 `object`）
+ */
+export function normalizeJsonType(type: string, jsonTypeName = "JsonValue"): string {
+  return type.replace(/(?<![\w$.])object\b/g, jsonTypeName);
+}
+
 export function generateEnumCode(enumDef: EnumDef, additions: string[] = []): string {
   const values = [...new Set([...enumDef.values, ...additions])];
   if (values.length === 0) return `export type ${enumDef.name} = string;`;
@@ -60,24 +83,41 @@ export function generateEnumCode(enumDef: EnumDef, additions: string[] = []): st
   return `export type ${enumDef.name} = ${joined};`;
 }
 
-export function generateInterfaceCode(classDef: ClassDef, indexSignatures: string[] = []): string {
+export function generateInterfaceCode(
+  classDef: ClassDef,
+  indexSignatures: string[] = [],
+  jsonTypeName = "JsonValue",
+): string {
   // 整接口覆盖为类型别名（服务端字典结构/继承类补全）
   if (classDef.aliasType !== undefined) {
-    return `export type ${classDef.name} = ${classDef.aliasType};`;
+    return `export type ${classDef.name} = ${normalizeJsonType(classDef.aliasType, jsonTypeName)};`;
   }
   // List 继承类 → 数组别名（如 Blackboard : List<BlackboardDataPair>）
   if (classDef.arrayOfType !== undefined) {
-    return `export type ${classDef.name} = ${classDef.arrayOfType}[];`;
+    return `export type ${classDef.name} = ${normalizeJsonType(classDef.arrayOfType, jsonTypeName)}[];`;
   }
   if (classDef.fields.length === 0 && !indexSignatures.includes(classDef.name)) {
     return `export interface ${classDef.name} {}`;
   }
   const optional = new Set(classDef.optionalFields ?? []);
   const fields = classDef.fields
-    .map(f => `    ${f.name}${optional.has(f.name) ? "?" : ""}: ${f.type};`)
+    .map(
+      f =>
+        `    ${f.name}${optional.has(f.name) ? "?" : ""}: ${normalizeJsonType(f.type, jsonTypeName)};`,
+    )
     .join("\n");
-  const indexSig = indexSignatures.includes(classDef.name) ? "\n    [key: string]: any;" : "";
-  return `export interface ${classDef.name} {\n${fields}${indexSig}\n}`;
+  const hasIndexSig = indexSignatures.includes(classDef.name);
+  // 无字段：纯字典接口，直接给索引签名
+  if (classDef.fields.length === 0) {
+    return `export interface ${classDef.name} {\n    [key: string]: ${jsonTypeName};\n}`;
+  }
+  // 有字段 + 需要字典访问：用交叉类型而非在 interface 里塞索引签名。
+  // interface 的索引签名要求所有已声明属性都可赋值给索引类型，而具名接口类型
+  // 不具备隐式索引签名 → TS2411。交叉类型同时保留具名字段（精确）与任意键访问。
+  if (hasIndexSig) {
+    return `export type ${classDef.name} = {\n${fields}\n} & { [key: string]: ${jsonTypeName} };`;
+  }
+  return `export interface ${classDef.name} {\n${fields}\n}`;
 }
 
 /**
@@ -131,14 +171,16 @@ export function buildTypes(content: string, config: TypesBuildConfig): BuildResu
   let output = "/**\n";
   for (const line of config.headerLines) output += ` * ${line}\n`;
   output += " * 请勿手动修改此文件\n";
-  output += " */\n\n";
+  output += " */\n";
+  for (const line of config.importLines ?? []) output += `${line}\n`;
+  output += "\n";
 
   filteredEnums.forEach(enumDef => {
     output += generateEnumCode(enumDef, enumAdditions[enumDef.name]);
     output += "\n\n";
   });
   adaptedClasses.forEach(classDef => {
-    output += generateInterfaceCode(classDef, indexSignatures);
+    output += generateInterfaceCode(classDef, indexSignatures, config.jsonTypeName ?? "JsonValue");
     output += "\n\n";
   });
 

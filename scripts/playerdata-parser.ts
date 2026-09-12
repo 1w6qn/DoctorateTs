@@ -26,6 +26,15 @@ export interface EnumDef {
   values: string[];
 }
 
+/**
+ * C# 类型 → TS 类型
+ *
+ * 注意：值 `"object"` 是**哨兵**，表示「该 C# 类型在客户端模型中无对应具名结构，
+ * 服务端线格式又未声明形状」。生成器输出阶段会经
+ * `scripts/types-builder.ts#normalizeJsonType` 统一改写为严格的
+ * `JsonValue`（app/game/excel/json-value.ts），因此生成文件里不会出现裸 `object`。
+ * 新增条目请沿用该哨兵，不要直接写 `any`/`unknown`。
+ */
 export const CSHARP_TO_TS_TYPE_MAP: { [key: string]: string } = {
   "System.String": "string",
   "System.Int32": "number",

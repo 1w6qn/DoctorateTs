@@ -137,7 +137,9 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
     charVoiceRecord: "{ [key: string]: object }",
   },
   PlayerAvatar: {
-    avatar_icon: "{ [key: string]: object }",
+    // 头像图标解锁记录：{ [iconId]: { ts: 解锁时间, src: 来源 } }
+    // （写入见 kernel/inventory.ts 的 PLAYER_AVATAR 消耗函数）
+    avatar_icon: "{ [key: string]: { ts: number; src: string } }",
   },
   PlayerHomeBackground: {
     selected: "string",
@@ -216,7 +218,8 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   PlayerArtMagazineLeafData: { leafId: "string", charSkin: "string", decorList: "string[]" },
   PlayerDexNav: {
     character: "{ [key: string]: { charInstId: number; count: number; classicCount?: number } }",
-    teamV2: "{ [key: string]: object }",
+    // 干员图鉴编队统计：{ [teamKey]: { [charId]: 次数 } }（读法见 modules/dexnav/dexnav.ts）
+    teamV2: "{ [key: string]: { [key: string]: number } }",
   },
   PlayerFormulaUnlockRecord: { shop: "object" },
   PlayerCrisisSeason: { permanent: "object", temporary: "object", sInfo: "object" },
@@ -302,7 +305,9 @@ export const SERVER_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
   // 具名 12 房间类型（线格式键大写），值引用生成房间类——消除 object 盲区
   PlayerBuilding: {
     rooms:
-      "{ CONTROL: { [slotId: string]: PlayerBuildingControl }; ELEVATOR: { [slotId: string]: object }; POWER: { [slotId: string]: PlayerBuildingPower }; MANUFACTURE: { [slotId: string]: PlayerBuildingManufacture }; TRADING: { [slotId: string]: PlayerBuildingTrading }; CORRIDOR: { [slotId: string]: object }; WORKSHOP: { [slotId: string]: PlayerBuildingWorkshop }; DORMITORY: { [slotId: string]: PlayerBuildingDormitory }; MEETING: { [slotId: string]: PlayerBuildingMeeting }; HIRE: { [slotId: string]: PlayerBuildingHire }; TRAINING: { [slotId: string]: PlayerBuildingTraining }; PRIVATE: { [slotId: string]: PlayerBuildingPrivate } }",
+      // 电梯/走廊：客户端模型无具名类（其余 10 类复用生成的房间类），内联其可达字段。
+      // 写入见 building/logic/construction.ts，预设队列读取见 building/logic/misc.ts
+      "{ CONTROL: { [slotId: string]: PlayerBuildingControl }; ELEVATOR: { [slotId: string]: { state?: number; presetQueue?: number[][]; completeConstructTime?: number } }; POWER: { [slotId: string]: PlayerBuildingPower }; MANUFACTURE: { [slotId: string]: PlayerBuildingManufacture }; TRADING: { [slotId: string]: PlayerBuildingTrading }; CORRIDOR: { [slotId: string]: { state?: number; presetQueue?: number[][]; completeConstructTime?: number } }; WORKSHOP: { [slotId: string]: PlayerBuildingWorkshop }; DORMITORY: { [slotId: string]: PlayerBuildingDormitory }; MEETING: { [slotId: string]: PlayerBuildingMeeting }; HIRE: { [slotId: string]: PlayerBuildingHire }; TRAINING: { [slotId: string]: PlayerBuildingTraining }; PRIVATE: { [slotId: string]: PlayerBuildingPrivate } }",
   },
   // PlayerCartInfo.Cart 继承 Dictionary<CartAccessoryPos, string>（解析器生成空接口，实际是索引签名字典）
   PlayerCartInfo_Cart: {
@@ -323,7 +328,7 @@ export const SERVER_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
   // 塔卡牌：C# GameCard 继承 PlayerCharacter（parser 不支持继承，需整接口覆盖补全字段）
   TowerCurrent_GameCard: {
     "[server]":
-      "{ relation: string; type: TowerCurrent_TowerCardType; charId: string; currentEquip: string | null; defaultSkillIndex: number; equip: object; evolvePhase: number; favorPoint: number; instId: string; level: number; mainSkillLvl: number; potentialRank: number; skills: object[]; skin: string }",
+      "{ relation: string; type: TowerCurrent_TowerCardType; charId: string; currentEquip: string | null; defaultSkillIndex: number; equip: { [key: string]: PlayerCharEquipInfo }; evolvePhase: number; favorPoint: number; instId: string; level: number; mainSkillLvl: number; potentialRank: number; skills: { skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[]; skin: string }",
   },
   // 任务分组：线格式 { [groupType]: { [missionId]: { state, progress } } }（客户端为 Dictionary 继承，解析为空接口）
   MissionPlayerDataGroup: {

@@ -87,11 +87,10 @@ export function allTableRoots(): string[] {
  * 维护流程：validate-excel-json.ts 审计报告 → 补清单 → 重生成 → 再审计
  */
 export const EXCEL_RENAME_FIELDS: Record<string, Record<string, string>> = {
-  // 干员技能：JSON 用旧版字段名（FBS 同款），cs 2.7.61 为 specializeLevelUpData/initialUnlockCond
-  CharacterData_MainSkill: {
-    specializeLevelUpData: "levelUpCostCond",
-    initialUnlockCond: "unlockCond",
-  },
+  // 2.7.71 起 FBO schema 已随官方更名（levelUpCostCond→specializeLevelUpData、
+  // unlockCond→initialUnlockCond），JSON 键与 CS 字段名一致，无需再重命名。
+  // 历史：旧 schema 冻结在旧名上，故此处曾把 CS 新名反向映射回旧 JSON key；
+  // schema 修正后该映射会把正确字段名改回已不存在的旧名，必须移除。
 };
 
 export const EXCEL_ADD_FIELDS: Record<string, Record<string, string>> = {
@@ -282,6 +281,17 @@ export const EXCEL_FIELD_TYPE_OVERRIDES: Record<string, string> = {
   "RoguelikeUpgradeTicketFeature.rarityList": "(number | string)[]",
   "RoguelikeGameUpgradeTicketData.profession": "number | string",
   "RoguelikeGameUpgradeTicketData.rarity": "number | string",
+  // 基建房间相位：客户端模型为 object（无字段），线格式相位结构由 building_excel.ts
+  // 的访问器契约反推——原先 object 使访问器返回值与 JsonValue 不可赋值（TS2322）
+  // RoomBean.phases 同时服务 rooms[roomId]（getRoomPhase）与 dormData（getDormPhase）
+  "BuildingData_RoomBean.phases":
+    "{ buildCost?: { items?: { id: string; count: number; type: string }[]; time?: number; labor?: number }; maxStationedNum?: number; electricity?: number; manpowerRecover?: number | string; unlockCondId?: string }[]",
+  "BuildingData_ManufactRoomBean.phases": "{ speed?: number; outputCapacity?: number }[]",
+  "BuildingData_DormPhase.phases": "{ manpowerRecover?: number | string }[]",
+  "BuildingData_MeetingRoomBean.phases":
+    "{ friendSlotInc?: number; maxVisitorNum?: number; gatheringSpeed?: number }[]",
+  "BuildingData_HireRoomBean.phases":
+    "{ economizeRate?: number; resSpeed?: number; refreshTimes?: number }[]",
 };
 
 /** 附加索引签名的接口（运行时以 dict 键访问，如 CharacterTable[charId]） */

@@ -609,9 +609,9 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 
 `app/game/excel/types-playerdata.ts` 是**运行时 PlayerDataModel 的唯一权威定义**——`app/game/kernel/playerdata.ts` 直接 `export *` 该文件（手写模型已全量替换删除），`app/game/modules/character/char.ts` 等对生成模型重叠类型做桥接 re-export。由官服反编译自动生成（客户端闭包 + 服务端协议适配 + 线格式适配），线格式经真实官服存档标量+结构双维度校验。
 
-- 输入：`reference/com.hypergryph.arknights_2.7.61.cs`（官服反编译，`reference/` 已被 gitignore，不入库）
+- 输入：`reference/com.hypergryph.arknights_<版本>.cs`（官服反编译，`reference/` 已被 gitignore，不入库；**文件名内嵌客户端版本号，每次客户端更新都会改名**——脚本统一经 `scripts/lib/cs-source.ts#resolveCsFile()` 通配探测最新，禁止硬编码版本号）
 - 命令：`pnpm run generate:playerdata`
-- 产物：纯闭包 802 类 / 113 枚举，含 2.7.61 新增 `arkOdc` 等 22 个类型；`ListDict<K,V>` 映射为字典 `{ [key: K]: V }`（与真实存档 JSON 一致）
+- 产物：纯闭包 802 类 / 113 枚举，含增量新增类型；`ListDict<K,V>` 映射为字典 `{ [key: K]: V }`（与真实存档 JSON 一致）
 - 链路：`scripts/playerdata-parser.ts`（括号配对解析、完整枚举值、类型映射）→ `scripts/playerdata-builder.ts`（类型闭包、TS 生成、未定义引用自检）→ `scripts/playerdata-server-adapt.ts`（服务端协议适配 + 线格式适配）→ `scripts/generate-playerdata-types.ts`（CLI）
 - **服务端协议适配层**（`scripts/playerdata-server-adapt.ts`）：客户端 2.7.61 模型与服务端 JSON 序列化协议分叉（服务端保守旧 key + 超集，如 `PlayerCharacter` 的 skin/tmpl 双结构并存）。适配层三操作：`renameFields`（客户端字段名→服务端 key，如 campaign→campaignsV2、towerId→tower、godCardId→id）、`addFields`（服务端独有字段，如 PlayerStage.startTimes/practiceTimes、商店 curShopId/info、房间 buff 结构）、`overrideFields`（结构差异，整接口转类型别名如 PlayerActivity 字典、PlayerBuilding.rooms 具名 12 房间类型、MissionPlayerDataGroup 索引字典）
 - **线格式适配（wire pass）**：官服 JSON 把枚举/时间戳/布尔系统性降为数字——枚举字段→`number`（保留枚举定义作参考）、`System.DateTime`→`number`（unix ts）、布尔→`number`（0/1）；少数字符串序列化枚举（`roomId` "CONTROL"、`mode` "NORMAL"、`type` "CHAR" 等）与真实布尔（`avail`、`unlock` 等）经抓包标量审计反推的白名单保留
@@ -654,15 +654,16 @@ get socialInfo(): FriendDataWithNameCard {
 
 | 模式 | 触发方式 | 网络行为 | 适用场景 |
 |------|----------|----------|----------|
-| 在线更新（默认） | 直接启动 / `pnpm start` | git pull/clone 拉取 ArknightsGameData，随后复制数据、生成类型（CS 反编译源）、合并 gacha；失败自动回退本地缓存 | 首次部署、需要更新游戏数据 |
-| 跳过更新 | `--skip-update` / `-s` | 跳过仓库拉取，仍执行本地复制、类型生成（npx）、gacha 合并 | 本地数据完整、希望快速启动 |
-| 完全离线 | `--offline` / `-o`，或 `data/config.json` 中 `"offline": true` | **零网络操作**：不执行 git、不调用 npx、不复制、不合并 | 无网络 / 内网 / 演示环境 |
+| 在线更新（默认） | 直接启动 / `pnpm start` | 官方 CDN 热更管线（`scripts/official-excel.ts --download --decode --convert`，纯 TS 零 Python 依赖、**不依赖任何第三方数据仓库**）：拉热更清单 → 下载 excel bundle → UnityFS 解包 + FBO/AES 解码 → 转换；随后生成类型（CS 反编译源）、同步版本；失败自动回退本地缓存 | 首次部署、需要更新游戏数据 |
+| 跳过更新 | `--skip-update` / `-s` | 跳过热更管线，仍执行类型生成（CS 反编译源）、版本同步 | 本地数据完整、希望快速启动 |
+| 完全离线 | `--offline` / `-o`，或 `data/config.json` 中 `"offline": true` | **零网络操作**：不拉清单、不下载、不调用 npx | 无网络 / 内网 / 演示环境 |
 
 ### 8.2 完全离线模式设计原则
 
-1. **零网络访问**：不执行任何 git 命令（`clone`/`pull`），不通过 pnpm exec 启动子进程，从根源上杜绝网络请求和长时间超时等待。
+1. **零网络访问**：不执行任何 git 命令，不发起任何 CDN 请求，不通过 pnpm exec 启动需要联网的子进程，从根源上杜绝网络请求和长时间超时等待。
 2. **启动前校验**：在加载数据表之前，对本地必需数据文件清单（`REQUIRED_DATA_FILES`，共 66 个文件）做完整性检查。
 3. **快速失败**：数据缺失时立即退出（exit code 1），列出缺失文件清单并给出解决指引，绝不带病启动。
+4. **两级版本校验**：① `data_version.txt#VersionControl` vs `gamedata_const#dataVersion`（`verifyLocalDataVersion`）；② **各表刷新批次一致性**（`verifyTableFreshness`，读 `data/excel/*.json.meta.json` 溯源指纹，极差 >1h 即告警）——仅有版本号无法发现「28/63 张表停留在旧批次而版本号恰好相同」的假通过。
 
 ### 8.3 校验范围
 
@@ -823,15 +824,18 @@ logs show [--last N] [--json]
 ### C. 数据更新流程
 ```
 1. 启动时执行 update-data.ts
-2. 拉取 ArknightsGameData
-3. 复制数据文件到 data/excel/
-4. 合并 gacha 文件
-5. 生成 types_excel_gen.ts（CS 反编译源，不再依赖 OpenArknightsFBS）
-6. 加载 Excel 数据表
-7. 启动服务器
+2. 官方 CDN 热更管线：拉热更清单 → 下载 excel bundle → UnityFS 解包 + FBO/AES 解码
+3. 转换为服务端格式（camelCase + 枚举字符串）并写入 data/excel/（旁挂 *.meta.json 溯源指纹）
+4. 官服热更 anon 资源 Lua 自动提取（非致命）
+5. 生成 types-playerdata.ts + types_excel_gen.ts（统一 CS 反编译源生成器）
+6. 同步游戏版本（syncGameVersion）
+7. 加载 Excel 数据表
+8. 启动服务器
 ```
 
-> 完全离线模式（`--offline`）跳过步骤 2-5，仅校验本地数据完整性（`verifyLocalData`）后直接进入步骤 6；数据缺失时退出并提示先联网执行 `pnpm run update`。
+> gacha 卡池详情（`data/gacha_detail_table.json`）**不在本管线生成**（`data/gacha/` 源目录已移除），由 `pnpm run admin -- official gacha-sync` 从官服同步。
+>
+> 完全离线模式（`--offline`）跳过步骤 2-6，仅校验本地数据完整性（`verifyLocalData`）+ 版本一致性（`verifyLocalDataVersion`）+ 各表刷新批次（`verifyTableFreshness`）后直接进入步骤 7；数据缺失时退出并提示先联网执行 `pnpm run update`。
 
 ---
 
@@ -1789,14 +1793,18 @@ tmp/capture/
 - 离线模式跳过（不联网）
 
 ### 22.2 更新流程（scripts/update-data.ts main）
-1. **仓库更新**：git pull/clone `ArknightsGameData`（OpenArknightsFBS 依赖已移除，类型改由 CS 反编译源生成）
-2. **数据复制**：excel JSON（zh_CN/gamedata/excel + battle + levels）→ `data/excel/`
-3. **类型生成**：`generate-types.ts`（统一 CS 反编译源生成器 → `types-playerdata.ts` + `types_excel_gen.ts`，原 FBS 版 generate-types.ts 已删除）
-4. **gacha 合并**：`data/gacha/` → `gacha_detail_table.json`
-5. **版本同步**（`syncGameVersion`）：调官服 `ak-conf.hypergryph.com/config/prod/official/Android/version`（复用 `scripts/official-api.ts` 的 `getResVersion`）→ 更新 `data/config.json` 的 `version`（clientVersion/resVersion）——客户端版本接口/热更新列表据此工作
+1. **官方热更 excel 管线**：`pnpm exec tsx scripts/official-excel.ts --download --decode --convert`（纯 TS，零 Python 依赖，不依赖任何第三方数据仓库）——拉热更清单（本地无网时自动选 `reference/hotupdate/hot_update_list_*.json` 中最新的快照）→ 下载 excel bundle → UnityFS 解包 + FBO/AES 解码到 `reference/hotupdate/excel_json/` → 转换为服务端格式（camelCase + 枚举字符串）写入 `data/excel/`，并为每张表旁挂 `<表>.json.meta.json` 溯源指纹（`sourceMtime`/`schemaMtime`/`csSource`）
+2. **anon Lua 提取**：`scripts/extract-lua-hot.ts`（非致命，复用上一步已下载的 anon 资源，不额外联网）
+3. **类型生成**：`generate-types.ts`（统一 CS 反编译源生成器 → `types-playerdata.ts` + `types_excel_gen.ts`，原 FBS 版已删除）；CS 源经 `scripts/lib/cs-source.ts#resolveCsFile()` 通配探测最新，`reference/` 缺失时跳过并告警而非失败
+4. **版本同步**（`syncGameVersion`）：调官服 `ak-conf.hypergryph.com/config/prod/official/Android/version`（复用 `scripts/official-api.ts` 的 `getResVersion`）→ 更新 `data/config.json` 的 `version`（clientVersion/resVersion）——客户端版本接口/热更新列表据此工作
+5. **收尾自检**：`verifyTableFreshness()` 校验各表是否同批刷新（发现「部分表未重转」的混合数据集）
+
+> **gacha 卡池详情**（`data/gacha_detail_table.json`）不在本管线生成（`data/gacha/` 源目录已移除），由 `pnpm run admin -- official gacha-sync` 从官服同步。
 
 ### 22.3 实测
-`syncGameVersion` 真实拉取：`2.5.60/25-05-20-12-36-22_4803e1 → 2.7.61/26-08-03-23-34-20_a745fc`（版本无变化时跳过写盘）。
+`syncGameVersion` 真实拉取：`2.6.xx/… → 2.7.71/26-09-03-04-06-11_79371a`（版本无变化时跳过写盘）。
+
+> 参考数据链路（客户端反编译 → FBO schema）：`pnpm run decompile`（Cpp2IL + ilspycmd）产出 `reference/arknights-<版本>-csharp/` 与签名文件 `reference/com.hypergryph.arknights_<版本>.cs`，随后自动执行 `cs2schema --check` 做 **schema 漂移门禁**——C# 字段序 = FBO vtable slot 序（`slot = 4 + 2×字段序`），字段插入中部会让其后全体 slot 位移并导致解码错位（症状：向量长度天文数字、V8 `Invalid string length`、OOM）。手动命令：`pnpm run schema:check` / `schema:diff` / `schema:write`。
 
 ### 22.4 注意
 - **版本与资源需同步更新**：单独跑 syncGameVersion 会得到新版本号但本地 excel/assets 仍是旧数据（客户端请求新资源会 404）——正确做法是完整 `pnpm run update`（数据+版本一起）
@@ -1892,6 +1900,21 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 - **arkhub（方舟枢纽）游戏路由实现（2026-08-09，用户报告 /activity/arkhub/syncInfo 404）**：客户端 7 条路由（enterHall/getFriendUidList/getPixelArt/savePixelArt/setSecretary/setSquad/syncInfo）原未实现。按抓包实现：enterHall 返回 gateway 端点+端口、setSecretary/setSquad 更新 activity.ARK_HUB[act1arkhub]、syncInfo 空增量、getPixelArt/savePixelArt 私服空（像素画走 admin 的 arkhub-gateway-client 与官服网关通信）。全部 200 且 setSecretary 正确持久化。
 
 - **templateShop 商店打不开修复（2026-08-09，用户报告奇象巡展/arkodc 商店）**：getGoodList 原返回空 data（商店无法打开）。已复制 ODPY 数据源 `data/shop/templateShop.json`（33 家商店含 sandbox_1/2、shop_act53side（ODC / 安洁莉娜的旅行小记 店）），getGoodList 返回完整商店配置（32KB，含 shopGroup 商品）；buyGood 实现购买（扣货币→发物品→限购记录），修复 tshop 初始化崩溃。实机：getGoodList 完整返回、buyGood 无货币返回空列表不 500。
+
+- **ODPY 9-10 更新同步（2026-09-11，用户更新 opendoctoratepy-ex-public 后要求同步实现）**：以 `server/app.py` 的 `add_url_rule` 提取 **679 条** 路由为基线（另有 2 条 reslock 注册因 **拼写错误 `add_url_rile`/`add_url_reul` 从未生效**），对本地起服后逐条 POST/GET 冒烟（`tmp/odpy-sync/sweep.mjs`）。
+  - **保险库（reslock，全新）**：客户端 4 条端点（CS `ServiceCode.ITEM_REPO_LOCK/UNLOCK_INVENTORY|CONSUMABLE`）本地全缺。新增 `app/game/modules/reslock/`（routes.ts 薄壳 + reslock.ts 领域 + schema），按 `PlayerReslock{inventory,consumable}` 存取、`item_table.canReslock` 资格校验、计数归零摘除条目、消耗品实例 ts 保留；16 条单测。**参考实现不可用**：ODPY `server/reslock.py` 第 24 行 `dict.get(...) += count` 是 Python 语法错误（import 即失败）+ 路由拼写错误 + 仅覆盖 consumable 两条，故按客户端协议重写。
+  - **rlv2 新增 5 条路由**：`/rlv2/setSeed`（自定义种子：18 位/字符集校验 → CS `ResultCode`，`_pendingSeed` 由 `gameSeed()` 一次性消费；顺带修复开新局未清 `_gameSeed` 导致每局结算种子相同的缺陷）、`/rlv2/normal/unlockBuff`（接线既有 `unlockBuff` 领域逻辑——此前科技树节点**点不动**）、`/rlv2/battlePass/buyReward`（扣 `bp.point` + 发里程碑奖励 + 幂等，支持 `grand_N` 归一）、`/rlv2/copper/change`、`/rlv2/copper/confirmDraw`（对齐 ODPY 状态机语义）；11 条单测。
+  - **藏品 buff 下发补全**：`event.ts`（事件触发战斗）、`grid-nav.ts`（二结局首领战）、`incident.ts`（黑流树海遭遇战）三处 `unKeepBuff` 原固定 `[]` → 改 `_buff.getBuffs()`，并对齐 ODPY `getBuffs` 增加 trap/exploreTool 的 relics 登记 buff 并入；`inventory.ts` 的 `EXPLORE_TOOL` 原为空操作 → 入 `inventory.exploreTool`（键 `e_N`），修复工具既不入库也不生效。
+  - **杂项对齐**：`/app/getCode|getSettings`（ODPY 为 POST）、`GET /user/agreement|pay/order/v1/state|user/pay/v1/query_payment_config`、寻访记录/卫戍战绩 webview 占位页；`/user/auth`、`GET /user/info/v1/basic` 经核实由 auth 域处理（无 token 返回 404 属正确行为，非缺口）。
+  - **鉴权健壮性**：`/u8/user/v1/getToken`、`/u8/user/verifyAccount` 的 `JSON.parse(req.body.extension)` 在空 body 下抛 SyntaxError → 500；`/user/auth/v1/token_by_phone_password` 空凭据透传给 AccountManager 落到注册分支 → 500。均改为显式 400（core 层内联响应，不引入 game 依赖）。
+  - **最终扫描**：679 条 **0 个 500**；7 条 404 全部为已逐条核实的误报/设计跳过（`/arknights/<path>` 官服资源反代、`/assetbundle/...` 假 hash 命中的处理器 404、`/shop/<string:shop_type>Good*` 三条 Flask 模板由具体路由覆盖、`/user/auth` 与 `GET /user/info/v1/basic` 的“无 token 404”）。
+
+- **官方 excel 数据转换回退修复（2026-09-11，随 9-10 同步发现）**：当前 `data/excel/*.json`（converterVersion 2，01:52Z 转换）相比 09:20 备份出现**静默失效**的形态回退，逐一定位并修复：
+  - **KV 表定义缺失（根因）**：`cs2schema.ts` 只重生成 `clz_*` 表，`dict__K__V`（FBO 键值对表）依赖历史 vendored 定义 → 新出现的组合（`dict__string__enum`、`dict__enum__clz_X`、`dict__string__vec:clz_X` 等 10 个 / 7 张表）缺表，`vendor/fbo.ts` 的「纯 KV 表折叠为 dict」判定失效 → 解成「空对象数组」，字段整体失效（实测：roguelike `scrapItemToType`、campaign `dropGains`、display_meta `avatarTypeData`、battle_equip `tokenAttributeBlackboard`）。已加 `collectMissingKvTables()` 按 `Key@4/Value@6` 约定补齐缺失表定义（`schema:check` 现在报告这 7 张表的差异，0 slot 位移），并清理 `reference/hotupdate/excel_json` 的旧解码缓存后重转。**注意**：`official-excel.ts` 的解码缓存（`excel_json/<表>.json`）不随 schema 失效，schema 变更后须手动删除对应缓存。
+  - **集成战略主题键/展示枚举归一化**：新数据 `customizeData` 以客户端键 `rl01..rl06` 存放（`details/modules/topics` 为 `rogue_1..6`）、`buffDisplayInfo[].displayForm` 为未转枚举的数值 0/1 → 科技树解锁一律 `NODE_NOT_FOUND`、`buildRoguelikeConsts` 以 rlNN 建表导致 outbuff/modebuff 全不生效。新增 `app/game/excel/roguelike-keys.ts#normalizeRoguelikeTopicTable`（幂等），在 `excel.init()` 与 `buildRoguelikeConsts` 前各调用一次（配对依据：rl01 的 difficulty 1..6 对应 rogue_1 的 EASY..CHALLENGE，同序号一一对应）。
+  - **零件类型枚举**：`modules.<theme>.scrap.scrapItemToType.<id>` 值为 `RoguelikeScrapType`（1=MOVE/2=GOODS/3=PASSIVE），因取值重号被唯一值兜底弃转 → 数值形态下 `=== "MOVE"` 判定失效（林间代步/先行一步归来选零件）。已加 `PATH_ENUM_OVERRIDES` 条目（路径 4 段：`<theme>.scrap.scrapitemtotype.<id>`）。
+  - 修后全量测试：9 文件 14 用例失败 → **2 文件 3 用例**（均为既有/版本快照问题：`account-authmode` 依赖仓库中不存在的 `player_data.json` 种子、`pack-lua-min-current` 的 Windows `KNOWN_LUA_HASH_PREFIXES` 仍是 26-08 版本 hash，需联网扫描重认）。
+
 
 - **抽卡 charGet 响应修复（2026-08-09，用户报告）**：
   - curCharInstId 从不递增 bug：onCharGet 新干员用 `draft.troop.curCharInstId` 作为 instId 但从不 +1 → 后续新干员 instId 冲突互相覆盖。已在新干员创建后递增

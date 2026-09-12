@@ -22,7 +22,7 @@ export async function chooseBattleReward(mgr: RoguelikeV2Manager, args: { index:
     // 招募券奖励：仅入招募券库存（官服：战利品选券后券进券列表，由玩家自行激活）。
     // 原实现标记 RECRUIT_TICKET 走 getItem → 自动激活并弹 RECRUIT 事件 → 战斗中异常弹出招募界面。
     const theme = mgr.current.game!.theme;
-    const item: any = { ...reward };
+    const item = { ...reward };
     if (excel.RoguelikeTopicTable.details[theme]?.recruitTickets?.[item.id]) {
       await mgr._trigger.emit("rlv2:recruit:gain", [item.id, "battle", 0]);
     } else {

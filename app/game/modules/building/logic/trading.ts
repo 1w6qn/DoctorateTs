@@ -10,6 +10,7 @@ import { now } from "@utils/time";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "../../../kernel/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "../../../kernel/playerdata";
+import { PlayerBuildingTradingBuff } from "../../../kernel/playerdata";
 import { headcountMoodRelief, isDispersedAp, warmupHoursOf, MAX_AP } from "../mood";
 import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst, getRoomBasicSpeedBuff } from "@excel/building_excel";
 import {
@@ -36,6 +37,7 @@ import {
   WARMUP_BETA_HOURS,
   WarmupActive,
 } from "../trade-orders";
+import type { CharWithWarmup, TradingOrder, TradingRoom } from "./ext-types";
 
   /**
    * 内部方法：生成一笔贸易站金币订单（结构对齐官服 O_GOLD：delivery 3003 → gain GOLD）
@@ -45,7 +47,7 @@ import {
    * - trade_ord_pepe（佩佩）：固定获取「特别独占订单」——所需赤金交付数为 0、收益恒定
    * - trade_ord_closure（可露希尔）：固定获取「可露希尔特别订单」——赤金交付 2、收益恒定
    */
-export function _genTradingOrder(mgr: BuildingManager, draft: Draft<PlayerDataModel>, room: any, instId: number) : void {
+export function _genTradingOrder(mgr: BuildingManager, draft: Draft<PlayerDataModel>, room: TradingRoom, instId: number) : void {
     const rate = getGoldRate();
     // 定位该房间槽位 → 进驻干员的 TRADING 技能
     const slotId = Object.entries(draft.building.rooms.TRADING).find(
@@ -129,7 +131,7 @@ export function _genTradingOrder(mgr: BuildingManager, draft: Draft<PlayerDataMo
    * @param room - 贸易站房间
    * @param count - 本笔订单交付赤金数
    */
-export function applyOrderSpan(room: any, count: number) : void {
+export function applyOrderSpan(room: TradingRoom, count: number) : void {
     const span = goldOrderSeconds(count);
     room._lastOrderSpanSec = span;
     // 仅时间模型已激活（已有 next 结构）时同步阈值
@@ -151,7 +153,7 @@ export function _tradeWarmupActive(mgr: BuildingManager, draft: Draft<PlayerData
       const src = mgr._charSource(draft, instId);
       if (!src) continue;
       const hours = warmupHoursOf(
-        (draft.building.chars[String(instId)] as any)?.warmupSec,
+        (draft.building.chars[String(instId)] as CharWithWarmup)?.warmupSec,
       );
       let tier: "alpha" | "beta" | null = null;
       for (const b of getActiveCharBuffs(src, "TRADING")) {
@@ -199,7 +201,7 @@ export function _accrueTrading(mgr: BuildingManager, draft: Draft<PlayerDataMode
         roomSpeedBonus(chars, "TRADING", [], mgr._specialCtx(draft)) +
         controlBonus +
         getRoomBasicSpeedBuff("TRADING") * stationed;
-      const roomBuff = (room.buff as any) ?? {};
+      const roomBuff = (room.buff ?? {}) as PlayerBuildingTradingBuff;
       roomBuff.speed = bonus;
       roomBuff.limit = room.stockLimit ?? 0;
       room.buff = roomBuff;
@@ -247,10 +249,10 @@ export function _accrueTrading(mgr: BuildingManager, draft: Draft<PlayerDataMode
    *
    * @param room - 贸易站房间对象（draft 内可变对象）
    */
-export function _touchOrderFillGuard(mgr: BuildingManager, room: any) : void {
+export function _touchOrderFillGuard(mgr: BuildingManager, room: TradingRoom) : void {
     if (!room) return;
-    if ((room as any)._lastOrderFillTs == null) {
-      (room as any)._lastOrderFillTs = now();
+    if (room._lastOrderFillTs == null) {
+      room._lastOrderFillTs = now();
     }
 }
 
@@ -280,7 +282,7 @@ export function _touchOrderFillGuard(mgr: BuildingManager, room: any) : void {
 export function _refreshTradingOrders(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
     ts: number,) : void {
     for (const slotId of Object.keys(draft.building.rooms.TRADING)) {
-      const room = draft.building.rooms.TRADING[slotId];
+      const room = draft.building.rooms.TRADING[slotId] as TradingRoom;
       if (!room || room.state !== 1) continue;
       // 时间模型激活（next.maxPoint>0）→ 订单由 _accrueTrading 生成
       if (room.next?.maxPoint > 0) continue;
@@ -289,16 +291,16 @@ export function _refreshTradingOrders(mgr: BuildingManager, draft: Draft<PlayerD
       if (room.stock.length >= target) {
         // 关键修复：库存已满（初始预置）也初始化补单守卫——否则结算清空后
         // 下一次 sync 会把本房间当"首次补单"立即补满 → 订单回退未结算状态。
-        if ((room as any)._lastOrderFillTs == null) (room as any)._lastOrderFillTs = ts;
+        if (room._lastOrderFillTs == null) room._lastOrderFillTs = ts;
         continue;
       }
       // 补单节流：首次（守卫初始化）补满；此后需间隔 ≥ 该房间上一笔订单的整周期才补 1 单
       // 修复（2026-09-09，B9）：原实现用固定 `_TRADE_FILL_INTERVAL = 3600`，而官方订单周期为
       // 8640/12600/16560（2/3/4 赤金）→ 旧存档补单快 2.4~4.6 倍。现按房间记录的上一笔订单时长，
       // 无记录时回退最短档 8640（2:24）。
-      const lastFill = (room as any)._lastOrderFillTs ?? 0;
+      const lastFill = room._lastOrderFillTs ?? 0;
       const isFirstFill = lastFill <= 0;
-      const recordedSpan = Number((room as any)._lastOrderSpanSec ?? 0);
+      const recordedSpan = Number(room._lastOrderSpanSec ?? 0);
       const fillSpan =
         recordedSpan > 0
           ? recordedSpan
@@ -313,7 +315,7 @@ export function _refreshTradingOrders(mgr: BuildingManager, draft: Draft<PlayerD
         mgr._genTradingOrder(draft, room, maxInstId);
       }
       // 记录本次补单时刻，用于下一次节流判定
-      (room as any)._lastOrderFillTs = ts;
+      room._lastOrderFillTs = ts;
     }
 }
 
@@ -322,7 +324,7 @@ export function _refreshTradingOrders(mgr: BuildingManager, draft: Draft<PlayerD
    * 例：delivery=[{3003×3}]、gain={4001(金币)×1500} → 扣 3003×3、加金币 1500
    */
 export function _settleOrderInternal(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
-    stockItem: any,) : void {
+    stockItem: TradingOrder,) : void {
     mgr._applyBundles(draft, stockItem?.delivery ?? [], -1);
     const gain = stockItem?.gain;
     if (gain) {
@@ -356,19 +358,19 @@ export async function accelerateOrder(mgr: BuildingManager, args: { slotId: stri
     return await mgr._player.update(async (draft) => {
       const room = draft.building.rooms.TRADING[slotId];
       if (room && Array.isArray(room.stock)) {
-        const idx = room.stock.findIndex((s: any) => s.instId === orderId);
+        const idx = room.stock.findIndex((s) => s.instId === orderId);
         if (idx !== -1) {
           // 修复（2026-09-09）：加速订单需消耗无人机（labor）——官方 tradingReduceTimeUnit=180s
           // 即 1 架 = 3 分钟；原实现零消耗直接结算（无限免费加速）。cost 由客户端给出，
           // 缺省时按订单整周期 maxPoint 折算。余额不足则不结算。
-          const droneCost = _accelDroneCost(args.cost, (room as any).next?.maxPoint);
+          const droneCost = _accelDroneCost(args.cost, room.next?.maxPoint);
           const labor = draft.building.status.labor;
           if ((labor.value ?? 0) < droneCost) return;
           labor.value -= droneCost;
           mgr._settleOrderInternal(draft, room.stock[idx]);
           // 修复：splice 产生 DELETE patch（客户端删 stock 属性而非替换 → UI 残留）；
           // 用 filter 生成 replace patch（modified）
-          room.stock = room.stock.filter((x: any) => x !== room.stock[idx]);
+          room.stock = room.stock.filter((x) => x !== room.stock[idx]);
           // 修复（2026-08-25）：加速结算订单同样初始化补单守卫（同 deliveryOrder，
           // 防 sync 把已结算订单当"首次补单"立即补满 → 改动被撤回）
           mgr._touchOrderFillGuard(room);
@@ -415,7 +417,7 @@ export async function accelerateSolution(mgr: BuildingManager, args: { slotId: s
         // 官方速率（2026-08-26 dc-fix）：1 点/秒 × (1+加成)——与 _accrueManufacture 同单位，
         // 1 架无人机 = 3 分钟制造时间 = 180 × (1+加成) 进度点（_roomCapacity 已回写 buff.speed）
         mgr._roomCapacity(draft, slotId, formula);
-        const speedBonus = ((room.buff as any)?.speed as number) ?? 0;
+        const speedBonus = room.buff?.speed ?? 0;
         const costPoint = formula.costPoint ?? 0;
         if (costPoint <= 0) return;
         room.processPoint = (room.processPoint ?? 0) + cost * 180 * (1 + speedBonus);
@@ -431,7 +433,7 @@ export async function accelerateSolution(mgr: BuildingManager, args: { slotId: s
       }
       // 兼容旧客户端（cost 缺省）：立即完成当前生产方案 1 个——仍按官方单位折算无人机
       // （1 架 = 180 × (1+加成) 进度点，即完成 1 个方案需 ceil(costPoint / 每架进度点)）
-      const speedBonus0 = ((room.buff as any)?.speed as number) ?? 0;
+      const speedBonus0 = room.buff?.speed ?? 0;
       const perDrone = Math.max(1, 180 * (1 + speedBonus0));
       const fallbackCost = Math.max(1, Math.ceil((formula.costPoint ?? perDrone) / perDrone));
       const laborFallback = draft.building.status.labor;
@@ -459,14 +461,14 @@ export async function deliveryOrder(mgr: BuildingManager, args: { slotId: string
         const idx =
           orderId != null
             ? tradingRoom.stock.findIndex(
-                (s: any) => String(s.instId) === String(orderId),
+                (s) => String(s.instId) === String(orderId),
               )
             : 0;
         if (idx !== -1 && tradingRoom.stock[idx]) {
           mgr._settleOrderInternal(draft, tradingRoom.stock[idx]);
           // 修复：splice → DELETE patch 客户端残留 → filter 替换
           tradingRoom.stock = tradingRoom.stock.filter(
-            (x: any) => x !== tradingRoom.stock[idx],
+            (x) => x !== tradingRoom.stock[idx],
           );
           // 修复（2026-08-25）：结算订单后初始化补单守卫——否则下一次 sync 的
           // _refreshTradingOrders 把该房间当"首次补单"立即补满到 stockLimit（已交付
@@ -526,7 +528,7 @@ export async function deliveryBatchOrder(mgr: BuildingManager, args: {
           }
           mgr._settleOrderInternal(draft, stock);
           // 修复：splice 产生 DELETE patch（客户端 UI 残留旧订单）→ filter 替换
-          room.stock = room.stock.filter((x: any) => x !== stock);
+          room.stock = room.stock.filter((x) => x !== stock);
           totalDelivered += 1;
         }
         // 修复（2026-08-25）：批量交付后初始化补单守卫——否则交付清空库存后，紧接的
@@ -552,7 +554,7 @@ export async function deleteOrder(mgr: BuildingManager, args: { slotId: string; 
     return await mgr._player.update(async (draft) => {
       const room = draft.building.rooms.TRADING[slotId];
       if (room && Array.isArray(room.stock)) {
-        room.stock = room.stock.filter((s: any) => s.instId !== orderId);
+        room.stock = room.stock.filter((s) => s.instId !== orderId);
       }
     });
 }
@@ -665,8 +667,8 @@ export async function buyLabor(mgr: BuildingManager, args: { buyCount: number })
       const ratio = getBuildingConstant("apToLaborRatio") ?? 2;
       if ((ctlSlot?.level ?? 0) >= unlockLevel && ratio > 0) {
         const apCost = Math.ceil(buyCount / ratio);
-        if (((draft.status as any).ap ?? 0) < apCost) return;
-        (draft.status as any).ap -= apCost;
+        if ((draft.status.ap ?? 0) < apCost) return;
+        draft.status.ap -= apCost;
         labor.value = Math.min(labor.value + buyCount, labor.maxValue);
         return;
       }

@@ -10,8 +10,18 @@ import { now } from "@utils/time";
 import { logger } from "@utils/logger";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "../../../kernel/playerdata";
+import { PlayerBuildingDIYPreset, PlayerStatus } from "../../../kernel/playerdata";
 import { accountManager } from "../../account/AccountManager";
 import { getMessageLeaveBoardConst } from "@excel/building_excel";
+import type {
+  ConfirmMessageBoardRewardRequest,
+  GetThumbnailUrlRequest,
+  SaveDiyPresetSolutionRequest,
+  SendEmojiRequest,
+  StartInfoShareRequest,
+  VisitBuildingRequest,
+} from "../models";
+import type { BuildingWithExt, MeetingRoom, PresetQueueMetaDict, StatusExt } from "./ext-types";
 
   /**
    * 切换基建背景音乐
@@ -28,8 +38,8 @@ export async function changeBGM(mgr: BuildingManager, args: { musicId: string })
 }
 
   /** 预设队列元数据（名称/锁定——官方线格式 room.presetQueue 仅为干员组数组，无名称） */
-export function _presetQueues(mgr: BuildingManager, draft: Draft<PlayerDataModel>) : any {
-    const building = draft.building as any;
+export function _presetQueues(mgr: BuildingManager, draft: Draft<PlayerDataModel>) : PresetQueueMetaDict {
+    const building = draft.building as BuildingWithExt;
     if (!building.presetQueues) building.presetQueues = {};
     return building.presetQueues;
 }
@@ -44,7 +54,9 @@ export function _roomPresetQueue(mgr: BuildingManager, draft: Draft<PlayerDataMo
     const slot = draft.building.roomSlots[slotId];
     if (!slot) return null;
     const roomType = slot.roomId as keyof PlayerDataModel["building"]["rooms"];
-    const room = draft.building.rooms[roomType]?.[slotId] as any;
+    const room = draft.building.rooms[roomType]?.[slotId] as {
+      presetQueue?: number[][];
+    } | undefined;
     if (!room) return null;
     if (!Array.isArray(room.presetQueue)) room.presetQueue = [];
     return room.presetQueue;
@@ -203,10 +215,15 @@ export async function changePresetName(mgr: BuildingManager, args: {
    * 保存自定义预设方案（diyPresetSolutions）
    * @param args - 包含 presetName 和 solution 的参数对象
    */
-export async function saveDiyPresetSolution(mgr: BuildingManager, args: { presetName: string; solution: any }) {
+export async function saveDiyPresetSolution(mgr: BuildingManager, args: {
+    presetName: string;
+    solution: SaveDiyPresetSolutionRequest["solution"];
+  }) {
     const { presetName, solution } = args;
     return await mgr._player.update(async (draft) => {
-      (draft.building as any).diyPresetSolutions[presetName] = solution;
+      // 服务端按 CS BuildingDIYSavePresetSolutionRequest.solution（PlayerBuildingDIYSolution）原样写入；
+      // 生成模型把该字典值声明为 PlayerBuildingDIYPreset（客户端读取形态）→ 就地按写入侧形状断言
+      draft.building.diyPresetSolutions[presetName] = solution as PlayerBuildingDIYPreset;
     });
 }
 
@@ -231,7 +248,7 @@ export async function editLockQueue(mgr: BuildingManager, args: { slotId?: strin
    * @param args - 请求体参数（无字段）
    * @returns 领取的社交点奖励（SOCIAL_PT 信用 ItemBundle 数组；无可领返回空）
    */
-export async function confirmMessageBoardReward(mgr: BuildingManager, args: any) : Promise<
+export async function confirmMessageBoardReward(mgr: BuildingManager, args: ConfirmMessageBoardRewardRequest) : Promise<
     { id: string; count: number; type: string }[]
   > {
     let reward = 0;
@@ -257,7 +274,10 @@ export async function confirmMessageBoardReward(mgr: BuildingManager, args: any)
    * @param args - 请求体参数（无字段）
    * @returns 留言板内容
    */
-export async function getMessageBoardContent(mgr: BuildingManager, args: any) : Promise<{
+export async function getMessageBoardContent(mgr: BuildingManager, args: {
+    uid?: string;
+    friendId?: string;
+  }) : Promise<{
     thisWeekVisitors: { uid: string; nickName: string; nickNumber: string }[];
     lastWeekVisitors: { uid: string; nickName: string; nickNumber: string }[];
     todayVisit: number;
@@ -441,9 +461,9 @@ export async function getOthersMessageBoardContent(mgr: BuildingManager, args: {
     }
     try {
       const friend = await accountManager.getPlayerData(uid);
-      const room = Object.values(
+      const room: MeetingRoom | undefined = Object.values(
         friend._playerdata.building?.rooms?.MEETING ?? {},
-      )[0] as any;
+      )[0];
       const leave = room?.messageLeave;
       return {
         thisWeekVisitors: [],
@@ -468,7 +488,7 @@ export async function getOthersMessageBoardContent(mgr: BuildingManager, args: {
    * 简化实现：预留接口（私服无云端缩略图），返回空列表
    * @param args - 请求体参数
    */
-export async function getThumbnailUrl(mgr: BuildingManager, args: any) {
+export async function getThumbnailUrl(mgr: BuildingManager, args: GetThumbnailUrlRequest) {
     return { list: [] };
 }
 
@@ -477,7 +497,7 @@ export async function getThumbnailUrl(mgr: BuildingManager, args: any) {
    * 简化实现：参考 Python 实现返回 202，预留接口
    * @param args - 请求体参数
    */
-export async function sendEmoji(mgr: BuildingManager, args: any) {
+export async function sendEmoji(mgr: BuildingManager, args: SendEmojiRequest) {
     return args;
 }
 
@@ -490,7 +510,7 @@ export async function sendEmoji(mgr: BuildingManager, args: any) {
    * 每次都被视为新访客 → 无限信用点。
    * @param args - 请求体参数
    */
-export async function startInfoShare(mgr: BuildingManager, args: any) {
+export async function startInfoShare(mgr: BuildingManager, args: StartInfoShareRequest) {
     await mgr._player.update(async (draft) => {
       mgr._accrueCharAp(draft);
       const room = Object.values(draft.building.rooms.MEETING)[0];
@@ -513,7 +533,7 @@ export async function startInfoShare(mgr: BuildingManager, args: any) {
    *
    * @param args - 请求体参数（friendId）
    */
-export async function visitBuilding(mgr: BuildingManager, args: any) {
+export async function visitBuilding(mgr: BuildingManager, args: VisitBuildingRequest) {
     const friendId = args?.friendId;
     // 修复：VisitBuilding 任务事件从未 emit → 访问基建任务永不推进
     await mgr._trigger.emit("VisitBuilding", []);
@@ -522,7 +542,7 @@ export async function visitBuilding(mgr: BuildingManager, args: any) {
     // 原方向错误（文档为访问方收益），且私服好友多为模板账号无意义。
     if (friendId && String(friendId) !== String(mgr._player.uid)) {
       await mgr._player.update(async (draft) => {
-        const st = draft.status as any;
+        const st = draft.status as PlayerStatus & StatusExt;
         const dayKey = Math.floor(now() / 86400);
         const sameDay = st.visitCreditDay === dayKey;
         const used = sameDay ? (st.visitCreditCount ?? 0) : 0;

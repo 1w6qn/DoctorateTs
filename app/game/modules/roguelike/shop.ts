@@ -20,13 +20,52 @@ import {
 } from "./theme-rules";
 import { random } from "../../kernel/util/random";
 
+/**
+ * 商店商品条目（BATTLE_SHOP payload 的单件）
+ *
+ * `_retainDiscount` 为服务端折扣留存标记（客户端不识别；回收商品条目不带该键）。
+ */
+export interface ShopGoodsEntry {
+  index: string;
+  itemId: string;
+  count: number;
+  priceId: string;
+  priceCount: number;
+  origCost: number;
+  displayPriceChg: boolean;
+  _retainDiscount?: number;
+}
+
+/** 商店内容（BATTLE_SHOP 事件 payload；`_done` 为服务端私有标记，客户端不识别） */
+export interface ShopContentPayload {
+  bank: {
+    open: boolean;
+    canPut: boolean;
+    canWithdraw: boolean;
+    withdraw: number;
+    cost: number;
+    withdrawLimit: number;
+  };
+  id: string;
+  goods: ShopGoodsEntry[];
+  canBattle: boolean;
+  hasBoss: boolean;
+  refreshCnt: number;
+  showRefresh: boolean;
+  withdrawMethod: string;
+  refreshMethod: string;
+  _done: boolean;
+  recycleGoods?: ShopGoodsEntry[];
+  recycleCount?: number;
+}
+
   /**
    * 生成商店商品（对照官方抓包 2026-08：票/碎片/战术道具/藏品混合，价格按类型+稀有度：
    * 招募票 4、临时票 8、碎片 4、战术道具 8、藏品 NORMAL 8 / RARE 12 / SUPER_RARE 16；
    * 约 25% 商品打折（displayPriceChg=true，价减半，官方抓包确认）。
    */
-export function generateShopGoods(mgr: RoguelikeV2Manager, theme: string) : any[] {
-    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+export function generateShopGoods(mgr: RoguelikeV2Manager, theme: string) : ShopGoodsEntry[] {
+    const detail = excel.RoguelikeTopicTable.details[theme];
     const items = detail?.items || {};
     const priceId = `${theme}_gold`;
 
@@ -49,9 +88,7 @@ export function generateShopGoods(mgr: RoguelikeV2Manager, theme: string) : any[
     const shuffled = (arr: string[]) => [...arr].sort(() => random() - 0.5);
 
     // 藏品池过滤已拥有；按稀有度分层各抽 1 件再补齐到 4 件（避免全抽同档）
-    const hasRelic = Object.values(mgr.inventory?.relic || {}).map(
-      (r) => (r as any).id,
-    );
+    const hasRelic = Object.values(mgr.inventory?.relic || {}).map((r) => r.id);
     const relicPool = Object.keys(items).filter(
       (id) =>
         items[id]?.type === "RELIC" &&
@@ -88,7 +125,7 @@ export function generateShopGoods(mgr: RoguelikeV2Manager, theme: string) : any[
       (id) => items[id]?.type === "ACTIVE_TOOL",
     );
 
-    const goods: any[] = [];
+    const goods: ShopGoodsEntry[] = [];
     let i = 0;
     const pushGood = (itemId: string) => {
       const orig = priceOf(itemId);
@@ -121,17 +158,15 @@ export function generateShopGoods(mgr: RoguelikeV2Manager, theme: string) : any[
    * bank/id/goods/canBattle/hasBoss/refreshCnt/showRefresh/withdrawMethod/refreshMethod；
    * FRAGMENT 模块主题附 recycleGoods（碎片回收 1 金币/件，官方抓包确认）。
    */
-export function buildShopContent(mgr: RoguelikeV2Manager, theme: string) : any {
-    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+export function buildShopContent(mgr: RoguelikeV2Manager, theme: string) : ShopContentPayload {
+    const detail = excel.RoguelikeTopicTable.details[theme];
     const zone = mgr._status.cursor.zone;
     // 官服商店 id 用层号（cursor.zone 1000 起为网格区域索引——减 999 还原层号）
     const layer = zone > 999 ? zone - 999 : zone;
     const goods = mgr.generateShopGoods(theme);
     // 二结局·维度重构：沙盘β 大概率在 Ⅰ-Ⅲ 层诡意行商以 1 源石锭出售（未持有才出现）
     if (theme === "rogue_6" && layer >= 1 && layer <= 3) {
-      const hasRelic = Object.values(mgr.inventory?.relic || {}).map(
-        (r) => (r as any).id,
-      );
+      const hasRelic = Object.values(mgr.inventory?.relic || {}).map((r) => r.id);
       if (!hasRelic.includes("rogue_6_relic_final_2")) {
         goods.push({
           index: String(goods.length),
@@ -145,7 +180,7 @@ export function buildShopContent(mgr: RoguelikeV2Manager, theme: string) : any {
         });
       }
     }
-    const content: any = {
+    const content: ShopContentPayload = {
       bank: {
         open: true,
         canPut: true,
@@ -248,9 +283,7 @@ export async function leaveShop(mgr: RoguelikeV2Manager) : Promise<void> {
     // 商人返回：离开商店时填充（部分主题/商店类型有商人礼物）
     if (!mgr._status.traderReturn) {
       const theme = mgr.current.game!.theme;
-      const hasRelic = Object.values(mgr.inventory!.relic || {}).map(
-        (r) => (r as any).id,
-      );
+      const hasRelic = Object.values(mgr.inventory!.relic || {}).map((r) => r.id);
       const rewardId = mgr._pool.getRelic("pool_relic_all", hasRelic);
       if (rewardId) {
         mgr._status.traderReturn = {
@@ -267,15 +300,14 @@ export async function leaveShop(mgr: RoguelikeV2Manager) : Promise<void> {
 export async function shopBattleStart(mgr: RoguelikeV2Manager) : Promise<void> {
     const theme = mgr.current.game!.theme;
     const exclude: string[] = [];
-    const tickets =
-      (excel.RoguelikeTopicTable.details[theme] as any)?.recruitTickets || {};
+    const tickets = excel.RoguelikeTopicTable.details[theme]?.recruitTickets || {};
     for (const [id] of Object.entries(tickets)) {
-      if ((id as string).includes("_special") || (id as string).includes("_sniper")) {
-        exclude.push(id as string);
+      if (id.includes("_special") || id.includes("_sniper")) {
+        exclude.push(id);
       }
     }
     const relics = mgr.inventory!.relic || {};
-    for (const relic of Object.values(relics) as any[]) {
+    for (const relic of Object.values(relics)) {
       if ((relic.id || "").includes("grace")) exclude.push(relic.id);
     }
     mgr._trigger.emit("rlv2:event:create", [

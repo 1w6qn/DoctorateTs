@@ -23,10 +23,51 @@ import { RoguelikeChaosManager, RoguelikeVisionManager } from "./modules/chaos";
 import { RoguelikeSkyManager, RoguelikeWrathManager } from "./modules/wrath_sky";
 
 /**
+ * 模块管理器类型再导出
+ *
+ * module.ts 的访问器按具体管理器类型收敛，而 architecture/decoupling 守卫要求
+ * module.ts 不直连 `./modules/*`（只能经本分发表），故类型统一从这里出口。
+ */
+export type { RoguelikeFragmentManager } from "./modules/fragment";
+export type { RoguelikeTotemManager } from "./modules/totem";
+export type { RoguelikeGridZoneManager } from "./modules/grid_zone";
+export type { RoguelikeScrapManager } from "./modules/scrap";
+export type { RoguelikeWeatherManager } from "./modules/weather";
+export type { RoguelikeDiceManager, RoguelikeSanManager } from "./modules/dice";
+export type { RoguelikeCopperManager } from "./modules/copper";
+export type {
+  RoguelikeChaosManager,
+  RoguelikeVisionManager,
+} from "./modules/chaos";
+export type {
+  RoguelikeSkyManager,
+  RoguelikeWrathManager,
+} from "./modules/wrath_sky";
+
+/**
+ * 主题模块管理器联合类型（分发表全部 14 个模块管理器）
+ */
+export type Rlv2ThemeModule =
+  | RoguelikeFragmentManager
+  | RoguelikeDisasterManager
+  | RoguelikeNodeUpgradeManager
+  | RoguelikeTotemManager
+  | RoguelikeGridZoneManager
+  | RoguelikeWeatherManager
+  | RoguelikeScrapManager
+  | RoguelikeSanManager
+  | RoguelikeDiceManager
+  | RoguelikeCopperManager
+  | RoguelikeChaosManager
+  | RoguelikeVisionManager
+  | RoguelikeWrathManager
+  | RoguelikeSkyManager;
+
+/**
  * 主题模块工厂表：moduleType 键 → 构造该模块管理器的工厂函数
  */
 export type Rlv2ModuleFactoryMap = {
-  [moduleType: string]: (() => unknown) | undefined;
+  [moduleType: string]: () => Rlv2ThemeModule;
 };
 
 /**

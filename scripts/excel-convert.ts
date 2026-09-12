@@ -5,9 +5,23 @@
 import * as fs from "fs";
 import * as path from "path";
 import { resolveCsFile } from "./lib/cs-source";
+import { isJsonObject, type JsonObject, type JsonValue } from "@excel/json-value";
 
 const ROOT = path.join(__dirname, "..");
 const FBS_SCHEMA_DIR = path.join(ROOT, "scripts/vendor/fbs-schemas");
+
+/** FBO schema 中的单个字段（本模块只读 name/type，slot 由 fbo 解码器使用） */
+interface FbsSchemaField {
+  name: string;
+  type: string;
+}
+
+/** FBO schema JSON（scripts/vendor/fbs-schemas/*.json；只声明本模块读取的字段） */
+interface FbsSchema {
+  root?: string;
+  tables?: Record<string, FbsSchemaField[]>;
+  enums?: Record<string, Record<string, number>>;
+}
 
 /**
  * 路径级枚举覆盖：唯一值兜底对多义值（同一数值在多个枚举中重复）弃转，
@@ -168,7 +182,7 @@ function loadEnumMaps(): Map<number, string | null> {
 export interface SchemaCompletion {
   fields: string[]; // FBS 原始字段名（PascalCase），归一化后补充 null
   applyTo: "root" | "values"; // values = SimpleKVTable 解包后的每个记录对象
-  schema?: any; // 完整 schema（递归补全嵌套层用）
+  schema?: FbsSchema; // 完整 schema（递归补全嵌套层用）
   recordType?: string; // 记录类型的 clz 名
 }
 
@@ -180,7 +194,7 @@ export interface SchemaCompletion {
  */
 export function buildCompletion(schemaPath: string): SchemaCompletion | undefined {
   if (!fs.existsSync(schemaPath)) return undefined;
-  let schema: any;
+  let schema: FbsSchema;
   try {
     schema = JSON.parse(fs.readFileSync(schemaPath, "utf-8"));
   } catch {
@@ -193,7 +207,7 @@ export function buildCompletion(schemaPath: string): SchemaCompletion | undefine
     recordType = root.slice("clz_Torappu_SimpleKVTable_".length);
     applyTo = "values";
   }
-  const fields = (schema.tables?.[recordType] || []).map((x: any) => x.name);
+  const fields = (schema.tables?.[recordType] || []).map((x) => x.name);
   if (!fields.length) return undefined;
   return { fields, applyTo, schema, recordType };
 }
@@ -319,15 +333,15 @@ export function isUpToDate(rawFile: string, outFile: string, schemaFile?: string
 }
 
 export function convertTable(
-  dec: any,
-  loc: any, // 本地既有文件（枚举学习种子），可 null
+  dec: JsonValue,
+  loc: JsonValue | null, // 本地既有文件（枚举学习种子），可 null
   table: string,
   completion?: SchemaCompletion,
-): any {
-  const norm = (d: any): any => {
+): JsonValue {
+  const norm = (d: JsonValue): JsonValue => {
     if (Array.isArray(d)) return d.map(norm);
-    if (d && typeof d === "object") {
-      const out: any = {};
+    if (isJsonObject(d)) {
+      const out: JsonObject = {};
       for (const [k, v] of Object.entries(d)) {
         if (k.endsWith("AsNumpy")) continue;
         out[normKey(k)] = norm(v);
@@ -340,9 +354,9 @@ export function convertTable(
   let locN = loc ? norm(loc) : null;
 
   // 单键根解包
-  const unwrap = (d: any, l: any): [any, any] => {
-    if (d && typeof d === "object" && !Array.isArray(d) && Object.keys(d).length === 1) {
-      if (l && typeof l === "object" && !Array.isArray(l) && Object.keys(l).length !== 1) {
+  const unwrap = (d: JsonValue, l: JsonValue | null): [JsonValue, JsonValue | null] => {
+    if (isJsonObject(d) && Object.keys(d).length === 1) {
+      if (isJsonObject(l) && Object.keys(l).length !== 1) {
         return [Object.values(d)[0], l];
       }
       if (!l) return [Object.values(d)[0], null];
@@ -362,9 +376,9 @@ export function convertTable(
   if (fs.existsSync(FBS_SCHEMA_DIR)) {
     for (const f of fs.readdirSync(FBS_SCHEMA_DIR).filter((x) => x.endsWith(".json"))) {
       try {
-        const schema = JSON.parse(fs.readFileSync(path.join(FBS_SCHEMA_DIR, f), "utf-8"));
+        const schema: FbsSchema = JSON.parse(fs.readFileSync(path.join(FBS_SCHEMA_DIR, f), "utf-8"));
         for (const vmap of Object.values(schema.enums || {})) {
-          for (const [name, val] of Object.entries(vmap as Record<string, number>)) {
+          for (const [name, val] of Object.entries(vmap)) {
             if (!fbsNames.has(val)) fbsNames.set(val, new Set());
             fbsNames.get(val)!.add(name);
           }
@@ -373,7 +387,7 @@ export function convertTable(
     }
   }
 
-  if (locN && typeof locN === "object") {
+  if (isJsonObject(locN)) {
     // 修复：rename 学习不再传播"坏 camelCase"键（首字母小写+其余大写，如 rELIC/
     // dEFAULT/tYPE_ACT3D0/cOLLECTION——旧管线 lowerFirst 全大写键的产物）。此类键
     // 若被学进 renameMap，每次重生成都把解码的规范 PascalCase 键（Relic→relic、
@@ -381,8 +395,8 @@ export function convertTable(
     // 例外清单：lMTGSID 等官方 JSON 实际键（小写 l 前缀，代码/文档依赖，见 gacha_table.ts）。
     const BROKEN_KEY_RE = /^[a-z][A-Z]/;
     const RENAME_ALLOWLIST = new Set(["lmtgsid"]);
-    const walkPairs = (d: any, l: any, p: string) => {
-      if (d && typeof d === "object" && !Array.isArray(d) && l && typeof l === "object" && !Array.isArray(l)) {
+    const walkPairs = (d: JsonValue, l: JsonValue, p: string) => {
+      if (isJsonObject(d) && isJsonObject(l)) {
         const lm = new Map<string, string>();
         for (const k of Object.keys(l)) lm.set(k.toLowerCase(), k);
         const dm = new Map<string, string>();
@@ -420,7 +434,7 @@ export function convertTable(
         }
       } else if (Array.isArray(d) && Array.isArray(l)) {
         for (let i = 0; i < Math.min(d.length, l.length); i++) walkPairs(d[i], l[i], `${p}[${i}]`);
-      } else if (d === null && (Array.isArray(l) || (l && typeof l === "object"))) {
+      } else if (d === null && (Array.isArray(l) || isJsonObject(l))) {
         emptyMap.set(stripIdx(p), Array.isArray(l) ? "list" : "dict");
       } else if (typeof d === "number" && Number.isInteger(d) && typeof l === "string") {
         // 修复：loc 学习只接受"值是 FBS 枚举值 且 loc 字符串是该值的 FBS 枚举名"——
@@ -434,7 +448,15 @@ export function convertTable(
       }
     };
     const locKeys = Object.keys(locN).slice(0, 2000);
-    for (const k of locKeys) walkPairs(decN?.[k] ?? {}, locN[k], table);
+    for (const k of locKeys) {
+      // 与原 `decN?.[k]` 同语义：数组按数字下标取（非数字键得 undefined），对象按键取
+      const dc = Array.isArray(decN)
+        ? decN[Number(k)]
+        : isJsonObject(decN)
+          ? decN[k]
+          : undefined;
+      walkPairs(dc ?? {}, locN[k], table);
+    }
   }
 
   // 通用重命名（Undefinable）
@@ -442,9 +464,9 @@ export function convertTable(
   renameMap.set("mvalue", "m_value");
   const uniqueName = loadEnumMaps();
 
-  const convert = (d: any, p: string): any => {
-    if (d && typeof d === "object" && !Array.isArray(d)) {
-      const out: any = {};
+  const convert = (d: JsonValue, p: string): JsonValue => {
+    if (isJsonObject(d)) {
+      const out: JsonObject = {};
       for (const [k, v] of Object.entries(d)) {
         // 全大写+下划线键（枚举值，REST/BATTLE_SHOP 等）跳过 renameMap——本地脏种子
         // （此前 camelCase 损坏的 rEST）会污染 renameMap 导致枚举键二次破坏
@@ -477,8 +499,8 @@ export function convertTable(
     return d;
   };
 
-  if (decN && typeof decN === "object" && !Array.isArray(decN)) {
-    const out: any = {};
+  if (isJsonObject(decN)) {
+    const out: JsonObject = {};
     for (const [k, v] of Object.entries(decN)) out[k] = convert(v, table);
     // schema 字段补齐：与 ArknightsGameData/OpenArknightsFBS 对齐（缺省字段补 null）
     if (completion) completeFields(out, completion, renameMap);
@@ -490,18 +512,17 @@ export function convertTable(
 }
 
 function completeFields(
-  result: any,
+  result: JsonValue,
   completion: SchemaCompletion,
   renameMap: Map<string, string>,
 ): void {
   const lowerFirst = (s: string) => (s ? s[0].toLowerCase() + s.slice(1) : s);
-  const targets: any[] =
-    completion.applyTo === "values" &&
-    result && typeof result === "object" && !Array.isArray(result)
+  const targets: JsonValue[] =
+    completion.applyTo === "values" && isJsonObject(result)
       ? Object.values(result)
       : [result];
   for (const obj of targets) {
-    if (!obj || typeof obj !== "object" || Array.isArray(obj)) continue;
+    if (!isJsonObject(obj)) continue;
     for (const f of completion.fields) {
       const nk = renameMap.get(f.toLowerCase()) ?? lowerFirst(f);
       if (!(nk in obj)) obj[nk] = null;
@@ -515,12 +536,12 @@ function completeFields(
 
 /** 递归按 schema 类型补全缺失字段（null） */
 function completeRecursive(
-  obj: any,
+  obj: JsonValue,
   typeName: string,
-  schema: any,
+  schema: FbsSchema,
   renameMap: Map<string, string>,
 ): void {
-  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
+  if (!isJsonObject(obj)) return;
   const fields = schema.tables?.[typeName];
   if (!fields) return;
   const lowerFirst = (s: string) => (s ? s[0].toLowerCase() + s.slice(1) : s);
@@ -539,7 +560,7 @@ function completeRecursive(
     // 结构不符）。dict 类型统一逐值下钻。
     if (Array.isArray(val)) {
       for (const item of val) {
-        if (dict && item && typeof item === "object" && !Array.isArray(item)) {
+        if (dict && isJsonObject(item)) {
           for (const rec of Object.values(item)) {
             completeRecursive(rec, child, schema, renameMap);
           }
@@ -547,7 +568,7 @@ function completeRecursive(
           completeRecursive(item, child, schema, renameMap);
         }
       }
-    } else if (typeof val === "object") {
+    } else if (isJsonObject(val)) {
       if (dict) {
         for (const rec of Object.values(val)) {
           completeRecursive(rec, child, schema, renameMap);
@@ -567,7 +588,7 @@ function isDictContainer(type: string): boolean {
 }
 
 /** 字段类型 → 子对象类型（dict__K__V → V 类型；vec:X → X） */
-function childTypeOf(type: string, schema: any): string | undefined {
+function childTypeOf(type: string, schema: FbsSchema): string | undefined {
   let t = type;
   if (t.startsWith("vec:")) t = t.slice(4);
   if (t.startsWith("dict__") || t.startsWith("kvp__")) {

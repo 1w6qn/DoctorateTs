@@ -22,7 +22,8 @@ import { decryptBattleData } from "@utils/crypt";
 import { logger } from "@utils/logger";
 import { accountManager } from "../../account/public";
 import { activityDictKey } from "../shared/unlockActivity";
-import type { CommonStartBattleRequest } from "../../../kernel/battle-model";
+import { activityDetailJson, asShape } from "../shared/activity-json";
+import type { BattleData, CommonStartBattleRequest } from "../../../kernel/battle-model";
 import type { PlayerDeltaResponse } from "../../../kernel/http/common";
 import type {
   BossRushFinishBattleRequest,
@@ -34,6 +35,12 @@ import type {
   ActivityBossRushData,
   ActivityBossRushData_RelicLevelInfo,
 } from "@excel/excel";
+
+/** 波次掉落档（ActivityBossRushData.stageDropDataMap 元素；仅声明本模块消费面） */
+interface BossRushWaveDrop {
+  clearWaveCount?: number;
+  displayDetailRewards?: { id?: string; dropCount?: number }[];
+}
 
 /** 玩家尖灭存档（draft.activity.BOSS_RUSH[actId] 的宽松子集，对齐 PlayerActivity_PlayerBossRushActivity） */
 interface BossRushPlayerData {
@@ -93,10 +100,11 @@ export class BossRushManager {
    * @returns 活动详情（缺失返回 undefined）
    */
   private activityData(actId: string): ActivityBossRushData | undefined {
-    const dict = (excel.ActivityTable?.activity ?? {}) as Record<string, unknown>;
     const key = activityDictKey("BOSS_RUSH");
     if (!key) return undefined;
-    return (dict[key] as Record<string, ActivityBossRushData | undefined>)?.[actId];
+    return asShape<ActivityBossRushData>(
+      activityDetailJson(excel.ActivityTable.activity, key, actId),
+    );
   }
 
   /**
@@ -250,7 +258,7 @@ export class BossRushManager {
    */
   async battleFinish(body: BossRushFinishBattleRequest): Promise<BossRushFinishPayload> {
     // 解密战斗数据：解析 battleId / 波次 / 关卡（提前到标准结算之前，防重校验需要 battleId）
-    let battleData: any = null;
+    let battleData: BattleData | null = null;
     let wave = 0;
     let stageId = "";
     try {
@@ -258,7 +266,8 @@ export class BossRushManager {
         body.data,
         this._player._playerdata.pushFlags.status,
       );
-      const extra = battleData?.battleData?.stats?.extraBattleInfo ?? {};
+      const extra: { [key: string]: number } =
+        battleData?.battleData?.stats?.extraBattleInfo ?? {};
       for (const [key, value] of Object.entries(extra)) {
         if (key.includes("bossrush_finished_wave")) {
           wave = Number(value);
@@ -276,7 +285,7 @@ export class BossRushManager {
     // 防重/互斥校验（在标准结算之前，避免重复结算重复发奖）：
     // - 同一 battleId 已结算过 → 拒绝
     // - 存在进行中战斗且 battleId 不匹配 → 拒绝（非当前战斗，视为重放/篡改）
-    const bid = battleData?.battleId as string | undefined;
+    const bid = battleData?.battleId;
     if (bid) {
       if (this._settledBattleIds.has(bid)) {
         return {
@@ -398,14 +407,17 @@ export class BossRushManager {
  * @param wave    - 结算波次
  * @returns 掉落档（无命中返回 undefined）
  */
-function dropInfoForWave(dropMap: Record<string, any> | undefined, wave: number): any | undefined {
+function dropInfoForWave(
+  dropMap: { [key: number]: BossRushWaveDrop } | undefined,
+  wave: number,
+): BossRushWaveDrop | undefined {
   if (!dropMap) return undefined;
-  const exact = dropMap[String(wave)];
+  const exact = dropMap[wave];
   if (exact) return exact;
-  let best: any | undefined;
+  let best: BossRushWaveDrop | undefined;
   let bestWave = 0;
   for (const [key, value] of Object.entries(dropMap)) {
-    const w = Number((value as any)?.clearWaveCount ?? key);
+    const w = Number(value?.clearWaveCount ?? key);
     if (w <= wave && w > bestWave) {
       bestWave = w;
       best = value;

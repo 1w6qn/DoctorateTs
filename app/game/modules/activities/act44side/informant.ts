@@ -31,6 +31,9 @@
 import excel from "@excel/excel";
 import type { Act44SideData } from "@excel/excel";
 import { logger } from "@utils/logger";
+import type { Draft } from "mutative";
+import type { PlayerDataModel } from "../../../kernel/playerdata";
+import { asRecord } from "../shared/activity-json";
 
 /** InformantState 数值语义（官服 PlayerAct44SideActivity.InformantState） */
 export const InformantState = {
@@ -113,11 +116,11 @@ export interface Act44SideRuntimeState {
  * @returns typeAct44Side 字典（无数据时返回空对象）
  */
 function resolveAct44Dict(): Record<string, Act44SideData> {
-  const dict = (excel.ActivityTable?.activity ?? {}) as Record<string, unknown>;
+  const dict = excel.ActivityTable.activity;
   const key = Object.keys(dict).find(
     (k) => k.replace(/_/g, "").toLowerCase() === "typeact44side",
   );
-  return ((key ? dict[key] : {}) ?? {}) as Record<string, Act44SideData>;
+  return asRecord<Act44SideData>(key ? dict[key] : undefined);
 }
 
 /**
@@ -222,23 +225,34 @@ export function defaultAct44State(favorList: string[] = []): Act44SideRuntimeSta
  * @returns 玩家活动状态（draft 内引用，可直接变异）
  */
 export function ensureAct44State(
-  draft: any,
+  draft: Draft<PlayerDataModel>,
   activityId?: string,
 ): { state: Act44SideRuntimeState; data?: Act44SideData } {
   const data = resolveAct44Data(activityId);
-  const dict = (draft.activity as any);
+  const dict = draft.activity;
   dict.TYPE_ACT44SIDE = dict.TYPE_ACT44SIDE || {};
-  const store = dict.TYPE_ACT44SIDE as Record<string, Act44SideRuntimeState>;
+  const store = dict.TYPE_ACT44SIDE;
   const id = activityId || Object.keys(resolveAct44Dict())[0] || "act44side";
-  if (!store[id] || typeof store[id] !== "object") {
+  const existing = store[id];
+  if (!existing || typeof existing !== "object") {
     store[id] = defaultAct44State();
   }
   // 自愈旧形状/缺字段（如仅播种了通用 TYPE_ACT 三件套的历史存档）
   const base = defaultAct44State();
-  for (const k of Object.keys(base) as (keyof Act44SideRuntimeState)[]) {
-    if (store[id][k] === undefined) (store[id] as any)[k] = base[k];
+  const state = store[id] as Act44SideRuntimeState;
+  if (state.coin === undefined) state.coin = base.coin;
+  if (state.favorList === undefined) state.favorList = base.favorList;
+  if (state.informantPt === undefined) state.informantPt = base.informantPt;
+  if (state.milestone === undefined) state.milestone = base.milestone;
+  if (state.businessDay === undefined) state.businessDay = base.businessDay;
+  if (state.unlockedCustomers === undefined) {
+    state.unlockedCustomers = base.unlockedCustomers;
   }
-  return { state: store[id], data };
+  if (state.unlockedTags === undefined) state.unlockedTags = base.unlockedTags;
+  if (state.isNew === undefined) state.isNew = base.isNew;
+  if (state.outerOpen === undefined) state.outerOpen = base.outerOpen;
+  if (state.game === undefined) state.game = base.game;
+  return { state, data };
 }
 
 /**
@@ -256,19 +270,19 @@ export function ensureAct44State(
  * @param draft - player.update 的 draft
  * @param stageId - 本次写入的关卡 id；缺省时扫描 dungeon.stages 全部键（播种后自愈）
  */
-export function syncAct44SideEntry(draft: any, stageId?: string): void {
-  const basicInfo = (excel.ActivityTable?.basicInfo ?? {}) as Record<string, any>;
+export function syncAct44SideEntry(draft: Draft<PlayerDataModel>, stageId?: string): void {
+  const basicInfo = excel.ActivityTable?.basicInfo ?? {};
   const candidates = Object.keys(basicInfo).filter(
     (id) => basicInfo[id]?.type === "TYPE_ACT44SIDE",
   );
   if (candidates.length === 0) return;
   const touched = stageId
     ? [stageId]
-    : Object.keys((draft.dungeon?.stages ?? {}) as Record<string, unknown>);
+    : Object.keys(draft.dungeon?.stages ?? {});
   for (const sid of touched) {
     const actId = candidates.find((id) => sid.startsWith(`${id}_`));
     if (actId) {
-      if ((draft.activity as any)?.TYPE_ACT44SIDE?.[actId]) return;
+      if (draft.activity.TYPE_ACT44SIDE?.[actId]) return;
       ensureAct44State(draft, actId);
       logger.info("Informant", `关卡进度触发情报屋活动状态自愈：${actId}（${sid}）`);
       return;
@@ -284,7 +298,7 @@ export function syncAct44SideEntry(draft: any, stageId?: string): void {
       .map((id) => (id.endsWith("side") ? `${id.slice(0, -4)}sre` : undefined))
       .find((id) => !!id && sid.startsWith(`${id}_`));
     if (rerunId) {
-      if ((draft.activity as any)?.TYPE_ACT44SIDE?.[rerunId]) return;
+      if (draft.activity.TYPE_ACT44SIDE?.[rerunId]) return;
       ensureAct44State(draft, rerunId);
       logger.info("Informant", `关卡进度触发情报屋活动状态自愈：${rerunId}（${sid}）`);
       return;
@@ -355,7 +369,7 @@ function dealCustomer(data: Act44SideData | undefined, slot: number) {
  * @param draft - player.update 的 draft
  * @param activityId - 客户端请求的活动 ID
  */
-export function informantStartGame(draft: any, activityId?: string): void {
+export function informantStartGame(draft: Draft<PlayerDataModel>, activityId?: string): void {
   const { state, data } = ensureAct44State(draft, activityId);
   const day = state.businessDay;
   const newsIds = Object.keys(data?.newsDataMap ?? {}).sort();
@@ -429,7 +443,7 @@ function enterChoice(game: InformantGame, data?: Act44SideData): void {
  * @param activityId - 客户端请求的活动 ID
  * @param reqState - 客户端报告的当前状态
  */
-export function informantNextState(draft: any, activityId?: string, reqState?: number): void {
+export function informantNextState(draft: Draft<PlayerDataModel>, activityId?: string, reqState?: number): void {
   const { state, data } = ensureAct44State(draft, activityId);
   const game = state.game;
   if (!game) {
@@ -587,7 +601,7 @@ function finishBusinessDay(
  * @param activityId - 客户端请求的活动 ID
  * @param index - 选项下标（tradeInfo.choices 的 0/1）
  */
-export function informantSelectChoice(draft: any, activityId?: string, index?: number): void {
+export function informantSelectChoice(draft: Draft<PlayerDataModel>, activityId?: string, index?: number): void {
   const { state, data } = ensureAct44State(draft, activityId);
   const game = state.game;
   if (!game || game.state !== InformantState.CHOICE) {
@@ -620,7 +634,7 @@ export function informantSelectChoice(draft: any, activityId?: string, index?: n
  * @param draft - player.update 的 draft
  * @param activityId - 客户端请求的活动 ID
  */
-export function informantUseInsight(draft: any, activityId?: string): void {
+export function informantUseInsight(draft: Draft<PlayerDataModel>, activityId?: string): void {
   const { state } = ensureAct44State(draft, activityId);
   const game = state.game;
   if (!game || game.state !== InformantState.CHOICE) {

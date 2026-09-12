@@ -22,7 +22,13 @@
  * - normal4 各圈奖励的官方多差分场景合并为单一奖励幕（选项全量给出）。
  */
 import excel from "@excel/excel";
+import type {
+  RoguelikeGameChoiceData,
+  RoguelikeTopicDetail,
+} from "@excel/excel";
 import { RoguelikeV2Manager } from "./logic";
+import type { RoguelikeGridZoneManager } from "./modules/grid_zone";
+import type { RoguelikeScrapManager } from "./modules/scrap";
 import { random } from "../../kernel/util/random";
 
 /** rogue_6 event_choices.json 段的松散类型（其余主题同键结构不同，不做严格契约） */
@@ -38,6 +44,56 @@ interface Ro6Grant {
 }
 type Ro6BattleSpec = string | { random?: string[]; nextZoneNormal?: boolean };
 
+/** 选项门槛（event_choices.json gates[choice]） */
+interface Ro6Gate {
+  relic?: string;
+  notRelic?: string;
+  scrap?: string;
+  gold?: number;
+  develop?: string;
+}
+
+/** 非战斗节点入口（event_choices.json nodeEnters[kind]） */
+interface Ro6NodeEnter {
+  scene?: string;
+  scenes?: string[];
+  beaconScene?: string;
+  randomChoices?: number;
+}
+
+/**
+ * rogue_6 event_choices.json 段（`_data.eventChoices.rogue_6`）。
+ *
+ * `RoguelikeV2Config.eventChoices` 仅建模各主题公共的 enter/choices 两键，本引擎使用的
+ * incidents/sceneChoices/randomScenes/battles/grants/gates/nodeEnters 为其外的增量段，
+ * 故在此按数据实际形状声明并在取值处单点收窄（同 settle.ts 对 customizeData 的处理）。
+ */
+interface Ro6EventChoicesData {
+  enter?: { [sceneId: string]: string[] };
+  incidents?: { [sceneId: string]: Ro6IncidentCond };
+  sceneChoices?: { [sceneId: string]: string[] };
+  randomScenes?: { [choiceId: string]: string[] };
+  battles?: { [choiceId: string]: Ro6BattleSpec };
+  grants?: { [choiceId: string]: Ro6Grant };
+  gates?: { [choiceId: string]: Ro6Gate };
+  nodeEnters?: { [kind: string]: Ro6NodeEnter };
+}
+
+/** 选项 displayData 视图（生成模型字段名为 itemID，数据侧另有小写 itemId 兜底） */
+interface Ro6ChoiceDisplayData {
+  itemID?: string;
+  itemId?: string;
+}
+
+/**
+ * 远征详情视图：`troop.expeditionDetails` 管理器字段声明为 `{ [key: string]: number }`，
+ * 但三结局远征标记实际写入布尔 `ending`（event.ts 同源写法，见 rlv2-ending-3 测试断言
+ * `expeditionDetails.ending === true`）。
+ */
+interface ExpeditionDetailsView {
+  [key: string]: number | boolean;
+}
+
 /** 不期而遇事件引擎（控制器持有单例，随控制器持久） */
 export class Rogue6IncidentEngine {
   _player: RoguelikeV2Manager;
@@ -47,13 +103,27 @@ export class Rogue6IncidentEngine {
   }
 
   /** rogue_6 事件配置段（incidents/enter/sceneChoices/randomScenes/battles/grants/gates） */
-  private get data(): any {
-    return (this._player as any)._data?.eventChoices?.rogue_6;
+  private get data(): Ro6EventChoicesData | undefined {
+    return this._player._data?.eventChoices?.["rogue_6"] as
+      | Ro6EventChoicesData
+      | undefined;
   }
 
-  private get detail(): any {
+  private get detail(): Partial<RoguelikeTopicDetail> {
     const theme = this._player.current.game?.theme || "";
-    return (excel.RoguelikeTopicTable.details as any)[theme] || {};
+    return excel.RoguelikeTopicTable.details[theme] || {};
+  }
+
+  /** 网格区域管理器（GRID_ZONE：模块访问器声明为 any，按实现类收窄） */
+  private get gridZone(): RoguelikeGridZoneManager | undefined {
+    return this._player._module?.gridZone as
+      | RoguelikeGridZoneManager
+      | undefined;
+  }
+
+  /** 废品管理器（SCRAP：模块访问器声明为 any，按实现类收窄） */
+  private get scrap(): RoguelikeScrapManager | undefined {
+    return this._player._module?.scrap as RoguelikeScrapManager | undefined;
   }
 
   /**
@@ -62,13 +132,11 @@ export class Rogue6IncidentEngine {
    * @returns 已生成事件场景返回 true；池为空（数据缺失等）返回 false 交回旧分发
    */
   async createIncident(): Promise<boolean> {
-    const player = this._player as any;
-    const incidents = this.data?.incidents as
-      | { [sceneId: string]: Ro6IncidentCond }
-      | undefined;
+    const player = this._player;
+    const incidents = this.data?.incidents;
     if (!incidents) return false;
-    const zone = player._status.cursor.zone as number;
-    const inPortal = !!player._module?.gridZone?.portal?.active;
+    const zone = player._status.cursor.zone;
+    const inPortal = !!this.gridZone?.portal?.active;
     const seen = this.seenList();
     const pool = Object.entries(incidents).filter(([id, c]) => {
       if (c.floors && !c.floors.includes(zone)) return false;
@@ -86,7 +154,7 @@ export class Rogue6IncidentEngine {
     this.markSeen(
       sceneId === "scene_ro6_bat6b_enter" ? "scene_ro6_bat6_enter" : sceneId,
     );
-    const enter = this.data?.enter?.[sceneId] as string[] | undefined;
+    const enter = this.data?.enter?.[sceneId];
     if (!enter) return false;
     await this.openScene(sceneId, enter);
     return true;
@@ -98,19 +166,19 @@ export class Rogue6IncidentEngine {
    * @returns 已处理返回 true；选项不在事件表内返回 false（交回通用路径）
    */
   async resolveChoice(choice: string): Promise<boolean> {
-    const player = this._player as any;
+    const player = this._player;
     const choiceConfig = this.detail.choices?.[choice];
     if (!choiceConfig || !this.data) return false;
 
     // 战斗选项：映射关卡后开始战斗（节点标记 stage 供客户端/结算使用）
-    const battleSpec = this.data.battles?.[choice] as Ro6BattleSpec | undefined;
+    const battleSpec = this.data.battles?.[choice];
     if (battleSpec) {
       this.startIncidentBattle(battleSpec);
       return true;
     }
 
     // 消耗：按官方描述文本解析（先扣后发，与客户端结算顺序一致）
-    const descPlain = ((choiceConfig.description as string) || "").replace(
+    const descPlain = (choiceConfig.description || "").replace(
       /<[^>]+>/g,
       "",
     );
@@ -124,12 +192,12 @@ export class Rogue6IncidentEngine {
     }
 
     // 随机分支场景优先，其次官方 nextSceneId
-    const rand = this.data.randomScenes?.[choice] as string[] | undefined;
+    const rand = this.data.randomScenes?.[choice];
     let nextScene: string | null = null;
     if (Array.isArray(rand) && rand.length > 0) {
       nextScene = rand[Math.floor(random() * rand.length)];
     } else {
-      nextScene = (choiceConfig.nextSceneId as string) || null;
+      nextScene = choiceConfig.nextSceneId || null;
     }
     if (!nextScene) {
       // 终端选项（战斗外的 MOVE/VISION/无后续幕）：节点结束
@@ -151,7 +219,7 @@ export class Rogue6IncidentEngine {
     sceneId: string,
     overrideChoices?: string[],
   ): Promise<void> {
-    const player = this._player as any;
+    const player = this._player;
     player._status.pending.shift();
     await this.emitScene(sceneId, overrideChoices);
   }
@@ -161,12 +229,10 @@ export class Rogue6IncidentEngine {
     sceneId: string,
     overrideChoices?: string[],
   ): Promise<void> {
-    const player = this._player as any;
+    const player = this._player;
     const raw =
       overrideChoices ??
-      ((this.data.sceneChoices?.[sceneId] as string[] | undefined) || [
-        "choice_leave",
-      ]);
+      (this.data!.sceneChoices?.[sceneId] || ["choice_leave"]);
     const list = raw.filter(
       (c) => c === "choice_leave" || this.passGate(c),
     );
@@ -189,22 +255,14 @@ export class Rogue6IncidentEngine {
 
   /** 选项门槛判定（gates 表：需持有收藏品/零件/源石锭，或不得持有，或已点亮科技树节点） */
   private passGate(choice: string): boolean {
-    const g = this.data?.gates?.[choice] as
-      | {
-          relic?: string;
-          notRelic?: string;
-          scrap?: string;
-          gold?: number;
-          develop?: string;
-        }
-      | undefined;
+    const g = this.data?.gates?.[choice];
     if (!g) return true;
     if (g.relic && !this.hasRelic(g.relic)) return false;
     if (g.notRelic && this.hasRelic(g.notRelic)) return false;
     if (g.scrap && !this.hasScrap(g.scrap)) return false;
     if (g.develop && !this.developUnlocked(g.develop)) return false;
     if (typeof g.gold === "number") {
-      const gold = (this._player as any)._status.property.gold as number;
+      const gold = this._player._status.property.gold;
       if (gold < g.gold) return false;
     }
     return true;
@@ -212,7 +270,7 @@ export class Rogue6IncidentEngine {
 
   /** 【生命游戏】科技树节点是否已点亮（失与得声带/手掌等选项门槛） */
   private developUnlocked(outbuffId: string): boolean {
-    const player = this._player as any;
+    const player = this._player;
     const theme = player.current.game?.theme || "";
     return !!player.outer?.[theme]?.buff?.unlocked?.[outbuffId];
   }
@@ -223,7 +281,7 @@ export class Rogue6IncidentEngine {
    * N行动力、随机2件加工品、1枚种子、源私钥。
    */
   private applyDescriptionCost(desc: string): void {
-    const player = this._player as any;
+    const player = this._player;
     const prop = player._status.property;
     if (/消耗[^。，]*全部[^。，]*源石锭/.test(desc)) {
       prop.gold = 0;
@@ -251,7 +309,7 @@ export class Rogue6IncidentEngine {
     }
     let m = /(?:消耗|失去)\s*(\d+)\s*行动力/.exec(desc);
     if (m) {
-      const gz = player._module?.gridZone;
+      const gz = this.gridZone;
       if (gz) gz.stepRemain = Math.max(0, (gz.stepRemain || 0) - parseInt(m[1], 10));
       return;
     }
@@ -271,12 +329,15 @@ export class Rogue6IncidentEngine {
   }
 
   /** 发放：官方 displayData.itemID（虚拟资源物品）+ grants 表的随机奖励 */
-  private async applyGrants(choice: string, choiceConfig: any): Promise<void> {
-    const player = this._player as any;
-    const dd = choiceConfig?.displayData || {};
+  private async applyGrants(
+    choice: string,
+    choiceConfig: RoguelikeGameChoiceData,
+  ): Promise<void> {
+    const player = this._player;
+    const dd: Ro6ChoiceDisplayData = choiceConfig?.displayData || {};
     const officialItem = dd.itemID ?? dd.itemId;
     if (officialItem) {
-      const m = ((choiceConfig?.description as string) || "").match(
+      const m = (choiceConfig?.description || "").match(
         /<@ro\d+\.get>(\d+)<\/>/,
       );
       const count = m ? parseInt(m[1], 10) : 1;
@@ -284,7 +345,7 @@ export class Rogue6IncidentEngine {
         [{ id: officialItem, count }],
       ]);
     }
-    const grant = this.data?.grants?.[choice] as Ro6Grant | undefined;
+    const grant = this.data?.grants?.[choice];
     if (grant) {
       await this.grantRandom(grant.kind, grant.count ?? 1);
     }
@@ -295,11 +356,11 @@ export class Rogue6IncidentEngine {
    * 收藏品（池抽/珍贵=高稀有度优先）、加工品/概念体/自然物（零件池按类型抽）。
    */
   private async grantRandom(kind: Ro6Grant["kind"], count: number): Promise<void> {
-    const player = this._player as any;
+    const player = this._player;
     if (kind === "relic" || kind === "relic_rare") {
       for (let i = 0; i < count; i++) {
         const owned = Object.values(player.inventory?.relic || {}).map(
-          (r: any) => r.id as string,
+          (r) => r.id,
         );
         let id: string | undefined;
         if (kind === "relic_rare") {
@@ -319,16 +380,17 @@ export class Rogue6IncidentEngine {
       }
       return;
     }
-    const typeMap: { [id: string]: string } =
-      (excel.RoguelikeTopicTable.modules as any).rogue_6?.scrap
-        ?.scrapItemToType || {};
+    const scrapTypeMap = excel.RoguelikeTopicTable.modules["rogue_6"]?.scrap
+      ?.scrapItemToType;
     const want =
       kind === "scrap_move"
         ? "MOVE"
         : kind === "scrap_passive"
           ? "PASSIVE"
           : "GOODS";
-    const pool = Object.keys(typeMap).filter((id) => typeMap[id] === want);
+    const pool = Object.keys(scrapTypeMap ?? {}).filter(
+      (id) => scrapTypeMap?.[id] === want,
+    );
     if (pool.length === 0) return;
     for (let i = 0; i < count; i++) {
       const id = pool[Math.floor(random() * pool.length)];
@@ -338,14 +400,14 @@ export class Rogue6IncidentEngine {
 
   /** 开始事件战斗：解析关卡（指定/随机/下一层普通作战）→ 节点标记 + BATTLE 事件 */
   private startIncidentBattle(spec: Ro6BattleSpec): void {
-    const player = this._player as any;
+    const player = this._player;
     let stageId: string | undefined;
     if (typeof spec === "string") {
       stageId = spec;
     } else if (Array.isArray(spec.random) && spec.random.length > 0) {
       stageId = spec.random[Math.floor(random() * spec.random.length)];
     } else if (spec.nextZoneNormal) {
-      const zone = Math.min(((player._status.cursor.zone as number) || 1) + 1, 6);
+      const zone = Math.min((player._status.cursor.zone || 1) + 1, 6);
       const keys = Object.keys(this.detail.stages || {}).filter((k) =>
         k.startsWith(`ro6_n_${zone}_`),
       );
@@ -380,9 +442,9 @@ export class Rogue6IncidentEngine {
 
   /** 当前层地图键（误入奇境隐藏层 → portal 键；黑流树海常规层 → 1000+ 键） */
   private zoneKeyOf(zone: number): string | number {
-    const player = this._player as any;
+    const player = this._player;
     const zones = player._map.zones;
-    const gz = player._module?.gridZone;
+    const gz = this.gridZone;
     if (gz?.portal?.active && gz.portal.zoneKey) return gz.portal.zoneKey;
     if (zones[zone]) return zone;
     if (zones[String(1000 + zone - 1)]) return String(1000 + zone - 1);
@@ -391,7 +453,7 @@ export class Rogue6IncidentEngine {
 
   /** 本局遭遇记录（持久于 current.game，供非重复事件与前置条件判定） */
   private seenList(): string[] {
-    const game = (this._player as any).current.game;
+    const game = this._player.current.game;
     if (!game) return [];
     if (!Array.isArray(game.incidentSeen)) game.incidentSeen = [];
     return game.incidentSeen;
@@ -403,34 +465,31 @@ export class Rogue6IncidentEngine {
   }
 
   private hasRelic(id: string): boolean {
-    return Object.values(
-      (this._player as any).inventory?.relic || {},
-    ).some((r: any) => r.id === id);
+    return Object.values(this._player.inventory?.relic || {}).some(
+      (r) => r.id === id,
+    );
   }
 
   private hasScrap(id: string): boolean {
-    const scrap = (this._player as any)._module?.scrap;
-    return Object.values(scrap?.inventory || {}).some(
-      (it: any) => it.id === id,
-    );
+    const scrap = this.scrap;
+    return Object.values(scrap?.inventory || {}).some((it) => it.id === id);
   }
 
   /** 移除收藏品（首个匹配实例）：愈创之心消耗源私钥 */
   private loseRelic(id: string): void {
-    (this._player as any).inventory?._relic?.lose?.(id);
+    this._player.inventory?._relic?.lose?.(id);
   }
 
   /** 按零件类型移除 n 件（估价低者优先，与误入奇境扣加工品一致） */
   private loseScrapByType(type: string, n: number): void {
-    const player = this._player as any;
-    const scrap = player._module?.scrap;
+    const player = this._player;
+    const scrap = this.scrap;
     if (!scrap) return;
-    const typeMap: { [id: string]: string } =
-      (excel.RoguelikeTopicTable.modules as any).rogue_6?.scrap
-        ?.scrapItemToType || {};
+    const scrapTypeMap = excel.RoguelikeTopicTable.modules["rogue_6"]?.scrap
+      ?.scrapItemToType;
     const cands = Object.values(scrap.inventory || {})
-      .filter((it: any) => typeMap[it.id] === type)
-      .sort((a: any, b: any) => a.value - b.value) as any[];
+      .filter((it) => scrapTypeMap?.[it.id] === type)
+      .sort((a, b) => a.value - b.value);
     for (let i = 0; i < n && i < cands.length; i++) {
       const it = cands[i];
       delete scrap.inventory[it.instId];
@@ -442,11 +501,11 @@ export class Rogue6IncidentEngine {
 
   /** 按零件 id 移除 n 件（呼吸的红苔消耗种子） */
   private loseScrapById(id: string, n: number): void {
-    const scrap = (this._player as any)._module?.scrap;
+    const scrap = this.scrap;
     if (!scrap) return;
     const cands = Object.values(scrap.inventory || {}).filter(
-      (it: any) => it.id === id,
-    ) as any[];
+      (it) => it.id === id,
+    );
     for (let i = 0; i < n && i < cands.length; i++) {
       const it = cands[i];
       delete scrap.inventory[it.instId];
@@ -466,14 +525,7 @@ export class Rogue6IncidentEngine {
    * @returns 已生成场景返回 true；无配置返回 false 交回旧前缀分发
    */
   async createNodeScene(kind: number): Promise<boolean> {
-    const enter = this.data?.nodeEnters?.[String(kind)] as
-      | {
-          scene?: string;
-          scenes?: string[];
-          beaconScene?: string;
-          randomChoices?: number;
-        }
-      | undefined;
+    const enter = this.data?.nodeEnters?.[String(kind)];
     if (!enter) return false;
     let sceneId = enter.scene || "";
     if (Array.isArray(enter.scenes) && enter.scenes.length > 0) {
@@ -484,7 +536,7 @@ export class Rogue6IncidentEngine {
       sceneId = enter.beaconScene;
     }
     if (!sceneId) return false;
-    let list = (this.data?.enter?.[sceneId] as string[] | undefined) || [];
+    let list = this.data?.enter?.[sceneId] || [];
     if (enter.randomChoices && list.length > enter.randomChoices) {
       list = [...list]
         .sort(() => random() - 0.5)
@@ -509,12 +561,12 @@ export class Rogue6IncidentEngine {
    * @returns 已处理返回 true；选项不在表内返回 false（交回通用路径）
    */
   async resolveNodeChoice(choice: string): Promise<boolean> {
-    const player = this._player as any;
+    const player = this._player;
     const choiceConfig = this.detail.choices?.[choice];
     if (!choiceConfig || !this.data) return false;
 
     // 区域出口：险路尽头"进入下一区域"/险路小径"保留行动力进入下一区域"
-    if ((choiceConfig.type as string) === "ZONE_END") {
+    if (choiceConfig.type === "ZONE_END") {
       await this.advanceZone();
       return true;
     }
@@ -535,7 +587,7 @@ export class Rogue6IncidentEngine {
     // 险路小径：接受提议 → +1 珍贵加工品（保留行动力，出口选项再进区）
     if (
       /^choice_ro6_evacuate[23]?_[13]$/.test(choice) &&
-      (choiceConfig.type as string) === "TRADE"
+      choiceConfig.type === "TRADE"
     ) {
       player.gainPreciousScrap?.();
       return this.continueTo(choiceConfig.nextSceneId);
@@ -553,12 +605,15 @@ export class Rogue6IncidentEngine {
 
     // 其余（安全的角落等）：官方 displayData 发放 + 场景图推进（子幕默认仅"离开"）
     await this.applyGrants(choice, choiceConfig);
-    return this.continueTo((choiceConfig.nextSceneId as string) || null);
+    return this.continueTo(choiceConfig.nextSceneId || null);
   }
 
   /** 得偿所愿（无人商店）：搬桶得收藏品（陈列幕决定稀有度档）；撬桶 4 金刷新陈列 */
-  private async resolveWish(choice: string, choiceConfig: any): Promise<boolean> {
-    const player = this._player as any;
+  private async resolveWish(
+    choice: string,
+    choiceConfig: RoguelikeGameChoiceData,
+  ): Promise<boolean> {
+    const player = this._player;
     // 撬开木桶：消耗 4 源石锭，换一批更高级的收藏品陈列（官方仅可刷新一次）
     if (choice === "choice_ro6_wish_3" || choice === "choice_ro6_wish_8") {
       player._status.property.gold = Math.max(
@@ -586,9 +641,9 @@ export class Rogue6IncidentEngine {
    * 池空时降档回退稀有度池/全量池，全空回退 8 金。
    */
   private async grantWishRelic(tier: number): Promise<void> {
-    const player = this._player as any;
+    const player = this._player;
     const owned = Object.values(player.inventory?.relic || {}).map(
-      (r: any) => r.id as string,
+      (r) => r.id,
     );
     const pools =
       tier >= 1
@@ -618,8 +673,8 @@ export class Rogue6IncidentEngine {
    * 与 pool.getRelic 同语义，额外校验 relics 登记（结算依赖 buffs 数据）。
    */
   private pickFromPool(poolId: string, owned: string[]): string {
-    const player = this._player as any;
-    const pool = (player._pool?._pools?.[poolId] as string[] | undefined) || [];
+    const player = this._player;
+    const pool = player._pool?._pools?.[poolId] || [];
     const avail = pool.filter(
       (id) => !owned.includes(id) && !!this.detail.relics?.[id],
     );
@@ -632,9 +687,9 @@ export class Rogue6IncidentEngine {
   /** 失与得（回滚文明）：藏品/零件交换与复原"文明"（三结局削弱） */
   private async resolveSacrifice(
     choice: string,
-    choiceConfig: any,
+    choiceConfig: RoguelikeGameChoiceData,
   ): Promise<boolean> {
-    const player = this._player as any;
+    const player = this._player;
     const variant = choice.startsWith("choice_ro6_sacrifice2") ? 2 : 1;
     // 复原"文明"：消耗随机 2 件自然物（仅持怦然信标时出现，门槛在入口选项过滤）
     if (choice === "choice_ro6_sacrifice2_20") {
@@ -648,18 +703,18 @@ export class Rogue6IncidentEngine {
     }
     // 拿出工具（零件交换）：消耗 1 件随机零件 → 获得 1 件随机零件（可继续交换）。
     // 精确后缀匹配：_11/_14 为零件选项，须先于藏品分支判定（_11 尾部含 1）
-    if ((choiceConfig.type as string) === "SACRIFICE" && /_(11|14)$/.test(choice)) {
+    if (choiceConfig.type === "SACRIFICE" && /_(11|14)$/.test(choice)) {
       this.sacrificeScrap();
       return this.continueTo(`scene_ro6_sacrifice${variant}_13`);
     }
     // 拿出珍藏（藏品交换）：献祭 1 件 canSacrifice 藏品 → 随机新藏品（可继续交换）
-    if ((choiceConfig.type as string) === "SACRIFICE" && /_(1|6)$/.test(choice)) {
+    if (choiceConfig.type === "SACRIFICE" && /_(1|6)$/.test(choice)) {
       await this.sacrificeRelic();
       return this.continueTo(`scene_ro6_sacrifice${variant}_1`);
     }
     // 离开/到此为止等：按场景图推进（官方无额外效果）
     await this.applyGrants(choice, choiceConfig);
-    return this.continueTo((choiceConfig.nextSceneId as string) || null);
+    return this.continueTo(choiceConfig.nextSceneId || null);
   }
 
   /**
@@ -668,18 +723,18 @@ export class Rogue6IncidentEngine {
    * 回报优先同稀有度档，档内池空时降档。
    */
   private async sacrificeRelic(): Promise<void> {
-    const player = this._player as any;
+    const player = this._player;
     const relicMap = player.inventory?.relic || {};
-    const sacrificable = Object.values(relicMap).filter((r: any) => {
+    const sacrificable = Object.values(relicMap).filter((r) => {
       const item = this.detail.items?.[r.id];
       return item?.canSacrifice && (item?.value === 8 || item?.value === 12);
-    }) as any[];
+    });
     if (sacrificable.length === 0) return;
     const offered =
       sacrificable[Math.floor(random() * sacrificable.length)];
     delete relicMap[offered.index];
     const offeredRarity = this.detail.items?.[offered.id]?.rarity;
-    const owned = Object.values(relicMap).map((r: any) => r.id as string);
+    const owned = Object.values(relicMap).map((r) => r.id);
     const tierPool =
       offeredRarity === "SUPER_RARE"
         ? "pool_relic_super_rare"
@@ -701,11 +756,11 @@ export class Rogue6IncidentEngine {
    * 路标档案馆观测：零件交换在同稀有度内进行（N→N / R→R / SR→SR）。
    */
   private sacrificeScrap(): void {
-    const player = this._player as any;
-    const scrap = player._module?.scrap;
+    const player = this._player;
+    const scrap = this.scrap;
     let consumedId = "";
     if (scrap) {
-      const list = Object.values(scrap.inventory || {}) as any[];
+      const list = Object.values(scrap.inventory || {});
       if (list.length > 0) {
         const it = list[Math.floor(random() * list.length)];
         consumedId = it.id;
@@ -717,10 +772,9 @@ export class Rogue6IncidentEngine {
     }
     // 同稀有度回报：按消耗件的 rarity 筛零件池；无匹配/无消耗时回退任意随机零件
     const rarity = consumedId ? this.detail.items?.[consumedId]?.rarity : "";
-    const typeMap: { [id: string]: string } =
-      (excel.RoguelikeTopicTable.modules as any).rogue_6?.scrap
-        ?.scrapItemToType || {};
-    const sameRarity = Object.keys(typeMap).filter(
+    const scrapTypeMap = excel.RoguelikeTopicTable.modules["rogue_6"]?.scrap
+      ?.scrapItemToType;
+    const sameRarity = Object.keys(scrapTypeMap ?? {}).filter(
       (id) => (this.detail.items?.[id]?.rarity ?? "") === rarity,
     );
     if (sameRarity.length > 0) {
@@ -734,23 +788,26 @@ export class Rogue6IncidentEngine {
   /** 先行一步：远征选项标记（三结局）与休息选项发放，随后按场景图推进 */
   private async resolveScout(
     choice: string,
-    choiceConfig: any,
+    choiceConfig: RoguelikeGameChoiceData,
   ): Promise<boolean> {
-    const player = this._player as any;
+    const player = this._player;
     // 派同伴进入/探索：标记三结局远征（归来时 +2 希望 + 怦然信标，checkZoneEnd 结算）
     if (choice === "choice_ro6_scout_1" || choice === "choice_ro6_scout_3") {
-      if (player.troop?.expeditionDetails) {
-        player.troop.expeditionDetails.ending = true;
+      const expDetails = player.troop?.expeditionDetails as
+        | ExpeditionDetailsView
+        | undefined;
+      if (expDetails) {
+        expDetails.ending = true;
       }
     }
     // 休息（+2 希望）等：官方 displayData 发放
     await this.applyGrants(choice, choiceConfig);
-    return this.continueTo((choiceConfig.nextSceneId as string) || null);
+    return this.continueTo(choiceConfig.nextSceneId || null);
   }
 
   /** 场景推进：有下一幕则打开（选项经门槛过滤），否则节点结束 */
   private async continueTo(nextSceneId: string | null): Promise<boolean> {
-    const player = this._player as any;
+    const player = this._player;
     if (nextSceneId) {
       await this.openScene(nextSceneId);
       return true;
@@ -762,10 +819,10 @@ export class Rogue6IncidentEngine {
 
   /** 行动力全部转化为等量希望（险路尽头"说服同伴"） */
   private apToHope(): void {
-    const player = this._player as any;
-    const gz = player._module?.gridZone;
+    const player = this._player;
+    const gz = this.gridZone;
     const ap = gz?.stepRemain || 0;
-    if (ap > 0) {
+    if (ap > 0 && gz) {
       player._status.property.population.max += ap;
       gz.stepRemain = 0;
     }
@@ -776,7 +833,7 @@ export class Rogue6IncidentEngine {
    * 远征归来/新层生成）。险路小径为中途捷径节点（无官方 zone_end 标记），需手动补标。
    */
   private async advanceZone(): Promise<void> {
-    const player = this._player as any;
+    const player = this._player;
     const pos = player._status.cursor.position;
     if (pos) {
       const node =
@@ -792,17 +849,15 @@ export class Rogue6IncidentEngine {
 
   /** 险路尽头"召集同伴"：取回首张留存招募券并开启招募（无留存则跳过） */
   private async useStashedTicketForFinal(): Promise<void> {
-    const player = this._player as any;
+    const player = this._player;
     const inv = player.inventory;
     if (!inv?.recruit) return;
-    const stashed = Object.values(inv.recruit).filter(
-      (t: any) => t.state === 3,
-    ) as any[];
+    const stashed = Object.values(inv.recruit).filter((t) => t.state === 3);
     if (stashed.length === 0) return;
     const t = stashed[0];
     t.state = 0;
     if (Array.isArray(inv.stashRecruit)) {
-      inv.stashRecruit = (inv.stashRecruit as string[]).filter(
+      inv.stashRecruit = inv.stashRecruit.filter(
         (s) => !s.includes(t.id) && s !== t.index,
       );
     }

@@ -11,13 +11,14 @@
  */
 import { BaseBuffTpl } from "../buff-tpl";
 import { buffValueForTarget } from "../buff-parse";
+import type { BuildingBuffLike } from "../buff-parse";
 import { isConditionSkill, specialBuffValue } from "../special";
 import type { SpecialSkillContext } from "../special";
 
 export class ControlGlobalTpl extends BaseBuffTpl {
   readonly kind = "CONTROL_GLOBAL";
 
-  static matches(buff: any): boolean {
+  static matches(buff: BuildingBuffLike): boolean {
     const id = buff?.buffId ?? "";
     return id.startsWith("control_");
   }
@@ -31,10 +32,9 @@ export class ControlGlobalTpl extends BaseBuffTpl {
     return buffValueForTarget(this.raw, targetRoom);
   }
 
-  value(ctx?: unknown): number {
-    const c = ctx as SpecialSkillContext | undefined;
+  value(ctx?: SpecialSkillContext): number {
     if (isConditionSkill(this.raw?.description)) {
-      return specialBuffValue(this.raw, c) ?? 0;
+      return specialBuffValue(this.raw, ctx) ?? 0;
     }
     return 0;
   }

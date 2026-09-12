@@ -1,12 +1,35 @@
 import { PlayerRoguelikeV2 } from "./rlv2";
 import { RoguelikeV2Manager } from "./logic";
+import type { RoguelikeChoiceEffectMap } from "./logic";
 import excel from "@excel/excel";
-import { composeRlv2ThemeModules } from "./rlv2-module-composition";
+import {
+  composeRlv2ThemeModules,
+  type Rlv2ModuleFactoryMap,
+  type Rlv2ThemeModule,
+  type RoguelikeFragmentManager,
+  type RoguelikeTotemManager,
+  type RoguelikeGridZoneManager,
+  type RoguelikeScrapManager,
+  type RoguelikeWeatherManager,
+  type RoguelikeDiceManager,
+  type RoguelikeSanManager,
+  type RoguelikeCopperManager,
+  type RoguelikeChaosManager,
+  type RoguelikeVisionManager,
+  type RoguelikeSkyManager,
+  type RoguelikeWrathManager,
+} from "./rlv2-module-composition";
 import { toCamelCase } from "@utils/string";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 
 export class RoguelikeModuleManager {
-  _modules: { [key: string]: any };
+  /**
+   * 主题模块注册表（moduleType 键 → 管理器；键域见 rlv2-module-composition 分发表）
+   *
+   * 异构注册表：值类型为 14 个管理器的联合，具体访问器（totem/gridZone/…）按各自类型
+   * 收敛（键与类型的对应关系由分发表保证）。
+   */
+  _modules: { [key: string]: Rlv2ThemeModule };
   _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
@@ -24,10 +47,8 @@ export class RoguelikeModuleManager {
   }
 
   /** 主题模块管理器工厂（create/continue 共用），分发表见 rlv2-module-composition */
-  private moduleHandler(): { [key: string]: () => any } {
-    return composeRlv2ThemeModules(this._player, this._trigger) as {
-      [key: string]: () => any;
-    };
+  private moduleHandler(): Rlv2ModuleFactoryMap {
+    return composeRlv2ThemeModules(this._player, this._trigger);
   }
 
   async create() {
@@ -50,13 +71,15 @@ export class RoguelikeModuleManager {
     await this._trigger.emit("rlv2:module:init", []);
     ensureManagers();
     // rogue_2 开局骰子类型、rogue_5 开局抽 3 枚铜币
-    if (this._modules["DICE"]) {
-      this._modules["DICE"].id = Object.keys(
-        (excel.RoguelikeTopicTable.modules[theme] as any)?.dice?.dice || {},
-      )[0] || "";
+    const diceMgr = this.dice;
+    if (diceMgr) {
+      diceMgr.id =
+        Object.keys(excel.RoguelikeTopicTable.modules[theme]?.dice?.dice || {})[0] ||
+        "";
     }
-    if (this._modules["COPPER"]) {
-      this._modules["COPPER"].drawInitial();
+    const copperMgr = this.copper;
+    if (copperMgr) {
+      copperMgr.drawInitial();
     }
   }
 
@@ -79,19 +102,27 @@ export class RoguelikeModuleManager {
     }
     // 主动恢复各模块存档状态（grid_zone 恢复 zones/stepRemain、scrap 恢复 inventory
     // 等；存档无该模块数据时子模块 continue 内部做空值兜底）
-    for (const m of Object.values(this._modules)) {
+    // 各管理器的 continue 为可选成员（如 DISASTER 未实现），故按结构化视图遍历
+    const modules: { continue?: () => void; toJSON: Rlv2ThemeModule["toJSON"] }[] =
+      Object.values(this._modules);
+    for (const m of modules) {
       if (typeof m?.continue === "function") m.continue();
     }
   }
 
   /** 图腾管理器访问器（rogue_3 TOTEM 模块） */
-  get totem(): any {
-    return this._modules["TOTEM"];
+  get totem(): RoguelikeTotemManager {
+    return this._modules["TOTEM"] as RoguelikeTotemManager;
   }
 
   /** 网格区域管理器访问器（rogue_6 GRID_ZONE） */
-  get gridZone(): any {
-    return this._modules["GRID_ZONE"];
+  get gridZone(): RoguelikeGridZoneManager {
+    return this._modules["GRID_ZONE"] as RoguelikeGridZoneManager;
+  }
+
+  /** 碎片管理器访问器（rogue_3/5 FRAGMENT 模块） */
+  get fragment(): RoguelikeFragmentManager {
+    return this._modules["FRAGMENT"] as RoguelikeFragmentManager;
   }
 
   /**
@@ -103,43 +134,48 @@ export class RoguelikeModuleManager {
   }
 
   /** 废品管理器访问器（rogue_6 SCRAP） */
-  get scrap(): any {
-    return this._modules["SCRAP"];
+  get scrap(): RoguelikeScrapManager {
+    return this._modules["SCRAP"] as RoguelikeScrapManager;
   }
 
   /** 天气管理器访问器（rogue_6 WEATHER） */
-  get weather(): any {
-    return this._modules["WEATHER"];
+  get weather(): RoguelikeWeatherManager {
+    return this._modules["WEATHER"] as RoguelikeWeatherManager;
+  }
+
+  /** 灯火（理智）管理器访问器（rogue_2 SANCHECK，状态字段名为 san） */
+  get san(): RoguelikeSanManager {
+    return this._modules["SANCHECK"] as RoguelikeSanManager;
   }
 
   /** 骰子管理器访问器（rogue_2 DICE） */
-  get dice(): any {
-    return this._modules["DICE"];
+  get dice(): RoguelikeDiceManager {
+    return this._modules["DICE"] as RoguelikeDiceManager;
   }
 
   /** 铜币管理器访问器（rogue_5 COPPER） */
-  get copper(): any {
-    return this._modules["COPPER"];
+  get copper(): RoguelikeCopperManager {
+    return this._modules["COPPER"] as RoguelikeCopperManager;
   }
 
   /** 坍缩管理器访问器（rogue_3 CHAOS） */
-  get chaos(): any {
-    return this._modules["CHAOS"];
+  get chaos(): RoguelikeChaosManager {
+    return this._modules["CHAOS"] as RoguelikeChaosManager;
   }
 
   /** 视域管理器访问器（rogue_3 VISION） */
-  get vision(): any {
-    return this._modules["VISION"];
+  get vision(): RoguelikeVisionManager {
+    return this._modules["VISION"] as RoguelikeVisionManager;
   }
 
   /** 怒气管理器访问器（rogue_5 WRATH） */
-  get wrath(): any {
-    return this._modules["WRATH"];
+  get wrath(): RoguelikeWrathManager {
+    return this._modules["WRATH"] as RoguelikeWrathManager;
   }
 
   /** 天空管理器访问器（rogue_5 SKY） */
-  get sky(): any {
-    return this._modules["SKY"];
+  get sky(): RoguelikeSkyManager {
+    return this._modules["SKY"] as RoguelikeSkyManager;
   }
 
   toJSON(): PlayerRoguelikeV2.CurrentData.Module {
@@ -195,19 +231,32 @@ export class RoguelikeModuleManager {
     return result;
   }
 
-  applyModuleDelta(delta: { [key: string]: any }, sign: number): void {
+  /**
+   * 模块数值字段累加（事件选项 m_get/m_lose 的数值字典，递归到嵌套数值字段）
+   *
+   * CurrentData.Module 为开放模块字典（各主题模块键不同，含未建模键），按运行时形状
+   * 递归：目标当前值为对象 → 继续下钻；两侧均为 number → 累加。
+   * @param delta - 模块数值字典（{dice:{count:1}} / {san:{sanity:15}}）
+   * @param sign - 方向（+1 获得 / -1 失去）
+   */
+  applyModuleDelta(delta: RoguelikeChoiceEffectMap, sign: number): void {
     const moduleData = this.toJSON();
-    
-    const applyDelta = (target: any, source: any, s: number): void => {
+
+    const applyDelta = (
+      target: PlayerRoguelikeV2.CurrentData.Module,
+      source: RoguelikeChoiceEffectMap,
+      s: number,
+    ): void => {
       for (const [key, value] of Object.entries(source)) {
-        if (typeof value === "object" && value !== null && typeof target[key] === "object") {
-          applyDelta(target[key], value, s);
-        } else if (typeof target[key] === "number" && typeof value === "number") {
-          target[key] += s * value;
+        const current = target[key];
+        if (typeof value === "object" && value !== null && typeof current === "object") {
+          applyDelta(current, value, s);
+        } else if (typeof current === "number" && typeof value === "number") {
+          target[key] = current + s * value;
         }
       }
     };
-    
+
     applyDelta(moduleData, delta, sign);
   }
 }

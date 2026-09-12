@@ -2,7 +2,10 @@
  * 通用 FlatBuffers Objects (FBO) 读取器（Arknights excel FBO 解码，行为对齐 fbo.py）。
  * 由 schema JSON（scripts/vendor/fbs-schemas/*.json）驱动：字段名 + 类型 + vtable slot。
  * 纯 Key/Value 表折叠为 dict（同 _is_pure_kv），DataPair 保留完整对象。
+ *
+ * 解码产物是 excel 表数据（只读 JSON 域）→ 统一用 `JsonValue`（见 docs/type-system-audit.md §3.1）。
  */
+import { isJsonObject, type JsonObject, type JsonValue } from "@excel/json-value";
 
 export interface FieldInfo {
   name: string;
@@ -42,7 +45,7 @@ export class FBO {
     this.buf = buf;
   }
 
-  toJson(): any {
+  toJson(): JsonValue {
     const pos = this.u32(0);
     return this.tableToJson(this.schema.root, pos);
   }
@@ -86,7 +89,7 @@ export class FBO {
     return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
   }
 
-  private tableToJson(cls: string, pos: number): any {
+  private tableToJson(cls: string, pos: number): JsonValue {
     if (++this.depth > 200) {
       this.depth--;
       return null;
@@ -95,7 +98,7 @@ export class FBO {
     this.depth--;
     return out;
   }
-  private _tableToJson(cls: string, pos: number): any {
+  private _tableToJson(cls: string, pos: number): JsonObject {
     const fields = this.schema.tables[cls];
     if (!fields) return {};
     const names = fields.map((f) => f.name);
@@ -108,12 +111,12 @@ export class FBO {
     if (pureKv && keyField && valField) {
       const keyOff = this.fieldOffset(pos, keyField.slot);
       const valOff = this.fieldOffset(pos, valField.slot);
-      const out: any = {};
+      const out: JsonObject = {};
       if (keyOff) out[String(this.readFieldValue(keyField, keyOff))] = valOff ? this.readFieldValue(valField, valOff) : null;
       return out;
     }
     // 完整对象
-    const out: any = {};
+    const out: JsonObject = {};
     if (FBO.observer) {
       const soffset0 = this.u32(pos);
       const vpos0 = (pos - soffset0) >>> 0;
@@ -143,7 +146,7 @@ export class FBO {
   }
 
   /** 缺省字段的默认值（flatbuffers 标量 0/false；对象/字符串 null） */
-  private defaultValue(t: string): any {
+  private defaultValue(t: string): JsonValue | undefined {
     switch (t) {
       case "bool":
         return false;
@@ -174,7 +177,7 @@ export class FBO {
     }
   }
 
-  private readFieldValue(f: FieldInfo, off: number): any {
+  private readFieldValue(f: FieldInfo, off: number): JsonValue {
     if (off < 4 || off >= this.buf.length) return null;
     const t = f.type;
     switch (t) {
@@ -216,7 +219,7 @@ export class FBO {
     }
   }
 
-  private readVector(elemType: string, off: number): any {
+  private readVector(elemType: string, off: number): JsonValue {
     if (off + 4 > this.buf.length) return null;
     const vecPos = off + this.u32(off);
     if (vecPos < 4 || vecPos >= this.buf.length) return null;
@@ -236,18 +239,18 @@ export class FBO {
         names.includes("Key") && names.includes("Value") &&
         names.every((n) => n === "Key" || n === "Value")
       ) {
-        const out: any = {};
+        const out: JsonObject = {};
         for (let i = 0; i < len; i++) {
           const childPos = base + 4 * i;
           const pos2 = childPos + this.u32(childPos);
           if (pos2 < 4 || pos2 >= this.buf.length) continue;
           const item = this.tableToJson(elemType, pos2);
-          if (item && typeof item === "object") Object.assign(out, item);
+          if (isJsonObject(item)) Object.assign(out, item);
         }
         return out;
       }
     }
-    const out: any[] = [];
+    const out: JsonValue[] = [];
     for (let i = 0; i < len; i++) {
       const childPos = base + stride * i;
       if (elemType === "string") {
@@ -297,7 +300,7 @@ export class FBO {
         const innerLen = this.u32(vecPos2);
         const innerBase = vecPos2 + 4;
         const innerType = elemType.slice("list_".length); // string | int | float | long | double ...
-        const inner: any[] = [];
+        const inner: JsonValue[] = [];
         for (let j = 0; j < innerLen && innerBase + 4 * j + 4 <= this.buf.length; j++) {
           if (innerType === "string") {
             inner.push(this.readString(innerBase + 4 * j));

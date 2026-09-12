@@ -10,9 +10,12 @@
  * 模板 value() 内部委托 buff-parse 解析函数，保证与引擎结果一致
  * （一致性由 tests/unit/modules/building/buff-tpl.test.ts 守护）。
  */
+import type { BuildingBuffLike } from "./buff-parse";
+import type { SpecialSkillContext } from "./special";
+
 export abstract class BaseBuffTpl {
   /** 原始 buff 对象（excel.BuildingData.buffs[buffId]） */
-  constructor(public readonly raw: any) {}
+  constructor(public readonly raw: BuildingBuffLike) {}
 
   /** 效果类别标识（子类覆盖：CONTROL_GLOBAL / ROOM_SPEED / DORM_RECOVER / MOOD_COST） */
   abstract readonly kind: string;
@@ -33,7 +36,7 @@ export abstract class BaseBuffTpl {
   }
 
   /** 匹配判定：buffId/结构是否属于本模板（子类覆盖） */
-  static matches(_buff: any): boolean {
+  static matches(_buff: BuildingBuffLike): boolean {
     return false;
   }
 
@@ -41,7 +44,7 @@ export abstract class BaseBuffTpl {
    * 效果数值（乘法系数/点值，子类覆盖；未实现返回 0）
    * @param ctx - 特殊技能上下文（fraction/token 条件判定用，可选）
    */
-  value(_ctx?: unknown): number {
+  value(_ctx?: SpecialSkillContext): number {
     return 0;
   }
 

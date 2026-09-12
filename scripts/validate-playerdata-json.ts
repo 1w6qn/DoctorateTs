@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { isJsonObject, type JsonValue } from "@excel/json-value";
 
 /**
  * player_data.json 类型覆盖校验
@@ -171,7 +172,7 @@ function isScalarException(path: string): boolean {
 }
 
 /** 叶子标量类型比对：number/string/boolean/枚举字面量联合/单值字面量；ctx.iface 为字段所属接口 */
-function checkScalar(jsonValue: unknown, tsTypeStr: string, path: string, report: Report, iface: string): void {
+function checkScalar(jsonValue: JsonValue, tsTypeStr: string, path: string, report: Report, iface: string): void {
   if (jsonValue === null || jsonValue === undefined) return;
   const t = tsTypeStr.trim().replace(/\|\s*(null|undefined)\s*/g, "").trim();
   if (!t || isScalarException(path)) return;
@@ -189,7 +190,7 @@ function checkScalar(jsonValue: unknown, tsTypeStr: string, path: string, report
   // 枚举字面量联合 "A" | "B" | ...
   if (t.includes('"') && t.includes("|")) {
     const vals = new Set(t.split("|").map(s => s.trim().replace(/"/g, "")));
-    if (jt !== "string" || !vals.has(jsonValue as string)) {
+    if (typeof jsonValue !== "string" || !vals.has(jsonValue)) {
       report.scalarMismatch.push(`${loc}@${path}: 期望枚举 [${[...vals].join("|")}]，实际 ${jt} ${JSON.stringify(jsonValue).slice(0, 30)}`);
     }
     return;
@@ -215,7 +216,7 @@ function checkScalar(jsonValue: unknown, tsTypeStr: string, path: string, report
 }
 
 function walk(
-  jsonValue: unknown,
+  jsonValue: JsonValue,
   tsTypeStr: string,
   path: string,
   report: Report,
@@ -245,8 +246,8 @@ function walk(
 
   if (typeof jsonValue === "object") {
     if (t.kind === "index") {
-      for (const key of Object.keys(jsonValue as object)) {
-        walk((jsonValue as any)[key], t.valueType!, `${path}.${key}`, report, interfaces, aliases, ctx, seen);
+      for (const key of Object.keys(jsonValue)) {
+        walk(jsonValue[key], t.valueType!, `${path}.${key}`, report, interfaces, aliases, ctx, seen);
       }
       return;
     }
@@ -260,12 +261,12 @@ function walk(
         const type = part.slice(idx + 1).trim();
         if (name) fields[name] = type;
       }
-      for (const key of Object.keys(jsonValue as object)) {
+      for (const key of Object.keys(jsonValue)) {
         const childPath = `${path}.${key}`;
         if (key in fields) {
-          walk((jsonValue as any)[key], fields[key], childPath, report, interfaces, aliases, ctx, seen);
+          walk(jsonValue[key], fields[key], childPath, report, interfaces, aliases, ctx, seen);
         } else {
-          report.missing.push(`${childPath}: 类型对象字面量未声明该字段（JSON 类型 ${typeof (jsonValue as any)[key]}）`);
+          report.missing.push(`${childPath}: 类型对象字面量未声明该字段（JSON 类型 ${typeof jsonValue[key]}）`);
         }
       }
       return;
@@ -273,28 +274,28 @@ function walk(
     if (t.kind === "iface") {
       const fields = interfaces.get(t.ifaceName!)!;
       const childCtx = { iface: t.ifaceName! };
-      for (const key of Object.keys(jsonValue as object)) {
+      for (const key of Object.keys(jsonValue)) {
         const childPath = `${path}.${key}`;
         if (key in fields) {
-          walk((jsonValue as any)[key], fields[key], childPath, report, interfaces, aliases, childCtx, seen);
+          walk(jsonValue[key], fields[key], childPath, report, interfaces, aliases, childCtx, seen);
         } else if (key in FIELD_ALIASES && FIELD_ALIASES[key] in fields) {
           // 已知命名差异：用 C# 字段名继续穿透检查
-          walk((jsonValue as any)[key], fields[FIELD_ALIASES[key]], childPath, report, interfaces, aliases, childCtx, seen);
+          walk(jsonValue[key], fields[FIELD_ALIASES[key]], childPath, report, interfaces, aliases, childCtx, seen);
         } else {
           // 大小写不敏感建议
           const lower = key.toLowerCase();
           const candidates = Object.keys(fields).filter(f => f.toLowerCase() === lower);
           if (candidates.length > 0) {
             report.caseDiff.push(`${childPath}: JSON key "${key}" vs 类型字段 "${candidates[0]}"（大小写差异）`);
-            walk((jsonValue as any)[key], fields[candidates[0]], childPath, report, interfaces, aliases, childCtx, seen);
+            walk(jsonValue[key], fields[candidates[0]], childPath, report, interfaces, aliases, childCtx, seen);
           } else {
-            report.missing.push(`${childPath}: 类型 ${t.ifaceName} 未声明该字段（JSON 类型 ${typeof (jsonValue as any)[key]}）`);
+            report.missing.push(`${childPath}: 类型 ${t.ifaceName} 未声明该字段（JSON 类型 ${typeof jsonValue[key]}）`);
           }
         }
       }
       // 类型有、JSON 无
       for (const f of Object.keys(fields)) {
-        if (!(f in (jsonValue as object)) && !Object.keys(FIELD_ALIASES).find(k => FIELD_ALIASES[k] === f)) {
+        if (!(f in jsonValue) && !Object.keys(FIELD_ALIASES).find(k => FIELD_ALIASES[k] === f)) {
           report.typeOnly.push(`${path}.${f}`);
         }
       }
@@ -330,9 +331,14 @@ export function main(argv: string[] = []): void {
   console.log(`输入 JSON: ${input}`);
   if (rootPath) console.log(`玩家数据根路径: ${rootPath}`);
   console.log(`类型定义: ${typesFile}`);
-  const parsed = JSON.parse(fs.readFileSync(input, "utf-8"));
-  const json = rootPath
-    ? rootPath.split(".").reduce((acc: unknown, key: string) => (acc as any)?.[key], parsed)
+  const parsed: JsonValue = JSON.parse(fs.readFileSync(input, "utf-8"));
+  const json: JsonValue | undefined = rootPath
+    ? rootPath
+        .split(".")
+        .reduce<JsonValue | undefined>(
+          (acc, key) => (acc !== undefined && isJsonObject(acc) ? acc[key] : undefined),
+          parsed,
+        )
     : parsed;
   if (json === undefined || json === null) {
     console.error(`根路径 "${rootPath}" 不存在`);

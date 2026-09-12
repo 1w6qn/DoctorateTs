@@ -23,6 +23,28 @@ export interface SpecCond {
 }
 
 /**
+ * character_table 技能条目的读取视图（既有实现按 `levelUpCostCond` 读档位配置）。
+ *
+ * 生成类型 CharacterData_MainSkill 的专精字段名为 `specializeLevelUpData`，
+ * 真表数据也使用该键（`levelUpCostCond` 不存在）——本视图仅描述既有实现的读取口径，
+ * 不改变行为（已知数据口径差异见实现报告）。`skillId` 为生成类型已有字段，
+ * 用于保证真表整行可结构化赋值（弱类型判定）。
+ */
+interface MasterSpecSkill {
+  /** 技能 ID（生成类型 CharacterData_MainSkill.skillId） */
+  skillId?: string;
+  /** 专精档位配置（下标 0/1/2 = 专一/二/三） */
+  levelUpCostCond?: {
+    /** 基础训练时长（秒） */
+    lvlUpTime?: number;
+    /** 训练材料 */
+    levelUpCost?: SpecCond["costs"];
+    /** 解锁前置（精英化阶段） */
+    unlockCond?: { phase?: string | number | null };
+  }[];
+}
+
+/**
  * 读取专精档位配置：levelUpCostCond 下标 0/1/2 对应专一/二/三
  * （与 char.ts _masterCond 同源语义，此处为基建侧纯函数版本）。
  * @param charId - 干员 ID
@@ -35,9 +57,8 @@ export function getSpecCond(
   skillIndex: number,
   targetSpecLevel: number,
 ): SpecCond | null {
-  const skill = (excel.CharacterTable as Record<string, any>)?.[charId]?.skills?.[
-    skillIndex
-  ];
+  const skill: MasterSpecSkill | undefined =
+    excel.CharacterTable?.[charId]?.skills?.[skillIndex];
   const cond = skill?.levelUpCostCond?.[targetSpecLevel - 1];
   if (!cond) return null;
   return {

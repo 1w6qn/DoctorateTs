@@ -13,6 +13,7 @@
  * 与数量规则（BLACKSTREAM_COUNT_RULES）范围内。节点 ID 与官服一致：x*100+y。
  */
 import { RoguelikeV2Manager } from "../logic";
+import type { PlayerRoguelikeNode } from "../rlv2";
 import excel from "@excel/excel";
 import { TypedEventEmitter } from "../../../kernel/events/runtime";
 import {
@@ -48,11 +49,32 @@ interface GridNode {
     kind?: number;
   };
   state: number; // 0 未访问 / 1 可访问 / 2 已访问
-  show: boolean; // 视野：false 未点亮 / true 可见
+  /**
+   * 视野：false 未点亮 / true 可见
+   *
+   * 运行时为 boolean（toJSON 输出 boolean，见 tests）；生成模型
+   * PlayerRoguelikeV2_CurrentData_Module_GridMapZoneNodeData.show 声明为 number，
+   * 故按联合声明以兼容存档读回。
+   */
+  show: boolean | number;
 }
 
 interface GridZone {
   nodes: { [key: string]: GridNode };
+}
+
+/**
+ * 存档 gridZone 视图（本模块 toJSON 落盘、continue 读回）
+ *
+ * 与生成模型 PlayerRoguelikeV2_CurrentData_Module_GridMapData 的差异：
+ * needConfirmStepZero 运行时为 boolean（模型为 number）；portal 为服务端扩展键
+ * （隐藏层状态，官服线格式无此键）。
+ */
+interface PersistedGridZone {
+  zones?: { [key: string]: GridZone };
+  stepRemain?: number;
+  needConfirmStepZero?: boolean | number;
+  portal?: GridPortalState | null;
 }
 
 /** 本层关卡池（按节点类型取用）：普通作战 / 紧急作战 / 险路恶敌 */
@@ -167,7 +189,8 @@ function portalVariationIds(family: string): string[] {
 export class RoguelikeGridZoneManager {
   zones: { [key: string]: GridZone };
   stepRemain: number;
-  needConfirmStepZero: boolean;
+  /** 首次进入是否需玩家确认初始位置（运行时 boolean；模型线格式为 number） */
+  needConfirmStepZero: boolean | number;
   /** 误入奇境隐藏层活动状态（未进入时为 null） */
   portal: GridPortalState | null;
   _player: RoguelikeV2Manager;
@@ -230,7 +253,8 @@ export class RoguelikeGridZoneManager {
   }
 
   continue(): void {
-    const g = this._player.current.module?.gridZone as any;
+    const g: PersistedGridZone | undefined =
+      this._player.current.module?.gridZone;
     this.zones = g?.zones || {};
     this.stepRemain = g?.stepRemain ?? 20;
     this.needConfirmStepZero =
@@ -450,7 +474,7 @@ export class RoguelikeGridZoneManager {
   ): void {
     const map = this._player._map;
     if (!map) return;
-    const fullNodes: { [key: string]: any } = {};
+    const fullNodes: { [key: string]: PlayerRoguelikeNode } = {};
     // 邻接表：template.edges → next（官服 next 为 {x,y} 列表，按 x,y 排序）
     const adj: { [key: string]: { x: number; y: number }[] } = {};
     for (const [a, b] of template.edges) {
@@ -477,7 +501,7 @@ export class RoguelikeGridZoneManager {
           : ROGUE6_BATTLE_NODES.includes(nodeType)
             ? ROGUE6_FORESIGHT.HIDE_BATTLE
             : ROGUE6_FORESIGHT.HIDE_INVISIBLE;
-      const node: any = {
+      const node: PlayerRoguelikeNode = {
         index: id,
         pos: { x, y },
         next,
@@ -1427,14 +1451,14 @@ export class RoguelikeGridZoneManager {
   toJSON(): {
     zones: { [key: string]: GridZone };
     stepRemain: number;
-    needConfirmStepZero: boolean;
+    needConfirmStepZero: boolean | number;
     portal?: GridPortalState | null;
   } {
     // 官方 gridZone 节点 content：地图生成（finishEvent）时全为 {}——战斗信息由 map.zones 提供；
     // 商店节点进入后 content 变为 { shop: { goods } }。savage/kind 为内部标记（战斗触发用），
     // 序列化时剥离（客户端不识别 savage/kind，多余字段解析异常；shop 保留）
     const strip = (n: GridNode): GridNode => {
-      const c: any = {};
+      const c: GridNode["content"] = {};
       if (n.content?.shop) c.shop = n.content.shop;
       return { content: c, state: n.state, show: n.show };
     };
@@ -1449,7 +1473,7 @@ export class RoguelikeGridZoneManager {
     const out: {
       zones: { [key: string]: GridZone };
       stepRemain: number;
-      needConfirmStepZero: boolean;
+      needConfirmStepZero: boolean | number;
       portal?: GridPortalState;
     } = {
       zones,

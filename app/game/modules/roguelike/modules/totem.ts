@@ -1,4 +1,4 @@
-import { PlayerRoguelikeV2 } from "../rlv2";
+import { PlayerRoguelikeNode, PlayerRoguelikeV2 } from "../rlv2";
 import { RoguelikeV2Manager } from "../logic";
 import { TypedEventEmitter } from "../../../kernel/events/runtime";
 import excel from "@excel/excel";
@@ -38,7 +38,7 @@ export class RoguelikeTotemManager {
 
     const zone = this._player._status.cursor.zone;
 
-    const selectedNodeDict: { [key: string]: any } = {};
+    const selectedNodeDict: { [key: string]: PlayerRoguelikeNode | undefined } = {};
     const selectedNodePos: string[] = [];
 
     const reachableNodes = this._getReachableNodes(zone);
@@ -91,8 +91,8 @@ export class RoguelikeTotemManager {
     this._trigger.emit("rlv2:node:attach", [selectedNodePos, attachBuff]);
   }
 
-  private _getReachableNodes(zone: number): { [key: string]: any } {
-    const nodes: { [key: string]: any } = {};
+  private _getReachableNodes(zone: number): { [key: string]: PlayerRoguelikeNode } {
+    const nodes: { [key: string]: PlayerRoguelikeNode } = {};
     const zoneData = this._player._map.zones[zone];
     if (!zoneData) return nodes;
 

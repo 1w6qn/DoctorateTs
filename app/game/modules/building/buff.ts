@@ -24,6 +24,7 @@ import {
 import { isDispersedAp } from "./mood";
 import {
   phaseRank,
+  type BuildingBuffLike,
   type DescTagValue,
   parseDescTags,
   parseVupValue,
@@ -73,12 +74,12 @@ export function getActiveCharBuffs(
   char: CharBuffSource,
   roomType: string,
   options?: { allowDispersed?: boolean },
-): any[] {
+): BuildingBuffLike[] {
   if (!options?.allowDispersed && isDispersedAp(char?.ap)) return [];
-  const building = excel.BuildingData as any;
+  const building = excel.BuildingData;
   const slots = building?.chars?.[char?.charId]?.buffChar;
   if (!Array.isArray(slots)) return [];
-  const out: any[] = [];
+  const out: BuildingBuffLike[] = [];
   for (const slot of slots) {
     for (const item of slot?.buffData ?? []) {
       const buffId = item?.buffId;
@@ -188,7 +189,7 @@ export function controlGlobalBonus(
  * 不受涣散失效影响。
  */
 export function dormRecoveryBonus(dormChars: CharBuffSource[]): number {
-  const buffs: any[] = [];
+  const buffs: BuildingBuffLike[] = [];
   for (const char of dormChars ?? []) {
     buffs.push(...getActiveCharBuffs(char, "DORMITORY", { allowDispersed: true }));
   }

@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { EXCEL_TABLE_ROOTS } from "./excel-server-adapt";
+import { isJsonObject, type JsonValue } from "@excel/json-value";
 
 /**
  * data/excel/*.json 类型覆盖校验
@@ -98,7 +99,7 @@ function collectReport(): Report {
   return { missing: [], caseDiff: [], typeMismatch: [], scalarMismatch: [], untyped: [], totalNodes: 0 };
 }
 
-function checkScalar(jsonValue: unknown, tsTypeStr: string, path: string, report: Report, iface: string): void {
+function checkScalar(jsonValue: JsonValue, tsTypeStr: string, path: string, report: Report, iface: string): void {
   if (jsonValue === null || jsonValue === undefined) return;
   const t = tsTypeStr.trim().replace(/\|\s*(null|undefined)\s*/g, "").trim();
   if (!t) return;
@@ -111,7 +112,7 @@ function checkScalar(jsonValue: unknown, tsTypeStr: string, path: string, report
   }
   if (t.includes('"') && t.includes("|")) {
     const vals = new Set(t.split("|").map(s => s.trim().replace(/"/g, "")));
-    if (jt !== "string" || !vals.has(jsonValue as string)) {
+    if (typeof jsonValue !== "string" || !vals.has(jsonValue)) {
       report.scalarMismatch.push(`${loc}@${path}: 期望枚举 [${[...vals].join("|")}]，实际 ${jt} ${JSON.stringify(jsonValue).slice(0, 30)}`);
     }
     return;
@@ -137,7 +138,7 @@ function checkScalar(jsonValue: unknown, tsTypeStr: string, path: string, report
 }
 
 function walk(
-  jsonValue: unknown,
+  jsonValue: JsonValue,
   tsTypeStr: string,
   path: string,
   report: Report,
@@ -163,8 +164,8 @@ function walk(
 
   if (typeof jsonValue === "object") {
     if (t.kind === "index") {
-      for (const key of Object.keys(jsonValue as object)) {
-        walk((jsonValue as any)[key], t.valueType!, `${path}.${key}`, report, interfaces, aliases, ctx, seen);
+      for (const key of Object.keys(jsonValue)) {
+        walk(jsonValue[key], t.valueType!, `${path}.${key}`, report, interfaces, aliases, ctx, seen);
       }
       return;
     }
@@ -177,9 +178,9 @@ function walk(
         const type = part.slice(idx + 1).trim();
         if (name) fields[name] = type;
       }
-      for (const key of Object.keys(jsonValue as object)) {
+      for (const key of Object.keys(jsonValue)) {
         const childPath = `${path}.${key}`;
-        if (key in fields) walk((jsonValue as any)[key], fields[key], childPath, report, interfaces, aliases, ctx, seen);
+        if (key in fields) walk(jsonValue[key], fields[key], childPath, report, interfaces, aliases, ctx, seen);
         else report.missing.push(`${childPath}: 类型对象字面量未声明该字段`);
       }
       return;
@@ -187,18 +188,18 @@ function walk(
     if (t.kind === "iface") {
       const fields = interfaces.get(t.ifaceName!)!;
       const childCtx = { iface: t.ifaceName! };
-      for (const key of Object.keys(jsonValue as object)) {
+      for (const key of Object.keys(jsonValue)) {
         const childPath = `${path}.${key}`;
         if (key in fields) {
-          walk((jsonValue as any)[key], fields[key], childPath, report, interfaces, aliases, childCtx, seen);
+          walk(jsonValue[key], fields[key], childPath, report, interfaces, aliases, childCtx, seen);
         } else {
           const lower = key.toLowerCase();
           const candidates = Object.keys(fields).filter(f => f.toLowerCase() === lower);
           if (candidates.length > 0) {
             report.caseDiff.push(`${childPath}: JSON key "${key}" vs 类型字段 "${candidates[0]}"`);
-            walk((jsonValue as any)[key], fields[candidates[0]], childPath, report, interfaces, aliases, childCtx, seen);
+            walk(jsonValue[key], fields[candidates[0]], childPath, report, interfaces, aliases, childCtx, seen);
           } else {
-            report.missing.push(`${childPath}: 类型 ${t.ifaceName} 未声明该字段（JSON 类型 ${typeof (jsonValue as any)[key]}）`);
+            report.missing.push(`${childPath}: 类型 ${t.ifaceName} 未声明该字段（JSON 类型 ${typeof jsonValue[key]}）`);
           }
         }
       }
@@ -228,7 +229,7 @@ const DICT_TABLES = new Set([
 
 function walkTable(
   table: string,
-  json: unknown,
+  json: JsonValue,
   root: string | Record<string, string>,
   report: Report,
   interfaces: Map<string, FieldMap>,
@@ -237,7 +238,7 @@ function walkTable(
   if (typeof root === "object") {
     // 多根表：按 jsonKey → 根类 逐 key walk
     for (const [key, rootName] of Object.entries(root)) {
-      const value = (json as any)?.[key];
+      const value = isJsonObject(json) ? json[key] : undefined;
       if (value === undefined) continue;
       walk(value, rootName, `playerData.${key}`, report, interfaces, aliases, { iface: rootName });
     }
@@ -246,9 +247,9 @@ function walkTable(
   if (DICT_TABLES.has(table)) {
     if (Array.isArray(json)) {
       for (let i = 0; i < json.length; i++) walk(json[i], root, `playerData[${i}]`, report, interfaces, aliases, { iface: root });
-    } else {
-      for (const key of Object.keys(json as object)) {
-        walk((json as any)[key], root, `playerData.${key}`, report, interfaces, aliases, { iface: root });
+    } else if (isJsonObject(json)) {
+      for (const key of Object.keys(json)) {
+        walk(json[key], root, `playerData.${key}`, report, interfaces, aliases, { iface: root });
       }
     }
   } else {

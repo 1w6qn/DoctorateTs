@@ -5,6 +5,7 @@
  * handler 只保留路由注册（薄壳）。
  */
 import type { PlayerDataManager } from "../../kernel/PlayerDataManager";
+import type { PlayerRoguelikeV2 } from "./rlv2";
 import type { RoguelikePushMessage } from "../../kernel/http/common";
 import { isBlackstream } from "./theme-rules";
 import * as ReqSchema from "./schemas";
@@ -45,6 +46,30 @@ export const SEC = {
 } as const;
 
 /**
+ * 响应构造期的 current.player 视图
+ *
+ * 快照 current 各节写入的是**管理器实例**（非纯数据），故此处按状态模型 + 管理器自带的
+ * toJSON（线格式输出）联合声明；其余节仅作字典透传。
+ */
+type Rlv2PlayerSection = PlayerRoguelikeV2.CurrentData.PlayerStatus & {
+  toJSON: () => PlayerRoguelikeV2.CurrentData.PlayerStatus;
+};
+
+/** current 节字典（快照期各节值为管理器实例/纯数据，故按不信任输入边界收窄） */
+type Rlv2CurrentSections = Record<string, unknown>;
+
+/** 响应内 rlv2 节点（current 节字典 + 可选取样 outer） */
+interface Rlv2ResponseNode {
+  current: Rlv2CurrentSections;
+  outer?: {
+    [theme: string]: Record<
+      string,
+      PlayerRoguelikeV2.OuterData[keyof PlayerRoguelikeV2.OuterData]
+    >;
+  };
+}
+
+/**
  * rlv2 统一响应：并入控制器 toJSON 的 rlv2 子树。
  * 官方抓包确认：客户端按 modified.rlv2 合并状态，但每路由只发送"发生变化"的
  * current 节（createGame/gameSettle 全量；其余为增量节）——多发的 game/troop 等
@@ -69,11 +94,13 @@ export function rlv2Response<T extends object>(
   // 供重登"继续探索"（controller 重建走 rlv2:continue 恢复）使用；否则 current.player 等为空
   const full = player.modules.rlv2.snapshotCurrent();
   const base = player.delta;
-  const current = full.current as any;
-  const currentOut: any = {};
+  const current = full.current;
+  const currentOut: Rlv2CurrentSections = {};
   if (sections) {
     for (const s of sections) {
-      if (s in current) currentOut[s] = current[s];
+      if (s in current) {
+        currentOut[s] = current[s as keyof PlayerRoguelikeV2.CurrentData];
+      }
     }
   } else {
     Object.assign(currentOut, current);
@@ -86,30 +113,35 @@ export function rlv2Response<T extends object>(
   // 注意：先经 toJSON() 取干净的可序列化副本再改写 zone——若用 {...p} 直接展平，会丢掉 toJSON()，
   // 使 res.send 序列化整个状态管理器（_player 自指控制器 → map/inventory/troop 冗余全量泄漏，
   // 响应体积暴涨，如 giveUpGame）。仅在响应副本上改写，不触碰控制器内存态。
-  const respTheme = (current as any)?.game?.theme as string | undefined;
-  if (isBlackstream(respTheme) && currentOut.player?.cursor?.zone > 0) {
+  const respTheme = current?.game?.theme;
+  const playerSection = currentOut.player as Rlv2PlayerSection | undefined;
+  // 缺省视为层号 0（原 `undefined > 0` 同判 false）
+  if (isBlackstream(respTheme) && playerSection && (playerSection.cursor?.zone ?? 0) > 0) {
     const toZoneIndex = (zone: number) => zone + 999;
     const clean =
-      typeof currentOut.player.toJSON === "function"
-        ? currentOut.player.toJSON()
-        : currentOut.player;
+      typeof playerSection.toJSON === "function"
+        ? playerSection.toJSON()
+        : playerSection;
     currentOut.player = {
       ...clean,
       cursor: { ...clean.cursor, zone: toZoneIndex(clean.cursor.zone) },
       trace: Array.isArray(clean.trace)
-        ? clean.trace.map((t: any) => ({ ...t, zone: toZoneIndex(t.zone) }))
+        ? clean.trace.map((t) => ({ ...t, zone: toZoneIndex(t.zone) }))
         : clean.trace,
     };
   }
-  const rlv2: any = { current: currentOut };
+  const rlv2: Rlv2ResponseNode = { current: currentOut };
   if (outerKeys && outerKeys.length > 0) {
-    const theme = current?.game?.theme as string | undefined;
-    const fullOuter = full.outer as Record<string, any> | undefined;
+    const theme = current?.game?.theme;
+    const fullOuter = full.outer;
     if (theme && fullOuter?.[theme]) {
       const o = fullOuter[theme];
-      const picked: Record<string, unknown> = {};
+      const picked: Record<
+        string,
+        PlayerRoguelikeV2.OuterData[keyof PlayerRoguelikeV2.OuterData]
+      > = {};
       for (const k of outerKeys) {
-        if (k in o) picked[k] = o[k];
+        if (k in o) picked[k] = o[k as keyof PlayerRoguelikeV2.OuterData];
       }
       rlv2.outer = { [theme]: picked };
     }

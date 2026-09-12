@@ -1,8 +1,8 @@
 {
   "totals": {
-    "any": 6545,
-    "unknown": 517,
-    "object": 57
+    "any": 5867,
+    "unknown": 468,
+    "object": 45
   },
   "counts": {
     "app/core/auth/auth.ts": {
@@ -180,31 +180,6 @@
       "unknown": 4,
       "object": 0
     },
-    "app/game/modules/activities/act1vhalfidle/config.ts": {
-      "any": 2,
-      "unknown": 2,
-      "object": 0
-    },
-    "app/game/modules/activities/act1vhalfidle/logic.ts": {
-      "any": 37,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/activities/act24side/router.ts": {
-      "any": 9,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/activities/act42side/router.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/activities/act44side/informant.ts": {
-      "any": 11,
-      "unknown": 2,
-      "object": 0
-    },
     "app/game/modules/activities/arkhub/arkpixel.ts": {
       "any": 0,
       "unknown": 1,
@@ -235,65 +210,15 @@
       "unknown": 1,
       "object": 0
     },
-    "app/game/modules/activities/bossRush/bossrush.ts": {
-      "any": 5,
-      "unknown": 1,
-      "object": 0
-    },
-    "app/game/modules/activities/bossRush/router.ts": {
-      "any": 1,
-      "unknown": 1,
-      "object": 0
-    },
-    "app/game/modules/activities/charm/router.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/activities/checkin/logic.ts": {
-      "any": 11,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/activities/checkin/openServer.ts": {
-      "any": 5,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/activities/enemyDuel/router.ts": {
-      "any": 2,
-      "unknown": 1,
-      "object": 0
-    },
-    "app/game/modules/activities/football/router.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/activities/interlockRefresh/logic.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/activities/milestone/logic.ts": {
-      "any": 4,
-      "unknown": 13,
+      "any": 0,
+      "unknown": 3,
       "object": 0
     },
     "app/game/modules/activities/shared/activity.ts": {
       "any": 0,
-      "unknown": 22,
+      "unknown": 19,
       "object": 0
-    },
-    "app/game/modules/activities/shared/shared.ts": {
-      "any": 5,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/activities/shared/unlockActivity.ts": {
-      "any": 24,
-      "unknown": 1,
-      "object": 2
     },
     "app/game/modules/aprilFool/aprilFool.ts": {
       "any": 0,
@@ -340,119 +265,14 @@
       "unknown": 9,
       "object": 0
     },
-    "app/game/modules/building/buff-parse.ts": {
-      "any": 4,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/buff-tpl.ts": {
-      "any": 2,
-      "unknown": 1,
-      "object": 0
-    },
-    "app/game/modules/building/buff.ts": {
-      "any": 4,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/buffs/control-global.ts": {
-      "any": 1,
-      "unknown": 1,
-      "object": 0
-    },
-    "app/game/modules/building/buffs/dorm-recovery.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/buffs/index.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/buffs/mood-cost.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/buffs/room-speed.ts": {
-      "any": 1,
-      "unknown": 1,
-      "object": 0
-    },
-    "app/game/modules/building/dorm-special.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/handler.ts": {
-      "any": 1,
-      "unknown": 1,
-      "object": 0
-    },
-    "app/game/modules/building/logic.ts": {
-      "any": 28,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/logic/accrue.ts": {
-      "any": 20,
-      "unknown": 2,
-      "object": 0
-    },
-    "app/game/modules/building/logic/chars.ts": {
-      "any": 10,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/logic/construction.ts": {
-      "any": 15,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/logic/manufacture.ts": {
-      "any": 9,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/logic/meeting.ts": {
-      "any": 15,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/logic/misc.ts": {
-      "any": 13,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/logic/trading.ts": {
-      "any": 24,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/building/mastery.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/building/models.ts": {
       "any": 0,
       "unknown": 7,
       "object": 0
     },
-    "app/game/modules/building/special.ts": {
-      "any": 5,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/building/trade-orders.ts": {
       "any": 0,
       "unknown": 1,
-      "object": 0
-    },
-    "app/game/modules/building/unlocks.ts": {
-      "any": 1,
-      "unknown": 0,
       "object": 0
     },
     "app/game/modules/campaignV2/accrue.ts": {
@@ -616,148 +436,33 @@
       "object": 0
     },
     "app/game/modules/roguelike/battle.ts": {
-      "any": 21,
+      "any": 0,
       "unknown": 2,
       "object": 0
     },
-    "app/game/modules/roguelike/buff.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/event.ts": {
-      "any": 19,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/roguelike/events.ts": {
-      "any": 23,
-      "unknown": 1,
+      "any": 0,
+      "unknown": 0,
       "object": 1
     },
-    "app/game/modules/roguelike/game-init.ts": {
-      "any": 18,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/grid-nav.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/handler.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/incident.ts": {
-      "any": 56,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/inventory.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/roguelike/logic.ts": {
-      "any": 53,
+      "any": 0,
       "unknown": 5,
       "object": 0
     },
-    "app/game/modules/roguelike/map.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/module.ts": {
-      "any": 17,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/modules/chaos.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/modules/copper.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/modules/dice.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/modules/fragment.ts": {
-      "any": 10,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/modules/grid_zone.ts": {
-      "any": 4,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/modules/node_upgrade.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/modules/scrap.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/modules/totem.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/modules/wrath_sky.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/pool.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/recruit-flow.ts": {
-      "any": 4,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/recruit.ts": {
-      "any": 10,
-      "unknown": 0,
-      "object": 0
-    },
     "app/game/modules/roguelike/relic.ts": {
-      "any": 2,
+      "any": 0,
       "unknown": 1,
       "object": 0
     },
     "app/game/modules/roguelike/response.ts": {
-      "any": 6,
+      "any": 0,
       "unknown": 1,
       "object": 1
-    },
-    "app/game/modules/roguelike/reward.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
     },
     "app/game/modules/roguelike/rlv2-model.ts": {
       "any": 4,
       "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/rlv2-module-composition.ts": {
-      "any": 0,
-      "unknown": 1,
       "object": 0
     },
     "app/game/modules/roguelike/roguelike.ts": {
@@ -768,16 +473,6 @@
     "app/game/modules/roguelike/schemas.ts": {
       "any": 0,
       "unknown": 2,
-      "object": 0
-    },
-    "app/game/modules/roguelike/shop.ts": {
-      "any": 11,
-      "unknown": 0,
-      "object": 0
-    },
-    "app/game/modules/roguelike/status.ts": {
-      "any": 1,
-      "unknown": 0,
       "object": 0
     },
     "app/game/modules/roguelike/troop.ts": {
@@ -950,11 +645,6 @@
       "unknown": 1,
       "object": 0
     },
-    "scripts/admin-cli.ts": {
-      "any": 8,
-      "unknown": 2,
-      "object": 0
-    },
     "scripts/apk-lua.ts": {
       "any": 0,
       "unknown": 1,
@@ -965,49 +655,9 @@
       "unknown": 1,
       "object": 0
     },
-    "scripts/cs2schema.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
     "scripts/db-migrate.ts": {
       "any": 0,
       "unknown": 2,
-      "object": 0
-    },
-    "scripts/dump-api-container.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "scripts/dump-bundle-structure.ts": {
-      "any": 2,
-      "unknown": 0,
-      "object": 0
-    },
-    "scripts/excel-convert.ts": {
-      "any": 24,
-      "unknown": 0,
-      "object": 0
-    },
-    "scripts/excel-json-keys.ts": {
-      "any": 1,
-      "unknown": 9,
-      "object": 2
-    },
-    "scripts/extract-lua-hot.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "scripts/generate-mapviz-data.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "scripts/generate-max-account.ts": {
-      "any": 7,
-      "unknown": 3,
       "object": 0
     },
     "scripts/lib/type-debt-scan.ts": {
@@ -1015,59 +665,9 @@
       "unknown": 4,
       "object": 4
     },
-    "scripts/migrate-official.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "scripts/official-api.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "scripts/official-convert.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
-    "scripts/official-excel.ts": {
-      "any": 7,
-      "unknown": 0,
-      "object": 0
-    },
-    "scripts/official-register.ts": {
-      "any": 6,
-      "unknown": 0,
-      "object": 0
-    },
-    "scripts/pack-lua-min-current.ts": {
-      "any": 3,
-      "unknown": 0,
-      "object": 0
-    },
     "scripts/proxy-harness.ts": {
       "any": 0,
       "unknown": 6,
-      "object": 0
-    },
-    "scripts/schema-gen.ts": {
-      "any": 1,
-      "unknown": 0,
-      "object": 0
-    },
-    "scripts/validate-excel-json.ts": {
-      "any": 6,
-      "unknown": 3,
-      "object": 4
-    },
-    "scripts/validate-playerdata-json.ts": {
-      "any": 6,
-      "unknown": 3,
-      "object": 4
-    },
-    "scripts/vendor/fbo.ts": {
-      "any": 11,
-      "unknown": 0,
       "object": 0
     },
     "tests/helpers/apiServer.ts": {

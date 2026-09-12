@@ -196,13 +196,13 @@ function miniBattleStart(player: PlayerDataManager) {
 }
 
 /** 活动小游戏战斗结算 stub（仅返回增量） */
-function miniBattleFinish(player: PlayerDataManager, body: any) {
+function miniBattleFinish(player: PlayerDataManager, body: ActivityMiniBattleFinishRequest) {
   reqBodyRef(body);
   return player.delta satisfies ActivityMiniBattleFinishResponse;
 }
 
 /** 引用请求体（满足 req.body as XxxRequest 接线约定，实际不读取） */
-function reqBodyRef(_body: any): void {
+function reqBodyRef(_body: ActivityMiniBattleFinishRequest): void {
   /* 无操作：stub 路由不读取请求体 */
 }
 

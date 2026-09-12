@@ -5,6 +5,7 @@ import { Router } from "express";
 import excel from "@excel/excel";
 import config from "@core/config/index";
 import * as ReqSchema from "../shared/activity.schema";
+import { activityDetailJson, isJsonObjectValue } from "../shared/activity-json";
 
 import { getPlayer, getPlayerOptional } from "../../../kernel/http/request-context";
 import {
@@ -157,12 +158,9 @@ function buildEnemyDuelFinishResponse(
   const rankList: EnemyDuelRankInfo[] = clientRankList?.length
     ? clientRankList
     : [{ id: "1", rank: 1, score: 0, isPlayer: 1 }];
-  const npcData = (
-    (excel.ActivityTable as any)?.activity?.ENEMY_DUEL?.[activityId]
-      ?.npcData as Record<string, unknown> | undefined
-  );
+  const npcData = activityDetailJson(excel.ActivityTable.activity, "ENEMY_DUEL", activityId)?.["npcData"];
   let rank = 2;
-  for (const npcId of Object.keys(npcData ?? {})) {
+  for (const npcId of isJsonObjectValue(npcData) ? Object.keys(npcData) : []) {
     if (rankList.length >= 8) break;
     rankList.push({ id: npcId, rank: rank++, score: 0, isPlayer: 0 });
   }
@@ -256,8 +254,7 @@ router.post("/enemyDuel/queryMatch", validateBody(ReqSchema.enemyDuelQueryMatchS
     } satisfies EnemyDuelQueryMatchResponse);
   }
   const { activityId, modeId } = enemyDuelMatchState;
-  const modeInfo = (player._playerdata.activity as any)?.ENEMY_DUEL?.[activityId]
-    ?.modeInfo as { [key: string]: { curStage?: string } } | undefined;
+  const modeInfo = player._playerdata.activity?.ENEMY_DUEL?.[activityId]?.modeInfo;
   const curStage = modeInfo?.[modeId]?.curStage ?? "";
   res.send({
     result: 0,

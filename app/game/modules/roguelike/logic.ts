@@ -1,4 +1,4 @@
-import { PlayerRoguelikeV2, RoguelikeItemBundle, RoguelikeNodePosition, TorappuRoguelikeEventType } from "./rlv2";
+import { PlayerRoguelikeV2, PlayerRoguelikePendingEvent, RoguelikeItemBundle, RoguelikeNodePosition, TorappuRoguelikeEventType } from "./rlv2";
 import excel from "@excel/excel";
 import { readFileSync } from "fs";
 import zlib from "node:zlib";
@@ -8,6 +8,7 @@ import { RoguelikeBuffManager } from "./buff";
 import { RoguelikePlayerStatusManager } from "./status";
 import { now } from "@utils/time";
 import { RoguelikeModuleManager } from "./module";
+import type { RoguelikeDiceManager } from "./modules/dice";
 import { RoguelikeTroopManager } from "./troop";
 import { RoguelikeMapManager } from "./map";
 import { PlayerSquad } from "../../kernel/model";
@@ -25,24 +26,70 @@ import { ItemBundle } from "@excel/excel";
 import { logger } from "@utils/logger";
 import { Rogue6IncidentEngine } from "./incident";
 
+/**
+ * 事件选项效果载荷中的数值字典（`{ gold: 2 }` / 嵌套 `{ hp: { current: 2 } }`）
+ *
+ * 键为 property/module 的字段名（gold/hp/population/shield/san/dice…），见
+ * data/rlv2/event_choices.json。
+ */
+export interface RoguelikeChoiceEffectMap {
+  [key: string]: number | { [key: string]: number };
+}
+
+/**
+ * 事件选项效果载荷（lose/get/m_get/m_lose/i_get/i_lose）
+ *
+ * 取值形态来自 data/rlv2/event_choices.json 实测：null、字符串（藏品 id 前缀）、
+ * 数字、字符串数组（GET 多选一）与数值字典（含嵌套 `{ hp: { current: N } }`）。
+ */
+export type RoguelikeChoiceEffectPayload =
+  | null
+  | string
+  | number
+  | string[]
+  | RoguelikeChoiceEffectMap;
+
+/** event_choices.json 单条选项：效果载荷 + 后续选项（choices 为字符串时表示战斗关卡前缀） */
+export interface RoguelikeChoiceEffectConfig {
+  choices: string[] | string;
+  lose?: RoguelikeChoiceEffectPayload;
+  get?: RoguelikeChoiceEffectPayload;
+  m_lose?: RoguelikeChoiceEffectPayload;
+  m_get?: RoguelikeChoiceEffectPayload;
+  i_get?: RoguelikeChoiceEffectPayload;
+  i_lose?: RoguelikeChoiceEffectPayload;
+  curse?: boolean;
+  /** 条件分支：以列表内 get/curse 组合替代顶层效果（rogue_2 liar/11 系列） */
+  get_id?: { get: string; curse: boolean }[];
+}
+
+/** `customizeData[theme]` 科技树节点（生成模型 RL0xCustomizeData 的 developments 值） */
+export type RoguelikeCustomizeDevelopmentNode = {
+  frontNodeId: string[];
+  tokenCost: number;
+  /** 节点原始描述（先行一步/喙 等节点效果的文本判定来源，见 grid-nav.ts） */
+  rawDesc?: string[];
+};
+
+/**
+ * `customizeData[theme]` 的科技树区段视图
+ *
+ * 生成模型的 customizeData 为未建模线格式 JSON（`RoguelikeTopicCustomizeData` = JsonValue），
+ * 各主题节点类型不同，服务端只消费 frontNodeId/tokenCost，故按实测字段声明最小视图。
+ */
+export type RoguelikeCustomizeDataView = {
+  developments?: { [nodeId: string]: RoguelikeCustomizeDevelopmentNode };
+  commonDevelopment?: {
+    developments?: { [nodeId: string]: RoguelikeCustomizeDevelopmentNode };
+  };
+};
+
 export class RoguelikeV2Config {
   choiceScenes: { [key: string]: { choices: { [key: string]: number } } };
   eventChoices: {
     [theme: string]: {
       enter: { [sceneId: string]: string[] };
-      choices: {
-        [choiceId: string]: {
-          choices: string[] | string;
-          lose?: any;
-          get?: any;
-          m_lose?: any;
-          m_get?: any;
-          i_get?: any;
-          i_lose?: any;
-          curse?: boolean;
-          get_id?: any;
-        };
-      };
+      choices: { [choiceId: string]: RoguelikeChoiceEffectConfig };
     };
   };
   /** 招募组 → 标准职业映射（data/rlv2/recruit-groups.json） */
@@ -80,7 +127,8 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
 
   get outer(): { [key: string]: PlayerRoguelikeV2.OuterData } {
     const rlv2 = this._player._playerdata.rlv2;
-    if (!rlv2.outer) rlv2.outer = {} as any;
+    // 兜底空表：纯索引签名表，`{}` 即合法空值（生成模型视角）
+    if (!rlv2.outer) rlv2.outer = {};
     return rlv2.outer as unknown as {
       [key: string]: PlayerRoguelikeV2.OuterData;
     };
@@ -88,7 +136,9 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
 
   get current(): PlayerRoguelikeV2.CurrentData {
     const rlv2 = this._player._playerdata.rlv2;
-    if (!rlv2.current) rlv2.current = {} as any;
+    // 兜底空对象：生成模型 CurrentData 各字段必填，运行时此处仅为占位，随后由
+    // update() 配方/子模块写入（空占位语义与原实现一致）
+    if (!rlv2.current) rlv2.current = {} as typeof rlv2.current;
     return rlv2.current as unknown as PlayerRoguelikeV2.CurrentData;
   }
 
@@ -112,12 +162,12 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
    * @param theme - 肉鸽主题 id（rogue_1 … rogue_6）
    */
   async emitOuterProgressionMedals(theme: string): Promise<void> {
-    const outer = (this.outer as any)?.[theme];
+    const outer = this.outer?.[theme];
     if (!outer || !theme) return;
-    const relicCount = Object.values<any>(outer.collect?.relic ?? {}).filter(
+    const relicCount = Object.values(outer.collect?.relic ?? {}).filter(
       (v) => Number(v?.state ?? 0) >= 2,
     ).length;
-    const bandCount = Object.values<any>(outer.collect?.band ?? {}).filter(
+    const bandCount = Object.values(outer.collect?.band ?? {}).filter(
       (v) => Number(v?.state ?? 0) >= 1,
     ).length;
     // 「达成 N 种结局」← 结局图鉴 collect.endBook 的条目数（结算成功且达成结局时写入）
@@ -142,8 +192,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
    * @returns 当前 BP 等级（无该主题/无轨道时返回 0）
    */
   resolveBpLevel(theme: string, point: number): number {
-    const list: any[] =
-      (excel.RoguelikeTopicTable as any)?.details?.[theme]?.milestones ?? [];
+    const list = excel.RoguelikeTopicTable.details[theme]?.milestones ?? [];
     let level = 0;
     for (const m of list) {
       const need = Number(m?.tokenNum ?? 0);
@@ -285,7 +334,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
   get maxZone(): number {
     const theme = this.current.game!.theme;
     const stages = Object.keys(
-      (excel.RoguelikeTopicTable as any)?.details?.[theme]?.stages || {},
+      excel.RoguelikeTopicTable.details[theme]?.stages || {},
     );
     let max = 0;
     for (const s of stages) {
@@ -295,9 +344,9 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     // 附加层条件：持有改变结局走向的藏品 → 允许到 6 层（官方结局层）；否则默认 5 层
     if (max >= 6) {
       const relicIds = Object.values(this.inventory?.relic || {}).map(
-        (r) => (r as any).id,
+        (r) => r.id,
       );
-      const detail = excel.RoguelikeTopicTable.details[theme] as any;
+      const detail = excel.RoguelikeTopicTable.details[theme];
       const hasEndingChange = relicIds.some(
         (id) =>
           (detail?.items?.[id]?.usage || "").includes("让探索走向不同的结局") ||
@@ -312,28 +361,87 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     return Math.min(max || 6, 5);
   }
 
-  applyPropertyDelta(delta: { [key: string]: any }, sign: number): void {
-    Object.entries(delta).forEach(([key, value]) => {
-      const target = (this._status.property as any)[key];
-      if (target === undefined) return;
-      if (typeof value === "object" && value !== null) {
-        // 嵌套对象（如 hp: {current: 2}）——事件效果常见格式
-        Object.entries(value).forEach(([subKey, subVal]) => {
-          if (typeof target?.[subKey] === "number" && typeof subVal === "number") {
-            target[subKey] += sign * subVal;
-          }
-        });
-      } else if (typeof target === "number" && typeof value === "number") {
-        (this._status.property as any)[key] = target + sign * value;
+  /**
+   * property 数值字段累加（事件选项 lose/get 的数值字典）
+   *
+   * `PlayerStatus.Properties` 键域封闭、无索引签名，故按字段名显式分支：
+   * 顶层数值字段直接累加；hp/population 为嵌套数值对象，按 current/max/cost
+   * 子键累加（子键当前值须为 number，与原 `typeof target[subKey] === "number"` 一致）。
+   * 未知键（san/dice/rogue_2_key 等非 property 字段）与原 `property[key]` 取到
+   * undefined 的行为一致——跳过。
+   * @param delta - 事件效果数值字典（{gold:2} / {hp:{current:2}}）
+   * @param sign - 方向（+1 获得 / -1 失去）
+   */
+  applyPropertyDelta(delta: RoguelikeChoiceEffectMap, sign: number): void {
+    const prop = this._status.property;
+    for (const [key, value] of Object.entries(delta)) {
+      if (typeof value === "number") {
+        switch (key) {
+          case "exp":
+            prop.exp += sign * value;
+            break;
+          case "level":
+            prop.level += sign * value;
+            break;
+          case "maxLevel":
+            prop.maxLevel += sign * value;
+            break;
+          case "shield":
+            prop.shield += sign * value;
+            break;
+          case "gold":
+            prop.gold += sign * value;
+            break;
+          case "capacity":
+            prop.capacity += sign * value;
+            break;
+          case "conPerfectBattle":
+            prop.conPerfectBattle += sign * value;
+            break;
+          default:
+            // 非 property 数值字段——原动态索引取 undefined，同样跳过
+            break;
+        }
+        continue;
       }
-    });
+      if (typeof value !== "object" || value === null) continue;
+      // 嵌套对象（如 hp: {current: 2}）——事件效果常见格式
+      for (const [subKey, subVal] of Object.entries(value)) {
+        if (typeof subVal !== "number") continue;
+        if (key === "hp" && subKey === "current" && typeof prop.hp.current === "number") {
+          prop.hp.current += sign * subVal;
+        } else if (key === "hp" && subKey === "max" && typeof prop.hp.max === "number") {
+          prop.hp.max += sign * subVal;
+        } else if (
+          key === "population" &&
+          subKey === "cost" &&
+          typeof prop.population.cost === "number"
+        ) {
+          prop.population.cost += sign * subVal;
+        } else if (
+          key === "population" &&
+          subKey === "max" &&
+          typeof prop.population.max === "number"
+        ) {
+          prop.population.max += sign * subVal;
+        }
+      }
+    }
   }
 
-  applyInventoryDelta(delta: { [key: string]: any }, sign: number): void {
+  /**
+   * inventory 数值字段累加（事件选项 i_get/i_lose 的消耗品字典）
+   *
+   * 仅处理 `consumable` 键（`{ consumable: { itemId: count } }`），其余键与原实现
+   * 一致——不处理。
+   * @param delta - 事件效果数值字典
+   * @param sign - 方向（+1 获得 / -1 失去）
+   */
+  applyInventoryDelta(delta: RoguelikeChoiceEffectMap, sign: number): void {
     Object.entries(delta).forEach(([key, value]) => {
       if (key === "consumable" && typeof value === "object") {
         Object.entries(value).forEach(([itemId, count]) => {
-          this._trigger.emit("rlv2:get:items", [[{ id: itemId, count: sign * (count as number) }]]);
+          this._trigger.emit("rlv2:get:items", [[{ id: itemId, count: sign * count }]]);
         });
       }
     });
@@ -388,14 +496,12 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     if (!nm) return;
     nm.state = 2;
     const theme = this.current.game!.theme;
-    const task = (excel.RoguelikeTopicTable.details[theme] as any)?.taskData?.[
-      nm.id
-    ];
+    const task = excel.RoguelikeTopicTable.details[theme]?.taskData?.[nm.id];
     const sceneId = task?.rewardSceneId;
     if (sceneId) {
       const prefix = sceneId.replace(/^scene_/, "").replace(/_enter$/, "");
       const choiceIds = Object.keys(
-        (excel.RoguelikeTopicTable.details[theme] as any)?.choices || {},
+        excel.RoguelikeTopicTable.details[theme]?.choices || {},
       ).filter((k) => k.startsWith(`choice_${prefix}_`) && !k.endsWith("_enter"));
       const choices = choiceIds.reduce((acc, cid) => ({ ...acc, [cid]: 1 }), {});
       const choiceAdditional = choiceIds.reduce(
@@ -472,24 +578,21 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     if (choice === "REROLL") {
       // 重掷：重新生成骰子结果（重掷次数 +1）
       const result = this.rollDice(theme, dm);
-      (diceEvent.content as any).dice = {
+      diceEvent.content.dice = {
         result,
-        rerollCount: ((diceEvent.content as any).dice?.rerollCount ?? 0) + 1,
+        rerollCount: (diceEvent.content.dice?.rerollCount ?? 0) + 1,
       };
       this._status.state = "PENDING";
       return { result: 1 };
     }
     // LEAVE：接受结果，发放骰子事件奖励并消费 DICE 事件
-    const dice = (diceEvent.content as any).dice as
-      | { result?: { diceEventId: string } }
-      | undefined;
+    const dice = diceEvent.content.dice;
     const diceEventId = dice?.result?.diceEventId || "";
     const detail = excel.RoguelikeTopicTable.details[theme];
     const eventData = (
-      (excel.RoguelikeTopicTable.modules[theme] as any)?.dice?.diceEvents ||
-      {}
+      excel.RoguelikeTopicTable.modules[theme]?.dice?.diceEvents || {}
     )[diceEventId];
-    const showType = eventData?.showType;
+    const showType = String(eventData?.showType ?? "");
     // 按结果类型发放简化奖励（启示/美德/钥匙等——官方通过 ruleGroup 黑板驱动）
     if (showType === "VIRTUE") {
       this._trigger.emit("rlv2:get:items", [[{ id: "rogue_2_gold", count: 3 }]]);
@@ -507,12 +610,19 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     return { result: 1 };
   }
 
-  rollDice(theme: string, dm: any): any {
+  /**
+   * 掷骰（结果结构对齐挂起事件 DICE 的 payload）
+   * @param theme - 主题 id
+   * @param dm - 骰子模块管理器（缺省按 6 面）
+   * @returns DICE 事件结果（diceEventId/diceRoll/mutation/virtue）
+   */
+  rollDice(
+    theme: string,
+    dm: RoguelikeDiceManager | undefined,
+  ): PlayerRoguelikePendingEvent.Dice.Result {
     const faceCount = dm?.faceCount ?? 6;
     const diceRoll = Math.floor(random() * faceCount) + 1;
-    const diceEvents = (
-      excel.RoguelikeTopicTable.modules[theme] as any
-    )?.dice?.diceEvents;
+    const diceEvents = excel.RoguelikeTopicTable.modules[theme]?.dice?.diceEvents;
     const eventIds = diceEvents ? Object.keys(diceEvents) : [];
     const diceEventId =
       eventIds.length > 0
@@ -548,7 +658,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     const detail = excel.RoguelikeTopicTable.details[theme];
     const relicMap = this.inventory!.relic || {};
     const sacrificable = Object.values(relicMap).filter((r) => {
-      const item = (detail.items as any)?.[(r as any).id];
+      const item = detail.items[r.id];
       return item?.canSacrifice && (item?.value === 8 || item?.value === 12);
     });
     // 扣除献祭代价（choice 为选项序号；默认第一个可献祭藏品）
@@ -556,10 +666,10 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     const offered = sacrificable[choiceIdx] || sacrificable[0];
     if (offered) {
       // relic 库存以 index（r_N）为键，按条目键删除
-      delete relicMap[(offered as any).index];
+      delete relicMap[offered.index];
     }
     // 发放回报：随机未拥有藏品（池空回退金币）
-    const hasRelic = Object.values(relicMap).map((r) => (r as any).id);
+    const hasRelic = Object.values(relicMap).map((r) => r.id);
     const rewardId = this._pool.getRelic("pool_relic_all", hasRelic);
     if (rewardId) {
       this._trigger.emit("rlv2:relic:gain", [{ id: rewardId, count: 1 }]);
@@ -584,7 +694,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
       this._status.state = "WAIT_MOVE";
       return;
     }
-    const fragmentMgr = this._module._modules["FRAGMENT"];
+    const fragmentMgr = this._module.fragment;
     if (fragmentMgr && args.index && args.index.length >= 2) {
       fragmentMgr.alchemy([args.index[0], args.index[1]]);
     }
@@ -740,7 +850,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
       this._trigger.emit("rlv2:scrap:gain", [id]);
     }
     // legacy 部件：LEGACY 型物品（下次探索开局加成，本局无持续效果）
-    const items = (excel.RoguelikeTopicTable.details[theme] as any)?.items || {};
+    const items = excel.RoguelikeTopicTable.details[theme]?.items || {};
     const legacyPool = Object.keys(items).filter(
       (id) => items[id]?.type === "LEGACY",
     );
@@ -792,15 +902,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     const pd = this._player._playerdata;
     if (!pd.rlv2?.current) return;
     const j = this.toJSON();
-    const cur = pd.rlv2.current as any;
-    cur.player = j.current.player;
-    cur.map = j.current.map;
-    cur.inventory = j.current.inventory;
-    cur.troop = j.current.troop;
-    cur.buff = j.current.buff;
-    cur.module = j.current.module;
-    cur.record = j.current.record;
-    cur.game = j.current.game;
+    this.writeCurrentView(pd.rlv2.current, j);
     this._player.markDirty();
   }
 
@@ -808,25 +910,45 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     const j = this.toJSON();
     const pd = this._player._playerdata;
     if (pd.rlv2?.current) {
-      const cur = pd.rlv2.current as any;
-      cur.player = j.current.player;
-      cur.map = j.current.map;
-      cur.inventory = j.current.inventory;
-      cur.troop = j.current.troop;
-      cur.buff = j.current.buff;
-      cur.module = j.current.module;
-      cur.record = j.current.record;
-      cur.game = j.current.game;
+      this.writeCurrentView(pd.rlv2.current, j);
       this._player.markDirty();
     }
     return j;
+  }
+
+  /**
+   * 把内部模型形状的本局运行态写入存档 current（生成模型 = 线格式存储视图）
+   *
+   * 两套类型体系在边界处显式桥接：内部模型用便于实现的类型（instId: string、枚举
+   * 字符串、boolean、current.record: any），生成模型为 FBO 线格式原生类型
+   * （instId: number、枚举数值、数值布尔、必填字段更全），逐字段断言会被 TS 判为
+   * 不可比，故按槽位整体赋值（运行时与逐字段赋值等价）。
+   * @param target - 存档 current（生成模型视图）
+   * @param j - toJSON 产出的内部模型视图
+   */
+  private writeCurrentView(
+    target: typeof this._player._playerdata.rlv2.current,
+    j: PlayerRoguelikeV2,
+  ): void {
+    Object.assign(target, {
+      player: j.current.player,
+      map: j.current.map,
+      inventory: j.current.inventory,
+      troop: j.current.troop,
+      buff: j.current.buff,
+      module: j.current.module,
+      record: j.current.record,
+      game: j.current.game,
+    });
   }
 
   async unlockBuff(
     theme: string,
     buffId: string,
   ): Promise<{ success: boolean; reason?: string }> {
-    const customize = (excel.RoguelikeTopicTable.customizeData as any)?.[theme];
+    const customize = excel.RoguelikeTopicTable.customizeData?.[theme] as
+      | RoguelikeCustomizeDataView
+      | undefined;
     const devs =
       customize?.developments && !Array.isArray(customize.developments)
         ? customize.developments
@@ -853,7 +975,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
       // 分队升级隐藏：解锁科技树节点后，若该节点对应分队升级（bandRef bandLevel>0
       // 的升级变体，如 分裂→指挥分队 band_2），升级分队 state 1、旧分队（normalBandId）state 0。
       // 官方机制：升级分队解锁后旧分队隐藏（同分队只显示最高等级）。
-      const collectBand = (draft.outer[theme] as any)?.collect?.band;
+      const collectBand = draft.outer[theme]?.collect?.band;
       if (collectBand && typeof collectBand === "object") {
         this.applyBandUpgradeVisibility(theme, buffId, collectBand);
       }
@@ -890,11 +1012,11 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     return this._gameSeed;
   }
 
-  buildDetailStr(brief: any): string | null {
-    const game = this.current.game as any;
+  buildDetailStr(brief: ReturnType<typeof buildSettlement>["brief"]): string | null {
+    const game = this.current.game;
     if (!game) return null;
     // troopChars：当前队伍干员（官方 detailStr 每干员仅 6 字段，无 potentialRank/mainSkillLvl）
-    const troopChars = Object.values(this.troop.chars).map((c: any) => ({
+    const troopChars = Object.values(this.troop.chars).map((c) => ({
       instId: String(c.instId),
       charId: c.charId,
       type: c.type || "NORMAL",
@@ -919,7 +1041,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
       upgrades: [],
     };
     // zones：每层区域。私服无 per-step 物品获取记录，steps 留空（键结构对齐）。
-    const zones = Object.values(this._map.zones || {}).map((z: any) => ({
+    const zones = Object.values(this._map.zones || {}).map((z) => ({
       index: z.index,
       zoneId: z.id,
       variation: Array.isArray(z.variation) ? z.variation : [],
@@ -935,11 +1057,11 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     return zlib.deflateSync(Buffer.from(JSON.stringify(payload))).toString("base64");
   }
 
-  generateShopGoods(theme: string) : any[] {
+  generateShopGoods(theme: string) : ReturnType<typeof generateShopGoods> {
     return generateShopGoods(this, theme);
   }
 
-  buildShopContent(theme: string) : any {
+  buildShopContent(theme: string) : ReturnType<typeof buildShopContent> {
     return buildShopContent(this, theme);
   }
 
@@ -978,10 +1100,8 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
   }
 
   initModeGradeStates(theme: string,
-    map?: any,
-    game?: any,) : {
-    [mode: string]: { [grade: string]: { state: number; progress: number[] | null } };
-  } {
+    map?: Parameters<typeof initModeGradeStates>[2],
+    game?: Parameters<typeof initModeGradeStates>[3],) : ReturnType<typeof initModeGradeStates> {
     return initModeGradeStates(this, theme, map, game);
   }
 
@@ -991,7 +1111,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
 
   buildSettlement(over: boolean,
     success: number,
-    ending: string,) : { brief: any; record: any; buffBankPut: number } {
+    ending: string,) : ReturnType<typeof buildSettlement> {
     return buildSettlement(this, over, success, ending);
   }
 
@@ -1027,7 +1147,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     return gameSettle(this);
   }
 
-  buildSettleResponse() : { game: any; outer: any } {
+  buildSettleResponse() : ReturnType<typeof buildSettleResponse> {
     return buildSettleResponse(this);
   }
 
@@ -1120,7 +1240,9 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     return createGame(this, args);
   }
 
-  ensureOuterTheme(theme: string, outerMap?: any, game?: any) : void {
+  ensureOuterTheme(theme: string,
+    outerMap?: Parameters<typeof ensureOuterTheme>[2],
+    game?: Parameters<typeof ensureOuterTheme>[3],) : void {
     return ensureOuterTheme(this, theme, outerMap, game);
   }
 

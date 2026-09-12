@@ -145,12 +145,12 @@ export function miniBattleStart(player: PlayerDataManager) {
   } satisfies ActivityMiniBattleStartResponse;
 }
 
-export function miniBattleFinish(player: PlayerDataManager, body: any) {
+export function miniBattleFinish(player: PlayerDataManager, body: ActivityMiniBattleFinishRequest) {
   reqBodyRef(body);
   return player.delta satisfies ActivityMiniBattleFinishResponse;
 }
 
-export function reqBodyRef(_body: any): void {
+export function reqBodyRef(_body: ActivityMiniBattleFinishRequest): void {
   /* 无操作：stub 路由不读取请求体 */
 }
 
@@ -193,7 +193,7 @@ export async function confirmOneActivityMission(
     });
   }
   await player.update(async (draft) => {
-    const activityMissions = (draft.mission as any).missions["ACTIVITY"];
+    const activityMissions = draft.mission.missions["ACTIVITY"];
     if (activityMissions && activityMissions[missionId]) {
       activityMissions[missionId].state = 3;
     }
@@ -224,14 +224,14 @@ export async function autoConfirmActivityMissionsIn(
 ): Promise<ItemBundle[]> {
   const rewards: ItemBundle[] = [];
   await player.update(async (draft) => {
-    const missions = (draft.mission as any).missions[group];
+    const missions = draft.mission.missions[group];
     if (!missions) return;
-    for (const [missionId, missionState] of Object.entries(missions) as any) {
+    for (const [missionId, missionState] of Object.entries(missions)) {
       const isCompleted =
         missionState.state === 2 &&
         missionState.progress.length > 0 &&
         missionState.progress[0].target != null &&
-        missionState.progress[0].value >= (missionState.progress[0].target as number);
+        missionState.progress[0].value >= missionState.progress[0].target;
       if (!isCompleted) continue;
       missionState.state = 3;
       // 查找任务奖励

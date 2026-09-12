@@ -124,6 +124,21 @@ function toCab(uf: Uint8Array): Uint8Array {
   return cab.subarray(node.offset, node.offset + node.size);
 }
 
+/** SF 内单个对象记录（pathId 为 i64，start 已加数据区基址） */
+interface SfObjectRecord {
+  pathId: bigint;
+  start: number;
+  size: number;
+  typeId: number;
+}
+
+/** AssetBundle(142) m_Container 内部条目（pathId 以十进制字符串呈现） */
+interface AssetBundleContainerEntry {
+  assetPath: string;
+  fileId: number;
+  pathId: string;
+}
+
 /** 解析 SF 返回 { classIds, objects, typeTreeBlobs, textAssets, assetBundleObj } */
 function parseSF(sf: Uint8Array) {
   let o = 0;
@@ -176,7 +191,7 @@ function parseSF(sf: Uint8Array) {
   const objectCount = i32le(sf, o);
   o += 4;
   while (o % 4 !== 0) o++;
-  const objects: any[] = [];
+  const objects: SfObjectRecord[] = [];
   for (let i = 0; i < objectCount; i++) {
     const pathId = readI64(sf, o);
     o += 8;
@@ -224,7 +239,7 @@ function parseAssetBundleContainer(obj: Uint8Array): void {
   const pairCount = i32le(obj, o);
   o += 4;
   console.log(`m_Container 条目数=${pairCount}`);
-  let entries: any[] = [];
+  let entries: AssetBundleContainerEntry[] = [];
   // 每条 Pair<first, second>；second = AssetBundleInfo{m_PreloadTable:vector<pair<PPtr<Object>,Guid>>, m_Container(vector<pair<string,ObjectInfo>>)}
   // 但先按序读取期：m_PreloadTable count + 每项(assetFileID i32 + pathID i64 + guid 16B)
   // m_Container(" nested) count + 每项(string assetPath + PPtr(assetFileID i32, pathID i64))

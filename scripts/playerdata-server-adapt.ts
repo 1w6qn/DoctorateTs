@@ -311,7 +311,7 @@ export const SERVER_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
       //   gateway 回调（server.ts）与 ops/admin/arkhub-pets.ts 的读写点反推。
       //   注：secretarySkinSp/globalBan 播种写布尔 false，客户端模型为 number → 两者都声明。
       " ; ARK_HUB?: { [actId: string]: {" +
-      " coin?: number; secretary?: string; secretarySkinId?: string; secretarySkinSp?: number | boolean; protectTs?: number; squads?: PlayerSquad[]; globalBan?: number | boolean;" +
+      " coin?: number; secretary?: string; secretarySkinId?: string; secretarySkinSp?: number | boolean; protectTs?: number; squads?: (PlayerSquad | { slots?: ServerPayload[] })[]; globalBan?: number | boolean;" +
       " duelCount?: number; dailySupplyDays?: number; dailySupplyLastDay?: string; creatureCollected?: number; activeCreatureCollected?: number; alterCollected?: number; pixelCollected?: number; pixelPublished?: number;" +
       " pixelCollectedIds?: number[]; reviewedPixelArts?: { [key: string]: ServerPayload };" +
       " dex?: { [key: string]: { numId?: number; isAlter?: boolean; alterOf?: number; active?: boolean } };" +
@@ -338,7 +338,41 @@ export const SERVER_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
       " ; SWITCH_ONLY?: { [actId: string]: { [rewardId: string]: number } }" +
       //   BLESS_ONLY 祝福签到（festivalHistory 节日干员槽；history 服务端只建空数组，保持未建模）
       " ; BLESS_ONLY?: { [actId: string]: { festivalHistory?: { charId?: string; state?: number }[]; history?: ServerPayload[]; lastTs?: number } }" +
+      // 次生预案半挂机（HALFIDLE_VERIFY1，见 modules/activities/act1vhalfidle）：
+      //   形状自 act1vhalfidle/logic.ts#ensureHalfIdleData 的逐字段回填反推（旧存档缺字段 → 一律可选）；
+      //   troop.char 多一个遗留 skillLvl（升级技能读取时 `skillLvlWithSpec ?? skillLvl ?? 0`）。
+      " ; HALFIDLE_VERIFY1?: { [actId: string]: { coin?: number; globalBan?: number; troop?: { chars?: { [instId: string]: { instId?: number; charId?: string; level?: number; skillLvl?: number; skillLvlWithSpec?: number; evolvePhase?: number; isAssist?: number; defaultSkillId?: string; defaultEquipId?: string } }; trap?: string[]; npc?: string[]; assist?: ServerPayload[]; extraAssist?: number }; stage?: { [stageId: string]: { rate?: { [itemId: string]: number }; bossState?: number } }; settleInfo?: { rate?: { [itemId: string]: number }; bossState?: number; stageId?: string; progress?: number }; production?: { rate?: { [itemId: string]: number }; product?: { [itemId: string]: number }; harvestTs?: number; refreshTs?: number }; recruit?: { poolGain?: { [poolId: string]: string[] }; poolTimes?: { [poolId: string]: number } }; milestone?: { point?: number; got?: string[] }; inventory?: { [itemId: string]: number }; tech?: { unlock?: string[] } } }" +
+      // 怪猎对决（ENEMY_DUEL，见 modules/activities/enemyDuel）：服务端只读 modeInfo[modeId].curStage
+      //   （queryMatch 拼 serverToken）；其余字段按生成模型 PlayerActivity_PlayerEnemyDuelActivity 声明
+      " ; ENEMY_DUEL?: { [actId: string]: { milestone?: { point?: number; got?: string[] }; dailyMission?: { process?: number; state?: number }; modeInfo?: { [modeId: string]: { highScore?: number; curStage?: string; isUnlock?: number } }; globalBan?: number } }" +
+      // 怪猎 act24side（TYPE_ACT24SIDE，见 modules/activities/act24side/router.ts）：
+      //   炼金（price 余值 / item 素材 / gacha 各箱已抽）/ 用餐（digested/chance/id/day）/ 工具（tool[key]=1|2）
+      " ; TYPE_ACT24SIDE?: { [actId: string]: { meal?: { chance?: number; digested?: number; id?: string; day?: string }; alchemy?: { price?: number; item?: { [key: string]: number }; gacha?: { [boxId: string]: { [goodId: string]: number } } }; tool?: { [key: string]: number }; favorList?: string[]; hunt?: { infoBook?: { [key: string]: number }; enemyKillCntStats?: { [key: string]: number }; collectRewards?: number }; unlockItemMap?: { [key: string]: number }; globalBan?: number } }" +
+      // act42side（TYPE_ACT42SIDE，见 modules/activities/act42side/router.ts）：dailyRewardState /
+      //   taskMap[taskId]（服务端按 ODPY 写裸数值 2/4；客户端模型为 { state } → 两者都声明）
+      " ; TYPE_ACT42SIDE?: { [actId: string]: { coin?: number; favorList?: string[]; outerPlayerOpen?: number; taskMap?: { [taskId: string]: number | { state?: number } }; gunMap?: { [key: string]: number }; fileMap?: { [key: string]: number }; trustedItem?: { has?: number; got?: number; dailyState?: number }; dailyRewardState?: number } }" +
+      // 情报屋 act44side（TYPE_ACT44SIDE，见 modules/activities/act44side/informant.ts）：
+      //   现场形状以抓包为准（与生成模型不同：会话字段为 game，boom/success 可为布尔）——
+      //   game 收摊后写 null；isNew/outerOpen 播种写布尔、客户端模型为 number → 两者都声明。
+      " ; TYPE_ACT44SIDE?: { [actId: string]: { coin?: number; favorList?: string[]; informantPt?: number; milestone?: { point?: number; got?: string[] }; businessDay?: number; unlockedCustomers?: { [customerId: string]: number }; unlockedTags?: { [tagId: string]: number }; isNew?: number | boolean; outerOpen?: number | boolean; game?: { state?: number; customerList?: number[]; curCustomer?: number; newsId?: string; customerId?: string; round?: number; boom?: number | boolean; tagId?: string; basicIncome?: number; customerLine?: string | null; keeperLine?: string | null; insightTimes?: number; insight?: { trustRE?: number; trustMAX?: number; attentionRE?: number; attentionMAX?: number } | null; tradeInfo?: { trust?: number; attention?: number; choices?: string[]; lastChoice?: string | null }; settle?: { customerId?: string; tagId?: string; success?: number | boolean; successRate?: number; incomeRate?: number; income?: number }[] } | null } }" +
+      // 收集型活动（COLLECTION，见 modules/activities/milestone/logic.ts#handleGetActivityCollectionReward）：
+      //   activity.COLLECTION[actId][collectionId]=0 已领标记
+      " ; COLLECTION?: { [actId: string]: { [collectionId: number]: number } }" +
+      // 里程碑兜底标记（MILESTONE_ONLY，同上）：activity.MILESTONE_ONLY[actId][milestoneId]=0 已领
+      " ; MILESTONE_ONLY?: { [actId: string]: { [milestoneId: string]: number } }" +
       " } & { [typeKey: string]: { [actId: string]: ServerPayload } }",
+  },
+  // 信物（charm）服务端扩展：firstReward[charmId]=1 表示首通奖励已领
+  // （见 modules/activities/charm/router.ts#tryGetCharmFirstReward）
+  CharmStatus: {
+    "[server]":
+      "{ charms: { [key: string]: number }; squad: string[]; firstReward?: { [charmId: string]: number } }",
+  },
+  // 开服签到（openServer）：服务端惰性建键（checkin/openServer.ts#_ensureState 逐字段回填），
+  // 三个子状态均可缺失 → 全部可选。
+  PlayerOpenServer: {
+    "[server]":
+      "{ chainLogin?: OpenServerChainLogin; checkIn?: OpenServerCheckIn; fullOpen?: OpenServerFullOpen }",
   },
   // 服务端 shop = LS/HS/ES/CASH/GP/FURNI/SOCIAL/EPGS/REP/CLASSIC/SKIN 缩写 key 字典
   // （缩写 ↔ 客户端完整名：LS=lowQCShop、HS=highQCShop、ES=extraQCShop、CASH=cashShop、

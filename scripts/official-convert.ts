@@ -6,6 +6,7 @@
  * campaignsV2/aprilFool/charm 等）从模板存档（通常为 uid=1）复制兜底；
  * uid 替换为私服新 uid；移除官服连接态字段（secret/seqnum 等）。
  */
+import type { OfficialPlayerData } from "./official-api";
 
 /** 私服特有字段（官服数据通常不含，需从模板兜底） */
 export const PRIVATE_ONLY_FIELDS: string[] = [
@@ -45,9 +46,9 @@ function deepClone<T>(value: T): T {
  * @returns 私服存档数据
  */
 export function convertOfficialData(
-  official: { [key: string]: any },
-  opts: { newUid: string; template: { [key: string]: any } },
-): { [key: string]: any } {
+  official: OfficialPlayerData,
+  opts: { newUid: string; template: OfficialPlayerData },
+): OfficialPlayerData {
   const data = deepClone(official);
 
   // 1. uid 替换

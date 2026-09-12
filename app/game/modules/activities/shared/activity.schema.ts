@@ -402,7 +402,7 @@ export const activityGetRewardSchema = z.object({
   index: z.number().optional(),
 });
 
-/** act1vhalfidle 半挂机通用请求（服务端仅读 activityId 及经 (body as any) 读取的字段） */
+/** act1vhalfidle 半挂机通用请求（服务端读取 activityId 及按接口读取的 poolId/count/charId/level/skillLvl/evolvePhase 等字段） */
 export const act1vhalfidleSchema = z.object({
   activityId: z.string().optional(),
   charInstId: z.number().optional(),

@@ -3,6 +3,7 @@
  */
 import { Router } from "express";
 import * as ReqSchema from "../shared/activity.schema";
+import { activityDetailJson, isJsonObjectValue } from "../shared/activity-json";
 
 import { getPlayer, getPlayerOptional } from "../../../kernel/http/request-context";
 import excel from "@excel/excel";
@@ -242,12 +243,9 @@ function buildEnemyDuelFinishResponse(
   const rankList: EnemyDuelRankInfo[] = clientRankList?.length
     ? clientRankList
     : [{ id: "1", rank: 1, score: 0, isPlayer: 1 }];
-  const npcData = (
-    (excel.ActivityTable as any)?.activity?.ENEMY_DUEL?.[activityId]
-      ?.npcData as Record<string, unknown> | undefined
-  );
+  const npcData = activityDetailJson(excel.ActivityTable.activity, "ENEMY_DUEL", activityId)?.["npcData"];
   let rank = 2;
-  for (const npcId of Object.keys(npcData ?? {})) {
+  for (const npcId of isJsonObjectValue(npcData) ? Object.keys(npcData) : []) {
     if (rankList.length >= 8) break;
     rankList.push({ id: npcId, rank: rank++, score: 0, isPlayer: 0 });
   }

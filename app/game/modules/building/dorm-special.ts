@@ -15,6 +15,7 @@
  * - 患难之交（dorm_exchangeAp 心情互换）：需宿舍进驻顺序追踪，后续立项
  */
 import { buffGroupKey, parseDescTags } from "./buff";
+import type { BuildingBuffLike } from "./buff-parse";
 
 /** 宿舍技能分类 */
 export type DormBuffCategory = "all" | "self" | "single" | "shared";
@@ -48,7 +49,7 @@ export interface DormBuffSplit {
  * - dorm_rec_single&oneself 双数值：首个 = 单体目标、次个 = 自身
  * 同技能多档（buffId 去 [] 后缀分组）由调用方取最高。
  */
-export function splitDormBuffs(buffs: any[]): DormBuffSplit {
+export function splitDormBuffs(buffs: BuildingBuffLike[]): DormBuffSplit {
   const out: DormBuffSplit = { all: [], self: [], single: [], shared: [] };
   for (const b of buffs ?? []) {
     const id: string = b?.buffId ?? "";

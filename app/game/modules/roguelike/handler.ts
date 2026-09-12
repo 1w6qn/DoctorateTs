@@ -155,13 +155,19 @@ import * as ReqSchema from "./schemas";
 import { rlv2Response, SEC } from "./response";
 import { validateBody } from "../../kernel/http/validate-body";
 import { logger } from "@utils/logger";
+import type { JsonValue } from "@excel/json-value";
+
+/** giveUpGame 响应 current.record 视图（本路由下发 {brief} 摘要） */
+interface GiveUpRecordView {
+  brief?: JsonValue;
+}
 
 /**
  * 缺参校验辅助：必填字段缺失时返回业务错误（HTTP 200 + result≠0），
  * 避免 undefined 传入控制器抛 TypeError → 全局 500。响应结构同正常 rlv2。
  */
-function rlv2MissingParam(player: PlayerDataManager): any {
-  return rlv2Response(player, { result: 1 } as any, SEC.ALL);
+function rlv2MissingParam(player: PlayerDataManager) {
+  return rlv2Response(player, { result: 1 }, SEC.ALL);
 }
 
 /** 放弃游戏（CS: RoguelikeTopicGiveUpGameRequest）——官方响应带 result:"ok"，
@@ -170,14 +176,15 @@ router.post("/giveUpGame", validateBody(ReqSchema.giveUpGameSchema), async (req,
   const player = getPlayer();
   req.body as RoguelikeTopicGiveUpGameRequest;
   await player.modules.rlv2.giveUpGame();
-  const resp = rlv2Response(player, { result: "ok" } as any, SEC.GIVEUP) as any;
+  const resp = rlv2Response(player, { result: "ok" }, SEC.GIVEUP);
   // 官服 giveUpGame 的 current.record 仅带 brief 摘要（完整 record 在 player.pending
   // 的 GAME_SETTLE.result.record 中）；原实现把完整 record 一并下发多余字段 → 客户端
   // 合并 current.record 时被污染。此处裁剪成 {brief} 对齐官服形状——存档
   // current.record.{brief,record} 保持不变，gameSettle 的 buildSettleResponse 不受影响。
-  const cur = resp?.playerDataDelta?.modified?.rlv2?.current;
+  const cur = resp.playerDataDelta.modified.rlv2?.current;
   if (cur && typeof cur.record === "object" && cur.record !== null) {
-    const brief = (cur.record as any).brief;
+    const record = cur.record as GiveUpRecordView;
+    const brief = record.brief;
     cur.record = brief === undefined ? undefined : { brief };
   }
   res.send(
@@ -202,7 +209,7 @@ router.post("/gameSettle", validateBody(ReqSchema.gameSettleSchema), async (req,
     // 官服 gameSettle rlv2.outer = 当前主题 7 键全量（record/bank/buff/bp/collect/mission/activity）——
     // 2026-08-18 抓包校准（非 createGame 的 {record,monthTeam} 精简）；
     // 推送一并随响应下发，避免残留到下一响应造成重复推送
-    rlv2Response(player, player.modules.rlv2.buildSettleResponse() as any, SEC.ALL, [
+    rlv2Response(player, player.modules.rlv2.buildSettleResponse(), SEC.ALL, [
       "record", "bank", "buff", "bp", "collect", "mission", "activity",
     ], player.modules.rlv2.takePushMessages()) satisfies RoguelikeGameSettleResponse,
   );
@@ -771,7 +778,7 @@ router.post("/scrap/identify", validateBody(ReqSchema.scrapIdentifySchema), asyn
     rlv2Response(player, {
       scrap: ret.scrap,
       legacy: ret.legacy,
-    }) as any,
+    }),
   );
 });
 

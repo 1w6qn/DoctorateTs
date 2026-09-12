@@ -10,6 +10,7 @@
  */
 import { BaseBuffTpl } from "../buff-tpl";
 import { buffValue } from "../buff-parse";
+import type { BuildingBuffLike } from "../buff-parse";
 import { isConditionSkill, specialBuffValue } from "../special";
 import type { SpecialSkillContext } from "../special";
 
@@ -18,19 +19,18 @@ const OUTPUT_ROOMS = ["MANUFACTURE", "TRADING", "POWER", "WORKSHOP", "TRAINING",
 export class RoomSpeedTpl extends BaseBuffTpl {
   readonly kind = "ROOM_SPEED";
 
-  static matches(buff: any): boolean {
+  static matches(buff: BuildingBuffLike): boolean {
     const id = buff?.buffId ?? "";
     if (id.startsWith("control_")) return false; // 控制中枢全局归 ControlGlobalTpl
     if (id.startsWith("dorm_")) return false; // 宿舍恢复归 DormRecoveryTpl
     const eff = buff?.efficiency;
     if (typeof eff === "number" && eff > 0) return true;
-    return OUTPUT_ROOMS.includes(buff?.roomType) && /<@cc\.vup>/.test(buff?.description ?? "");
+    return OUTPUT_ROOMS.includes(buff?.roomType ?? "") && /<@cc\.vup>/.test(buff?.description ?? "");
   }
 
-  value(ctx?: unknown): number {
-    const c = ctx as SpecialSkillContext | undefined;
+  value(ctx?: SpecialSkillContext): number {
     if (isConditionSkill(this.raw?.description)) {
-      return specialBuffValue(this.raw, c) ?? 0;
+      return specialBuffValue(this.raw, ctx) ?? 0;
     }
     return buffValue(this.raw);
   }

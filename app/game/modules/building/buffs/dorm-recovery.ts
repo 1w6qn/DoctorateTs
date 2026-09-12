@@ -11,11 +11,12 @@
  */
 import { BaseBuffTpl } from "../buff-tpl";
 import { buffValueForTarget } from "../buff-parse";
+import type { BuildingBuffLike } from "../buff-parse";
 
 export class DormRecoveryTpl extends BaseBuffTpl {
   readonly kind = "DORM_RECOVER";
 
-  static matches(buff: any): boolean {
+  static matches(buff: BuildingBuffLike): boolean {
     const id = buff?.buffId ?? "";
     return id.startsWith("dorm_");
   }

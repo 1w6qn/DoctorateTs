@@ -37,9 +37,7 @@ export class RoguelikeDiceManager {
   /** 骰子面数（随骰子类型/藏品升级） */
   get faceCount(): number {
     const theme = this._player.current.game!.theme;
-    const diceData = (
-      excel.RoguelikeTopicTable.modules[theme] as any
-    )?.dice?.dice;
+    const diceData = excel.RoguelikeTopicTable.modules[theme]?.dice?.dice;
     return diceData?.[this.id]?.diceFaceCount ?? 6;
   }
 

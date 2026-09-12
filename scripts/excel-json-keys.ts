@@ -3,6 +3,7 @@ import * as path from "path";
 import type { ClassDef } from "./playerdata-parser";
 import { extractTypeNames } from "./playerdata-parser";
 import { EXCEL_TABLE_ROOTS } from "./excel-server-adapt";
+import { isJsonObject, type JsonObject, type JsonValue } from "@excel/json-value";
 
 /**
  * excel 类型字段名与 JSON 实际键对照修正
@@ -18,23 +19,23 @@ import { EXCEL_TABLE_ROOTS } from "./excel-server-adapt";
  */
 
 /** 从 JSON 值提取"类样本对象"：数组取首元素；dict（值全为对象）取首值；对象取自身 */
-function pickSample(val: unknown, cls?: ClassDef): Record<string, unknown> | undefined {
+function pickSample(val: JsonValue, cls?: ClassDef): JsonObject | undefined {
   if (Array.isArray(val)) return pickSample(val[0], cls);
-  if (val && typeof val === "object") {
-    const keys = Object.keys(val as object);
+  if (isJsonObject(val)) {
+    const keys = Object.keys(val);
     if (cls && keys.length > 0) {
       const fieldNames = new Set(cls.fields.map((f) => f.name.toLowerCase()));
       // 键与类字段名有交集 → 该对象就是类实例（避免把全对象值字段误判为 dict）
       if (keys.some((k) => fieldNames.has(k.toLowerCase()))) {
-        return val as Record<string, unknown>;
+        return val;
       }
     }
-    const vals = Object.values(val as object);
+    const vals = Object.values(val);
     if (vals.length > 0 && vals.every((v) => v && typeof v === "object")) {
       // 全对象值 → dict（如 { charId: CharacterData }）→ 首值
       return pickSample(vals[0], cls);
     }
-    return val as Record<string, unknown>;
+    return val;
   }
   return undefined;
 }
@@ -42,9 +43,9 @@ function pickSample(val: unknown, cls?: ClassDef): Record<string, unknown> | und
 /** 沿类字段递归定位子类的 JSON 样本（用原始字段名大小写不敏感匹配 JSON 键） */
 function walkClass(
   className: string,
-  json: Record<string, unknown>,
+  json: JsonObject,
   classMap: Map<string, ClassDef>,
-  samples: Map<string, Record<string, unknown>>,
+  samples: Map<string, JsonObject>,
 ): void {
   const cls = classMap.get(className);
   if (!cls) return;
@@ -73,23 +74,25 @@ function walkClass(
  */
 export function reconcileExcelJsonKeys(classes: ClassDef[]): ClassDef[] {
   const classMap = new Map(classes.map((c) => [c.name, c]));
-  const samples = new Map<string, Record<string, unknown>>();
+  const samples = new Map<string, JsonObject>();
   const dataDir = path.join(__dirname, "../data/excel");
 
   for (const [table, rootRef] of Object.entries(EXCEL_TABLE_ROOTS)) {
     const file = path.join(dataDir, `${table}.json`);
     if (!fs.existsSync(file)) continue;
-    let json: unknown;
+    let json: JsonValue;
     try {
       json = JSON.parse(fs.readFileSync(file, "utf-8"));
     } catch {
       continue;
     }
     if (!json || typeof json !== "object") continue;
-    const roots: [string, unknown][] =
+    const roots: [string, JsonValue][] =
       typeof rootRef === "string"
         ? [[rootRef, json]]
-        : Object.entries(rootRef).map(([k, cls]) => [cls, (json as any)[k]]);
+        : Object.entries(rootRef).map(
+            ([k, cls]) => [cls, isJsonObject(json) ? json[k] : undefined] as [string, JsonValue],
+          );
     for (const [rootClass, rootJson] of roots) {
       const rootCls = classMap.get(rootClass);
       const sample = pickSample(rootJson, rootCls);

@@ -48,7 +48,7 @@ export async function recruitChar(mgr: RoguelikeV2Manager, args: {
     const evIdx = mgr._status.pending.findIndex(
       (e) =>
         e.type === "RECRUIT" &&
-        (e.content as any)?.recruit?.ticket === ticketIndex,
+        e.content?.recruit?.ticket === ticketIndex,
     );
     if (evIdx >= 0) mgr._status.pending.splice(evIdx, 1);
     // 票保留（state=2 终态）；inventory.recruit 由 finishEvent 初始阶段统一清空
@@ -90,12 +90,12 @@ export async function recruitAssistChar(mgr: RoguelikeV2Manager, args: {
 export async function stashRecruitTicket(mgr: RoguelikeV2Manager, args: { index: string }) : Promise<void> {
     const ticket = mgr.inventory!.recruit[args.index];
     if (!ticket) return;
-    const inv = mgr.inventory! as any;
+    const inv = mgr.inventory!;
     // 留存上限（官方 stashRecruitLimit=3）
     if ((inv.stashRecruit || []).length >= (inv.stashRecruitLimit ?? 3)) return;
     // 转 _candle 变体（stashableTickets 映射），留存列表记录 id（官方 inventory.stashRecruit）
     const theme = mgr.current.game!.theme;
-    const stashable = (excel.RoguelikeTopicTable.details[theme] as any)?.stashableTickets || {};
+    const stashable = excel.RoguelikeTopicTable.details[theme]?.stashableTickets || {};
     const stashedId = stashable[ticket.id]?.stashedTicketId || `${ticket.id}_candle`;
     inv.stashRecruit = [...new Set([...(inv.stashRecruit || []), stashedId])];
     ticket.state = 3;
@@ -104,10 +104,10 @@ export async function stashRecruitTicket(mgr: RoguelikeV2Manager, args: { index:
 
 export async function useStashedTicket(mgr: RoguelikeV2Manager, args: { id: string }) : Promise<void> {
     const ticket = mgr.inventory!.recruit[args.id];
-    const inv = mgr.inventory! as any;
+    const inv = mgr.inventory!;
     // 从留存列表移除（取回）
     if (inv.stashRecruit) {
-      inv.stashRecruit = (inv.stashRecruit as string[]).filter(
+      inv.stashRecruit = inv.stashRecruit.filter(
         (sid) => !sid.includes(ticket?.id ?? "") && sid !== args.id,
       );
     }

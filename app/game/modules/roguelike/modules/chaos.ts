@@ -57,12 +57,8 @@ export class RoguelikeChaosManager {
   /** 当前层坍缩值上限（官方 levelInfoDict rule_1：level N 的区间上界） */
   private chaosLevelMax(level: number): number {
     const theme = this._player.current.game!.theme;
-    const dict = (
-      excel.RoguelikeTopicTable.modules[theme] as any
-    )?.chaos?.levelInfoDict;
-    const rule = dict?.rule_1?.[level] as
-      | { chaosLevelEndNum?: number }
-      | undefined;
+    const dict = excel.RoguelikeTopicTable.modules[theme]?.chaos?.levelInfoDict;
+    const rule = dict?.rule_1?.[level];
     return rule?.chaosLevelEndNum ?? 4 + level * 4;
   }
 
@@ -105,12 +101,16 @@ export class RoguelikeChaosManager {
   /** 按层随机挂一个坍缩（chaosDatas 过滤 level ≤ 当前层） */
   private pickChaos(): string {
     const theme = this._player.current.game!.theme;
-    const chaosDatas = (
-      excel.RoguelikeTopicTable.modules[theme] as any
-    )?.chaos?.chaosDatas;
+    const chaosDatas = excel.RoguelikeTopicTable.modules[theme]?.chaos?.chaosDatas;
     if (!chaosDatas) return "";
-    const candidates = Object.entries(chaosDatas as Record<string, any>)
-      .filter(([, d]) => d.level <= this.level && !this.chaosList.includes(d.id))
+    const candidates = Object.entries(chaosDatas)
+      .filter(([, d]) => {
+        // 去重键原写作 `d.id`：生成类型 RoguelikeChaosData 只声明 chaosId（线格式实测
+        // 20/20 条无 id 字段），故该条件在真实数据下恒为真（includes(undefined)）。
+        // 此处按原语义读取可选的历史 id 字段（保持行为不变，见报告"真实缺陷"）。
+        const legacyId = (d as { id?: string }).id;
+        return d.level <= this.level && !this.chaosList.some((id) => id === legacyId);
+      })
       .map(([id]) => id);
     if (candidates.length === 0) return "";
     return candidates[Math.floor(random() * candidates.length)];

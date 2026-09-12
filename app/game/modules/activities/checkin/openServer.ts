@@ -5,6 +5,12 @@ import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
 import moment from "moment";
 import { OpenServerItemData } from "@excel/excel";
 import { TypedEventEmitter } from "../../../kernel/events/runtime";
+import type { Draft } from "mutative";
+import type {
+  OpenServerChainLogin,
+  OpenServerCheckIn,
+  PlayerDataModel,
+} from "../../../kernel/playerdata";
 
 /** 连续签到天数（open_server_table.chainLoginData 键 0..6，第 7 档为终奖） */
 const CHAIN_DAYS = 7;
@@ -34,7 +40,11 @@ export class OpenServerManager {
    * @param ts - 上次登录时间戳（秒）
    * @param chain - chainLogin 状态
    */
-  private _advanceChainLogin(draft: any, ts: number, chain: any): void {
+  private _advanceChainLogin(
+    draft: Draft<PlayerDataModel>,
+    ts: number,
+    chain: Draft<OpenServerChainLogin>,
+  ): void {
     const diff = moment().diff(moment(ts), "days");
     if (diff > 1) {
       chain.nowIndex = -1;
@@ -62,23 +72,27 @@ export class OpenServerManager {
    * @param draft - 可写草稿
    * @returns 活动开启时返回状态引用，否则 undefined
    */
-  private _ensureState(draft: any): { chainLogin: any; checkIn: any } | undefined {
+  private _ensureState(
+    draft: Draft<PlayerDataModel>,
+  ): { chainLogin: Draft<OpenServerChainLogin>; checkIn: Draft<OpenServerCheckIn> } | undefined {
     const schedule = this._activeSchedule();
     if (!draft.openServer) draft.openServer = {};
     const os = draft.openServer;
     if (!os.chainLogin) {
       os.chainLogin = { isAvailable: Boolean(schedule), nowIndex: -1, history: [] };
     }
+    const chainLogin = os.chainLogin;
     if (!os.checkIn) os.checkIn = { isAvailable: Boolean(schedule), history: [] };
+    const checkIn = os.checkIn;
     if (!os.fullOpen) {
       os.fullOpen = { isAvailable: false, startTs: -1, today: false, remain: 0 };
     }
-    if (!Array.isArray(os.chainLogin.history)) os.chainLogin.history = [];
-    if (!Array.isArray(os.checkIn.history)) os.checkIn.history = [];
-    if (typeof os.chainLogin.nowIndex !== "number" || os.chainLogin.nowIndex < -1) {
-      os.chainLogin.nowIndex = os.chainLogin.history.length - 1;
+    if (!Array.isArray(chainLogin.history)) chainLogin.history = [];
+    if (!Array.isArray(checkIn.history)) checkIn.history = [];
+    if (typeof chainLogin.nowIndex !== "number" || chainLogin.nowIndex < -1) {
+      chainLogin.nowIndex = chainLogin.history.length - 1;
     }
-    return schedule ? { chainLogin: os.chainLogin, checkIn: os.checkIn } : undefined;
+    return schedule ? { chainLogin, checkIn } : undefined;
   }
 
   async dailyRefresh([ts]: [number]) {

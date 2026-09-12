@@ -84,7 +84,7 @@ export class RoguelikeBuffManager {
     const detail = excel.RoguelikeTopicTable.details[theme];
     // 进阶式难度：选 N 难度时 grade 1..N 全部生效（每个难度的 ruleDesc/addDesc 独立解析，
     // 累积叠加——如 N15 含难度7的"零件箱容量-2"、难度10的"部署-1/生命-2"）
-    const difficulties = ((detail.difficulties || []) as any[]).filter(
+    const difficulties = (detail.difficulties || []).filter(
       (d) =>
         (d.modeDifficulty ?? "NORMAL") === (game.mode ?? "NORMAL") &&
         (d.grade ?? 0) >= 1 &&
@@ -196,7 +196,7 @@ export class RoguelikeBuffManager {
       } else if (arg.key == "light_add") {
         // 难度效果：初始灯火 +value（rogue_2 灯火模块 sanity）
         const value = arg.blackboard[0]?.value ?? 0;
-        const san = this._player._module?._modules?.["SANCHECK"];
+        const san = this._player._module?.san;
         if (san && typeof san.sanity === "number") {
           san.sanity += value;
         }

@@ -11,6 +11,10 @@ import config from "@core/config/index";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "../../../kernel/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "../../../kernel/playerdata";
+import {
+  PlayerBuildingManufacture,
+  PlayerBuildingManufactureBuff,
+} from "../../../kernel/playerdata";
 import { getSpecCond, SPEC_ASSIST_BASE_BONUS } from "../mastery";
 import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst, getRoomUnlockCondId, canRoomLevelDown, getRoomBasicSpeedBuff } from "@excel/building_excel";
 import {
@@ -27,11 +31,16 @@ import {
   isDiamondStrategyUnlocked,
   FormulaUnlockCtx,
 } from "../unlocks";
+import type { BuildingWithExt, TraineeWithMaxPoint, TrainingRoom } from "./ext-types";
+import type { UpgradeSpecializationRequest } from "../models";
+
+/** 制造配方（`getManufactFormula` 返回类型；building_excel 未导出该类型别名，故取 ReturnType） */
+type ManufactFormula = NonNullable<ReturnType<typeof getManufactFormula>>;
 
   /** 制造站基础容量（房间等级 phase.outputCapacity；缺数据回退房间存储值） */
 export function _manufactBaseCapacity(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
     roomSlotId: string,
-    room: any,) : number {
+    room: PlayerBuildingManufacture | undefined,) : number {
     const slot = draft.building.roomSlots[roomSlotId];
     const phase = getManufactPhase(slot?.level ?? 1);
     return phase?.outputCapacity ?? room?.capacity ?? 0;
@@ -44,7 +53,7 @@ export function _manufactBaseCapacity(mgr: BuildingManager, draft: Draft<PlayerD
    */
 export function _roomCapacity(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
     roomSlotId: string,
-    formula: any,) : number {
+    formula: ManufactFormula | undefined,) : number {
     const slot = draft.building.roomSlots[roomSlotId];
     const room = draft.building.rooms.MANUFACTURE[roomSlotId];
     const base = mgr._manufactBaseCapacity(draft, roomSlotId, room);
@@ -60,7 +69,7 @@ export function _roomCapacity(mgr: BuildingManager, draft: Draft<PlayerDataModel
       getRoomBasicSpeedBuff("MANUFACTURE") * stationed;
     if (room) {
       room.capacity = base;
-      const roomBuff = (room.buff as any) ?? {};
+      const roomBuff = (room.buff ?? {}) as PlayerBuildingManufactureBuff;
       roomBuff.speed = bonus;
       room.buff = roomBuff;
     }
@@ -106,13 +115,13 @@ export async function buildRoom(mgr: BuildingManager, args: { roomSlotId: string
       // 修复：确保 rooms[roomId][slotId] 房间对象存在（客户端按类型查房间）
       const roomsByType = draft.building.rooms[roomId as keyof PlayerDataModel["building"]["rooms"]];
       if (roomsByType && !roomsByType[roomSlotId]) {
-        (roomsByType as any)[roomSlotId] = { state: 1 };
+        (roomsByType as Record<string, { state?: number }>)[roomSlotId] = { state: 1 };
       }
     });
     // 修复：HasRoom 任务事件从未 emit → 拥有房间类任务永不推进
     const roomCount = Object.values(
       mgr._player._playerdata.building.roomSlots,
-    ).filter((s: any) => s.roomId).length;
+    ).filter((s) => s.roomId).length;
     await mgr._trigger.emit("HasRoom", [{ roomCount }]);
 }
 
@@ -157,9 +166,10 @@ export function _unlockCtx(mgr: BuildingManager, draft: Draft<PlayerDataModel>) 
     }
     const stageState: Record<string, number> = {};
     for (const [stageId, st] of Object.entries(draft.dungeon?.stages ?? {})) {
-      stageState[stageId] = (st as any)?.state ?? 0;
+      stageState[stageId] = st?.state ?? 0;
     }
-    const recorded = (draft.building as any).maxLevelReached ?? {};
+    const building = draft.building as BuildingWithExt;
+    const recorded: Record<string, number> = building.maxLevelReached ?? {};
     const maxLevelReached: Record<string, number> = {};
     for (const roomId of new Set([
       ...Object.keys(recorded),
@@ -187,10 +197,10 @@ export function _unlockCtx(mgr: BuildingManager, draft: Draft<PlayerDataModel>) 
 export function _roomUnlockSatisfied(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
     condId: string | undefined,) : boolean {
     if (!condId) return true;
-    const cond = ((excel.BuildingData as any)?.roomUnlockConds ?? {})[condId];
-    const numbers = Object.values(cond?.number ?? {}) as any[];
+    const cond = excel.BuildingData?.roomUnlockConds?.[condId];
+    const numbers = Object.values(cond?.number ?? {});
     if (!numbers.length) return true;
-    const slots = Object.values(draft.building.roomSlots ?? {}) as any[];
+    const slots = Object.values(draft.building.roomSlots ?? {});
     const maxLevelByType: Record<string, number> = {};
     for (const slot of slots) {
       if (!slot?.roomId) continue;
@@ -217,7 +227,8 @@ export function _roomUnlockSatisfied(mgr: BuildingManager, draft: Draft<PlayerDa
 export function _touchMaxLevel(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
     roomId: string,
     level: number,) : void {
-    const reached = ((draft.building as any).maxLevelReached ??= {});
+    const building = draft.building as BuildingWithExt;
+    const reached = (building.maxLevelReached ??= {});
     if ((reached[roomId] ?? 0) < level) reached[roomId] = level;
 }
 
@@ -392,8 +403,8 @@ export function _applyBundles(mgr: BuildingManager, draft: Draft<PlayerDataModel
     bundles: { id?: string; count?: number }[] | null | undefined,
     sign: 1 | -1,) : void {
     for (const b of bundles ?? []) {
-      // b.id 类型上可缺省（any 来源数据）；原实现即直接以该键写 inventory——
-      // 非空断言仅为通过类型检查，运行时行为与原字面量写法一致
+      // b.id 类型上可缺省（成本/订单数据形如 { id?, count? }）；原实现即直接以该键写
+      // inventory——非空断言仅为通过类型检查，运行时行为与原字面量写法一致
       mgr._applyItemDelta(draft, b.id!, sign * (b.count ?? 1));
     }
 }
@@ -423,7 +434,8 @@ export function _applyGoldDelta(mgr: BuildingManager, draft: Draft<PlayerDataMod
 export async function upgradeSpecialization(mgr: BuildingManager, args: {
     charInstId: number;
     targetSkill: number;
-    reduceTimeBd?: any;
+    /** 客户端发送但服务端不读（CS UpdateSpecializationRequest 无该字段） */
+    reduceTimeBd?: UpgradeSpecializationRequest["reduceTimeBd"];
   }) {
     const { charInstId, targetSkill } = args;
     // 专精时间强制为 0：门控与扣费照常执行，仅跳过训练等待直接结算
@@ -466,7 +478,7 @@ export async function upgradeSpecialization(mgr: BuildingManager, args: {
         roomEntries[0];
       if (!entry) return;
       const [trainSlotId, roomRaw] = entry;
-      const room = roomRaw as any;
+      const room = roomRaw as TrainingRoom;
       // 同时只能执行一个训练计划：他人训练中 → 拒绝（官方）
       const curTrainee = room.trainee;
       if (
@@ -540,7 +552,7 @@ export async function upgradeSpecialization(mgr: BuildingManager, args: {
    */
 export function resetTraineeWaiting(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
     charInstId: number,) : void {
-    const rooms = Object.values(draft.building.rooms.TRAINING) as any[];
+    const rooms = Object.values(draft.building.rooms.TRAINING);
     const room =
       rooms.find((r) => r?.trainee?.charInstId === charInstId) ?? rooms[0];
     if (!room?.trainee) return;
@@ -578,7 +590,7 @@ export async function completeUpgradeSpecialization(mgr: BuildingManager, args: 
       if (charInstId == null || targetSkill == null || targetSkill < 0) return;
       // 时长门控（新模型）：带 maxPoint 的 trainee 仅训练完成（state=2 待领取）可结算；
       // 旧存档无 maxPoint → 保持原行为（避免存量流程断裂）
-      const traineeRec = room?.trainee as any;
+      const traineeRec: TraineeWithMaxPoint | undefined = room?.trainee;
       if (traineeRec && (traineeRec.maxPoint ?? 0) > 0 && traineeRec.state !== 2) {
         return;
       }

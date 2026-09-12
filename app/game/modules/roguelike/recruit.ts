@@ -8,6 +8,36 @@ import { logger } from "@utils/logger";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { random } from "../../kernel/util/random";
 
+/**
+ * 招募候选/结果干员（官方 activeRecruitTicket/recruitChar 的运行时形状）
+ *
+ * 与内部模型 RecruitChar 的差异：
+ *  - instId/troopInstId 为字符串序号（模型为 number；候选用列表下标序号、结果用入队序号）；
+ *  - 不下发玩家养成字段 gainTime/voiceLan；equip/currentEquip 仅结果结构补齐（候选无）。
+ * 声明为 RecruitChar 的 Omit 视图，使「运行时形状 → 模型」的桥接断言可成立
+ * （RecruitChar → 该形状可赋值，反向不可）。
+ */
+type Rlv2RecruitCandidate = Omit<
+  PlayerRoguelikeV2.CurrentData.RecruitChar,
+  "instId" | "troopInstId" | "gainTime" | "voiceLan" | "currentEquip" | "equip"
+> & {
+  instId: string | number;
+  troopInstId: string | number;
+  /** 结果结构补齐（候选不下发） */
+  currentEquip?: PlayerRoguelikeV2.CurrentData.RecruitChar["currentEquip"];
+  equip?: PlayerRoguelikeV2.CurrentData.RecruitChar["equip"];
+};
+
+/**
+ * 分队初始干员（immediate_recruit）入队 payload
+ *
+ * 官方简化入队结构：不含候选的 skin/defaultSkillIndex（其余字段同候选白名单）。
+ */
+type Rlv2RecruitInitialChar = Omit<
+  Rlv2RecruitCandidate,
+  "skin" | "defaultSkillIndex"
+>;
+
 export class RoguelikeRecruitManager {
   tickets: { [key: string]: PlayerRoguelikeV2.CurrentData.Recruit };
   _troop: TroopManager;
@@ -93,7 +123,7 @@ export class RoguelikeRecruitManager {
     // 递增 troopInstId（1 基，与 getChar 直接使用 troopInstId 的约定一致——
     // 原实现此处 0 基 + getChar +1 错位到 2，首名初始干员 instId 应为 1）
     const troopInstId = Object.keys(this._player.troop.chars).length + 1;
-    const char: PlayerRoguelikeV2.CurrentData.RecruitChar = {
+    const char: Rlv2RecruitInitialChar = {
       instId: 0,
       charId,
       type: "TEMP",
@@ -111,8 +141,11 @@ export class RoguelikeRecruitManager {
       potentialRank: 0,
       mainSkillLvl: 1,
       skills: [],
-    } as any;
-    await this._trigger.emit("rlv2:char:get", [char]);
+    };
+    // 精简白名单结构 → 模型 RecruitChar（桥接断言方向见 Rlv2RecruitCandidate）
+    await this._trigger.emit("rlv2:char:get", [
+      char as PlayerRoguelikeV2.CurrentData.RecruitChar,
+    ]);
   }
 
   _index: number;
@@ -140,11 +173,9 @@ export class RoguelikeRecruitManager {
     // 候选干员来自玩家主队伍（collection，312 干员），非 rlv2 对局内 troop（初始为空）
     // 防御：troop 未初始化（构造/测试早期）时不崩
     const troopChars = this._player._player._playerdata.troop?.chars ?? {};
-    const chars: PlayerRoguelikeV2.CurrentData.RecruitChar[] = Object.values(
-      troopChars as {
-        [key: string]: any;
-      },
-    ).reduce((acc, char) => {
+    const chars: Rlv2RecruitCandidate[] = Object.values(troopChars).reduce<
+      Rlv2RecruitCandidate[]
+    >((acc, char) => {
       const data = excel.charData(char.charId)!;
 
       if (!ticketInfo.professionList.some((p) => data.profession.includes(p))) {
@@ -254,12 +285,12 @@ export class RoguelikeRecruitManager {
           population: population >= 0 ? population : 0,
           charBuff: [],
           troopInstId: String(
-            (char as any).instId ?? Object.keys(this._player.troop.chars).length,
+            char.instId ?? Object.keys(this._player.troop.chars).length,
           ),
           master: {},
         },
       ];
-    }, [] as PlayerRoguelikeV2.CurrentData.RecruitChar[]);
+    }, []);
 
     const freeCharIndexes: number[] = [];
     const tierMap: { [key: string]: number } = {
@@ -306,7 +337,8 @@ export class RoguelikeRecruitManager {
       }
     }
 
-    this.tickets[id].list = chars;
+    // 候选（精简白名单）→ 模型 RecruitChar（桥接断言方向见 Rlv2RecruitCandidate）
+    this.tickets[id].list = chars as PlayerRoguelikeV2.CurrentData.RecruitChar[];
   }
 
   async done(id: string, optionId: string) {
@@ -317,7 +349,7 @@ export class RoguelikeRecruitManager {
     this.tickets[id].state = 2;
     const picked = this.tickets[id].list.find(
       (item) => String(item.instId) === String(optionId),
-    ) as PlayerRoguelikeV2.CurrentData.RecruitChar | undefined;
+    ) as Rlv2RecruitCandidate | undefined;
     if (!picked) return;
     // 官服 recruitChar 响应结构（2026-08-18 抓包校准）：完整养成结构——
     //   instId = 玩家主队伍 instId（非候选序号）；troopInstId = 对局内入队序号（1 基递增）；
@@ -326,7 +358,7 @@ export class RoguelikeRecruitManager {
     // 候选生成时 troopInstId 暂存玩家 instId（active() 里 troopInstId=char.instId），
     // 此处先读玩家源干员补齐养成，再覆写为对局内入队序号（1 基递增）。
     const troopChars = this._player._player.troop.getChars();
-    const src = troopChars[String(picked.troopInstId)] as any;
+    const src = troopChars[String(picked.troopInstId)];
     const troopNo = Object.keys(this._player.troop.chars).length + 1;
     // 首次招募精二干员时 active() 用 levelPatch 将候选锁定为精一（evolvePhase=1、
     // 精一满级、exp=0）。此时若仍从精二源干员原样补齐 skills/master/equip/
@@ -346,22 +378,29 @@ export class RoguelikeRecruitManager {
     if (downgraded) {
       const capPhase = picked.evolvePhase ?? 0;
       // phase 兼容数字（0）与字符串枚举（"PHASE_1"/"PHASE_2"）
-      const phaseOf = (v: any) =>
+      const phaseOf = (v: number | string | null | undefined): number =>
         typeof v === "number"
           ? v
           : parseInt(String(v ?? "").replace(/PHASE_/i, ""), 10) || 0;
       const skillData =
-        (excel.CharacterTable as Record<string, any>)[picked.charId]?.skills ||
-        [];
+        excel.CharacterTable?.[picked.charId]?.skills || [];
       // 解锁相位字段名跨版本有两种：2.7.71 起官方把 MainSkill 的 unlockCond 更名为
       // initialUnlockCond（槽位/语义不变）。旧数据仍用 unlockCond，故两者都读以保持兼容。
       // 历史缺陷：只读 unlockCond，数据升级后该键被移除 → phaseOf(undefined)=0 →
       // 精二才解锁的三技能未被剔除（精一却带三技能）。
-      const unlockCondOf = (s: any) => s?.initialUnlockCond ?? s?.unlockCond;
-      const cappedSkills = (src?.skills ?? []).filter((_: any, i: number) => {
+      const unlockCondOf = (
+        s:
+          | {
+              initialUnlockCond?: { phase?: number | string };
+              /** 2.7.71 前旧字段名（与 initialUnlockCond 同语义） */
+              unlockCond?: { phase?: number | string };
+            }
+          | undefined,
+      ) => s?.initialUnlockCond ?? s?.unlockCond;
+      const cappedSkills = (src?.skills ?? []).filter((_skill, i: number) => {
         return phaseOf(unlockCondOf(skillData[i])?.phase) <= capPhase;
       });
-      skills = cappedSkills.map((s: any) => ({ ...s, specializeLevel: 0 }));
+      skills = cappedSkills.map((s) => ({ ...s, specializeLevel: 0 }));
       if (skills.length > 0) {
         defaultSkillIndex = Math.min(
           Math.max(defaultSkillIndex, 0),
@@ -372,7 +411,8 @@ export class RoguelikeRecruitManager {
       equip = {};
       currentEquip = "";
     }
-    this.tickets[id].result = Object.assign({}, picked, {
+    const result: Rlv2RecruitCandidate = {
+      ...picked,
       // instId 保持候选序号（list 下标，与客户端请求 optionId 一致——官服 recruitChar
       // 响应 chars[].instId 即 optionId/候选序号，非玩家主队伍 instId）。
       // 原实现写成 String(picked.troopInstId)（玩家主队伍 instId）：当该 instId 数值较小
@@ -384,7 +424,10 @@ export class RoguelikeRecruitManager {
       equip,
       currentEquip,
       defaultSkillIndex,
-    }) as any;
+    };
+    // 结果（候选 + 补齐养成）→ 模型 RecruitChar（桥接断言方向见 Rlv2RecruitCandidate）
+    this.tickets[id].result =
+      result as PlayerRoguelikeV2.CurrentData.RecruitChar;
 
     await this._trigger.emit("rlv2:char:get", [this.tickets[id].result!]);
     // 特勤干员任务：招募指定干员（Rlv2RecruitSpecificChar）；招募时直接进阶（upgradePhase>=1，

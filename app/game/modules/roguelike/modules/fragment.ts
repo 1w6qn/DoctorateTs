@@ -1,5 +1,6 @@
 import excel from "@excel/excel";
 import { PlayerRoguelikeV2, RoguelikeBuff } from "../rlv2";
+import type { RoguelikeAlchemyData } from "@excel/excel";
 import { RoguelikeV2Manager } from "../logic";
 import { now } from "@utils/time";
 import { randomChoice } from "@utils/random";
@@ -144,10 +145,10 @@ export class RoguelikeFragmentManager {
     const value2 = fragment2.value;
     const squareSum = value1 * value1 + value2 * value2;
 
-    let matchedRecipe: any = null;
+    let matchedRecipe: RoguelikeAlchemyData | null = null;
     for (const recipe of Object.values(alchemyData)) {
-      const types = (recipe as any).fragmentTypeList;
-      const expectedSum = (recipe as any).fragmentSquareSum;
+      const types = recipe.fragmentTypeList;
+      const expectedSum = recipe.fragmentSquareSum;
       if (
         expectedSum === squareSum &&
         ((types[0] === type1 && types[1] === type2) ||
@@ -163,13 +164,13 @@ export class RoguelikeFragmentManager {
       fragment2.used = true;
 
       const rand = random();
-      if (rand < (matchedRecipe as any).relicProp) {
+      if (rand < matchedRecipe.relicProp) {
         // 修复：原实现 emit 不存在的 `${theme}_relic_` → getItem 500（且多为
         // fire-and-forget → unhandled rejection）；改为随机发一个真实 RELIC 物品
         const relicIds = Object.entries(
           excel.RoguelikeTopicTable.details[theme]?.items ?? {},
         )
-          .filter(([, it]: any) => it?.type === "RELIC")
+          .filter(([, it]) => it.type === "RELIC")
           .map(([id]) => id);
         if (relicIds.length > 0) {
           this._trigger.emit(
@@ -179,9 +180,12 @@ export class RoguelikeFragmentManager {
         } else {
           logger.warn("rlv2", `主题 ${theme} 无 RELIC 物品，炼金遗物奖励跳过`);
         }
-      } else if (rand < (matchedRecipe as any).relicProp + (matchedRecipe as any).shieldProp) {
+      } else if (rand < matchedRecipe.relicProp + matchedRecipe.shieldProp) {
         this._player._status.property.shield += 1000;
-      } else if (rand < (matchedRecipe as any).relicProp + (matchedRecipe as any).shieldProp + (matchedRecipe as any).populationProp) {
+      } else if (
+        rand <
+        matchedRecipe.relicProp + matchedRecipe.shieldProp + matchedRecipe.populationProp
+      ) {
         this._player._status.property.population.max += 1;
       }
     }

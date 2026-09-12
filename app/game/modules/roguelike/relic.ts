@@ -58,8 +58,7 @@ export class RoguelikeRelicManager {
     // 携带本次获得的收藏品 id（force 建图时对非 rogue_6 主题由 pushMessage 内部静默跳过）。
     // 分队（bandRef 命中的 band_*）不是"随机获得的收藏品"——开局选分队会走这里，
     // 若推送会导致客户端弹"获得收藏品：XX分队"的藏品提示，故分队不推送。
-    const isBand = !!(excel.RoguelikeTopicTable.details[theme] as any)
-      ?.bandRef?.[relic.id];
+    const isBand = !!excel.RoguelikeTopicTable.details[theme]?.bandRef?.[relic.id];
     if (!isBand) {
       this._player.pushMessage("rlv2GotRandRelic", { idList: [relic.id] });
     }
@@ -80,7 +79,7 @@ export class RoguelikeRelicManager {
       const prev = collect.relic[relic.id];
       if (!prev || prev.state < 2) {
         await this._player.update(async (draft) => {
-          const draftCollect = (draft.outer[theme] as any)?.collect;
+          const draftCollect = draft.outer[theme]?.collect;
           if (!draftCollect?.relic || draftCollect.relic[relic.id]?.state >= 2) return;
           draftCollect.relic[relic.id] = {
             state: 2,

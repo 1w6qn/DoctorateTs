@@ -4,7 +4,7 @@
  * 由 RoguelikeV2Manager 拆分而来：函数首参 mgr 为管理器实例，
  * 类侧保留同名薄委派（见 logic.ts）。
  */
-import type { RoguelikeV2Manager } from "./logic";
+import type { RoguelikeV2Manager, RoguelikeCustomizeDataView } from "./logic";
 import {
   PlayerRoguelikeV2,
   RoguelikeItemBundle,
@@ -102,7 +102,8 @@ export async function gridZoneMoveTo(mgr: RoguelikeV2Manager, args: { route: str
       gz?.moveTo([nodeId]);
     }
     const node = gz?.moveTo([last]);
-    const mapZoneKey = mgr.zoneKey(zone);
+    // _map.zones 键为字符串（zoneKey 可能回退返回层号 number）
+    const mapZoneKey = String(mgr.zoneKey(zone));
     let lastX = Math.floor(Number(last) / 100);
     let lastY = Number(last) % 100;
     // 曲折密道传送（服务端记录成对 + 送声）：抵达密道节点且存在配对密道时，玩家位置
@@ -137,8 +138,8 @@ export async function gridZoneMoveTo(mgr: RoguelikeV2Manager, args: { route: str
     const kind =
       typeof node?.content?.kind === "number"
         ? node.content.kind
-        : typeof (mapNode as any)?.type === "number"
-          ? (mapNode as any).type
+        : typeof mapNode?.type === "number"
+          ? mapNode.type
           : undefined;
     // 战斗判定与节点类型绑定，避免误开战：
     // - 会话内 content.kind 存在时以 content.savage 为准（含被改写成非战斗节点，如林间
@@ -147,7 +148,7 @@ export async function gridZoneMoveTo(mgr: RoguelikeV2Manager, args: { route: str
     //   保证续局移动进作战节点仍能触发战斗。
     const battleStage =
       node?.content?.savage?.stageId ||
-      (node?.content?.kind === undefined ? (mapNode as any)?.stage : undefined);
+      (node?.content?.kind === undefined ? mapNode?.stage : undefined);
     // 节点到达推送（官服对齐）：rlv2NodeArrive 携节点类型、rlv2NodeChange 携本次发生
     // 状态/视野变化的节点列表（官服抓包 R-1786531228496.9993-3674：nodeList=["202","200"]
     // 为到达节点+新揭示邻居，非整层全量）。
@@ -307,7 +308,7 @@ export function createRogue6NodeScene(mgr: RoguelikeV2Manager, nodeType: number)
    */
 export function createPortalScene(mgr: RoguelikeV2Manager) : void {
     const theme = mgr.current.game!.theme;
-    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const detail = excel.RoguelikeTopicTable.details[theme];
     const sceneIds = Object.keys(detail?.choiceScenes || {}).filter(
       (id) => id.startsWith(`scene_ro6_portal`) && id.endsWith("_enter"),
     );
@@ -375,9 +376,9 @@ export function consumePortalScrap(mgr: RoguelikeV2Manager) : boolean {
     if (!scrap) return false;
     const theme = mgr.current.game!.theme;
     const typeMap = excel.RoguelikeTopicTable.modules[theme]?.scrap;
-    const candidates = Object.values(scrap.inventory || {}).filter((it: any) => {
+    const candidates = Object.values(scrap.inventory || {}).filter((it) => {
       return typeMap?.scrapItemToType?.[it.id] === "MOVE";
-    }) as { instId: string; value: number }[];
+    });
     if (candidates.length === 0) return false;
     // 优先扣估价最低的加工品
     candidates.sort((a, b) => a.value - b.value);
@@ -405,7 +406,7 @@ export function startChaosSourceBattle(mgr: RoguelikeV2Manager) : void {
       if (node) {
         node.stage = stageId;
         node.type = TorappuRoguelikeEventType.BATTLE_BOSS;
-        (node as any).zone_end = true; // 首领战可推进结算
+        node.zone_end = true; // 首领战可推进结算
       }
     }
     mgr._status.pending.shift();
@@ -458,8 +459,11 @@ export function isBeakUnlocked(mgr: RoguelikeV2Manager) : boolean {
     if (!isBlackstream(theme)) return false;
     const outer = mgr.outer?.[theme];
     if (!outer?.buff?.unlocked?.[ROGUE6_BEAK_OUTBUFF]) return false;
-    const dev = (excel.RoguelikeTopicTable as any)?.customizeData?.[theme]
-      ?.commonDevelopment?.developments?.[ROGUE6_BEAK_OUTBUFF];
+    const customize = excel.RoguelikeTopicTable.customizeData?.[theme] as
+      | RoguelikeCustomizeDataView
+      | undefined;
+    const dev =
+      customize?.commonDevelopment?.developments?.[ROGUE6_BEAK_OUTBUFF];
     const rawDesc = Array.isArray(dev?.rawDesc) ? dev.rawDesc.join("") : "";
     // rawDesc 描述"归来时……随机加工品"，据此确认该节点为"先行一步归来带加工品"
     return rawDesc.includes("加工品") && rawDesc.includes("归来");

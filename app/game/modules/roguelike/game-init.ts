@@ -5,7 +5,12 @@
  * 类侧保留同名薄委派（见 logic.ts）。
  */
 import type { RoguelikeV2Manager } from "./logic";
+import type { PlayerRoguelikeV2 } from "./rlv2";
 import excel from "@excel/excel";
+import type {
+  RoguelikeTopicMonthMission,
+  RoguelikeTopicUpdate,
+} from "@excel/excel";
 import { now } from "@utils/time";
 import { PlayerDataModel } from "../../kernel/playerdata";
 import { random } from "../../kernel/util/random";
@@ -139,7 +144,7 @@ export async function createGame(mgr: RoguelikeV2Manager, args: {
           // 官方判定依据 record.stageCnt 中存在 2 层（兼容 3 层）关卡通关记录（prts.wiki
           // 「至少通过两层」；8-11/8-18 官服 createGame 抓包对照：record 无 lastZone 键，
           // 有 3 层 stageCnt 且 support=true）。原实现用自定义 lastZone>=3 字段（官服 record 无此键）。
-          support: mgr.hasReachedZone3((draft.outer?.[theme]?.record as any)?.stageCnt),
+          support: mgr.hasReachedZone3(draft.outer?.[theme]?.record?.stageCnt),
           // 上局遗留襁褓预告：官服 game.outer = { support, legacy } 结构（8-18 抓包 legacy 可含
           // 襁褓 id），但与 record.legacy/GIFT 内容不同源——8-11 抓包 legacy=[] 而 GIFT=gold10。
           // 数据不足精确复现，先输出空数组对齐 8-11 结构（GIFT 内容由 record.legacy 驱动）。
@@ -175,7 +180,7 @@ export async function createGame(mgr: RoguelikeV2Manager, args: {
     // - 特勤任务影像（难度 0 失败补偿）：开局直接获得该收藏品
     // - 襁褓猫/狗等 init_gift 效果：由 GAME_INIT_GIFT 事件统一发放（events.create 按
     //   legacy 的 init_gift buff 数据驱动生成事件与内容）——此处不再直接加金/希望，避免双发
-    const legacyList: string[] = (mgr.outer?.[theme]?.record as any)?.legacy || [];
+    const legacyList: string[] = mgr.outer?.[theme]?.record?.legacy || [];
     for (const legacyId of legacyList) {
       if (legacyId === "rogue_6_relic_fight_29") {
         await mgr._trigger.emit("rlv2:relic:gain", [
@@ -186,10 +191,10 @@ export async function createGame(mgr: RoguelikeV2Manager, args: {
 
     // "让探索走向不同的结局"藏品：改变结局走向（附加层由 maxZone 处理，此处切换 toEnding 为 2 号结局）。
     // 官方此类藏品（残破的玩偶/恍悟/初幕、决心/观望/犹疑/深蓝之心 等）触发 2 结局路线。
-    const detail2 = excel.RoguelikeTopicTable.details[theme] as any;
+    const detail2 = excel.RoguelikeTopicTable.details[theme];
     const hasEndingChangeRelic = Object.values(mgr.inventory?.relic || {}).some(
       (r) => {
-        const id = (r as any).id;
+        const id = r.id;
         const usage = detail2?.items?.[id]?.usage || "";
         return usage.includes("让探索走向不同的结局") || usage.includes("不同结局");
       },
@@ -214,18 +219,24 @@ export async function createGame(mgr: RoguelikeV2Manager, args: {
    * @param outerMap 局外数据字典（配方内传 draft.outer；配方外传 this.outer）
    * @param game     当前游戏态（配方内传 draft.current.game；配方外传 this.current.game）
    */
-export function ensureOuterTheme(mgr: RoguelikeV2Manager, theme: string, outerMap?: any, game?: any) : void {
+export function ensureOuterTheme(
+  mgr: RoguelikeV2Manager,
+  theme: string,
+  outerMap?: { [theme: string]: PlayerRoguelikeV2.OuterData },
+  game?: PlayerRoguelikeV2.CurrentData.Game | null,
+) : void {
     const map = outerMap ?? mgr.outer;
     const gameRef = game ?? mgr.current.game;
     if (!map[theme]) {
-      map[theme] = {} as any;
+      // 占位空对象（后续按需补齐 bank/bp/buff/mission/collect/record 各节）
+      map[theme] = {} as PlayerRoguelikeV2.OuterData;
     }
-    const target = map[theme] as any;
+    const target = map[theme];
     if (!target.collect) {
       const detail = excel.RoguelikeTopicTable.details[theme];
       // 分队全集：init.initialBandRelic（开局可选）+ bandRef 全部条目（含等级变体）
       const init = detail.init.find(
-        (i: any) =>
+        (i) =>
           i.modeGrade == gameRef!.modeGrade &&
           i.predefinedId == gameRef!.predefined &&
           i.modeId == gameRef!.mode,
@@ -259,7 +270,9 @@ export function ensureOuterTheme(mgr: RoguelikeV2Manager, theme: string, outerMa
         chat: {},
         endBook: {},
         chatV2: {},
-      };
+        // 开局仅初始化本主题用得到的图鉴节（totem/chaos/fragment/disaster/nodeUpgrade
+        // 由各主题模块首次写入）；此处按运行时写入形状桥接到完整 Collection 视图
+      } as PlayerRoguelikeV2.OuterData.Collection;
     }
     // 历史存档缺失 modeGrade 时补齐（难度解锁状态）
     if (!target.collect?.modeGrade) {
@@ -308,24 +321,28 @@ export function ensureOuterTheme(mgr: RoguelikeV2Manager, theme: string, outerMa
 export async function refreshMission(mgr: RoguelikeV2Manager, args: { theme?: string; index?: number }) : Promise<void> {
     const theme = args.theme || mgr.current.game?.theme || "";
     if (!theme) return;
-    const detail = excel.RoguelikeTopicTable.details[theme] as any;
-    const monthMission: any[] = detail?.monthMission || [];
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    const monthMission: RoguelikeTopicMonthMission[] = detail?.monthMission || [];
     if (monthMission.length === 0) return;
 
     // 更新期（index 指向 updates 数组；缺省取最后一个）
-    const updates: any[] = detail?.updates || [];
+    const updates: RoguelikeTopicUpdate[] = detail?.updates || [];
     const idx = args.index ?? Math.max(0, updates.length - 1);
     const update = updates[idx] || updates[updates.length - 1];
     const updateId = update?.updateId || "";
 
     // 任务池按 class 分组（A/B/C），每组随机抽；tmpl 即 excel template
-    const poolByClass: { [key: string]: any[] } = { A: [], B: [], C: [] };
+    const poolByClass: { [key: string]: RoguelikeTopicMonthMission[] } = {
+      A: [],
+      B: [],
+      C: [],
+    };
     for (const t of monthMission) {
       const cls = (t.taskClass || "C") as string;
       if (poolByClass[cls]) poolByClass[cls].push(t);
     }
     // 每类抽取数量：A×1、B×1、C×2（官方月度任务 4 槽位）
-    const picks: { cls: string; task: any }[] = [];
+    const picks: { cls: string; task: RoguelikeTopicMonthMission }[] = [];
     for (const cls of ["A", "B", "C"]) {
       const count = cls === "C" ? 2 : 1;
       const copy = [...(poolByClass[cls] || [])];
@@ -358,7 +375,7 @@ export async function refreshMission(mgr: RoguelikeV2Manager, args: { theme?: st
     // outer[theme] 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方
     await mgr.update(async (draft) => {
       mgr.ensureOuterTheme(theme, draft.outer, draft.current.game);
-      const outer = draft.outer[theme] as any;
+      const outer = draft.outer[theme];
       outer.mission = {
         updateId,
         refresh: (outer.mission?.refresh ?? 0) + 1,
@@ -399,7 +416,7 @@ export async function chooseInitialRecruitSet(mgr: RoguelikeV2Manager, args: { s
     const CLASS_TICKET_RE =
       /_recruit_ticket_(pioneer|warrior|tank|sniper|caster|support|medic|special)$/;
     const recruitTickets =
-      (excel.RoguelikeTopicTable.details[theme] as any)?.recruitTickets ?? {};
+      excel.RoguelikeTopicTable.details[theme]?.recruitTickets ?? {};
     const PROFESSIONS = Object.keys(recruitTickets)
       .filter((t) => CLASS_TICKET_RE.test(t))
       .map((t) => CLASS_TICKET_RE.exec(t)![1]);
@@ -415,7 +432,7 @@ export async function chooseInitialRecruitSet(mgr: RoguelikeV2Manager, args: { s
         .filter((t) => recruitTickets[t]),
     };
     const pool = PROFESSIONS.map((p) => `rogue_${roNum}_recruit_ticket_${p}`).filter(
-      (t) => (excel.RoguelikeTopicTable.details[theme] as any)?.recruitTickets?.[t],
+      (t) => excel.RoguelikeTopicTable.details[theme]?.recruitTickets?.[t],
     );
     let picked: string[];
     const groupTickets = GROUP_TICKETS[args.select] || [];
@@ -426,7 +443,7 @@ export async function chooseInitialRecruitSet(mgr: RoguelikeV2Manager, args: { s
     } else if (groupTickets.length > 0) {
       // 随心所欲专用券（5star/quad_melee/quad_ranged）——校验存在，缺失回退随机
       const valid = groupTickets.filter(
-        (t) => (excel.RoguelikeTopicTable.details[theme] as any)?.recruitTickets?.[t],
+        (t) => excel.RoguelikeTopicTable.details[theme]?.recruitTickets?.[t],
       );
       if (valid.length === 3) {
         picked = valid;

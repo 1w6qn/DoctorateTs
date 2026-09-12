@@ -137,10 +137,10 @@ router.post("/act42side/getDailyRewards", validateBody(ReqSchema.act42sideGetDai
   const body = req.body as Act42sideGetDailyRewardsRequest;
   // 参考 ODPY：写 TYPE_ACT42SIDE[activityId].dailyRewardState = 0
   await player.update(async (draft) => {
-    const act = (draft.activity as any).TYPE_ACT42SIDE as any;
+    const act = draft.activity.TYPE_ACT42SIDE;
     if (!act) return;
-    if (!act[body.activityId!]) act[body.activityId!] = {};
-    act[body.activityId!].dailyRewardState = 0;
+    const entry = act[body.activityId!] ?? (act[body.activityId!] = {});
+    entry.dailyRewardState = 0;
   });
   res.send(player.delta satisfies ActivityStubResponse);
 });
@@ -159,11 +159,11 @@ router.post("/act42side/acceptTask", validateBody(ReqSchema.act42sideTaskSchema)
   const body = req.body as { activityId?: string; taskId?: string };
   // 参考 ODPY：写 taskMap[taskId] = 2（接取）
   await player.update(async (draft) => {
-    const act = (draft.activity as any).TYPE_ACT42SIDE as any;
+    const act = draft.activity.TYPE_ACT42SIDE;
     if (!act) return;
-    if (!act[body.activityId!]) act[body.activityId!] = {};
-    if (!act[body.activityId!].taskMap) act[body.activityId!].taskMap = {};
-    act[body.activityId!].taskMap[body.taskId!] = 2;
+    const entry = act[body.activityId!] ?? (act[body.activityId!] = {});
+    if (!entry.taskMap) entry.taskMap = {};
+    entry.taskMap[body.taskId!] = 2;
   });
   res.send(player.delta satisfies ActivityStubResponse);
 });
@@ -173,11 +173,11 @@ router.post("/act42side/confirmTask", validateBody(ReqSchema.act42sideTaskSchema
   const body = req.body as { activityId?: string; taskId?: string };
   // 参考 ODPY：写 taskMap[taskId] = 4（完成）
   await player.update(async (draft) => {
-    const act = (draft.activity as any).TYPE_ACT42SIDE as any;
+    const act = draft.activity.TYPE_ACT42SIDE;
     if (!act) return;
-    if (!act[body.activityId!]) act[body.activityId!] = {};
-    if (!act[body.activityId!].taskMap) act[body.activityId!].taskMap = {};
-    act[body.activityId!].taskMap[body.taskId!] = 4;
+    const entry = act[body.activityId!] ?? (act[body.activityId!] = {});
+    if (!entry.taskMap) entry.taskMap = {};
+    entry.taskMap[body.taskId!] = 4;
   });
   res.send(player.delta satisfies ActivityStubResponse);
 });

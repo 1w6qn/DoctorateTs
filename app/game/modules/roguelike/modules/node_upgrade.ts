@@ -25,8 +25,8 @@ export class RoguelikeNodeUpgradeManager {
     // 防御：跨主题残留管理器（上一局其他主题的 manager 仍订阅 module:init）
     // 当前主题无 nodeUpgrade 数据时直接跳过，避免 null 解引用
     const nodeUpgradeInfo = this._player.outer[theme]?.collect?.nodeUpgrade;
-    const tempMap = (excel.RoguelikeTopicTable.modules[theme] as any)
-      ?.nodeUpgrade?.nodeUpgradeDataMap;
+    const tempMap =
+      excel.RoguelikeTopicTable.modules[theme]?.nodeUpgrade?.nodeUpgradeDataMap;
     if (!nodeUpgradeInfo || !tempMap) {
       this._nodeTypeInfoMap = {};
       return;
@@ -42,9 +42,7 @@ export class RoguelikeNodeUpgradeManager {
               upgradeList.length < 5
                 ? ""
                 : randomChoice(
-                    tempList.map(
-                      (item: { upgradeId: string }) => item.upgradeId,
-                    ),
+                    tempList.map((item) => item.upgradeId),
                   ),
             upgradeList: upgradeList,
             currUpgradeIndex: upgradeList.length - 1,
@@ -78,7 +76,7 @@ export class RoguelikeNodeUpgradeManager {
       info.upgradeList.push(permItem.upgradeId);
       // outer[theme].collect 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方
       await this._player.update(async (draft) => {
-        (draft.outer[theme] as any).collect.nodeUpgrade[nodeType].unlockList.push(
+        draft.outer[theme].collect.nodeUpgrade[nodeType].unlockList.push(
           permItem.upgradeId,
         );
       });
@@ -95,7 +93,7 @@ export class RoguelikeNodeUpgradeManager {
       if (!tempItem) return; // 防御：配置缺失
       info.upgradeList.push(tempItem.upgradeId);
       await this._player.update(async (draft) => {
-        (draft.outer[theme] as any).collect.nodeUpgrade[nodeType].unlockList.push(
+        draft.outer[theme].collect.nodeUpgrade[nodeType].unlockList.push(
           tempItem.upgradeId,
         );
       });

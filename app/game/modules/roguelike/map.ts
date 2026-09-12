@@ -12,11 +12,28 @@ import * as crypto from "crypto";
 import { readFileSync } from "fs";
 import { random } from "../../kernel/util/random";
 
+/**
+ * data/rlv2/nodesInfo.json 视图（官方 stages 提取：主题 → 区域 → 阶段列表）
+ */
+interface RoguelikeNodesInfo {
+  themes?: {
+    [theme: string]: {
+      zones?: {
+        [zone: string]: {
+          Normal?: string[];
+          Emergency?: string[];
+          Boss?: string[];
+        };
+      };
+    };
+  };
+}
+
 export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
   zones: { [key: string]: PlayerRoguelikeV2Zone };
   _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
-  _nodesInfo: any;
+  _nodesInfo: RoguelikeNodesInfo | null;
 
   constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this.zones = {};

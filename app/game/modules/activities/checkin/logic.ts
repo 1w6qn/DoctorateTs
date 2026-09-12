@@ -143,6 +143,49 @@ import {
 } from "../shared/activity";
 
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
+import { activityDetailJson, asShape } from "../shared/activity-json";
+
+/* ===== excel 活动详情消费面（未建模 JSON 的局部视图，仅读取官方表） ===== */
+
+/** 表内奖励条目（与生成模型 ItemBundle 同形；活动详情是未建模 JSON） */
+type TableItemBundle = { id: string; count: number; type: ItemType };
+
+/** 签到日配置（checkInList[day]） */
+type CheckinDailyConfig = { isDynItem?: boolean; itemList?: TableItemBundle[] };
+
+/** CHECKIN_ONLY / CHECKIN_ALL_PLAYER 详情消费面 */
+type CheckinDetailConfig = {
+  checkInList?: { [day: string]: CheckinDailyConfig };
+  dynCheckInData?: { dynItemDict?: { [opt: string]: TableItemBundle[] } };
+};
+
+/** CHECKIN_VS 详情消费面 */
+type CheckinVsDetailConfig = {
+  checkInDict?: { [day: string]: { rewardList?: TableItemBundle[] } };
+};
+
+/** SWITCH_ONLY 详情消费面 */
+type SwitchDetailConfig = { rewards?: { [rewardId: string]: TableItemBundle[] } };
+
+/** LOGIN_ONLY 详情消费面 */
+type LoginDetailConfig = { itemList?: TableItemBundle[] };
+
+/**
+ * 读取活动详情并投影为调用方声明的消费面
+ * @param typeEnum - 活动类型枚举名（经 activityDictKey 容错解析）
+ * @param fallbackKey - 键未命中时的历史回退键（保持原行为）
+ * @param actId - 活动 id
+ * @returns 详情视图（未命中返回 undefined）
+ */
+function activityConfigView<T>(
+  typeEnum: string,
+  fallbackKey: string,
+  actId: string,
+): T | undefined {
+  return asShape<T>(
+    activityDetailJson(excel.ActivityTable.activity, activityDictKey(typeEnum) ?? fallbackKey, actId),
+  );
+}
 
 /**
  * checkin 活动族业务逻辑（建议 11：族包五件套——router 仅路由注册，业务收敛于 logic）
@@ -196,9 +239,7 @@ function checkinDayGate(
   nowTs: number,
 ): "index" | "today" | null {
   if (targetIndex < 0) return "index";
-  const startTs = Number(
-    (excel.ActivityTable as any)?.basicInfo?.[activityId]?.startTime ?? 0,
-  );
+  const startTs = Number(excel.ActivityTable.basicInfo?.[activityId]?.startTime ?? 0);
   if (startTs > 0) {
     const dayIndex = Math.floor((nowTs - startTs) / 86400);
     if (targetIndex > dayIndex) return "index"; // 尚未签到到该天数
@@ -257,18 +298,19 @@ export async function handleGetActivityCheckInReward(player: PlayerDataManager, 
 
   // 从 excel 读取签到奖励（值一律从表读，不硬编码）
   // 修复：excel activity 字典键大小写随数据版本多变（cHECKIN_ONLY 旧坏键/checkinOnly 规范键）
-  const checkinKey = activityDictKey("CHECKIN_ONLY") ?? "cHECKIN_ONLY";
-  const checkinConfig = (
-    excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
-  )[checkinKey]?.[activityId] as any;
+  const checkinConfig = activityConfigView<CheckinDetailConfig>(
+    "CHECKIN_ONLY",
+    "cHECKIN_ONLY",
+    activityId,
+  );
   const daily = checkinConfig?.checkInList?.[String(targetIndex)];
   let rewards: ItemBundle[] = [];
 
   if (daily?.isDynItem && body.dynOpt) {
     // 动态签到日：奖励按 dynOpt 从 dynItemDict 读取（如 act43sign 月饼制作选项）
-    rewards = (checkinConfig.dynCheckInData?.dynItemDict?.[body.dynOpt] ?? []) as ItemBundle[];
+    rewards = checkinConfig?.dynCheckInData?.dynItemDict?.[body.dynOpt] ?? [];
   } else {
-    rewards = (daily?.itemList ?? []) as ItemBundle[];
+    rewards = daily?.itemList ?? [];
   }
 
   if (rewards.length > 0) {
@@ -333,13 +375,14 @@ export async function handleActCheckinvssign(player: PlayerDataManager, body: Ac
 
   if (!claimed) {
     // 从 excel 读取当日签到奖励（按已签天数取 checkInDict[day]，值从表读不硬编码）
-    const checkinVsKey = activityDictKey("CHECKIN_VS") ?? "cHECKIN_VS";
-    const vsConfig = (
-      excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
-    )[checkinVsKey]?.[body.actId] as any;
+    const vsConfig = activityConfigView<CheckinVsDetailConfig>(
+      "CHECKIN_VS",
+      "cHECKIN_VS",
+      body.actId,
+    );
     const day = player._playerdata.activity?.CHECKIN_VS?.[body.actId]?.signedCnt ?? 1;
     const daily = vsConfig?.checkInDict?.[String(day)];
-    rewards = (daily?.rewardList ?? []) as ItemBundle[];
+    rewards = daily?.rewardList ?? [];
 
     if (rewards.length > 0) {
       for (const reward of rewards) {
@@ -386,11 +429,12 @@ export async function handleGetSwitchOnlyReward(player: PlayerDataManager, body:
 
   if (!claimed) {
     // 从 excel 读取开关奖励（值从表读不硬编码）
-    const switchKey = activityDictKey("SWITCH_ONLY") ?? "sWITCH_ONLY";
-    const switchConfig = (
-      excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
-    )[switchKey]?.[body.activityId] as any;
-    rewards = (switchConfig?.rewards?.[body.reward] ?? []) as ItemBundle[];
+    const switchConfig = activityConfigView<SwitchDetailConfig>(
+      "SWITCH_ONLY",
+      "sWITCH_ONLY",
+      body.activityId,
+    );
+    rewards = switchConfig?.rewards?.[body.reward] ?? [];
 
     if (rewards.length > 0) {
       for (const reward of rewards) {
@@ -449,11 +493,12 @@ export async function handleLoginOnlyGetReward(player: PlayerDataManager, body: 
   }
 
   // 从 excel 读取登录奖励（值从表读不硬编码）
-  const loginKey = activityDictKey("LOGIN_ONLY") ?? "lOGIN_ONLY";
-  const loginConfig = (
-    excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
-  )[loginKey]?.[activityId] as any;
-  const rewards = (loginConfig?.itemList ?? []) as ItemBundle[];
+  const loginConfig = activityConfigView<LoginDetailConfig>(
+    "LOGIN_ONLY",
+    "lOGIN_ONLY",
+    activityId,
+  );
+  const rewards: ItemBundle[] = loginConfig?.itemList ?? [];
 
   if (rewards.length > 0) {
     for (const reward of rewards) {
@@ -523,12 +568,13 @@ export async function handleCheckinAllPlayerCheckin(
     } satisfies CheckinAllPlayerCheckinResponse);
   }
 
-  const allPlayerKey = activityDictKey("CHECKIN_ALL_PLAYER") ?? "cHECKIN_ALL_PLAYER";
-  const config = (
-    excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
-  )[allPlayerKey]?.[activityId] as any;
+  const config = activityConfigView<CheckinDetailConfig>(
+    "CHECKIN_ALL_PLAYER",
+    "cHECKIN_ALL_PLAYER",
+    activityId,
+  );
   const daily = config?.checkInList?.[String(targetIndex)];
-  const rewards = (daily?.itemList ?? []) as ItemBundle[];
+  const rewards: ItemBundle[] = daily?.itemList ?? [];
 
   if (rewards.length > 0) {
     for (const reward of rewards) {

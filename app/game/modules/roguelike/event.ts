@@ -24,6 +24,36 @@ import { applyBandUpgradeVisibility, initModeGradeStates, maxClearedGrade, build
 import { rerollNode, upgradeNode, gridZoneMoveTo, createRogue6NodeScene, createPortalScene, enterPortalZone, consumePortalScrap, startChaosSourceBattle, gainPreciousScrap, gainRandomScrap, isBeakUnlocked, createFateScene, createIncidentScene, gridZoneMoveAndBattleStart, gridZoneEmptyStep, gridZoneReadStepZero } from "./grid-nav";
 import { _normalizeMutablePlayerdata, setPinned, giveUpGame, createGame, ensureOuterTheme, refreshMission, chooseInitialRelic, chooseInitialRecruitSet, chooseInitialExploreTool } from "./game-init";
 import { random } from "../../kernel/util/random";
+import type { PlayerRoguelikeV2 } from "./rlv2";
+import type {
+  RoguelikeChoiceEffectMap,
+  RoguelikeChoiceEffectPayload,
+} from "./logic";
+
+/**
+ * 先行一步远征明细视图
+ *
+ * 内部模型 Troop.expeditionDetails 声明为数值字典（`{ [key: string]: number }`），
+ * 运行时另有 `ending` 布尔标记（先行一步归来结局，见 checkZoneEnd/selectChoice）。
+ */
+type ExpeditionDetails = { [key: string]: number | boolean };
+
+/** 旧存档自定义字段视图（record.lastZone：到达层数兼容判定） */
+type OuterRecordLegacy = { lastZone?: number };
+
+/**
+ * 事件选项效果载荷 → 数值字典
+ *
+ * 仅对象形态（非 null/非数组）可参与累加；标量/字符串数组/null 形态原实现同样无效果
+ * （对象分支内按下标取字段取不到 → 不变），此处显式判空保持同一语义。
+ * @param v - event_choices.json 的效果载荷
+ * @returns 数值字典（非对象形态为 undefined）
+ */
+function asEffectMap(
+  v: RoguelikeChoiceEffectPayload | undefined,
+): RoguelikeChoiceEffectMap | undefined {
+  return typeof v === "object" && v !== null && !Array.isArray(v) ? v : undefined;
+}
 
 export async function finishEvent(mgr: RoguelikeV2Manager) {
     if (mgr._status.cursor.zone === 0) {
@@ -138,7 +168,11 @@ export function hasReachedZone3(mgr: RoguelikeV2Manager, stageCnt?: Record<strin
       }
     }
     // 兼容旧存档自定义字段（到达层数，>=3 即通过两层）
-    const legacy = (mgr.outer?.[mgr.current.game?.theme || ""]?.record as any)?.lastZone;
+    const legacy = (
+      mgr.outer?.[mgr.current.game?.theme || ""]?.record as
+        | OuterRecordLegacy
+        | undefined
+    )?.lastZone;
     return typeof legacy === "number" && legacy >= 3;
 }
 
@@ -149,26 +183,22 @@ export function locateStartNode(mgr: RoguelikeV2Manager) : { x: number; y: numbe
       // 起点 = state=2 且 kind=GLADE（官服 state 仅 0/2：初始点亮的险路尽头/密道/羽瞰点也为 2，
       // 填充林间空地为 state=0，故 "state=2 且 GLADE" 唯一标识起点；不能仅按 state=2 取首个）
       for (const [id, n] of Object.entries(gz.zones?.[zoneKey]?.nodes || {})) {
-        if (
-          (n as any)?.state === 2 &&
-          (n as any)?.content?.kind === ROGUE6_NODE.GLADE
-        ) {
+        if (n?.state === 2 && n?.content?.kind === ROGUE6_NODE.GLADE) {
           return { x: Math.floor(Number(id) / 100), y: Number(id) % 100 };
         }
       }
       // 兑底（旧存档/异常形态）：任一 state=2 节点
       for (const [id, n] of Object.entries(gz.zones?.[zoneKey]?.nodes || {})) {
-        if ((n as any)?.state === 2) {
+        if (n?.state === 2) {
           return { x: Math.floor(Number(id) / 100), y: Number(id) % 100 };
         }
       }
     }
-    const zoneNodes = mgr._map.zones[
-      String(1000 + mgr._status.cursor.zone - 1)
-    ]?.nodes as Record<string, any> | undefined;
+    const zoneNodes =
+      mgr._map.zones[String(1000 + mgr._status.cursor.zone - 1)]?.nodes;
     const g = Object.values(zoneNodes || {}).find(
       (n) => n?.type === ROGUE6_NODE.GLADE,
-    ) as any;
+    );
     return g?.pos ? { x: g.pos.x, y: g.pos.y } : undefined;
 }
 
@@ -223,7 +253,7 @@ export async function checkZoneEnd(mgr: RoguelikeV2Manager) : Promise<boolean> {
     // 区域奖励：非最终层通关时填充 zoneReward（confirmZoneReward 发放并清空）
     if (!mgr._status.zoneReward || Object.keys(mgr._status.zoneReward).length === 0) {
       const hasRelic = Object.values(mgr.inventory!.relic || {}).map(
-        (r) => (r as any).id,
+        (r) => r.id,
       );
       const rewardId = mgr._pool.getRelic("pool_relic_all", hasRelic);
       if (rewardId) {
@@ -246,9 +276,9 @@ export async function checkZoneEnd(mgr: RoguelikeV2Manager) : Promise<boolean> {
     //   （gameConst.expedEndingRelic = rogue_6_relic_final_3）。
     // - 【生命游戏】"喙"节点（rogue_6_outbuff_33，RAW_TEXT_EFFECT"“先行一步”归来时额外获得
     //   随机加工品"）：归来时额外获得 1 个随机加工品——从 excel 该节点 rawDesc 读取判定。
-    const expDetails = mgr.troop.expeditionDetails as any;
+    const expDetails: ExpeditionDetails = mgr.troop.expeditionDetails;
     if (mgr.troop.expedition.length > 0) {
-      const detail = excel.RoguelikeTopicTable.details[theme] as any;
+      const detail = excel.RoguelikeTopicTable.details[theme];
       // 基础：2 希望（先行一步派发归来通用奖励）
       await mgr._trigger.emit("rlv2:get:items", [
         [{ id: `${theme}_population`, count: 2 }],
@@ -258,7 +288,7 @@ export async function checkZoneEnd(mgr: RoguelikeV2Manager) : Promise<boolean> {
         mgr.gainRandomScrap();
       }
       // 三结局分支：额外怦然信标
-      if (expDetails?.ending) {
+      if (expDetails?.["ending"]) {
         const endingRelic = detail?.gameConst?.expedEndingRelic;
         if (endingRelic) {
           await mgr._trigger.emit("rlv2:relic:gain", [
@@ -267,7 +297,7 @@ export async function checkZoneEnd(mgr: RoguelikeV2Manager) : Promise<boolean> {
         }
       }
       mgr.troop.expedition = [];
-      delete expDetails.ending;
+      delete expDetails["ending"];
     }
     await mgr._trigger.emit("rlv2:zone:new", [mgr._status.cursor.zone]);
     // 特勤干员任务：到达区域事件（Rlv2PassZoneSpec）
@@ -276,9 +306,7 @@ export async function checkZoneEnd(mgr: RoguelikeV2Manager) : Promise<boolean> {
 }
 
 export function hasRelic(mgr: RoguelikeV2Manager, id: string) : boolean {
-    return Object.values(mgr.inventory?.relic || {}).some(
-      (r) => (r as any).id === id,
-    );
+    return Object.values(mgr.inventory?.relic || {}).some((r) => r.id === id);
 }
 
 export async function emitSpecialOperatorZone(mgr: RoguelikeV2Manager, zone: number) : Promise<void> {
@@ -338,10 +366,10 @@ export async function emitSpecialOperatorSettle(mgr: RoguelikeV2Manager, theme: 
     const grade = game.modeGrade ?? 0;
     const bandId = snapshot?.bandId ?? mgr._bandId ?? "";
     const charIds = snapshot?.charIds ?? Object.keys(mgr.troop.chars || {});
-    const rec = (mgr.outer?.[theme]?.record as any) || {};
+    const rec = mgr.outer?.[theme]?.record;
     const bandGrade: Record<string, Record<string, number>> =
-      rec.bandGrade || {};
-    const bandCnt: Record<string, Record<string, number>> = rec.bandCnt || {};
+      rec?.bandGrade || {};
+    const bandCnt: Record<string, Record<string, number>> = rec?.bandCnt || {};
 
     // 本局节点通过：祸乱（BATTLE/BATTLE_HARD 近似作战/紧急作战）与紧急作战数
     const nodeCounts = snapshot?.nodeCounts ?? mgr.nodeTypeCounts();
@@ -375,9 +403,9 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
     const { choice } = args;
     const theme = mgr.current.game!.theme;
     const detail = excel.RoguelikeTopicTable.details[theme];
-    const choiceConfig = detail.choices[choice] as any;
+    const choiceConfig = detail.choices[choice];
     // 效果数据（lose/get/m_lose/m_get/i_get/i_lose 与后续选项）来自 data/rlv2/event_choices.json
-    const eventConfig = mgr._data.eventChoices?.[theme]?.choices?.[choice] as any;
+    const eventConfig = mgr._data.eventChoices?.[theme]?.choices?.[choice];
 
     // GAME_INIT_SUPPORT（开局 buff/行动奖励）：发放 displayData.itemId 奖励并消费 SUPPORT 事件。
     // 客户端抓包（rogue_6）：chooseInitialRelic → finishEvent → selectChoice(choice_roX_startbuff_N)
@@ -391,8 +419,8 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
       top = mgr._status.pending[0];
     }
     if (top && top.type === "GAME_INIT_SUPPORT") {
-      const cfg = choiceConfig as any;
-      const desc = (cfg?.description as string) || "";
+      const cfg = choiceConfig;
+      const desc = cfg?.description || "";
       const dd = cfg?.displayData || {};
       const prop = mgr._status.property;
       // 结算描述中的 <lose> 消耗。开局 buff（行动奖励）选项常带“消耗”，此前只发放 get 奖励、
@@ -419,7 +447,9 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
         }
       }
       // 官方 displayData.itemID（PascalCase ID）——startbuff_2/3 有 itemID；startbuff_1/4/5/6 无
-      const itemId = dd.itemID ?? dd.itemId;
+      // 小写 itemId 变体：生成模型只声明 itemID（实测 excel 全量为 itemID），
+      // 但 mock/历史数据可能给出 itemId，此处按视图读取保持原语义
+      const itemId = dd.itemID ?? (dd as { itemId?: string }).itemId;
       if (itemId) {
         const itemDef =
           excel.RoguelikeTopicTable.details[theme]?.items?.[itemId];
@@ -441,12 +471,13 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
         const theme = mgr.current.game!.theme;
         const funcIcon = (dd.funcIconId as string) || "";
         const hasRelic = Object.values(mgr.inventory!.relic || {}).map(
-          (r) => (r as any).id,
+          (r) => r.id,
         );
         if (funcIcon === "initial_reward_scrap_move" || desc.includes("加工品")) {
           // 林间代步：scrapItemToType 中 MOVE 型零件随机 1 件入零件箱
-          const typeMap = (excel.RoguelikeTopicTable.modules[theme]?.scrap as any)
-            ?.scrapItemToType || {};
+          const typeMap =
+            excel.RoguelikeTopicTable.modules[theme]?.scrap?.scrapItemToType ||
+            {};
           const moveIds = Object.keys(typeMap).filter(
             (id) => typeMap[id] === "MOVE",
           );
@@ -551,7 +582,7 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
         );
       } else {
         const hasRelic = Object.values(mgr.inventory!.relic || {}).map(
-          (r) => (r as any).id,
+          (r) => r.id,
         );
         const rid = mgr._pool.getRelic("pool_relic_all", hasRelic);
         if (rid) {
@@ -669,14 +700,17 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
         // （choice_ro6_scout_1/3 → scene_ro6_scout_2/3）→ 标记三结局远征，
         // 干员下一层返回时带回 2 希望 + 【怦然信标】（gameConst.expedEndingRelic）
         if (theme === "rogue_6" && /^choice_ro6_scout_[13]$/.test(choice)) {
-          (mgr.troop.expeditionDetails as any).ending = true;
+          const expeditionDetails: ExpeditionDetails =
+            mgr.troop.expeditionDetails;
+          expeditionDetails["ending"] = true;
         }
-        const lose = eventConfig?.lose;
-        const get = eventConfig?.get;
-        const mLose = eventConfig?.m_lose;
-        const mGet = eventConfig?.m_get;
-        const iGet = eventConfig?.i_get;
-        const iLose = eventConfig?.i_lose;
+        const rawGet = eventConfig?.get;
+        const lose = asEffectMap(eventConfig?.lose);
+        const get = asEffectMap(rawGet);
+        const mLose = asEffectMap(eventConfig?.m_lose);
+        const mGet = asEffectMap(eventConfig?.m_get);
+        const iGet = asEffectMap(eventConfig?.i_get);
+        const iLose = asEffectMap(eventConfig?.i_lose);
 
         if (mLose) {
           mgr._module.applyModuleDelta(mLose, -1);
@@ -690,18 +724,18 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
         if (iLose) {
           mgr.applyInventoryDelta(iLose, -1);
         }
-        if (lose && typeof lose === "object") {
+        if (lose) {
           mgr.applyPropertyDelta(lose, -1);
           if (mgr._status.property.gold < 0) {
             mgr._status.property.gold = 0;
           }
         }
-        if (get && typeof get === "object") {
+        if (get) {
           mgr.applyPropertyDelta(get, 1);
         }
-        if (typeof get === "string") {
+        if (typeof rawGet === "string") {
           const itemKeys = Object.keys(detail.items || {}).filter(
-            (k) => k.includes(get) && !k.includes("curse_")
+            (k) => k.includes(rawGet) && !k.includes("curse_")
           );
           if (itemKeys.length > 0) {
             const itemId = itemKeys[Math.floor(random() * itemKeys.length)];
@@ -711,8 +745,8 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
 
         // 官方选项效果：displayData.itemID（PascalCase ID；rogue_6 数据如此）+ 描述 GET 数量
         // （REST 回血/进阶券/希望等节点特有效果；rogue_6 无 event_choices 效果表，由此派生）
-        const dd = (choiceConfig?.displayData as any) || {};
-        const officialItem = dd.itemID ?? dd.itemId;
+        const dd = choiceConfig?.displayData || {};
+        const officialItem = dd.itemID ?? (dd as { itemId?: string }).itemId;
         if (officialItem) {
           const m = (choiceConfig?.description || "").match(
             /<@ro\d+\.get>(\d+)<\/>/,

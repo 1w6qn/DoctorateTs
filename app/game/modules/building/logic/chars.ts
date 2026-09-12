@@ -21,6 +21,8 @@ import {
   parseVupValue,
   phaseRank,
 } from "../buff";
+import type { SpecialSkillContext } from "../special";
+import type { GainAllIntimacyRequest, GainAssistIntimacyRequest } from "../models";
 
   /**
    * 设置私人宿舍归属
@@ -130,7 +132,7 @@ export function _charSource(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
       level: char.level ?? 0,
       evolvePhase: char.evolvePhase ?? 0,
       // 心情（raw AP）供涣散判定——缺失视为满心情（未建档干员）
-      ap: (draft.building.chars as any)?.[String(instId)]?.ap,
+      ap: draft.building.chars?.[String(instId)]?.ap,
     };
 }
 
@@ -159,7 +161,7 @@ export function _controlGlobalFor(mgr: BuildingManager, draft: Draft<PlayerDataM
    * 供 fraction/token 条件技能判定（"每个进驻制造站的X干员"→ manufactureCharIds、
    * "≥N台作业平台进驻发电站"→ powerCharIds、"与X同驻控制中枢"→ controlCharIds）。
    */
-export function _specialCtx(mgr: BuildingManager, draft: Draft<PlayerDataModel>) : any {
+export function _specialCtx(mgr: BuildingManager, draft: Draft<PlayerDataModel>) : SpecialSkillContext {
     const byRoom: Record<string, string[]> = {};
     for (const slot of Object.values(draft.building.roomSlots)) {
       if (!slot?.roomId) continue;
@@ -188,7 +190,7 @@ export function _dormBaseRecoveryPerHour(mgr: BuildingManager, draft: Draft<Play
     const slot = draft.building.roomSlots[slotId];
     const room = draft.building.rooms.DORMITORY?.[slotId];
     const level = slot?.level ?? 1;
-    const comfort = (room as any)?.comfort ?? 0;
+    const comfort = room?.comfort ?? 0;
     return 1.5 + 0.1 * level + comfort * 0.0004;
 }
 
@@ -258,7 +260,7 @@ export function _recomputeCharScales(mgr: BuildingManager, draft: Draft<PlayerDa
       const singleBonus = sumByGroupMax(singleEntries);
       const sharedTotal = sumByGroupMax(sharedEntries);
       const apOf = (instId: number): number =>
-        (draft.building.chars[String(instId)] as any)?.ap ?? MAX_AP;
+        draft.building.chars[String(instId)]?.ap ?? MAX_AP;
       // 单体恢复目标：除施放者外心情最低成员（官方近似：锁定最低心情者）
       let singleTarget = -1;
       let lowestAp = Infinity;
@@ -347,7 +349,7 @@ export async function assignChar(mgr: BuildingManager, args: { roomSlotId: strin
       const targetRoomId = draft.building.roomSlots[roomSlotId]?.roomId;
       if (targetRoomId !== "TRAINING") {
         for (const tr of Object.values(draft.building.rooms.TRAINING ?? {})) {
-          const t = (tr as any)?.trainee;
+          const t = tr?.trainee;
           if (
             t &&
             t.charInstId > 0 &&
@@ -428,14 +430,14 @@ export function _pickHighestApPreset(mgr: BuildingManager, draft: Draft<PlayerDa
     // 训练位干员集合（专精训练中/协助训练中）——换班不得把训练中的干员拉走
     const trainingIds = new Set<number>();
     for (const room of Object.values(draft.building.rooms.TRAINING ?? {})) {
-      const traineeId = (room as any)?.trainee?.charInstId;
-      const trainerId = (room as any)?.trainer?.charInstId;
+      const traineeId = room?.trainee?.charInstId;
+      const trainerId = room?.trainer?.charInstId;
       if (Number(traineeId) > 0) trainingIds.add(Number(traineeId));
       if (Number(trainerId) > 0) trainingIds.add(Number(trainerId));
     }
     /** 干员心情 AP（building.chars[].ap；无记录返回 undefined——与 isDispersedAp 口径一致，不视为涣散） */
     const apOf = (id: number): number | undefined =>
-      (draft.building.chars[String(id)] as any)?.ap;
+      draft.building.chars[String(id)]?.ap;
     /** 心情比例 = ap / 满心情（满值 24 点 × 360000 = 8640000，实测量级一致）；无记录按 0 参与比较但不排除 */
     const apRatio = (id: number): number => {
       const ap = apOf(id);
@@ -677,7 +679,7 @@ export async function gainIntimacy(mgr: BuildingManager, args: { charInstId: num
    *
    * @param args - 请求体参数
    */
-export async function gainAllIntimacy(mgr: BuildingManager, args: any) : Promise<{ normal: number; assist: number }> {
+export async function gainAllIntimacy(mgr: BuildingManager, args: GainAllIntimacyRequest) : Promise<{ normal: number; assist: number }> {
     // 修复：响应需含 normal/assist 计数（CS BuildingGainAllIntimacyResponse）
     let normal = 0;
     let assist = 0;
@@ -714,7 +716,7 @@ export async function gainAllIntimacy(mgr: BuildingManager, args: any) : Promise
    * 获得助战信赖（assist 列表中的干员）
    * @param args - 请求体参数
    */
-export async function gainAssistIntimacy(mgr: BuildingManager, args: any) {
+export async function gainAssistIntimacy(mgr: BuildingManager, args: GainAssistIntimacyRequest) {
     let gained = 0;
     await mgr._player.update(async (draft) => {
       for (const instId of draft.building.assist) {

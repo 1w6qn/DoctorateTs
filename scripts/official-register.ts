@@ -9,16 +9,18 @@ import { writeFile as writeFileAsync } from "fs/promises";
 import * as path from "path";
 import { openDatabase } from "@core/db/database";
 import { UserRepository } from "@core/db/user-repo";
+import type { UserConfig } from "@game/modules/account/AccountManager";
+import type { OfficialPlayerData } from "./official-api";
 
 const DATA_USER_DIR = path.join(__dirname, "../data/user");
 
-/** 读取现有用户（主数据库——users.json 已迁移为种子） */
-export async function loadUsers(): Promise<{ [key: string]: any }> {
+/** 读取现有用户（主数据库——users.json 已迁移为种子）；返回类型由 UserRepository.getAll 精确推导 */
+export async function loadUsers() {
   return new UserRepository(await openDatabase()).getAll();
 }
 
 /** 计算下一个新 uid（现有数字最大 +1，最小 2） */
-export function nextUid(users: { [key: string]: any }): string {
+export function nextUid(users: Record<string, UserConfig>): string {
   let max = 0;
   for (const key of Object.keys(users)) {
     const n = Number(key);
@@ -31,7 +33,7 @@ export function nextUid(users: { [key: string]: any }): string {
 export function buildUserEntry(
   newUid: string,
   opts: { phone: string; officialUid: string },
-): { [key: string]: any } {
+): UserConfig {
   return {
     password: Math.random().toString(36).slice(2, 10),
     auth: {
@@ -58,7 +60,7 @@ export function buildUserEntry(
 export async function registerImportedUser(opts: {
   phone: string;
   officialUid: string;
-  convertedData: { [key: string]: any };
+  convertedData: OfficialPlayerData;
 }): Promise<{ uid: string; nickName: string }> {
   const users = await loadUsers();
   const newUid = nextUid(users);
@@ -72,9 +74,8 @@ export async function registerImportedUser(opts: {
   );
 
   // 2. 注册账号（SQLite——users.json 已迁移为种子，不再写文件）
-  // entry 为动态构造的 UserConfig（buildUserEntry 返回宽松类型，此处断言 UserConfig）
-  users[newUid] = entry as any;
-  await new UserRepository(await openDatabase()).upsert(newUid, entry as any);
+  users[newUid] = entry;
+  await new UserRepository(await openDatabase()).upsert(newUid, entry);
 
   return {
     uid: newUid,

@@ -15,6 +15,13 @@ interface FieldInfo {
   slot: number; // vtable Offset 值
 }
 
+/** 单个 schema JSON 文件的落盘结构（`flatbuffers` 描述） */
+interface SchemaModuleJson {
+  root: string;
+  tables: Record<string, FieldInfo[]>;
+  enums: Record<string, Record<string, number>>;
+}
+
 function parseModule(src: string): { tables: Map<string, FieldInfo[]>; enums: Map<string, Map<string, number>>; root: string } {
   const tables = new Map<string, FieldInfo[]>();
   const enums = new Map<string, Map<string, number>>();
@@ -106,7 +113,7 @@ function main() {
     const src = raw.replace(/\r\n/g, "\n"); // Windows 行尾归一化
     const { tables, enums, root } = parseModule(src);
     if (!tables.size) continue;
-    const out: any = { root, tables: {}, enums: {} };
+    const out: SchemaModuleJson = { root, tables: {}, enums: {} };
     for (const [k, v] of tables) out.tables[k] = v;
     for (const [k, v] of enums) out.enums[k] = Object.fromEntries(v);
     fs.writeFileSync(path.join(OUT_DIR, f.replace(".py", ".json")), JSON.stringify(out));

@@ -1,5 +1,6 @@
 import { ItemType, ItemBundle } from "@excel/excel";
 import { RoguelikeV2Manager } from "./logic";
+import type { RoguelikeItemBundle } from "./rlv2";
 import { BattleData } from "../../kernel/battle-model";
 import { decryptBattleData, decryptBattleReplay } from "@utils/crypt";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
@@ -17,6 +18,26 @@ const battleSessionByUid = new Map<
 >();
 
 /**
+ * rlv2 战斗结算报文视图（解密 data 与请求明文 battleData 合并后的形状）
+ *
+ * 客户端 battleFinish 的 battleData 为完整战报（BattleData + 结算摘要
+ * finalHp/isPerfect 等），解密 data 同形；合并规则为"请求兜底、解密优先"。
+ */
+interface Rlv2BattleReport extends Partial<BattleData> {
+  /** 结算时剩余生命（仅战报留存，不入 earn） */
+  finalHp?: number;
+  /** 完美作战标记（三星 isPerfect=1） */
+  isPerfect?: number;
+}
+
+/** 战斗奖励组（BATTLE_REWARD 事件 payload 的单档：index/items/done） */
+interface Rlv2BattleRewardBlock {
+  index: number;
+  items: RoguelikeItemBundle[];
+  done: number;
+}
+
+/**
  * 组装 rlv2 战斗结束记录（battle_records 表留存，供未来分析）
  *
  * @param controller - RoguelikeV2Manager（提供 _player.data 访问底层 PlayerDataManager）
@@ -31,7 +52,7 @@ function buildRlv2Record(
   controller: RoguelikeV2Manager,
   battleId: string,
   stageId: string,
-  decryptResult: any,
+  decryptResult: Rlv2BattleReport | null,
   rewards: ItemBundle[],
   opts: { isCheat?: string; battleLog?: unknown } = {},
 ): BattleRecord {
@@ -130,9 +151,9 @@ export class RoguelikeBattleManager {
    * @returns 合并后的战报对象（两者皆空返回 null）
    */
   private mergeBattleData(
-    decryptResult: any,
-    requestBattleData: any,
-  ): any {
+    decryptResult: Rlv2BattleReport | null,
+    requestBattleData: BattleData | undefined,
+  ): Rlv2BattleReport | null {
     if (!decryptResult && !requestBattleData) return null;
     return { ...(requestBattleData ?? {}), ...(decryptResult ?? {}) };
   }
@@ -148,11 +169,11 @@ export class RoguelikeBattleManager {
    * @returns 解析出的 battleId 与 stageId
    */
   private resolveBattleContext(
-    battleData: any,
+    battleData: Rlv2BattleReport | null,
     uid: string,
   ): { battleId: string; stageId: string } {
     const session = battleSessionByUid.get(uid);
-    const reportBattleId = battleData?.battleId as string | undefined;
+    const reportBattleId = battleData?.battleId;
     if (reportBattleId && session?.battleId && reportBattleId !== session.battleId) {
       logger.warn(
         "rlv2",
@@ -198,13 +219,13 @@ export class RoguelikeBattleManager {
     if (this._player._module.hasModule("DICE")) {
       let diceUpgradeCount = 0;
       const relics = Object.values(this._player.inventory!.relic || {});
-      const firstRelic = relics[0] as any;
+      const firstRelic = relics[0];
       const band = firstRelic?.id || "";
       if (band === "rogue_2_band_16" || band === "rogue_2_band_17" || band === "rogue_2_band_18") {
         diceUpgradeCount += 1;
       }
       for (const relic of relics) {
-        if ((relic as any).id === "rogue_2_relic_grace_63") {
+        if (relic.id === "rogue_2_relic_grace_63") {
           diceUpgradeCount += 1;
           break;
         }
@@ -252,7 +273,7 @@ export class RoguelikeBattleManager {
     },
   ]) {
     const loginTime = this._player._player.loginTime;
-    let decryptResult: any = null;
+    let decryptResult: BattleData | null = null;
     try {
       decryptResult = await decryptBattleData(args.data, loginTime);
     } catch {
@@ -312,9 +333,10 @@ export class RoguelikeBattleManager {
     // 直接进 WAIT_MOVE（表现为"进入 zone 而不弹 BATTLE_REWARD"），而真实失败（1）反而误发奖励。
     // 判定基于合并后战报（解密 data 优先，请求明文 battleData 兜底）。
     const battleStats = battleInfo?.battleData?.stats;
-    if (battleInfo?.completeState >= 2) {
+    // 缺省视为未通关（原 `undefined >= 2` 同为 false）
+    if ((battleInfo?.completeState ?? 0) >= 2) {
       // 战斗胜利：rogue_3 CHAOS 模块累积坍缩值（每次胜利 +1，达到上限升层）
-      const chaosMgr = this._player._module._modules["CHAOS"];
+      const chaosMgr = this._player._module.chaos;
       chaosMgr?.gainChaos(1);
       const finalHp = battleInfo?.finalHp || 0;
       const maxHp = this._player._status.property.hp.max;
@@ -342,7 +364,7 @@ export class RoguelikeBattleManager {
       ]);
 
       // —— 战斗奖励组构建：奖励组"序 + 内容"对齐官服黑流树海 battleFinish（金/废品/招募券）——
-      const rewards: any[] = [];
+      const rewards: Rlv2BattleRewardBlock[] = [];
 
       // 节点/阶段判定（boss 战必掉多件——废品/收藏品数量加成）
       // 兼容黑流树海（map.zones 键为区域索引 1000+）与标准主题（层号键）
@@ -354,7 +376,7 @@ export class RoguelikeBattleManager {
       const node = pos
         ? mapZones[zoneKey]?.nodes[pos.x * 100 + pos.y]
         : undefined;
-      const curStageId = (node as any)?.stage || "";
+      const curStageId = node?.stage || "";
       const isBoss = curStageId.includes("_b_");
 
       // 黄金奖励（官服 index 0）：基础 5-14，随击杀表现上调上限（每 10 杀 +5，封顶 30）
@@ -374,7 +396,7 @@ export class RoguelikeBattleManager {
         const scrapPool = Object.keys(
           excel.RoguelikeTopicTable.modules[theme]?.scrap?.scrapItemToType || {},
         );
-        const scrapRewards: any[] = [];
+        const scrapRewards: RoguelikeItemBundle[] = [];
         const scrapCount = isBoss ? 2 : random() < 0.5 ? 1 : 0;
         for (let i = 0; i < scrapCount && scrapPool.length > 0; i++) {
           const pick =
@@ -416,11 +438,11 @@ export class RoguelikeBattleManager {
         // 收藏品池过滤已拥有，boss 战必掉 2 个）
         const relicChance = isBoss ? 1 : 0.4; // 简化概率：普通/紧急 40%，boss 100%
         const hasRelic = Object.values(this._player.inventory!.relic || {}).map(
-          (r) => (r as any).id,
+          (r) => r.id,
         );
         const relicCount = isBoss ? 2 : 1;
         if (random() < relicChance) {
-          const relicItems: any[] = [];
+          const relicItems: RoguelikeItemBundle[] = [];
           for (let i = 0; i < relicCount; i++) {
             const relicId = this._player._pool.getRelic(
               "pool_relic_all",
@@ -438,15 +460,15 @@ export class RoguelikeBattleManager {
         // 黑流树海战斗藏品掉落（路标档案馆观测池 lubiao.wiki /pools/rogue_6）：
         // 作战/紧急作战/险路恶敌/居民据点各有独立池，事件战斗（湖中仙女/无效验尸/
         // 狭路相逢）按关卡选池；普通/紧急 40% 概率，首领与居民据点必掉（首领 2 件）。
-        const nodeType = (node as any)?.type as number | undefined;
+        const nodeType = node?.type;
         const isSavage = nodeType === ROGUE6_NODE.RESIDENT;
         const ro6Chance = isBoss || isSavage ? 1 : 0.4;
         if (random() < ro6Chance) {
           const owned = Object.values(this._player.inventory!.relic || {}).map(
-            (r) => (r as any).id,
+            (r) => r.id,
           );
           const ro6Count = isBoss ? 2 : 1;
-          const relicItems: any[] = [];
+          const relicItems: RoguelikeItemBundle[] = [];
           for (let i = 0; i < ro6Count; i++) {
             const relicId = this.pickBattleRelic(nodeType, curStageId, owned);
             if (!relicId) break;
@@ -458,7 +480,7 @@ export class RoguelikeBattleManager {
           if (curStageId.startsWith("ro6_duel")) {
             const scrapId = this.pickFromPool("node_duel_scrap", [], (id) => {
               const items = excel.RoguelikeTopicTable.details[theme]?.items;
-              return (items as any)?.[id]?.type === "SCRAP";
+              return items?.[id]?.type === "SCRAP";
             });
             if (scrapId) {
               relicItems.push({
@@ -480,7 +502,7 @@ export class RoguelikeBattleManager {
           if (random() < extraChance) {
             const owned = Object.values(
               this._player.inventory!.relic || {},
-            ).map((r) => (r as any).id);
+            ).map((r) => r.id);
             const extraId = this.pickFromPool("drop_extra_pool", owned);
             if (extraId) {
               rewards.push({
@@ -513,9 +535,7 @@ export class RoguelikeBattleManager {
 
       // —— 战斗结束记录留存（win 路径）：扁平化奖励摘要 + 统计 + 回放/反作弊标识入库 ——
       const flatRewards: ItemBundle[] = [];
-      for (const block of rewards as {
-        items?: { sub: number; id: string; count: number }[];
-      }[]) {
+      for (const block of rewards) {
         for (const it of block.items ?? []) {
           flatRewards.push({ type: "" as ItemType, id: it.id, count: it.count });
         }
@@ -636,10 +656,8 @@ export class RoguelikeBattleManager {
   ): string {
     const theme = this._player.current.game?.theme || "";
     const detail = excel.RoguelikeTopicTable.details[theme];
-    const ok = validate ?? ((id: string) => !!(detail as any)?.relics?.[id]);
-    const pool = (this._player._pool as any)?._pools?.[poolId] as
-      | string[]
-      | undefined;
+    const ok = validate ?? ((id: string) => !!detail?.relics?.[id]);
+    const pool = this._player._pool?._pools?.[poolId];
     if (!pool) return "";
     const avail = pool.filter((id) => !owned.includes(id) && ok(id));
     if (avail.length === 0) return "";
@@ -651,7 +669,7 @@ export class RoguelikeBattleManager {
   /** 是否持有指定分队（开局分队以收藏品形式入库存，如地质调查分队） */
   private hasBand(bandId: string): boolean {
     return Object.values(this._player.inventory?.relic || {}).some(
-      (r: any) => r.id === bandId,
+      (r) => r.id === bandId,
     );
   }
 }

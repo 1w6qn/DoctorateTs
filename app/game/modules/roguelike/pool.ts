@@ -123,9 +123,9 @@ export class RoguelikePoolManager {
       });
     // 收藏品池填充（type === RELIC 的物品，含诅咒/遗物等）
     for (const [id, item] of Object.entries(detail.items)) {
-      if ((item as any).type !== "RELIC") continue;
+      if (item.type !== "RELIC") continue;
       this._pools["pool_relic_all"].push(id);
-      const rarity = (item as any).rarity;
+      const rarity = item.rarity;
       if (rarity === "NORMAL") {
         this._pools["pool_relic_normal"].push(id);
       } else if (rarity === "RARE") {

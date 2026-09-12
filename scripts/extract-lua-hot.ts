@@ -65,9 +65,16 @@ function defaultRefDir(): string {
 /** Lua 资产名前缀（对齐客户端资源名约定） */
 const LUA_PREFIX = "gamedata/[uc]lua/";
 
+/** 热更清单中的单个 AssetBundle 条目（官方 hot_update_list.json） */
 interface AbInfo {
   name: string;
-  totalSize: number;
+  /** 清单里可能缺省（消费侧按 undefined 放行） */
+  totalSize?: number;
+}
+
+/** 官方热更清单（仅声明本脚本读取的字段） */
+interface HotUpdateList {
+  abInfos?: AbInfo[];
 }
 
 /** 提取统计 */
@@ -91,16 +98,16 @@ function transName(name: string): string {
  * 拉取官方热更清单（失败回退本地快照）。
  * @returns 清单对象与 resVersion
  */
-async function fetchHotUpdateList(): Promise<{ hul: any; resVersion: string }> {
+async function fetchHotUpdateList(): Promise<{ hul: HotUpdateList; resVersion: string }> {
   try {
     const verRes = await fetch(CONF_VERSION);
     const ver = (await verRes.json()) as { resVersion: string };
     const url = `${HU}/Windows/assets/${ver.resVersion}/hot_update_list.json`;
     const res = await fetch(url);
-    const hul = await res.json();
+    const hul: HotUpdateList = await res.json();
     return { hul, resVersion: ver.resVersion };
   } catch {
-    const hul = JSON.parse(fs.readFileSync(HUL_SNAPSHOT, "utf-8"));
+    const hul: HotUpdateList = JSON.parse(fs.readFileSync(HUL_SNAPSHOT, "utf-8"));
     return { hul, resVersion: "26-08-07-10-51-39" };
   }
 }
@@ -296,7 +303,7 @@ export async function extractLuaFromHotUpdate(opts: {
   if (opts.fetch) {
     const sizeCapByte = (opts.sizeCapMB ?? 6) * 1024 * 1024;
     const { hul, resVersion } = await fetchHotUpdateList();
-    const candidates = (hul.abInfos as AbInfo[] || []).filter(
+    const candidates = (hul.abInfos || []).filter(
       (ab) =>
         ab.name.startsWith("anon/") &&
         (ab.totalSize === undefined || ab.totalSize <= sizeCapByte),

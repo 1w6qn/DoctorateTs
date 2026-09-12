@@ -6,6 +6,27 @@
  * 实现为迁移前 buff.ts 的逐字副本（2026-08-26），导出面与迁移前一致
  * （buff.ts 在此 re-export，外部调用方零改动）。
  */
+import type { Excel } from "@excel/excel";
+
+/** excel.BuildingData.buffs 的单行类型（经 excel 防腐层的类实例索引访问，不直连生成文件） */
+type ExcelBuildingBuff = Excel["BuildingData"]["buffs"][string];
+
+/**
+ * 解析引擎读取的 buff 字段子集（精确类型：取自生成类型 BuildingData_BuildingBuff）。
+ *
+ * 字段全部可选：引擎对缺失字段有既有兜底（`?? 0` / `?? ""`），测试夹具也只构造部分字段；
+ * excel 真表整行（字段更全、必填）可直接赋入本类型，无需 cast。
+ */
+export interface BuildingBuffLike
+  extends Partial<
+    Pick<
+      ExcelBuildingBuff,
+      "buffId" | "roomType" | "description" | "efficiency" | "targets"
+    >
+  > {
+  /** 官方参数数组（生成类型未建模，运行时存在于 buff 行；语义由各模板 JSDoc 标注） */
+  param?: string[];
+}
 
 /** "PHASE_2" → 2；未知/缺失 → 0（同时接受数字原值） */
 export function phaseRank(phase?: string | number | null): number {
@@ -101,7 +122,7 @@ export function buffGroupKey(buffId: string): string {
  * - 否则描述 <@cc.vup>：带 % → /100；DORMITORY 无 % → 心情恢复原值（点/小时）
  * - 其余无 %（机器人/阈值/计数）→ 0（不贡献，避免误读）
  */
-export function buffValue(buff: any): number {
+export function buffValue(buff: BuildingBuffLike | null | undefined): number {
   return buffValueForTarget(buff, buff?.roomType);
 }
 
@@ -111,7 +132,10 @@ export function buffValue(buff: any): number {
  * 兜底链路：efficiency → vup 标签 → vdown/vdo 带 % 标签 → 纯文本百分比 → 0
  * （计数/阈值类如"每 N 个机器人"不贡献，避免生产速度虚高）。
  */
-export function buffValueForTarget(buff: any, targetRoom?: string | null): number {
+export function buffValueForTarget(
+  buff: BuildingBuffLike | null | undefined,
+  targetRoom?: string | null,
+): number {
   if (buff == null) return 0;
   const eff = buff.efficiency;
   if (typeof eff === "number" && eff > 0) return eff / 100;
@@ -134,7 +158,10 @@ export function buffValueForTarget(buff: any, targetRoom?: string | null): numbe
 }
 
 /** 列表内按同技能分组取最高后的总和（用于"同种效果取最高/槽位多档技能"） */
-export function maxByGroup(buffs: any[], resolver: (b: any) => number): number {
+export function maxByGroup(
+  buffs: BuildingBuffLike[],
+  resolver: (b: BuildingBuffLike) => number,
+): number {
   const best = new Map<string, number>();
   for (const b of buffs ?? []) {
     const key = buffGroupKey(b?.buffId ?? "");

@@ -56,6 +56,11 @@ interface AbInfo {
   abSize?: number;
 }
 
+/** 官方热更清单（仅声明本脚本读取的字段） */
+interface HotUpdateList {
+  abInfos?: AbInfo[];
+}
+
 /** 当前 Lua 主 bundle 名（兜底，用于历史/已知 base 名） */
 const FALLBACK_LUA_NAME = "anon/7d91430e114d86fef7d3b3511151e12d.bin";
 
@@ -97,14 +102,14 @@ function platformResVersion(platform: string): string {
  * @param platform - 平台键（Windows/Android）
  * @returns 清单对象与 resVersion
  */
-async function fetchCurrentHotUpdateList(platform: string): Promise<{ hul: any; resVersion: string }> {
+async function fetchCurrentHotUpdateList(platform: string): Promise<{ hul: HotUpdateList; resVersion: string }> {
   const verRes = await fetch(CONF_VERSION.replace("/Windows/", `/${platform}/`));
   if (!verRes.ok) throw new Error(`拉取版本失败: HTTP ${verRes.status}`);
   const ver = (await verRes.json()) as { resVersion: string };
   const url = `${HU}/${platform}/assets/${ver.resVersion}/hot_update_list.json`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`拉取热更清单失败: HTTP ${res.status} @ ${url}`);
-  const hul = await res.json();
+  const hul: HotUpdateList = await res.json();
   fs.mkdirSync(HUL_DIR, { recursive: true });
   const fp = path.join(HUL_DIR, `hot_update_list_${ver.resVersion}.json`);
   fs.writeFileSync(fp, JSON.stringify(hul, null, 2));
@@ -175,7 +180,7 @@ async function ensureDownloaded(
  * @returns 含 DefinedFix 的官方 bundle 名（保持清单顺序）
  */
 async function detectDefinedFixBundles(
-  hul: any,
+  hul: HotUpdateList,
   resVersion: string,
   platform: string,
   offline: boolean,
@@ -303,7 +308,7 @@ export async function buildMinForCurrentVersion(
   fs.mkdirSync(platformOut, { recursive: true });
 
   // 1. 定位当前平台适配的版本清单
-  let hul: any;
+  let hul: HotUpdateList;
   let resVersion: string;
   let source: "live" | "snapshot";
   if (!offline) {

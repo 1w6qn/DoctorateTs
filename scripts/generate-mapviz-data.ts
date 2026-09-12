@@ -15,7 +15,22 @@ const nodesInfo = JSON.parse(fs.readFileSync(path.join(DATA, "rlv2/nodesInfo.jso
 
 const THEMES = ["rogue_1", "rogue_2", "rogue_3", "rogue_4", "rogue_5", "rogue_6"];
 
-const themes: any = {};
+/** 单个分区（nodesInfo.themes.<theme>.zones.<zoneId>）的关卡分组；额外键按原样透传 */
+interface MapvizZone {
+  Normal?: string[];
+  Emergency?: string[];
+  Boss?: string[];
+}
+
+/** 单个主题输出的关卡数据（zone 字典按键排序无关，仅原样 JSON 序列化） */
+interface MapvizTheme {
+  normal: string[];
+  elite: string[];
+  boss: string[];
+  zones: Record<string, MapvizZone>;
+}
+
+const themes: Record<string, MapvizTheme> = {};
 for (const theme of THEMES) {
   const roNum = parseInt(theme.split("_")[1]);
   const stages = Object.keys(topic.details[theme].stages || {});

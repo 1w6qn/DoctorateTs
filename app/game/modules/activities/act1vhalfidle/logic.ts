@@ -144,6 +144,77 @@ import {
 import { validateBody } from "../../../kernel/http/validate-body";
 
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
+import type { Draft } from "mutative";
+import type {
+  PlayerActivity,
+  PlayerCharacter,
+  PlayerDataModel,
+} from "../../../kernel/playerdata";
+import type { ServerPayload } from "@excel/json-value";
+import {
+  Act1vhalfidleCharUpgradeEliteResponse,
+  Act1vhalfidleCharUpgradeLevelResponse,
+  Act1vhalfidleCharUpgradeSkillResponse,
+  Act1vhalfidleHarvestResponse,
+  Act1vhalfidleRecruitNormalResponse,
+} from "../shared/activity";
+
+/** HALFIDLE_VERIFY1 存档原始形状（登记成员索引元素；字段全可选——ensureHalfIdleData 逐字段回填） */
+type HalfIdleDataRaw = NonNullable<PlayerActivity["HALFIDLE_VERIFY1"]>[string];
+
+/** HALFIDLE_VERIFY1 活动编队干员（官服 PlayerActivity_PlayerAct1VHalfIdleActivity_Act1VHalfIdleCharData） */
+interface HalfIdleChar {
+  instId: number;
+  charId: string;
+  level: number;
+  /** 遗留字段（旧存档 skillLvl，升级技能读取时兜底） */
+  skillLvl?: number;
+  skillLvlWithSpec: number;
+  evolvePhase: number;
+  isAssist: number;
+  defaultSkillId: string;
+  defaultEquipId: string;
+}
+
+/**
+ * HALFIDLE_VERIFY1 玩家存档（ensureHalfIdleData 回填后的完整形状）
+ *
+ * 与登记成员（全可选）的关系：本接口是「回填完成后」的视图，供消费侧免 `?.`；
+ * 回填在 {@link ensureHalfIdleData} 内完成，边界处一次收窄。
+ */
+interface HalfIdleData {
+  coin: number;
+  globalBan: number;
+  troop: {
+    chars: { [instId: string]: HalfIdleChar };
+    trap: string[];
+    npc: string[];
+    assist: ServerPayload[];
+    extraAssist: number;
+  };
+  stage: {
+    [stageId: string]: { rate: { [itemId: string]: number }; bossState: number };
+  };
+  settleInfo: {
+    rate: { [itemId: string]: number };
+    bossState: number;
+    stageId: string;
+    progress: number;
+  };
+  production: {
+    rate: { [itemId: string]: number };
+    product: { [itemId: string]: number };
+    harvestTs: number;
+    refreshTs: number;
+  };
+  recruit: {
+    poolGain: { [poolId: string]: string[] };
+    poolTimes: { [poolId: string]: number };
+  };
+  milestone: { point: number; got: string[] };
+  inventory: { [itemId: string]: number };
+  tech: { unlock: string[] };
+}
 
 /**
  * act1vhalfidle 活动族业务逻辑（建议 11：族包五件套——router 仅路由注册，业务收敛于 logic）
@@ -165,8 +236,8 @@ export async function handleAct1vhalfidlebattleStart(player: PlayerDataManager, 
  */
 export async function handleAct1vhalfidlebattleFinish(player: PlayerDataManager, body: ActivityMiniBattleFinishRequest) {
   const cfg = vhalfidleConfig();
-  const activityId = String((body as any)?.activityId ?? VHALFIDLE_ACT_ID);
-  const stageId = String((body as any)?.stageId ?? "");
+  const activityId = String(body?.activityId ?? VHALFIDLE_ACT_ID);
+  const stageId = String(body?.stageId ?? "");
   if (!cfg || !stageId || !cfg.stageProductionData?.[stageId]) {
     return (miniBattleFinish(player, body));
   }
@@ -175,8 +246,8 @@ export async function handleAct1vhalfidlebattleFinish(player: PlayerDataManager,
     // 先按旧速率结算到此刻，再换速，避免改速当刻的产出被新速率吞掉
     accrueHalfIdleProducts(data, cfg);
     const rate = stageProductionRate(cfg, stageId);
-    const prev = data.stage[stageId] ?? {};
-    data.stage[stageId] = { rate, bossState: Number(prev.bossState ?? 0) };
+    const prev = data.stage[stageId];
+    data.stage[stageId] = { rate, bossState: Number(prev?.bossState ?? 0) };
     data.settleInfo = {
       rate,
       bossState: data.stage[stageId].bossState,
@@ -208,11 +279,12 @@ export async function handleAct1vhalfidleharvest(player: PlayerDataManager, body
     // 先按当前速率补算到此刻，再收取（原实现只在 refreshProduct 累积 → 直接 harvest 恒为空）
     accrueHalfIdleProducts(data, cfg);
     const production = data.production;
-    for (const [key, raw] of Object.entries(production.product ?? {})) {
+    const products: Record<string, number> = production.product ?? {};
+    for (const [key, raw] of Object.entries(products)) {
       // 产出按秒累计（可为小数），收取时取整、余数留池
       const count = Math.floor(Number(raw));
       if (!(count > 0)) continue;
-      production.product[key] = Number(raw) - count;
+      products[key] = Number(raw) - count;
       if (key === (cfg?.milestoneId ?? "act1vhalfidle_token_point")) {
         milestoneAdd += count;
       }
@@ -229,7 +301,7 @@ export async function handleAct1vhalfidleharvest(player: PlayerDataManager, body
     milestoneAdd,
     items,
     ...player.delta,
-  } satisfies { milestoneAdd: number; items: { itemId: string; count: number }[] } as any);
+  } satisfies Act1vhalfidleHarvestResponse);
 }
 
 /**
@@ -252,7 +324,7 @@ export async function handleAct1vhalfidleunlockTech(player: PlayerDataManager, b
       ok = false;
       return;
     }
-    const prev = (node.prevNodeId ?? []) as string[];
+    const prev = node.prevNodeId ?? [];
     if (prev.some((id) => !data.tech.unlock.includes(id))) {
       ok = false;
       return;
@@ -283,12 +355,12 @@ export async function handleAct1vhalfidleunlockTech(player: PlayerDataManager, b
 export async function handleAct1vhalfidlerecruitNormal(player: PlayerDataManager, body: Act1vhalfidleRequest) {
   if (!body.activityId) return ({ result: 1, ...player.delta });
   const cfg = vhalfidleConfig();
-  const poolId = String((body as any).poolId ?? "normalGachaPool");
+  const poolId = String(body.poolId ?? "normalGachaPool");
   const pool = cfg?.gachaPoolData?.[poolId];
   if (!cfg || !pool) return ({ result: 1, ...player.delta });
-  const requested = Math.floor(Number((body as any).count ?? 1));
+  const requested = Math.floor(Number(body.count ?? 1));
   const count = Math.max(1, Math.min(10, Number.isFinite(requested) && requested > 0 ? requested : 1));
-  const chooseCharId = String((body as any).charId ?? "");
+  const chooseCharId = String(body.charId ?? "");
   let ticketCount = 0;
   let ok = true;
   await player.update(async (draft) => {
@@ -320,7 +392,7 @@ export async function handleAct1vhalfidlerecruitNormal(player: PlayerDataManager
   return ({
     ticketCount,
     ...player.delta,
-  } as any);
+  } satisfies Act1vhalfidleRecruitNormalResponse);
 }
 
 /**
@@ -333,7 +405,7 @@ export async function handleAct1vhalfidlerecruitNormal(player: PlayerDataManager
 export async function handleAct1vhalfidlerecruitDirect(player: PlayerDataManager, body: Act1vhalfidleRequest) {
   if (!body.activityId) return ({ result: 1, ...player.delta });
   const cfg = vhalfidleConfig();
-  const charId = String((body as any).charId ?? "");
+  const charId = String(body.charId ?? "");
   const pool = pickDirectPool(cfg, charId);
   if (!cfg || !pool || !charId) return ({ result: 1, ...player.delta });
   let ok = true;
@@ -364,14 +436,14 @@ export async function handleAct1vhalfidleupgradeChar(player: PlayerDataManager, 
   let currentLvl = 0;
   await player.update(async (draft) => {
     const data = ensureHalfIdleData(draft, body.activityId!);
-    const actChar = data.troop.chars[String((body as any).charInstId ?? "")];
+    const actChar = data.troop.chars[String(body.charInstId ?? "")];
     if (!actChar) return;
     charId = actChar.charId;
-    if ((body as any).level) actChar.level = (body as any).level;
+    if (body.level) actChar.level = body.level;
     currentLvl = actChar.level;
   });
   // CS: Act1VHalfIdleCharUpgradeLevelResponse { charId, currentLvl }
-  return ({ charId, currentLvl, ...player.delta } as any);
+  return ({ charId, currentLvl, ...player.delta } satisfies Act1vhalfidleCharUpgradeLevelResponse);
 }
 
 export async function handleAct1vhalfidleupgradeSkill(player: PlayerDataManager, body: Act1vhalfidleRequest) {
@@ -380,15 +452,15 @@ export async function handleAct1vhalfidleupgradeSkill(player: PlayerDataManager,
   let currentLvl = 0;
   await player.update(async (draft) => {
     const data = ensureHalfIdleData(draft, body.activityId!);
-    const actChar = data.troop.chars[String((body as any).charInstId ?? "")];
+    const actChar = data.troop.chars[String(body.charInstId ?? "")];
     if (!actChar) return;
     charId = actChar.charId;
     // 官服字段为 skillLvlWithSpec（types-playerdata Act1VHalfIdleCharData）
-    if ((body as any).skillLvl) actChar.skillLvlWithSpec = (body as any).skillLvl;
+    if (body.skillLvl) actChar.skillLvlWithSpec = body.skillLvl;
     currentLvl = actChar.skillLvlWithSpec ?? actChar.skillLvl ?? 0;
   });
   // CS: Act1VHalfIdleCharUpgradeSkillResponse { charId, currentLvl }
-  return ({ charId, currentLvl, ...player.delta } as any);
+  return ({ charId, currentLvl, ...player.delta } satisfies Act1vhalfidleCharUpgradeSkillResponse);
 }
 
 export async function handleAct1vhalfidleevolveChar(player: PlayerDataManager, body: Act1vhalfidleRequest) {
@@ -397,11 +469,11 @@ export async function handleAct1vhalfidleevolveChar(player: PlayerDataManager, b
   let currentEvolvePhase = 0;
   await player.update(async (draft) => {
     const data = ensureHalfIdleData(draft, body.activityId!);
-    const actChar = data.troop.chars[String((body as any).charInstId ?? "")];
+    const actChar = data.troop.chars[String(body.charInstId ?? "")];
     if (!actChar) return;
     charId = actChar.charId;
-    if ((body as any).evolvePhase != null) {
-      actChar.evolvePhase = (body as any).evolvePhase;
+    if (body.evolvePhase != null) {
+      actChar.evolvePhase = body.evolvePhase;
       const cap = halfIdleRankCap(actChar);
       actChar.skillLvlWithSpec = cap.maxSkillRank;
       if (actChar.level > cap.maxLevel) actChar.level = cap.maxLevel;
@@ -409,7 +481,7 @@ export async function handleAct1vhalfidleevolveChar(player: PlayerDataManager, b
     currentEvolvePhase = actChar.evolvePhase;
   });
   // CS: Act1VHalfIdleCharUpgradeEliteResponse { charId, currentEvolvePhase, item }
-  return ({ charId, currentEvolvePhase, item: null, ...player.delta } as any);
+  return ({ charId, currentEvolvePhase, item: null, ...player.delta } satisfies Act1vhalfidleCharUpgradeEliteResponse);
 }
 
 export async function handleAct1vhalfidlereplaceRate(player: PlayerDataManager, body: Act1vhalfidleRequest) {
@@ -420,7 +492,7 @@ export async function handleAct1vhalfidlesetAssistChar(player: PlayerDataManager
   if (!body.activityId) return ({ result: 1, ...player.delta });
   await player.update(async (draft) => {
     const data = ensureHalfIdleData(draft, body.activityId!);
-    const actChar = data.troop.chars[String((body as any).charInstId ?? "")];
+    const actChar = data.troop.chars[String(body.charInstId ?? "")];
     if (actChar) actChar.isAssist = 1;
   });
   return (player.delta satisfies ActivityStubResponse);
@@ -437,7 +509,10 @@ export async function handleAct1vhalfidlesetAssistChar(player: PlayerDataManager
  * 原实现缺少 coin/stage/settleInfo/milestone/globalBan，且 troop 用错字段名 char（官服为 chars）、
  * recruit 缺 poolGain —— 客户端读不到任命结果与科技/里程碑进度。
  */
-function ensureHalfIdleData(draft: any, activityId: string): any {
+function ensureHalfIdleData(
+  draft: Draft<PlayerDataModel>,
+  activityId: string,
+): HalfIdleData {
   // 修复：draft.activity / HALFIDLE_VERIFY1 缺失时可能为 undefined，先兜底再重读引用，
   // 避免赋值后本地变量仍为 undefined，导致 hf[activityId] 抛「reading 'undefined'」500。
   if (!draft.activity) draft.activity = {};
@@ -477,17 +552,20 @@ function ensureHalfIdleData(draft: any, activityId: string): any {
   if (!data.inventory) data.inventory = {};
   if (!data.tech) data.tech = {};
   if (!Array.isArray(data.tech.unlock)) data.tech.unlock = [];
-  return data;
+  // 回填完成后按完整形状收窄（登记成员全可选，消费侧免 ?.）
+  return data as HalfIdleData;
 }
 
 /**
  * 按已通关关卡的产出表重算 production.rate（各关卡同名物品相加）
  * @param data - 活动状态
  */
-function syncProductionRate(data: any): void {
+function syncProductionRate(data: HalfIdleData): void {
   const rate: Record<string, number> = {};
-  for (const info of Object.values(data.stage ?? {}) as any[]) {
-    for (const [item, v] of Object.entries(info?.rate ?? {})) {
+  const stages: HalfIdleData["stage"] = data.stage ?? {};
+  for (const info of Object.values(stages)) {
+    const itemRate: Record<string, number> = info?.rate ?? {};
+    for (const [item, v] of Object.entries(itemRate)) {
       rate[item] = Number(rate[item] ?? 0) + Number(v ?? 0);
     }
   }
@@ -502,7 +580,7 @@ function syncProductionRate(data: any): void {
  * @param data - 活动状态
  * @param cfg - 活动配置（缺失时按无上限结算，兼容旧存档）
  */
-function accrueHalfIdleProducts(data: any, cfg?: VHalfIdleConfig): void {
+function accrueHalfIdleProducts(data: HalfIdleData, cfg?: VHalfIdleConfig): void {
   const production = data.production;
   const t = now();
   const last = Number(production.refreshTs ?? production.harvestTs ?? t);
@@ -511,8 +589,9 @@ function accrueHalfIdleProducts(data: any, cfg?: VHalfIdleConfig): void {
   const dt = Math.min(Math.max(0, t - last), window);
   if (dt <= 0) return;
   const hours = dt / 3600;
-  const caps = cfg?.productMaxEfficiencyDict ?? {};
-  for (const [item, rawRate] of Object.entries(production.rate ?? {})) {
+  const caps: Record<string, number> = cfg?.productMaxEfficiencyDict ?? {};
+  const activeRate: Record<string, number> = production.rate ?? {};
+  for (const [item, rawRate] of Object.entries(activeRate)) {
     const perHour = Number(rawRate ?? 0);
     if (!(perHour > 0)) continue;
     const cap = Number(caps[item] ?? 0);
@@ -539,8 +618,8 @@ function accrueHalfIdleProducts(data: any, cfg?: VHalfIdleConfig): void {
 function resolveRecruitTargets(
   cfg: VHalfIdleConfig,
   pool: VHalfIdleGachaPool,
-  draft: any,
-  recruit: any,
+  draft: Draft<PlayerDataModel>,
+  recruit: HalfIdleData["recruit"],
   count: number,
   chooseCharId: string,
 ): string[] {
@@ -558,8 +637,9 @@ function resolveRecruitTargets(
   }
   if (type === "GACHA_NEWPLAYER") return pickRandom(pool.charData ?? [], count);
   // GACHA_NORMAL：排除专项任命/机动密令已含干员、未持有的联动干员、1~2 星
+  const ownedChars: Record<string, PlayerCharacter> = draft.troop.chars ?? {};
   const owned = new Set(
-    (Object.values(draft.troop.chars ?? {}) as any[]).map((c) => String(c.charId)),
+    Object.values(ownedChars).map((c) => String(c.charId)),
   );
   const reserved = new Set<string>();
   for (const p of Object.values(cfg.gachaPoolData ?? {})) {
@@ -613,7 +693,10 @@ function pickDirectPool(cfg: VHalfIdleConfig | undefined, charId: string): VHalf
  * @param actChar - 活动干员
  * @returns 上限（无配置时按 90 级 / 10 技能兜底）
  */
-function halfIdleRankCap(actChar: any): { maxLevel: number; maxSkillRank: number } {
+function halfIdleRankCap(actChar: {
+  charId?: string;
+  evolvePhase?: number;
+}): { maxLevel: number; maxSkillRank: number } {
   const cfg = vhalfidleConfig();
   const rarity = excel.charData(String(actChar?.charId ?? ""))?.rarity;
   const tier = "TIER_" + (rarityToIndex(rarity) + 1);
@@ -633,11 +716,16 @@ function halfIdleRankCap(actChar: any): { maxLevel: number; maxSkillRank: number
  * @param charId - 干员 id
  * @returns 是否新增成功
  */
-function addHalfIdleChar(draft: any, data: any, charId: string): boolean {
+function addHalfIdleChar(
+  draft: Draft<PlayerDataModel>,
+  data: HalfIdleData,
+  charId: string,
+): boolean {
   if (!charId || !excel.charData(charId)) return false;
   const chars = data.troop.chars;
-  if ((Object.values(chars) as any[]).some((c) => c?.charId === charId)) return false;
-  const roster = Object.values(draft.troop.chars ?? {}) as any[];
+  if (Object.values(chars).some((c) => c?.charId === charId)) return false;
+  const rosterTable: Record<string, PlayerCharacter> = draft.troop.chars ?? {};
+  const roster = Object.values(rosterTable);
   const owned = roster.find((c) => c?.charId === charId);
   const instId = Number(owned?.instId ?? nextHalfIdleInstId(draft, chars));
   const evolvePhase = Number(owned?.evolvePhase ?? 0);
@@ -661,10 +749,14 @@ function addHalfIdleChar(draft: any, data: any, charId: string): boolean {
  * @param chars - 活动编队干员表
  * @returns 未占用的 instId
  */
-function nextHalfIdleInstId(draft: any, chars: Record<string, any>): number {
+function nextHalfIdleInstId(
+  draft: Draft<PlayerDataModel>,
+  chars: { [instId: string]: { instId?: number } },
+): number {
   let max = 0;
   for (const key of Object.keys(chars)) max = Math.max(max, Number(key) || 0);
-  for (const c of Object.values(draft.troop.chars ?? {}) as any[]) {
+  const rosterTable: Record<string, PlayerCharacter> = draft.troop.chars ?? {};
+  for (const c of Object.values(rosterTable)) {
     max = Math.max(max, Number(c?.instId) || 0);
   }
   return max + 1;

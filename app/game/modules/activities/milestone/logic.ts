@@ -144,6 +144,18 @@ import {
 import { validateBody } from "../../../kernel/http/validate-body";
 
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
+import type { PlayerTemplateShop } from "../../../kernel/playerdata";
+import { activityDetailJson, asShape } from "../shared/activity-json";
+
+/** 里程碑配置条目（点数型 mileStoneList / 代币型 milestoneList 的并集消费面） */
+type MilestoneConfigJson = {
+  mileStoneId?: string;
+  milestoneId?: string;
+  needPointCnt?: number;
+  tokenNum?: number;
+  rewardItem?: ItemBundle;
+  reward?: ItemBundle;
+};
 
 /**
  * 活动里程碑配置（跨活动类型统一形状）
@@ -168,21 +180,19 @@ export interface MilestoneConfigEntry {
  * @returns 里程碑配置列表（无配置返回空数组）
  */
 export function resolveMilestoneList(activityId: string): MilestoneConfigEntry[] {
-  const dict = (excel.ActivityTable as { activity?: Record<string, Record<string, unknown>> })
-    ?.activity ?? {};
-  for (const typeKey of Object.keys(dict)) {
-    const detail = dict[typeKey]?.[activityId] as
-      | { mileStoneList?: unknown[]; milestoneList?: unknown[] }
-      | undefined;
+  const activity = excel.ActivityTable.activity;
+  for (const typeKey of Object.keys(activity)) {
+    const detail = asShape<{
+      mileStoneList?: MilestoneConfigJson[];
+      milestoneList?: MilestoneConfigJson[];
+    }>(activityDetailJson(excel.ActivityTable.activity, typeKey, activityId));
     if (!detail) continue;
-    const list = (detail.mileStoneList ?? detail.milestoneList) as
-      | Record<string, unknown>[]
-      | undefined;
+    const list = detail.mileStoneList ?? detail.milestoneList;
     if (!Array.isArray(list)) continue;
     return list.map((m) => ({
       id: String(m?.mileStoneId ?? m?.milestoneId ?? ""),
       need: Number(m?.needPointCnt ?? m?.tokenNum ?? 0),
-      reward: (m?.rewardItem ?? m?.reward) as ItemBundle | undefined,
+      reward: m?.rewardItem ?? m?.reward,
     }));
   }
   return [];
@@ -198,14 +208,12 @@ export function resolveMilestoneList(activityId: string): MilestoneConfigEntry[]
 function resolveMilestoneConfigs(activityId: string): MilestoneConfigEntry[] {
   const direct = resolveMilestoneList(activityId);
   if (direct.length > 0) return direct;
-  const act44 = resolveAct44Data(activityId)?.mileStoneList as
-    | Record<string, unknown>[]
-    | undefined;
+  const act44 = resolveAct44Data(activityId)?.mileStoneList;
   if (Array.isArray(act44)) {
     return act44.map((m) => ({
       id: String(m?.mileStoneId ?? ""),
       need: Number(m?.needPointCnt ?? 0),
-      reward: m?.rewardItem as ItemBundle | undefined,
+      reward: m?.rewardItem,
     }));
   }
   return [];
@@ -281,10 +289,7 @@ export async function handleRewardMilestone(player: PlayerDataManager, body: Rew
       return;
     }
     // 兜底：无标准 milestone 结构时沿用 MILESTONE_ONLY 标记（无配置可发，不发奖）
-    const store = ((draft.activity as Record<string, unknown>).MILESTONE_ONLY =
-      (draft.activity as Record<string, unknown>).MILESTONE_ONLY ?? {}) as {
-      [key: string]: { [key: string]: number };
-    };
+    const store = (draft.activity.MILESTONE_ONLY ??= {});
     if (!store[body.activityId]) store[body.activityId] = {};
     if (milestoneId) store[body.activityId][milestoneId] = 0;
   });
@@ -319,10 +324,7 @@ export async function handleRewardAllMilestone(player: PlayerDataManager, body: 
       }
       return;
     }
-    const store = ((draft.activity as Record<string, unknown>).MILESTONE_ONLY =
-      (draft.activity as Record<string, unknown>).MILESTONE_ONLY ?? {}) as {
-      [key: string]: { [key: string]: number };
-    };
+    const store = (draft.activity.MILESTONE_ONLY ??= {});
     if (!store[body.activityId]) store[body.activityId] = {};
     for (const milestoneId of Object.keys(store[body.activityId])) {
       store[body.activityId][milestoneId] = 0;
@@ -479,12 +481,10 @@ export async function handleGetActivityCollectionReward(player: PlayerDataManage
   const rewards: ItemBundle[] = [];
   let claimed = false;
    await player.update(async (draft) => {
-    if (!(draft.activity as any).COLLECTION) {
-      (draft.activity as any).COLLECTION = {};
+    if (!draft.activity.COLLECTION) {
+      draft.activity.COLLECTION = {};
     }
-    const collectionData = (draft.activity as any).COLLECTION as {
-      [key: string]: { [key: number]: number };
-    };
+    const collectionData = draft.activity.COLLECTION;
     if (!collectionData[body.activityId]) {
       collectionData[body.activityId] = {};
     }
@@ -497,15 +497,9 @@ export async function handleGetActivityCollectionReward(player: PlayerDataManage
     // 修复：excel activity 字典键大小写随数据版本多变（cOLLECTION 旧坏键/collection 规范键）
     // ——动态查键，不再依赖固定大小写
     const collectionKey = activityDictKey("COLLECTION") ?? "cOLLECTION";
-    const collectionConfig = (
-      excel.ActivityTable.activity as {
-        [key: string]: {
-          [key: string]: {
-            collections?: { id: string; itemId: string; itemCnt: number }[];
-          };
-        };
-      }
-    )[collectionKey]?.[body.activityId];
+    const collectionConfig = asShape<{
+      collections?: { id: string; itemId: string; itemCnt: number }[];
+    }>(activityDetailJson(excel.ActivityTable.activity, collectionKey, body.activityId));
     if (
       collectionConfig &&
       collectionConfig.collections &&
@@ -515,10 +509,12 @@ export async function handleGetActivityCollectionReward(player: PlayerDataManage
         (c) => c.id === String(body.collectionId),
       );
       if (collectionInfo) {
-        rewards.push({
+        // 配置仅给 itemId/itemCnt（无 itemType）——保持原行为，按 ItemBundle 形状入队
+        const rewardItem = asShape<ItemBundle>({
           id: collectionInfo.itemId,
           count: collectionInfo.itemCnt,
-          } as unknown as ItemBundle);
+        });
+        if (rewardItem) rewards.push(rewardItem);
       }
     }
     // 标记收集项为已领取（0 表示已领取）
@@ -537,8 +533,7 @@ export async function handleGetActivityCollectionReward(player: PlayerDataManage
 }
 
 export async function handleGetActivityShopInfo(player: PlayerDataManager, body: GetActivityShopInfoRequest) {
-   const playerData = player._playerdata as any;
-  const tshop = playerData.tshop || {};
+  const tshop: { [key: string]: PlayerTemplateShop } = player._playerdata.tshop || {};
   const shopInfo = tshop[body.shopId] || { coin: 0, info: [], progressInfo: {} };
    return {
     ...player.delta,

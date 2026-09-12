@@ -20,6 +20,34 @@ import { syncAct44SideEntry } from "../act44side/public";
 import { logger } from "@utils/logger";
 import config from "@core/config/index";
 import { scanUnlockChain } from "../../../kernel/util/stage-unlock";
+import type { Draft } from "mutative";
+import type {
+  MissionPlayerData,
+  PlayerActivity,
+  PlayerDataModel,
+  PlayerStatus,
+} from "../../../kernel/playerdata";
+import { activityDetailJson, asShape, isJsonObjectValue } from "./activity-json";
+import type { ServerPayload } from "@excel/json-value";
+
+/** ActivityTable.basicInfo 条目消费面（真正读取的字段；来自 excel 生成类型） */
+type BasicInfoEntry = {
+  type: string;
+  startTime: number;
+  rewardEndTime: number;
+  medalGroupId?: string;
+  ungroupedMedalIds?: string[];
+};
+
+/** ARK_HUB 播种默认状态（登记形状的索引元素；squads 支持官服空槽 `{ slots: [] }`） */
+type ArkhubSeedState = NonNullable<PlayerActivity["ARK_HUB"]>[string];
+
+/** TYPE_ACT53SIDE 播种默认状态（官方形状：actCoin/campaignCnt/favorList） */
+type Act53SideState = {
+  actCoin: number;
+  campaignCnt: number;
+  favorList: string[];
+};
 
 /**
  * 强制开启的活动 ID 集合（config.activities.forceOpen，忽略时间窗口无条件播种/不修剪）
@@ -45,7 +73,7 @@ function activityDetailKey(type: string): string {
  */
 export function activityDictKey(type: string): string | undefined {
   const norm = type.replace(/_/g, "").toLowerCase();
-  const dict = (excel.ActivityTable?.activity ?? {}) as Record<string, unknown>;
+  const dict = excel.ActivityTable.activity;
   return Object.keys(dict).find(
     (k) => k.replace(/_/g, "").toLowerCase() === norm,
   );
@@ -53,19 +81,23 @@ export function activityDictKey(type: string): string | undefined {
 
 /** BOSS_RUSH 默认遗物（relicList[0].relicId，缺省空） */
 function defaultRelic(activityType: string, actId: string): string {
-  const detail = (excel.ActivityTable.activity as Record<string, any>)?.[
-    activityDictKey(activityType) ?? activityDetailKey(activityType)
-  ]?.[actId];
+  const detail = asShape<{ relicList?: { relicId?: string }[] }>(
+    activityDetailJson(
+      excel.ActivityTable.activity,
+      activityDictKey(activityType) ?? activityDetailKey(activityType),
+      actId,
+    ),
+  );
   return detail?.relicList?.[0]?.relicId ?? "";
 }
 
 /** TYPE_ACT 信赖加成干员（charword startTimeWithTypeDict 按活动 startTime 匹配，缺省空） */
 function favorListFor(startTime: number): string[] {
   try {
-    const dict: any = (excel.CharWordTable as any)?.startTimeWithTypeDict;
+    const dict = excel.CharWordTable?.startTimeWithTypeDict;
     if (!dict) return [];
-    for (const lang of Object.values(dict) as any[]) {
-      for (const item of (lang ?? []) as any[]) {
+    for (const lang of Object.values(dict)) {
+      for (const item of lang ?? []) {
         if (item?.timestamp === startTime && Array.isArray(item.charSet)) {
           return item.charSet;
         }
@@ -78,7 +110,7 @@ function favorListFor(startTime: number): string[] {
 }
 
 /** ARK_HUB 活动默认状态（奇象巡展方舟枢纽；参考官服 syncData 快照形状） */
-function defaultArkhubState(): object {
+function defaultArkhubState(): ArkhubSeedState {
   // 空队伍槽 ×4（客户端展示 4 个可用编队位，参考官服快照 squads 数组形状）
   return {
     coin: 0,
@@ -118,21 +150,23 @@ function defaultArkhubState(): object {
  * @param mission - missionData 条目（id/template/param）
  * @returns 目标值；非既有模板返回 null（保持原"全可领"播种行为）
  */
-function arkhubMissionTarget(mission: any): number | null {
+function arkhubMissionTarget(
+  mission: { template?: string; param?: string[] } | undefined,
+): number | null {
   const tpl = mission?.template;
   // 奇象巡展（ARK_HUB）8 类模板
   if (tpl === "ArkhubMissionCompleted") return 1; // 引导（本服完成态，播种即完成）
-  if (tpl === "ArkhubDailyMissionCompleted") return parseInt(mission?.param?.[4]);
-  if (tpl === "ArkhubCreatureCollection") return parseInt(mission?.param?.[2]);
-  if (tpl === "ArkhubCreatureCaptured") return parseInt(mission?.param?.[2]);
-  if (tpl === "ArkhubCreatureExchange") return parseInt(mission?.param?.[2]);
-  if (tpl === "ArkhubPassDexBattle") return parseInt(mission?.param?.[2]);
-  if (tpl === "ArkhubPublishPixelArt") return parseInt(mission?.param?.[2]);
-  if (tpl === "ArkhubCollectPixelArt") return parseInt(mission?.param?.[2]);
+  if (tpl === "ArkhubDailyMissionCompleted") return parseInt(mission?.param?.[4] ?? "");
+  if (tpl === "ArkhubCreatureCollection") return parseInt(mission?.param?.[2] ?? "");
+  if (tpl === "ArkhubCreatureCaptured") return parseInt(mission?.param?.[2] ?? "");
+  if (tpl === "ArkhubCreatureExchange") return parseInt(mission?.param?.[2] ?? "");
+  if (tpl === "ArkhubPassDexBattle") return parseInt(mission?.param?.[2] ?? "");
+  if (tpl === "ArkhubPublishPixelArt") return parseInt(mission?.param?.[2] ?? "");
+  if (tpl === "ArkhubCollectPixelArt") return parseInt(mission?.param?.[2] ?? "");
   // act53side（arkodc）模板——播种真实 target，value:0 走事件驱动真实进度
   if (tpl === "CompleteAnyStage") return 1; // 通关指定关 1 次（param[2]=通关状态门槛）
-  if (tpl === "CompleteStageAct") return parseInt(mission?.param?.[2]); // 累计通关次数（15/45/85）
-  if (tpl === "ArkodcRewardGroupAtLeast") return parseInt(mission?.param?.[3]); // 收集奖励组数量
+  if (tpl === "CompleteStageAct") return parseInt(mission?.param?.[2] ?? ""); // 累计通关次数（15/45/85）
+  if (tpl === "ArkodcRewardGroupAtLeast") return parseInt(mission?.param?.[3] ?? ""); // 收集奖励组数量
   return null;
 }
 
@@ -149,7 +183,7 @@ function arkhubMissionWindowStart(param2?: string): number | null {
 }
 
 /** TYPE_ACT53SIDE（安洁莉娜的旅行小记主活动 / ODC）默认状态（官方形状：actCoin/campaignCnt/favorList） */
-function defaultAct53SideState(startTime: number): object {
+function defaultAct53SideState(startTime: number): Act53SideState {
   return {
     actCoin: 0,
     campaignCnt: 0,
@@ -163,7 +197,9 @@ function defaultAct53SideState(startTime: number): object {
  * @param medalInfo - MedalTable.medalList 条目
  * @returns 目标值（无模板/纯展示章返回 0——MedalProgress 不注册监听）
  */
-function medalSeedTarget(medalInfo: any): number {
+function medalSeedTarget(
+  medalInfo: { template?: string; unlockParam?: string[] } | undefined,
+): number {
   const tpl = medalInfo?.template;
   const p = medalInfo?.unlockParam ?? [];
   if (!tpl) return 0;
@@ -189,11 +225,11 @@ function medalSeedTarget(medalInfo: any): number {
  * MedalProgress 并注册事件监听 → 事件驱动的真实进度/完成才生效（act53side 6 个
  * 重写的勋章模板即依赖此）。含 advancedMedal（如 medal_activity_53side_105）一并播种。
  */
-function seedMedalGroup(draft: any, actId: string): void {
+function seedMedalGroup(draft: Draft<PlayerDataModel>, actId: string): void {
   const info = excel.ActivityTable?.basicInfo?.[actId];
   if (!info?.medalGroupId) return;
-  const groupData = (excel.MedalTable?.medalTypeData as any)?.activityMedal?.groupData;
-  const group = (groupData ?? []).find((g: any) => g.groupId === info.medalGroupId);
+  const groupData = excel.MedalTable?.medalTypeData?.["activityMedal"]?.groupData;
+  const group = (groupData ?? []).find((g) => g.groupId === info.medalGroupId);
   if (!group) return;
   draft.medal = draft.medal ?? { medals: {}, custom: { currentIndex: "", customs: {} } };
   const ids = [...(group.medalId ?? [])];
@@ -220,16 +256,18 @@ function seedMedalGroup(draft: any, actId: string): void {
  * 播种 arkodc 主题（ODC 地图状态：topics[topicId].varSeqs/rewards/position）
  * topicId 取自 activity.tYPE_ACT53SIDE[actId].constData.arkOdcTopicId
  */
-function seedArkOdcTopics(draft: any): void {
+function seedArkOdcTopics(draft: Draft<PlayerDataModel>): void {
   // 修复：硬编码坏键 tYPE_ACT53SIDE → 动态查键（数据版本键名多变）
-  const detail = excel.ActivityTable.activity?.[
+  const detail = excel.ActivityTable.activity[
     activityDictKey("TYPE_ACT53SIDE") ?? "tYPE_ACT53SIDE"
   ];
-  if (!detail) return;
-  for (const [actId, data] of Object.entries(detail) as [string, any][]) {
-    const topicId = data?.constData?.arkOdcTopicId;
+  if (!isJsonObjectValue(detail)) return;
+  for (const [actId, data] of Object.entries(detail)) {
+    const topicId = asShape<{ constData?: { arkOdcTopicId?: string } }>(
+      data,
+    )?.constData?.arkOdcTopicId;
     if (!topicId) continue;
-    if (!draft.arkodc) draft.arkodc = {};
+    if (!draft.arkodc) draft.arkodc = { topics: {} };
     if (!draft.arkodc.topics) draft.arkodc.topics = {};
     if (!draft.arkodc.topics[topicId]) {
       draft.arkodc.topics[topicId] = {
@@ -248,14 +286,20 @@ function seedArkOdcTopics(draft: any): void {
  * @param info  - basicInfo 条目
  * @param ts    - （可能冻结的）当前时间戳
  */
-function seedActivityState(draft: any, actId: string, info: any, ts: number): void {
+function seedActivityState(
+  draft: Draft<PlayerDataModel>,
+  actId: string,
+  info: BasicInfoEntry,
+  ts: number,
+): void {
   const type = info.type;
   draft.activity[type] = draft.activity[type] || {};
   const existing = draft.activity[type][actId];
 
   if (type === "BOSS_RUSH" && !existing) {
     const relic = defaultRelic(type, actId);
-    draft.activity[type][actId] = {
+    const bossRush = (draft.activity.BOSS_RUSH ??= {});
+    bossRush[actId] = {
       milestone: { point: 0, got: [] },
       relic: {
         token: { current: 0, total: 0 },
@@ -266,21 +310,27 @@ function seedActivityState(draft: any, actId: string, info: any, ts: number): vo
     };
   } else if (type === "ARK_HUB" && !existing) {
     // 奇象巡展方舟枢纽（官方形状：coin/secretary/squads/globalBan）
-    draft.activity[type][actId] = defaultArkhubState();
+    const arkhub = (draft.activity.ARK_HUB ??= {});
+    arkhub[actId] = defaultArkhubState();
   } else if (type === "TYPE_ACT53SIDE" && !existing) {
     // 安洁莉娜的旅行小记主活动（act53side / ODC；官方形状：actCoin/campaignCnt/favorList，与通用 TYPE_ACT 的 coin/news 不同）
-    draft.activity[type][actId] = defaultAct53SideState(info.startTime);
+    const act53 = (draft.activity.TYPE_ACT53SIDE ??= {});
+    act53[actId] = defaultAct53SideState(info.startTime);
   } else if (type === "TYPE_ACT44SIDE" && !existing) {
     // 「墟」情报屋主状态（官服抓包形状：informantPt/milestone/businessDay/
     // unlockedCustomers/unlockedTags/outerOpen，营业会话 game 缺省 null——
     // 由 /activity/act44side/* 路由按需创建）
-    draft.activity[type][actId] = defaultAct44State(favorListFor(info.startTime));
+    const act44 = (draft.activity.TYPE_ACT44SIDE ??= {});
+    act44[actId] = defaultAct44State(favorListFor(info.startTime));
   } else if (type.startsWith("TYPE_ACT") && !existing) {
-    draft.activity[type][actId] = {
+    // 通用 TYPE_ACT* 播种三件套（coin/favorList/news）。news 为第三层嵌套，而兜底
+    // 索引签名的 ServerPayload 只展开两层——按已构造 JSON 收窄为存档形状。
+    const genericState = asShape<ServerPayload>({
       coin: 0,
       favorList: favorListFor(info.startTime),
       news: {},
-    };
+    });
+    if (genericState !== undefined) draft.activity[type][actId] = genericState;
   }
 
   // 活动任务：missionGroup[id].missionIds → ACTIVITY 组播种。
@@ -293,17 +343,17 @@ function seedActivityState(draft: any, actId: string, info: any, ts: number): vo
     draft.mission.missions["ACTIVITY"] = draft.mission.missions["ACTIVITY"] || {};
     for (const missionId of group.missionIds) {
       if (draft.mission.missions["ACTIVITY"][missionId]) continue;
-      const missionDef = (excel.ActivityTable as any)?.missionData?.find(
-        (m: any) => m.id === missionId,
+      const missionDef = excel.ActivityTable.missionData.find(
+        (m) => m.id === missionId,
       );
       const target = missionDef ? arkhubMissionTarget(missionDef) : null;
       if (target !== null) {
-        const guide = missionDef.template === "ArkhubMissionCompleted";
+        const guide = missionDef?.template === "ArkhubMissionCompleted";
         // 日期门控仅对奇象巡展任务计算（Act53side/官本模板的 param[2] 是门槛/目标数字，
         // 无日期；且这些任务播种应 value:0 走真实进度，不能因误判被 locked）
         const arkhubTask = String(missionDef?.template ?? "").startsWith("Arkhub");
         const windowStart = arkhubTask
-          ? arkhubMissionWindowStart(missionDef.param?.[2])
+          ? arkhubMissionWindowStart(missionDef?.param?.[2])
           : null;
         const locked = windowStart !== null && ts < windowStart;
         // 渐进引导（config.arkhub.guideProgressive）：引导任务按 flag 语义播种进行中——
@@ -343,8 +393,8 @@ function seedActivityState(draft: any, actId: string, info: any, ts: number): vo
  * @param ts - 当前时间基准（秒）
  */
 function resetRetroMedals(
-  draft: any,
-  basicInfo: Record<string, any>,
+  draft: Draft<PlayerDataModel>,
+  basicInfo: Record<string, BasicInfoEntry>,
   ts: number,
 ): void {
   for (const [actId, info] of Object.entries(basicInfo)) {
@@ -356,17 +406,15 @@ function resetRetroMedals(
     if (!info.medalGroupId) continue;
     // 幂等：已执行过重置的复刻不再重复
     const flagKey = `retroMedalReset_${actId}`;
-    if (
-      (draft.status?.flags as Record<string, number> | undefined)?.[flagKey] === 1
-    ) {
+    if (draft.status?.flags?.[flagKey] === 1) {
       continue;
     }
-    const groupData = (excel.MedalTable?.medalTypeData as any)?.activityMedal?.groupData;
+    const groupData = excel.MedalTable?.medalTypeData?.["activityMedal"]?.groupData;
     const group = (groupData ?? []).find(
-      (g: any) => g?.groupId === info.medalGroupId,
+      (g) => g?.groupId === info.medalGroupId,
     );
     if (!group?.medalId || !Array.isArray(group.medalId)) continue;
-    draft.status = draft.status ?? {};
+    draft.status = draft.status ?? ({} as PlayerStatus);
     draft.status.flags = draft.status.flags ?? {};
     let reset = 0;
     for (const medalId of group.medalId) {
@@ -375,7 +423,7 @@ function resetRetroMedals(
       // 已获得的章（rts > 0）保留，不重复收集
       if ((m.rts ?? -1) > 0) continue;
       const mi = excel.MedalTable?.medalList?.find(
-        (x: any) => x?.medalId === medalId,
+        (x) => x?.medalId === medalId,
       );
       m.val = [[0, medalSeedTarget(mi)]];
       m.fts = 0;
@@ -429,7 +477,7 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
     }
 
     // 任务组播种依赖（ACTIVITY 任务组可能被 MissionManager.init 清空——播种在其后执行）
-    draft.mission = draft.mission || ({} as any);
+    draft.mission = draft.mission || ({} as MissionPlayerData);
     draft.mission.missions = draft.mission.missions || {};
 
     // 播种：窗口内活动 + 强制开启活动（默认状态 + 活动任务 + 关卡）
@@ -487,12 +535,14 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
     // logic_game_end_p1（q003_prog==4 && bool_end_guide_done==0 && q003_banner_showed==1）
     // 每次进图 AUTO_ONCE 重放新手教程，需补置为 1（官服完成态快照含 bool_end_guide_done=1）。
     const odcGuideStoryId = "activities/act53side/ark_odc_act53side_guide";
-    if ((draft.status?.flags as Record<string, number> | undefined)?.[odcGuideStoryId] === 1) {
-      const detail = (excel.ActivityTable.activity as Record<string, any>)?.[
+    if (draft.status?.flags?.[odcGuideStoryId] === 1) {
+      const detail = excel.ActivityTable.activity[
         activityDictKey("TYPE_ACT53SIDE") ?? "tYPE_ACT53SIDE"
       ];
-      for (const data of Object.values(detail ?? {}) as any[]) {
-        const topicId = data?.constData?.arkOdcTopicId;
+      for (const data of isJsonObjectValue(detail) ? Object.values(detail) : []) {
+        const topicId = asShape<{ constData?: { arkOdcTopicId?: string } }>(
+          data,
+        )?.constData?.arkOdcTopicId;
         const topic = topicId ? draft.arkodc?.topics?.[topicId] : undefined;
         if (topic?.varSeqs) {
           topic.varSeqs.bool_end_guide_done = 1;

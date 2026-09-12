@@ -9,6 +9,8 @@
 import excel from "@excel/excel";
 
 import { activityDictKey } from "../shared/unlockActivity";
+import { activityDetailJson, asShape } from "../shared/activity-json";
+import type { JsonValue } from "@excel/json-value";
 
 /** 活动 id（客户端 activityId） */
 export const VHALFIDLE_ACT_ID = "act1vhalfidle";
@@ -68,27 +70,51 @@ export interface VHalfIdleConfig {
   efficiencyDurationMax: number;
 }
 
+/** act1vhalfidle 活动详情消费面（excel `activity` 字典是未建模 JSON） */
+type VHalfIdleDetailJson = {
+  gachaPoolData?: Record<string, VHalfIdleGachaPool>;
+  gachaCharData?: VHalfIdleConfig["gachaCharData"];
+  stageProductionData?: VHalfIdleConfig["stageProductionData"];
+  techTreeData?: Record<string, VHalfIdleTechNode>;
+  charMaxRankData?: Record<string, VHalfIdleRankCap>;
+  milestoneList?: VHalfIdleConfig["milestoneList"];
+  constData?: Record<string, JsonValue>;
+};
+
+/** act1vhalfidle constData 消费面 */
+type VHalfIdleConstJson = {
+  normalStageIds?: string[];
+  hardStageIds?: string[];
+  productMaxEfficiencyDict?: Record<string, number>;
+  milestoneId?: string;
+  techCostItemId?: string;
+  levelExpItemId?: string;
+  skillExpItemId?: string;
+  produceCd?: number;
+  efficiencyDurationMax?: number;
+};
+
 /**
  * 读取 act1vhalfidle 活动配置（只读）
  * @returns 归一化配置；excel 未加载该活动时返回 undefined
  */
 export function vhalfidleConfig(): VHalfIdleConfig | undefined {
-  const dict =
-    ((excel.ActivityTable as unknown as { activity?: Record<string, Record<string, unknown>> })
-      ?.activity ?? {}) as Record<string, Record<string, any>>;
   const key = activityDictKey("HALFIDLE_VERIFY1") ?? "halfidleVerify1";
-  const detail = dict[key]?.[VHALFIDLE_ACT_ID];
+  const detail = asShape<VHalfIdleDetailJson>(
+    activityDetailJson(excel.ActivityTable.activity, key, VHALFIDLE_ACT_ID),
+  );
   if (!detail) return undefined;
-  const cd = (detail.constData ?? {}) as Record<string, any>;
+  const cd: VHalfIdleConstJson =
+    asShape<VHalfIdleConstJson>(detail.constData) ?? {};
   return {
-    gachaPoolData: (detail.gachaPoolData ?? {}) as Record<string, VHalfIdleGachaPool>,
-    gachaCharData: (detail.gachaCharData ?? {}) as VHalfIdleConfig["gachaCharData"],
-    stageProductionData: (detail.stageProductionData ?? {}) as VHalfIdleConfig["stageProductionData"],
-    stageIds: [...(cd.normalStageIds ?? []), ...(cd.hardStageIds ?? [])] as string[],
-    techTreeData: (detail.techTreeData ?? {}) as Record<string, VHalfIdleTechNode>,
-    productMaxEfficiencyDict: (cd.productMaxEfficiencyDict ?? {}) as Record<string, number>,
-    charMaxRankData: (detail.charMaxRankData ?? {}) as Record<string, VHalfIdleRankCap>,
-    milestoneList: (detail.milestoneList ?? []) as VHalfIdleConfig["milestoneList"],
+    gachaPoolData: detail.gachaPoolData ?? {},
+    gachaCharData: detail.gachaCharData ?? {},
+    stageProductionData: detail.stageProductionData ?? {},
+    stageIds: [...(cd.normalStageIds ?? []), ...(cd.hardStageIds ?? [])],
+    techTreeData: detail.techTreeData ?? {},
+    productMaxEfficiencyDict: cd.productMaxEfficiencyDict ?? {},
+    charMaxRankData: detail.charMaxRankData ?? {},
+    milestoneList: detail.milestoneList ?? [],
     milestoneId: String(cd.milestoneId ?? "act1vhalfidle_token_point"),
     techCostItemId: String(cd.techCostItemId ?? "strategy_point"),
     levelExpItemId: String(cd.levelExpItemId ?? "level_exp"),

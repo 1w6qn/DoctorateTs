@@ -10,6 +10,7 @@ import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "../../../kernel/playerdata";
+import { PlayerBuildingDIYSolution } from "../../../kernel/playerdata";
 import { headcountMoodRelief, isDispersedAp, warmupHoursOf, MAX_AP } from "../mood";
 import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst, getManufactureInputCapacity } from "@excel/building_excel";
 import {
@@ -47,7 +48,7 @@ export function _accrueManufacture(mgr: BuildingManager, draft: Draft<PlayerData
     // 阈值 costPoint = 配方基础秒数（如赤金 4320=72 分钟）——2222 真存档实测：
     // 剩余进度 1481.3 ÷ 剩余 833s = 1.778 = 1 + buff.speed(0.78) ✓。
     // 原实现按 capacity(54)×(1+加成) 点/秒累积 → 快约 54 倍（制造站几分钟出一批）。
-    const speedBonus = ((room.buff as any)?.speed as number) ?? 0;
+    const speedBonus = room.buff?.speed ?? 0;
     // 修复：计划已耗尽（remain ≤ 0）即停止生产——官方计划完成后房间停摆待收取；
     // 原实现 remain=0 时跳过钳制 → 产出无上限累积（制造站赤金数量异常）
     const remain = room.remainSolutionCnt ?? 0;
@@ -103,7 +104,7 @@ export async function settleManufacture(mgr: BuildingManager, args: { roomSlotId
           // 仅配方存在且无材料成本才算"免费生产"——未知配方（数据缺失）不视为免费
           const isFree =
             !!formula &&
-            (formula.costs ?? []).every((c: any) => (c?.count ?? 0) <= 0);
+            (formula.costs ?? []).every((c) => (c?.count ?? 0) <= 0);
           if (isFree && supplement > 0) {
             // 免费生产自动补货：把刚收获的产量回填为剩余计划，继续保持生产
             const harvested = roomAfter.outputSolutionCnt || 0;
@@ -263,13 +264,13 @@ export async function changeManufactureSolution(mgr: BuildingManager, args: {
    *
    * @param args - 包含 roomSlotId 和 solution 的参数对象
    */
-export async function changeDiySolution(mgr: BuildingManager, args: { roomSlotId: string; solution: any }) {
+export async function changeDiySolution(mgr: BuildingManager, args: { roomSlotId: string; solution: PlayerBuildingDIYSolution }) {
     const { roomSlotId, solution } = args;
     let comfort = 0;
     await mgr._player.update(async (draft) => {
       // 会客室（slot_36）单独处理
       if (roomSlotId === "slot_36") {
-        (draft.building.rooms.MEETING[roomSlotId] as any).diySolution = solution;
+        draft.building.rooms.MEETING[roomSlotId].diySolution = solution;
         return;
       }
       // 其他房间：通过 roomSlots 找到房间类型
@@ -278,7 +279,11 @@ export async function changeDiySolution(mgr: BuildingManager, args: { roomSlotId
         const roomType = slot.roomId as keyof PlayerDataModel["building"]["rooms"];
         const room = draft.building.rooms[roomType];
         if (room && room[roomSlotId]) {
-          (room[roomSlotId] as any).diySolution = solution;
+          const target = room[roomSlotId] as {
+            diySolution?: PlayerBuildingDIYSolution;
+            comfort?: number;
+          };
+          target.diySolution = solution;
           // 修复：舒适度服务端计算——墙纸/地板/地毯/其他家具 comfort 求和
           const sol = solution as {
             wallPaper?: string;
@@ -296,7 +301,7 @@ export async function changeDiySolution(mgr: BuildingManager, args: { roomSlotId
             const info = getFurnitureInfo(id);
             return sum + (info?.comfort ?? 0);
           }, 0);
-          (room[roomSlotId] as any).comfort = comfort;
+          target.comfort = comfort;
         }
       }
     });
@@ -338,7 +343,7 @@ export async function workshopSynthesis(mgr: BuildingManager, args: {
       const roomFormulaId =
         formulaId ??
         (roomSlotId
-          ? (draft.building.rooms.MANUFACTURE as any)[roomSlotId]?.formulaId
+          ? draft.building.rooms.MANUFACTURE[roomSlotId]?.formulaId
           : undefined);
       const formula = getWorkshopFormula(roomFormulaId);
       if (!formula) return; // 配方不存在（数据版本错位/制造配方 ID）——容错跳过
@@ -507,7 +512,7 @@ export function _workshopChar(mgr: BuildingManager, draft: Draft<PlayerDataModel
 export function _workshopBonusIds(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
     workshopChar: { charId: string } | null,) : string[] {
     if (!workshopChar?.charId) return [];
-    return (excel as any).BuildingData?.workshopBonus?.[workshopChar.charId] ?? [];
+    return excel.BuildingData?.workshopBonus?.[workshopChar.charId] ?? [];
 }
 
   /** 内部方法：ws_bonus 阈值（存档条目缺失时按 id 解析：ws_bonus1_40 → 40） */
@@ -520,7 +525,7 @@ export function _wsBonusThreshold(mgr: BuildingManager, bonusId: string) : numbe
 export function _wsBonusMatches(mgr: BuildingManager, bonusId: string, formulaType: string) : boolean {
     const tier = /^ws_bonus(\d+)_/.exec(bonusId)?.[1];
     if (!tier) return true;
-    const buff = (excel as any).BuildingData?.buffs?.[`workshop_formula_bonus${tier}[000]`];
+    const buff = excel.BuildingData?.buffs?.[`workshop_formula_bonus${tier}[000]`];
     const targets = buff?.targets;
     if (!Array.isArray(targets) || targets.length === 0) return true;
     return targets.includes(formulaType);

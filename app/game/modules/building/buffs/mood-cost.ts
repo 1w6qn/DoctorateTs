@@ -10,11 +10,12 @@
  */
 import { BaseBuffTpl } from "../buff-tpl";
 import { parseMoodCostValue } from "../buff-parse";
+import type { BuildingBuffLike } from "../buff-parse";
 
 export class MoodCostTpl extends BaseBuffTpl {
   readonly kind = "MOOD_COST";
 
-  static matches(buff: any): boolean {
+  static matches(buff: BuildingBuffLike): boolean {
     const desc = buff?.description ?? "";
     return desc.includes("消耗") && /<@cc\.(?:vup|vdown|vdo)>/.test(desc);
   }

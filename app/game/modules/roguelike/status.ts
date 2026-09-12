@@ -107,7 +107,8 @@ export class RoguelikePlayerStatusManager
     // 应为 state=END + pending=GAME_SETTLE（gameSettle 收尾态），故恢复时把 PENDING 对齐 END。
     // 需同时回写持久态（_playerdata 的 current.player），否则登录响应序列化的是持久态
     // （仍是 PENDING），客户端依旧把对局当进行中。
-    const settled = Array.isArray(p.pending) && p.pending.some((e: any) => e?.type === "GAME_SETTLE");
+    const settled =
+      Array.isArray(p.pending) && p.pending.some((e) => e?.type === "GAME_SETTLE");
     if (settled && this.state !== "END") {
       this.state = "END";
       (p as { state: string }).state = "END";

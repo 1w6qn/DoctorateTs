@@ -40,6 +40,20 @@ interface CsField {
   priv?: boolean;
 }
 
+/** fbs-schemas/*.json 中单张表的字段定义（槽位为 vtable offset） */
+interface SchemaFieldDef {
+  name: string;
+  type: string;
+  slot: number;
+}
+
+/** fbs-schemas/*.json 的落盘结构（由 scripts/schema-gen.ts 生成） */
+interface FbsSchemaJson {
+  root: string;
+  tables: Record<string, SchemaFieldDef[]>;
+  enums: Record<string, Record<string, number>>;
+}
+
 function parseCs(file: string): {
   classes: Map<string, CsField[]>;
   enums: Set<string>;
@@ -616,13 +630,11 @@ function referencedTables(type: string): string[] {
     const base = file.replace(/\.json$/, "");
     if (tableArg && base !== tableArg) continue;
     const p = path.join(SCHEMA_DIR, file);
-    const schema = JSON.parse(fs.readFileSync(p, "utf-8"));
-    const next = JSON.parse(JSON.stringify(schema));
+    const schema: FbsSchemaJson = JSON.parse(fs.readFileSync(p, "utf-8"));
+    const next: FbsSchemaJson = JSON.parse(JSON.stringify(schema));
     let fileChanged = false;
     let tAdded = 0, tShifted = 0, tRetyped = 0, tClasses = 0, tNewTables = 0;
-    for (const [key, oldFields] of Object.entries<{ name: string; type: string; slot: number }[]>(
-      schema.tables as any,
-    )) {
+    for (const [key, oldFields] of Object.entries(schema.tables)) {
       if (!key.startsWith("clz_")) continue;
       const full = [...classes.keys()].find((n) => clzKey(n) === key);
       if (!full) {
@@ -737,7 +749,7 @@ function referencedTables(type: string): string[] {
       for (let round = 0; round < 24; round++) {
         let progressed = false;
         const queue: string[] = [schema.root as string];
-        for (const fields of Object.values<{ name: string; type: string; slot: number }[]>(next.tables as any)) {
+        for (const fields of Object.values(next.tables)) {
           for (const f of fields) queue.push(...referencedTables(f.type));
         }
         for (const name of queue) {
@@ -830,7 +842,7 @@ function referencedTables(type: string): string[] {
     tNewTables -= pruneUnreachable();
     // 补齐缺失的键值对表定义（见 collectMissingKvTables 注释）——纯新增，不动 clz 字段表
     for (const kv of collectMissingKvTables(next.tables)) {
-      next.tables[kv.name] = kv.fields as any;
+      next.tables[kv.name] = kv.fields;
       fileChanged = true;
       tNewTables++;
     }

@@ -16,6 +16,14 @@ import { isBlackstream } from "../theme-rules";
 import type { RoguelikeScrapModuleData } from "@excel/excel";
 import { random } from "../../../kernel/util/random";
 
+/**
+ * 当前移动方式（步行 = isWalk true；载具 = instId）
+ *
+ * 生成/内部模型把 isWalk 声明为 number（FBO 原生数值），本实现的运行时值为 boolean
+ * （toJSON 输出 boolean，见 tests），故按联合声明以兼容存档读回。
+ */
+export type ScrapActiveVehicle = { instId?: string; isWalk: boolean | number };
+
 export interface ScrapItem {
   instId: string;
   id: string;
@@ -36,7 +44,7 @@ type GoodsTrigger =
   | "scrap_gain"; // 获得零件
 
 export class RoguelikeScrapManager {
-  activeVehicle: { instId?: string; isWalk: boolean };
+  activeVehicle: ScrapActiveVehicle;
   inventory: { [key: string]: ScrapItem };
   limit: number;
   _index: number;
@@ -106,7 +114,7 @@ export class RoguelikeScrapManager {
   }
 
   continue(): void {
-    const s = this._player.current.module?.scrap as any;
+    const s = this._player.current.module?.scrap;
     this.activeVehicle = s?.activeVehicle || { isWalk: true };
     this.inventory = s?.inventory || {};
     this.limit = s?.limit ?? 10;
@@ -267,7 +275,7 @@ export class RoguelikeScrapManager {
   }
 
   toJSON(): {
-    activeVehicle: { instId?: string; isWalk: boolean };
+    activeVehicle: ScrapActiveVehicle;
     inventory: { [key: string]: ScrapItem };
     limit: number;
   } {

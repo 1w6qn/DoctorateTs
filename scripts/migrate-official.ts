@@ -104,8 +104,8 @@ export async function runMigration(opts: {
   return results;
 }
 
-/** 读取现有用户（主数据库——users.json 已迁移为种子） */
-async function readUsers(): Promise<{ [key: string]: any }> {
+/** 读取现有用户（主数据库——users.json 已迁移为种子）；返回类型由 UserRepository.getAll 精确推导 */
+async function readUsers() {
   return new UserRepository(await openDatabase()).getAll();
 }
 

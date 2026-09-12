@@ -4,6 +4,23 @@ import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "../../kernel/playerdata";
+import { PlayerBuildingDIYSolution, PlayerBuildingManufacture } from "../../kernel/playerdata";
+import type { SpecialSkillContext } from "./special";
+import type { MeetingRoom, PresetQueueMetaDict, TradingOrder, TradingRoom } from "./logic/ext-types";
+import type {
+  ConfirmMessageBoardRewardRequest,
+  GainAllIntimacyRequest,
+  GainAssistIntimacyRequest,
+  GetDailyClueRequest,
+  GetThumbnailUrlRequest,
+  PutClueToTheBoardAutoRequest,
+  SaveDiyPresetSolutionRequest,
+  SendClueAutoRequest,
+  SendEmojiRequest,
+  StartInfoShareRequest,
+  UpgradeSpecializationRequest,
+  VisitBuildingRequest,
+} from "./models";
 import { registerBuildingTriggers } from "./trigger";
 import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst } from "@excel/building_excel";
 import {
@@ -38,6 +55,9 @@ import { _genTradingOrder, _tradeWarmupActive, _accrueTrading, _touchOrderFillGu
 import { _accrueManufacture, settleManufacture, _settleManufactureInternal, changeManufactureSolution, changeDiySolution, workshopSynthesis, _workshopChar, _workshopBonusIds, _wsBonusThreshold, _wsBonusMatches, workshopDecomposition } from "./logic/manufacture";
 import { _meetingRoom, _clueFactionWeighted, getDailyClue, sendClue, sendClueAuto, receiveClueToStock, putClueToTheBoard, putClueToTheBoardAuto, takeClueFromBoard, deleteOwnClue, deleteReceiveClue, _clearBoardEntry, _refreshClueFlag, _purgeExpiredClues, _purgeAllExpiredClues, getClueBox, getClueFriendList, getInfoShareReward, getMeetingroomReward } from "./logic/meeting";
 import { changeBGM, _presetQueues, _roomPresetQueue, addPresetQueue, deletePresetQueue, editPresetQueue, usePresetQueue, useOnePresetQueue, changePresetName, saveDiyPresetSolution, editLockQueue, confirmMessageBoardReward, getMessageBoardContent, getAssistReport, getInfoShareVisitorsNum, getRecentVisitors, getOthersMessageBoardContent, getThumbnailUrl, sendEmoji, startInfoShare, visitBuilding } from "./logic/misc";
+
+/** 制造配方（`getManufactFormula` 返回类型；building_excel 未导出该类型别名，故取 ReturnType） */
+type ManufactFormula = NonNullable<ReturnType<typeof getManufactFormula>>;
 
 export class BuildingManager {
   _TRADE_FILL_INTERVAL = 3600;
@@ -136,7 +156,7 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link _rolloverWeekSp}（logic/accrue.ts） */
-  _rolloverWeekSp(room: any, ts: number) : void {
+  _rolloverWeekSp(room: MeetingRoom, ts: number) : void {
     return _rolloverWeekSp(this, room, ts);
   }
 
@@ -161,14 +181,14 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link _accumulateMessageLeaveSp}（logic/accrue.ts） */
-  _accumulateMessageLeaveSp(room: any,
+  _accumulateMessageLeaveSp(room: MeetingRoom,
     visitCount: number,) : void {
     return _accumulateMessageLeaveSp(this, room, visitCount);
   }
 
   /** 委派至 {@link _accumulateSearchCredit}（logic/accrue.ts） */
   _accumulateSearchCredit(draft: Draft<PlayerDataModel>,
-    room: any,
+    room: MeetingRoom,
     visitorCount: number,) : void {
     return _accumulateSearchCredit(this, draft, room, visitorCount);
   }
@@ -250,14 +270,14 @@ export class BuildingManager {
   /** 委派至 {@link _manufactBaseCapacity}（logic/construction.ts） */
   _manufactBaseCapacity(draft: Draft<PlayerDataModel>,
     roomSlotId: string,
-    room: any,) : number {
+    room: PlayerBuildingManufacture | undefined,) : number {
     return _manufactBaseCapacity(this, draft, roomSlotId, room);
   }
 
   /** 委派至 {@link _roomCapacity}（logic/construction.ts） */
   _roomCapacity(draft: Draft<PlayerDataModel>,
     roomSlotId: string,
-    formula: any,) : number {
+    formula: ManufactFormula | undefined,) : number {
     return _roomCapacity(this, draft, roomSlotId, formula);
   }
 
@@ -355,7 +375,8 @@ export class BuildingManager {
   async upgradeSpecialization(args: {
     charInstId: number;
     targetSkill: number;
-    reduceTimeBd?: any;
+    /** 客户端发送但服务端不读 */
+    reduceTimeBd?: UpgradeSpecializationRequest["reduceTimeBd"];
   }) {
     return upgradeSpecialization(this, args);
   }
@@ -415,7 +436,7 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link _specialCtx}（logic/chars.ts） */
-  _specialCtx(draft: Draft<PlayerDataModel>) : any {
+  _specialCtx(draft: Draft<PlayerDataModel>) : SpecialSkillContext {
     return _specialCtx(this, draft);
   }
 
@@ -494,12 +515,12 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link gainAllIntimacy}（logic/chars.ts） */
-  async gainAllIntimacy(args: any) : Promise<{ normal: number; assist: number }> {
+  async gainAllIntimacy(args: GainAllIntimacyRequest) : Promise<{ normal: number; assist: number }> {
     return gainAllIntimacy(this, args);
   }
 
   /** 委派至 {@link gainAssistIntimacy}（logic/chars.ts） */
-  async gainAssistIntimacy(args: any) {
+  async gainAssistIntimacy(args: GainAssistIntimacyRequest) {
     return gainAssistIntimacy(this, args);
   }
 
@@ -509,7 +530,7 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link _genTradingOrder}（logic/trading.ts） */
-  _genTradingOrder(draft: Draft<PlayerDataModel>, room: any, instId: number) : void {
+  _genTradingOrder(draft: Draft<PlayerDataModel>, room: TradingRoom, instId: number) : void {
     return _genTradingOrder(this, draft, room, instId);
   }
 
@@ -525,7 +546,7 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link _touchOrderFillGuard}（logic/trading.ts） */
-  _touchOrderFillGuard(room: any) : void {
+  _touchOrderFillGuard(room: TradingRoom) : void {
     return _touchOrderFillGuard(this, room);
   }
 
@@ -537,7 +558,7 @@ export class BuildingManager {
 
   /** 委派至 {@link _settleOrderInternal}（logic/trading.ts） */
   _settleOrderInternal(draft: Draft<PlayerDataModel>,
-    stockItem: any,) : void {
+    stockItem: TradingOrder,) : void {
     return _settleOrderInternal(this, draft, stockItem);
   }
 
@@ -628,7 +649,7 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link changeDiySolution}（logic/manufacture.ts） */
-  async changeDiySolution(args: { roomSlotId: string; solution: any }) {
+  async changeDiySolution(args: { roomSlotId: string; solution: PlayerBuildingDIYSolution }) {
     return changeDiySolution(this, args);
   }
 
@@ -679,12 +700,12 @@ export class BuildingManager {
 
   /** 委派至 {@link _clueFactionWeighted}（logic/meeting.ts） */
   _clueFactionWeighted(draft: Draft<PlayerDataModel>,
-    room: any,) : string {
+    room: MeetingRoom,) : string {
     return _clueFactionWeighted(this, draft, room);
   }
 
   /** 委派至 {@link getDailyClue}（logic/meeting.ts） */
-  async getDailyClue(args: any) {
+  async getDailyClue(args: GetDailyClueRequest) {
     return getDailyClue(this, args);
   }
 
@@ -694,7 +715,7 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link sendClueAuto}（logic/meeting.ts） */
-  async sendClueAuto(args: any) {
+  async sendClueAuto(args: SendClueAutoRequest) {
     return sendClueAuto(this, args);
   }
 
@@ -709,7 +730,7 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link putClueToTheBoardAuto}（logic/meeting.ts） */
-  async putClueToTheBoardAuto(args: any) {
+  async putClueToTheBoardAuto(args: PutClueToTheBoardAutoRequest) {
     return putClueToTheBoardAuto(this, args);
   }
 
@@ -730,20 +751,20 @@ export class BuildingManager {
 
   /** 委派至 {@link _clearBoardEntry}（logic/meeting.ts） */
   _clearBoardEntry(draft: Draft<PlayerDataModel>,
-    room: any,
+    room: MeetingRoom,
     clueId: string,) : void {
     return _clearBoardEntry(this, draft, room, clueId);
   }
 
   /** 委派至 {@link _refreshClueFlag}（logic/meeting.ts） */
   _refreshClueFlag(draft: Draft<PlayerDataModel>,
-    room: any,) : void {
+    room: MeetingRoom,) : void {
     return _refreshClueFlag(this, draft, room);
   }
 
   /** 委派至 {@link _purgeExpiredClues}（logic/meeting.ts） */
   _purgeExpiredClues(draft: Draft<PlayerDataModel>,
-    room: any,
+    room: MeetingRoom,
     ts: number,) : number {
     return _purgeExpiredClues(this, draft, room, ts);
   }
@@ -779,7 +800,7 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link _presetQueues}（logic/misc.ts） */
-  _presetQueues(draft: Draft<PlayerDataModel>) : any {
+  _presetQueues(draft: Draft<PlayerDataModel>) : PresetQueueMetaDict {
     return _presetQueues(this, draft);
   }
 
@@ -847,7 +868,7 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link saveDiyPresetSolution}（logic/misc.ts） */
-  async saveDiyPresetSolution(args: { presetName: string; solution: any }) {
+  async saveDiyPresetSolution(args: { presetName: string; solution: SaveDiyPresetSolutionRequest["solution"] }) {
     return saveDiyPresetSolution(this, args);
   }
 
@@ -857,14 +878,17 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link confirmMessageBoardReward}（logic/misc.ts） */
-  async confirmMessageBoardReward(args: any) : Promise<
+  async confirmMessageBoardReward(args: ConfirmMessageBoardRewardRequest) : Promise<
     { id: string; count: number; type: string }[]
   > {
     return confirmMessageBoardReward(this, args);
   }
 
   /** 委派至 {@link getMessageBoardContent}（logic/misc.ts） */
-  async getMessageBoardContent(args: any) : Promise<{
+  async getMessageBoardContent(args: {
+    uid?: string;
+    friendId?: string;
+  }) : Promise<{
     thisWeekVisitors: { uid: string; nickName: string; nickNumber: string }[];
     lastWeekVisitors: { uid: string; nickName: string; nickNumber: string }[];
     todayVisit: number;
@@ -918,22 +942,22 @@ export class BuildingManager {
   }
 
   /** 委派至 {@link getThumbnailUrl}（logic/misc.ts） */
-  async getThumbnailUrl(args: any) {
+  async getThumbnailUrl(args: GetThumbnailUrlRequest) {
     return getThumbnailUrl(this, args);
   }
 
   /** 委派至 {@link sendEmoji}（logic/misc.ts） */
-  async sendEmoji(args: any) {
+  async sendEmoji(args: SendEmojiRequest) {
     return sendEmoji(this, args);
   }
 
   /** 委派至 {@link startInfoShare}（logic/misc.ts） */
-  async startInfoShare(args: any) {
+  async startInfoShare(args: StartInfoShareRequest) {
     return startInfoShare(this, args);
   }
 
   /** 委派至 {@link visitBuilding}（logic/misc.ts） */
-  async visitBuilding(args: any) {
+  async visitBuilding(args: VisitBuildingRequest) {
     return visitBuilding(this, args);
   }
 }

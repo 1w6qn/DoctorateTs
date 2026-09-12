@@ -21,6 +21,7 @@
  * 改走 specialBuffValue（条件/数量计算），不再普通取 vup%。
  */
 import excel from "@excel/excel";
+import type { BuildingBuffLike } from "./buff-parse";
 
 /** 特殊技能判定所需上下文（各房间进驻干员 charId） */
 export interface SpecialSkillContext {
@@ -54,9 +55,9 @@ let _nameIndex: Map<string, string> | null = null;
 function nameIndex(): Map<string, string> {
   if (_nameIndex) return _nameIndex;
   const idx = new Map<string, string>();
-  const table = (excel as any).CharacterTable as any;
+  const table = excel.CharacterTable;
   for (const [id, c] of Object.entries(table ?? {})) {
-    const name = (c as any)?.name;
+    const name = c?.name;
     if (typeof name === "string" && name) idx.set(name, id);
   }
   _nameIndex = idx;
@@ -75,7 +76,7 @@ export function termCharIds(termId: string): Set<string> {
   const cached = _termCharCache.get(termId);
   if (cached) return cached;
   const out = new Set<string>();
-  const term = (excel as any).GameDataConst?.termDescriptionDict?.[termId];
+  const term = excel.GameDataConst?.termDescriptionDict?.[termId];
   const names = (term?.description ?? "")
     .split("\n")
     .slice(1)
@@ -187,7 +188,7 @@ function tokenSatisfied(
  * - token：条件满足 → vup% / 100，否则 0
  */
 export function specialBuffValue(
-  buff: any,
+  buff: BuildingBuffLike | null | undefined,
   ctx?: SpecialSkillContext,
 ): number | null {
   const desc = buff?.description ?? "";

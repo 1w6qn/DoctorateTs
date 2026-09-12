@@ -760,8 +760,8 @@ export interface Act25sideFinishInvestigationResponse extends PlayerDeltaRespons
 export interface FootballBattleStartRequest {
   activityId: string;
   stageId: string;
-  squad: unknown;
-  assistFriend: unknown;
+  squad: PlayerSquad;
+  assistFriend: null | SquadFriendData;
 }
 
 /** 足球开始战斗响应（CS: Act1FootballBattleStartResponse : DefaultStartBattleResponse） */
@@ -871,6 +871,10 @@ export interface ActivityMiniBattleStartResponse extends PlayerDeltaResponse {
 export interface ActivityMiniBattleFinishRequest {
   data?: string;
   battleData?: { isCheat: string; completeTime: number };
+  /** act1vhalfidle 结算读取：活动 id / 关卡 id（登记关卡产出；见 act1vhalfidle/logic.ts） */
+  activityId?: string;
+  stageId?: string;
+  completeState?: number;
 }
 
 /** 活动小游戏战斗结算响应（服务端自定义 stub，仅增量） */
@@ -889,7 +893,7 @@ export type ActivityStubResponse = PlayerDeltaResponse;
 
 /** 通用活动状态响应（含空 items 列表） */
 export interface ActivityStubItemsResponse extends PlayerDeltaResponse {
-  items: unknown[];
+  items: ItemBundle[];
 }
 
 /** act13side 日任务提交请求（CS: Activity.Act13side.*） */
@@ -963,6 +967,46 @@ export interface Act1vhalfidleRequest {
   productId?: string;
   rateId?: string;
   recruitId?: string;
+  /** recruitNormal：卡池 id / 任命次数 / 指定干员（服务端读取，见 act1vhalfidle/logic.ts） */
+  poolId?: string;
+  count?: number;
+  charId?: string;
+  /** upgradeChar / upgradeSkill / evolveChar：等级 / 技能等级 / 精英化阶段 */
+  level?: number;
+  skillLvl?: number;
+  evolvePhase?: number;
+}
+
+/* ===== act1vhalfidle（次生预案半挂机）响应 ===== */
+
+/** 收取产出响应（服务端自定义：milestoneAdd + items） */
+export interface Act1vhalfidleHarvestResponse extends PlayerDeltaResponse {
+  milestoneAdd: number;
+  items: { itemId: string; count: number }[];
+}
+
+/** 任命响应（CS: Act1VHalfIdleRecruitNormalResponse { ticketCount }） */
+export interface Act1vhalfidleRecruitNormalResponse extends PlayerDeltaResponse {
+  ticketCount: number;
+}
+
+/** 升级等级响应（CS: Act1VHalfIdleCharUpgradeLevelResponse { charId, currentLvl }） */
+export interface Act1vhalfidleCharUpgradeLevelResponse extends PlayerDeltaResponse {
+  charId: string;
+  currentLvl: number;
+}
+
+/** 升级技能响应（CS: Act1VHalfIdleCharUpgradeSkillResponse { charId, currentLvl }） */
+export interface Act1vhalfidleCharUpgradeSkillResponse extends PlayerDeltaResponse {
+  charId: string;
+  currentLvl: number;
+}
+
+/** 精英化响应（CS: Act1VHalfIdleCharUpgradeEliteResponse { charId, currentEvolvePhase, item }） */
+export interface Act1vhalfidleCharUpgradeEliteResponse extends PlayerDeltaResponse {
+  charId: string;
+  currentEvolvePhase: number;
+  item: ItemBundle | null;
 }
 
 /** act45side 确认请求 */

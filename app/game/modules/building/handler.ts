@@ -157,8 +157,8 @@ router.post("/sync", validateBody(B.buildingSyncSchema), async (req, res) => {
   // 本实现原为 mutative 增量 patch——制造站 remain=0 停摆后无 rooms 变更，
   // 响应 building 仅含 chars/status，缺 rooms → 客户端拿不到各房间 completeWorkTime
   // → 判定"状态未同步"→ 立即重试 → 无限请求。现强制注入完整 building 恒非空。
-  const fullBuilding = player._playerdata.building as any;
-  const d = delta.playerDataDelta as { modified: Record<string, unknown> };
+  const fullBuilding = player._playerdata.building;
+  const d = delta.playerDataDelta;
   d.modified ??= {};
   d.modified.building = fullBuilding;
   res.send({

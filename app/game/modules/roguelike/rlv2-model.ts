@@ -218,6 +218,11 @@ export namespace PlayerRoguelikeV2 {
                 /** 上局遗留襁褓预告（官服 createGame game.outer.legacy，8-18 抓包含襁褓 id） */
                 legacy?: string[]
             }
+            /**
+             * 本局不期而遇遭遇记录（incident.ts 写入：已出现过的场景 id，
+             * 供非重复事件与 requireScene 前置条件判定）
+             */
+            incidentSeen?: string[]
             start: number
         }
         export interface Inventory {
@@ -226,6 +231,12 @@ export namespace PlayerRoguelikeV2 {
             trap: Trap | null
             exploreTool: { [key: string]: ExploreTool }
             consumable: { [key: string]: number }
+            /**
+             * 暂存（留存）招募券 id 列表与上限（recruit-flow.ts 写入、incident.ts 消费；
+             * 生成模型线格式键名为 stashedRecruit/stashedRecruitLimit）
+             */
+            stashRecruit?: string[]
+            stashRecruitLimit?: number
         }
         export interface Trap {
             id: string
@@ -488,6 +499,11 @@ export namespace PlayerRoguelikeV2 {
             bgm: { [key: string]: number }
             pic: { [key: string]: number }
             chat: { [key: string]: number }
+            /**
+             * 聊天图鉴 V2（官方线格式键 chatV2：键 → 已解锁条目 id 列表；
+             * 开局由 game-init.ensureOuterTheme 初始化为空表）
+             */
+            chatV2?: { [key: string]: string[] }
             /**
        * 结局图鉴（官方 CS 字段名 endBook，见 types-playerdata
        * PlayerRoguelikeV2_OuterData_Collection；此处原写作 endbook，与官服 JSON 键不一致）

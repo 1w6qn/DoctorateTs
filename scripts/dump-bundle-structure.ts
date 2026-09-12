@@ -158,8 +158,16 @@ function dumpUnityFS(uf: Uint8Array): { sf: Uint8Array; sfOffset: number } {
   return { sf, sfOffset: dataOff + node.offset };
 }
 
+/** SerializedFile 中反序列化出的对象记录（pathId 以十进制字符串呈现，避免 BigInt 打印差异） */
+interface SfObjectRecord {
+  pathId: string;
+  start: number;
+  size: number;
+  typeId: number;
+}
+
 /** 打印 SerializedFile 结构 */
-function dumpSerializedFile(sf: Uint8Array): { classIds: number[]; textAssets: { name: string; script: Uint8Array }[]; objects: any[] } {
+function dumpSerializedFile(sf: Uint8Array): { classIds: number[]; textAssets: { name: string; script: Uint8Array }[]; objects: SfObjectRecord[] } {
   let o = 0;
   const metadataSize = u32be(sf, 0);
   const sfFileSize = u32be(sf, 4);
@@ -231,7 +239,7 @@ function dumpSerializedFile(sf: Uint8Array): { classIds: number[]; textAssets: {
 
   type Counts = { [k: number]: number };
   const classCounts: Counts = {};
-  const objects: any[] = [];
+  const objects: SfObjectRecord[] = [];
   for (let i = 0; i < objectCount; i++) {
     const pathId = version >= 14 ? readI64(sf, o) : BigInt(i32le(sf, o));
     o += version >= 14 ? 8 : 4;

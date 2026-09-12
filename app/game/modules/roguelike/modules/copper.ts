@@ -47,9 +47,9 @@ export class RoguelikeCopperManager {
   init(): void {
     this.bag = {};
     // 官方 moduleConsts：重抽费用（gold）、免费重抽次数
-    const consts = (
-      excel.RoguelikeTopicTable.modules[this._player.current.game!.theme] as any
-    )?.copper?.moduleConsts;
+    const consts =
+      excel.RoguelikeTopicTable.modules[this._player.current.game!.theme]?.copper
+        ?.moduleConsts;
     this.redrawCost = consts?.copperDrawFreezeCostCount?.[0] ?? 1;
     this.redrawFreeze = 3;
     this.redrawFreezeCnt = 0;
@@ -68,9 +68,8 @@ export class RoguelikeCopperManager {
   /** 开局抽 3 枚铜币入袋 */
   drawInitial(): void {
     const theme = this._player.current.game!.theme;
-    const copperData = (
-      excel.RoguelikeTopicTable.modules[theme] as any
-    )?.copper?.copperData;
+    const copperData =
+      excel.RoguelikeTopicTable.modules[theme]?.copper?.copperData;
     if (!copperData) return;
     const ids = Object.keys(copperData);
     if (ids.length === 0) return;

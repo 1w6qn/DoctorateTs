@@ -11,6 +11,7 @@
  */
 import crypto from "node:crypto";
 import config from "@core/config/index";
+import type { JsonValue, ServerPayload } from "@excel/json-value";
 
 /**
  * 官服操作后端地址（支持自定义后端）
@@ -31,14 +32,44 @@ const U8_SECRET = "91240f70c09a08a6bc72af1a5c8d4670";
 /** 明日方舟官方 appCode（oauth2 grant 用） */
 const ARKNIGHTS_APP_CODE = "7318def77669979d";
 
-/** 玩家数据模型（官服 syncData 的 user 字段，与私服存档同源） */
-export interface OfficialPlayerData {
-  [key: string]: any;
-  status: { [key: string]: any; uid: string };
+/** 官服玩家状态（迁移链路只读 `uid`/`nickName`，其余字段原样透传） */
+export interface OfficialStatus {
+  uid: string;
+  nickName?: string;
+  [key: string]: ServerPayload | undefined;
 }
 
+/**
+ * 玩家数据模型（官服 syncData 的 user 字段，与私服存档同源）
+ *
+ * 外部 HTTP 输入：仅 `status` 被链路读写，其余顶层字段原样透传。
+ * 未建模字段用非递归的 {@link ServerPayload}（两层）而非 `JsonValue`——它会被
+ * 写回玩家存档形态的数据，递归类型在 mutative Draft 下会触发 TS2589。
+ */
+export interface OfficialPlayerData {
+  status?: OfficialStatus;
+  [key: string]: ServerPayload | OfficialStatus | undefined;
+}
+
+/** u8 getToken 请求体（签名覆盖除 `sign` 外的全部字段） */
+export type U8SignRequest = {
+  appId: string;
+  channelId: string;
+  extension: string;
+  worldId: string;
+  platform: number;
+  subChannel: string;
+  deviceId: string;
+  deviceId2: string;
+  deviceId3: string;
+  sign?: string;
+};
+
+/** u8 签名入参：扁平标量字段表（值经模板串接为 `k=v`） */
+export type U8SignParams = { [key: string]: string | number | undefined };
+
 /** u8 签名：参数按 key=value&... 排序拼接后 HMAC-SHA1 */
-export function u8Sign(data: { [key: string]: any }): string {
+export function u8Sign(data: U8SignParams): string {
   const signStr = Object.entries(data)
     .map(([k, v]) => `${k}=${v}`)
     .join("&");
@@ -66,7 +97,22 @@ export function getRandomDevices(): {
   };
 }
 
-async function postJson(url: string, body?: any): Promise<any> {
+/** 官服 API 响应（仅声明迁移链路实际读取的字段，`data` 为常见包装层） */
+interface OfficialApiResponse {
+  token?: string;
+  uid?: string;
+  secret?: string;
+  result?: string | number;
+  error?: string;
+  msg?: string;
+  data?: { token?: string; uid?: string; user?: OfficialPlayerData };
+  user?: OfficialPlayerData;
+}
+
+/** 请求体：扁平 JSON 对象（可选字段可为 undefined，序列化语义与原先一致） */
+type JsonRequestBody = { [key: string]: JsonValue | undefined };
+
+async function postJson(url: string, body?: JsonRequestBody): Promise<OfficialApiResponse> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -89,7 +135,7 @@ export async function getResVersion(): Promise<{
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} @ version`);
   }
-  const data = await res.json();
+  const data: { resVersion?: string; clientVersion?: string } = await res.json();
   if (!data?.resVersion || !data?.clientVersion) {
     throw new Error("invalid version response");
   }
@@ -129,7 +175,7 @@ export async function getToken(
   }
 
   // 3. u8 getToken 换游戏 access_token
-  const req: { [key: string]: any } = {
+  const req: U8SignRequest = {
     appId: "1",
     channelId: "1",
     extension: JSON.stringify({ code: token2, isSuc: true, type: 2 }),
@@ -182,7 +228,7 @@ export async function loginGame(
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} @ account/login`);
   }
-  const data = await res.json();
+  const data: { secret?: string } = await res.json();
   if (!data?.secret) {
     throw new Error("登录失败：account/login 未返回 secret");
   }
@@ -229,9 +275,9 @@ export async function syncPlayerData(
     const body = await res.text().catch(() => "");
     throw new Error(`HTTP ${res.status} @ syncData: ${body.slice(0, 200)}`);
   }
-  const data = await res.json();
+  const data: { user?: OfficialPlayerData } = await res.json();
   if (!data?.user) {
     throw new Error("syncData 未返回玩家数据");
   }
-  return data.user as OfficialPlayerData;
+  return data.user;
 }

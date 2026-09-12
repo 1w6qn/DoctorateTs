@@ -82,7 +82,7 @@ export class RoguelikeInventoryManager
    * 探索工具库存的可写视图（结构 { index, id, count, ts }）
    *
    * 类字段按接口声明为 `{}`（见 implements），此处收敛为具体条目类型，
-   * 免去调用点的 any 转换。
+   * 免去调用点的类型转换。
    * @returns 工具条目字典（原地可写）
    */
   exploreTools(): Record<string, ExploreToolEntry> {
@@ -338,6 +338,6 @@ export class RoguelikeInventoryManager
       exploreTool: this.exploreTool,
       stashRecruit: this.stashRecruit,
       stashRecruitLimit: this.stashRecruitLimit,
-    } as any;
+    };
   }
 }

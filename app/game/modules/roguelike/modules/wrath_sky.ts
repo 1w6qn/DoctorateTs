@@ -9,6 +9,7 @@
  */
 import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
+import type { PlayerRoguelikeV2_CurrentData_Module_SkyZoneInfo } from "@excel/types-playerdata";
 import { TypedEventEmitter } from "../../../kernel/events/runtime";
 
 export class RoguelikeWrathManager {
@@ -53,7 +54,11 @@ export class RoguelikeWrathManager {
 
 /** SKY 模块（rogue_5 天空——特殊区域地图） */
 export class RoguelikeSkyManager {
-  zones: { [key: string]: any };
+  /**
+   * 天空区域地图（内部模型 Module.Sky.zones 为 `{[key: string]: any}`，生成模型为
+   * `{[key: number]: SkyZoneInfo}`）——简化实现不写入任何区域，此处按生成条目形状声明
+   */
+  zones: { [key: string]: PlayerRoguelikeV2_CurrentData_Module_SkyZoneInfo };
   _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
@@ -73,7 +78,7 @@ export class RoguelikeSkyManager {
     this.zones = this._player.current.module?.sky?.zones || {};
   }
 
-  toJSON(): { zones: { [key: string]: any } } {
+  toJSON(): { zones: { [key: string]: PlayerRoguelikeV2_CurrentData_Module_SkyZoneInfo } } {
     return { zones: this.zones };
   }
 }

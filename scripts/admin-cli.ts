@@ -74,7 +74,7 @@ import * as readline from "readline";
 import { readFileSync } from "fs";
 import excel from "@excel/excel";
 import { isJsonObject } from "@excel/json-value";
-import type { JsonValue } from "@excel/json-value";
+import type { JsonObject, JsonValue } from "@excel/json-value";
 import { isOfficialAction } from "@ops/admin/official-ops";
 import type { OfficialAction } from "@ops/admin/official-ops";
 import { accountManager } from "@game/modules/account/AccountManager";
@@ -114,11 +114,16 @@ export async function cliInit(): Promise<void> {
   await accountManager.init();
 }
 
-/** 输出：--json 时输出 JSON；否则表格/对象 */
-function output(
-  data: unknown,
+/**
+ * 输出：--json 时输出 JSON；否则表格/对象
+ * @param data - 待输出数据（数组时可按行映射为表格列）
+ * @param flags - CLI 标志（`json` 走原样 JSON 输出）
+ * @param table - 表格行映射（仅数组数据生效）；行类型随 `data` 元素类型推导
+ */
+function output<T>(
+  data: T[] | T,
   flags: { [key: string]: string },
-  table?: (row: any) => any,
+  table?: (row: T) => Record<string, string | number>,
 ): void {
   if (flags.json) {
     console.log(JSON.stringify(data, null, 2));
@@ -272,7 +277,7 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       output(
         users,
         flags,
-        (u: any) => ({
+        (u) => ({
           uid: u.uid,
           昵称: u.nickName,
           等级: u.level,
@@ -338,7 +343,7 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
         const items = flags.items.split(",").map((pair: string) => {
           const [id, cnt] = pair.split(":");
           return { id, count: Number(cnt ?? 1) };
-        }).filter((it: any) => it.id && Number.isInteger(it.count) && it.count > 0);
+        }).filter((it) => it.id && Number.isInteger(it.count) && it.count > 0);
         if (!items.length) {
           console.error("--items 格式: id:count,id:count（count 为正整数）");
           process.exitCode = 1;
@@ -401,7 +406,7 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       output(
         chars,
         flags,
-        (c: any) => ({
+        (c) => ({
           instId: c.instId,
           干员: `${c.name}(${c.charId})`,
           星级: c.rarity + 1,
@@ -1044,14 +1049,16 @@ async function runConfig(args: string[]): Promise<void> {
       process.exitCode = 1;
       return;
     }
-    const cfg = readJsonSync<any>("./data/config.json");
+    // config.json 是「类型上有键、运行时可手工扩展」的 JSON 文档——按路径就地读写
+    const cfg = readJsonSync<JsonObject>("./data/config.json");
     const path = key.split(".");
-    let cur = cfg;
+    let cur: JsonObject = cfg;
     for (let i = 0; i < path.length - 1; i++) {
-      cur = cur[path[i]] ??= {};
+      // 与原实现同语义：nullish 中间段补空对象，其余原样下钻（标量中间段会在下一步赋值时报错）
+      cur = (cur[path[i]] ??= {}) as JsonObject;
     }
     const raw: string = value;
-    const parsed: unknown =
+    const parsed: JsonValue =
       raw === "true" ? true : raw === "false" ? false : /^\d+$/.test(raw) ? Number(raw) : raw;
     cur[path[path.length - 1]] = parsed;
     await writeJson("./data/config.json", cfg);
@@ -1441,7 +1448,7 @@ async function runGacha(args: string[], flags: { [key: string]: string }): Promi
 async function runMaxAccount(args: string[]): Promise<void> {
   const { accountManager } = await import("@game/modules/account/AccountManager");
   const config = (await import("@core/config/index")).default;
-  const uid = args[0] || (config as any).singleUid || "1";
+  const uid = args[0] || config.singleUid || "1";
   const player = await accountManager.getPlayerData(uid);
   const { generateMaxedAccount } = await import("../scripts/generate-max-account");
   await generateMaxedAccount(player);
@@ -1636,7 +1643,7 @@ async function runOfficial(
       process.exitCode = 1;
       return;
     }
-    let body: any = {};
+    let body: JsonValue = {};
     if (flags.body && flags.body !== "true") {
       try {
         body = JSON.parse(flags.body);

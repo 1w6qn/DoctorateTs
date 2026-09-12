@@ -33,6 +33,14 @@ import {
   OWN_CLUE_LIMIT,
 } from "../clue-speed";
 import { random } from "../../../kernel/util/random";
+import type {
+  CharWithFavor,
+  CharWithWarmup,
+  HireRoom,
+  MeetingRoom,
+  RoomTimestamp,
+  TraineeWithMaxPoint,
+} from "./ext-types";
 
   /**
    * 干员进驻建档回调（`char:init` 事件）：初始化基建在编状态
@@ -106,13 +114,14 @@ export async function dailyRefresh(mgr: BuildingManager) {
     await mgr._player.update(async (draft) => {
       const ts = now();
       for (const room of Object.values(draft.building.rooms.MEETING ?? {})) {
-        (room as any).dailyReward = null;
+        const meetingRoom = room as MeetingRoom;
+        meetingRoom.dailyReward = null;
         // 自动移除库存（ownStock + receiveStock）中已过期的线索
-        mgr._purgeExpiredClues(draft, room as any, ts);
+        mgr._purgeExpiredClues(draft, meetingRoom, ts);
         // 留言板社交点周切（跨周：lastWeek ← thisWeek 可领、thisWeek 归零）
-        mgr._rolloverWeekSp(room as any, ts);
+        mgr._rolloverWeekSp(meetingRoom, ts);
         // 留言板社交点累积（模拟好友访问留言板）→ 计入本周 thisWeek
-        mgr._accumulateMessageLeaveSp(room as any, friendCount);
+        mgr._accumulateMessageLeaveSp(meetingRoom, friendCount);
         // 修复（2026-09-09，审计 §5.4-12）：宿舍氛围每日结算信用（Cd=10+⌊Ad/125⌋，
         // 每间 50 上限、全天 200）**不再**写入会客室 socialReward.daily——PRTS「信用」页
         // 把它归入「每日结算的信用」（次日于**信用交易所**手动领取），官服存档实测
@@ -121,7 +130,7 @@ export async function dailyRefresh(mgr: BuildingManager) {
         // 只保留 search（访问/情报分享）与 legacy 的 daily。
         room.socialReward = room.socialReward ?? { daily: 0, search: 0 };
         // 线索接收信用每日计次重置（接收好友线索 15/10/5，第 4 张起不获信用）
-        (room as any).clueReceiveCount = 0;
+        meetingRoom.clueReceiveCount = 0;
       }
       // 再修复（2026-08-23）：累积被动信用后刷新 infoShare.reward 待领取指示——
       // 原实现只写 socialReward.daily，不更新 infoShare，客户端"会客室可领信用"红点/
@@ -136,7 +145,7 @@ export async function dailyRefresh(mgr: BuildingManager) {
    * - 当前周已进入 → lastWeek ← thisWeek（上周可领）、thisWeek 归零重新累计
    * - 跨多周（长时间未登录）→ 只滚动一次（避免累计失真）
    */
-export function _rolloverWeekSp(mgr: BuildingManager, room: any, ts: number) : void {
+export function _rolloverWeekSp(mgr: BuildingManager, room: MeetingRoom, ts: number) : void {
     const leave = room?.messageLeave;
     if (!leave?.sp) return;
     const lastTs = leave.lastUpdateSpTs ?? 0;
@@ -248,7 +257,7 @@ export function _meetingCreditPerVisit(mgr: BuildingManager, draft: Draft<Player
 export function dormComfortCredit(draft: Draft<PlayerDataModel>) : number {
     let total = 0;
     for (const room of Object.values(draft.building?.rooms?.DORMITORY ?? {})) {
-      const comfort = (room as any)?.comfort ?? 0;
+      const comfort = room?.comfort ?? 0;
       total += Math.min(10 + Math.floor(comfort / 125), 50);
     }
     return Math.min(total, 200);
@@ -269,7 +278,7 @@ export function _settleDormCredit(mgr: BuildingManager, draft: Draft<PlayerDataM
    * 把 thisWeek 累积起来，跨周（_rolloverWeekSp）后 lastWeek ← thisWeek
    * 即可正常领取。
    */
-export function _accumulateMessageLeaveSp(mgr: BuildingManager, room: any,
+export function _accumulateMessageLeaveSp(mgr: BuildingManager, room: MeetingRoom,
     visitCount: number,) : void {
     if (!room || visitCount <= 0) return;
     const { visitorBonus, visitorBonusLimit } = getMessageLeaveBoardConst();
@@ -294,7 +303,7 @@ export function _accumulateMessageLeaveSp(mgr: BuildingManager, room: any,
    * friendSlotInc，封顶 creditInitiativeLimit
    */
 export function _accumulateSearchCredit(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
-    room: any,
+    room: MeetingRoom,
     visitorCount: number,) : void {
     if (!room || visitorCount <= 0) return;
     const perVisit = mgr._meetingCreditPerVisit(draft);
@@ -361,7 +370,7 @@ export function _refreshRoomCompletionTimes(mgr: BuildingManager, draft: Draft<P
     // 贸易站：下一订单生成/刷新时刻（next.processPoint → maxPoint）
     for (const room of Object.values(rooms.TRADING ?? {})) {
       if (!room || room.state !== 1) continue;
-      const next = (room as any).next;
+      const next = room.next;
       if (next && typeof next.maxPoint === "number" && typeof next.processPoint === "number") {
         const speed = next.speed && next.speed > 0 ? next.speed : 1;
         const left = Math.max(0, next.maxPoint - next.processPoint);
@@ -402,7 +411,7 @@ export function _refreshBuildingEventTs(mgr: BuildingManager, draft: Draft<Playe
     let earliestCwt = Infinity;
     for (const roomsByType of Object.values(draft.building.rooms)) {
       for (const room of Object.values(roomsByType ?? {})) {
-        const cwt = (room as any)?.completeWorkTime;
+        const cwt = (room as RoomTimestamp)?.completeWorkTime;
         if (typeof cwt === "number" && cwt > ts) {
           earliestCwt = Math.min(earliestCwt, cwt);
         }
@@ -496,7 +505,7 @@ export function _advanceBuilding(mgr: BuildingManager, draft: Draft<PlayerDataMo
    */
 export function _accrueMeeting(mgr: BuildingManager, draft: Draft<PlayerDataModel>, ts: number) : void {
     for (const [slotId, roomRaw] of Object.entries(draft.building.rooms.MEETING ?? {})) {
-      const room = roomRaw as any;
+      const room = roomRaw as MeetingRoom;
       if (!room || room.state !== 1) continue;
       const slot = draft.building.roomSlots[slotId];
       const base = getMeetingPhase(slot?.level ?? 1)?.gatheringSpeed;
@@ -515,7 +524,7 @@ export function _accrueMeeting(mgr: BuildingManager, draft: Draft<PlayerDataMode
       );
       let totalComfort = 0;
       for (const d of Object.values(draft.building.rooms.DORMITORY ?? {})) {
-        totalComfort += (d as any)?.comfort ?? 0;
+        totalComfort += d?.comfort ?? 0;
       }
       const charInfos = (slot?.charInstIds ?? [])
         .filter((i) => i > 0)
@@ -524,11 +533,11 @@ export function _accrueMeeting(mgr: BuildingManager, draft: Draft<PlayerDataMode
           if (!src) return null;
           return {
             rarityIndex: rarityToIndex(
-              (excel.CharacterTable as Record<string, any>)?.[src.charId]?.rarity,
+              excel.CharacterTable?.[src.charId]?.rarity,
             ),
             evolvePhase: src.evolvePhase ?? 0,
             dispersed: isDispersedAp(
-              (draft.building.chars[String(instId)] as any)?.ap,
+              draft.building.chars[String(instId)]?.ap,
             ),
           };
         })
@@ -602,7 +611,7 @@ export function _accrueMeeting(mgr: BuildingManager, draft: Draft<PlayerDataMode
    */
 export function _accrueHire(mgr: BuildingManager, draft: Draft<PlayerDataModel>, ts: number) : void {
     for (const [slotId, roomRaw] of Object.entries(draft.building.rooms.HIRE ?? {})) {
-      const room = roomRaw as any;
+      const room = roomRaw as HireRoom;
       if (!room || room.state !== 1) continue;
       const slot = draft.building.roomSlots[slotId];
       const phase = getHirePhase(slot?.level ?? 1);
@@ -649,7 +658,7 @@ export function _accrueHire(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
 export function _touchActiveRooms(mgr: BuildingManager, draft: Draft<PlayerDataModel>, ts: number) : void {
     for (const [rtype, roomsByType] of Object.entries(draft.building.rooms)) {
       for (const roomRaw of Object.values(roomsByType ?? {})) {
-        const room = roomRaw as any;
+        const room = roomRaw as RoomTimestamp;
         if (!room || typeof room.lastUpdateTime !== "number") continue;
         // 工作时间（state=1）或常驻房间（CONTROL 无 state 字段）
         const active = room.state === 1 || rtype === "CONTROL";
@@ -724,7 +733,7 @@ export async function advance(mgr: BuildingManager, seconds: number) : Promise<n
       // 避免下次开工时凭空多结算 seconds（与 _touchActiveRooms 的 active 判定一致）
       for (const [rtype, roomsByType] of Object.entries(draft.building.rooms ?? {})) {
         for (const roomRaw of Object.values(roomsByType ?? {})) {
-          const room = roomRaw as any;
+          const room = roomRaw as RoomTimestamp;
           if (!room || typeof room.lastUpdateTime !== "number") continue;
           const active = room.state === 1 || rtype === "CONTROL";
           if (active) room.lastUpdateTime -= secs;
@@ -735,7 +744,7 @@ export async function advance(mgr: BuildingManager, seconds: number) : Promise<n
         if (ch && typeof ch.lastApAddTime === "number") {
           ch.lastApAddTime -= secs;
         }
-        const raw = ch as unknown as { lastFavorAddTime?: number };
+        const raw = ch as CharWithFavor;
         if (typeof raw.lastFavorAddTime === "number") {
           raw.lastFavorAddTime -= secs;
         }
@@ -787,7 +796,7 @@ export function _accrueTraining(mgr: BuildingManager, draft: Draft<PlayerDataMod
         elapsed * (trainee.speed ?? 1) * (1 + assistBase + trainBonus);
       // 达到训练时长（maxPoint = lvlUpTime，新模型）→ 待领取（OUTOFDATE），不超额；
       // 旧存档无 maxPoint → 保持原行为（领取由 completeUpgradeSpecialization 驱动）
-      const maxPoint = (trainee as any).maxPoint ?? 0;
+      const maxPoint = (trainee as TraineeWithMaxPoint).maxPoint ?? 0;
       if (maxPoint > 0 && trainee.processPoint >= maxPoint) {
         trainee.processPoint = maxPoint;
         trainee.state = 2; // OUTOFDATE 待领取
@@ -852,7 +861,7 @@ export function _accrueWarmup(mgr: BuildingManager, draft: Draft<PlayerDataModel
       }
     }
     for (const [instIdStr, chRaw] of Object.entries(draft.building.chars ?? {})) {
-      const ch = chRaw as any;
+      const ch = chRaw as CharWithWarmup;
       const last = typeof ch.warmupTs === "number" ? ch.warmupTs : ts;
       const elapsed = ts - last;
       ch.warmupTs = ts;
@@ -909,7 +918,7 @@ export function _accrueFavor(mgr: BuildingManager, draft: Draft<PlayerDataModel>
       const ch = draft.building.chars[String(instId)];
       if (!ch) continue;
       // 非官方扩展字段：记录上次信赖结算时间（浮点秒），缺省用当前时间（首次引入）
-      const raw = ch as unknown as { lastFavorAddTime?: number };
+      const raw = ch as CharWithFavor;
       const last =
         typeof raw.lastFavorAddTime === "number" ? raw.lastFavorAddTime : ts;
       const elapsedSec = ts - last;

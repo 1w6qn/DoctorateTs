@@ -8,6 +8,8 @@ import { getPlayer, getPlayerOptional } from "../../../kernel/http/request-conte
 import { ItemBundle, ItemType } from "@excel/excel";
 import excel, { OCC_PERCENT_NUMERIC } from "@excel/excel";
 import { activityDictKey } from "../shared/unlockActivity";
+import { activityDetailJson, asShape } from "../shared/activity-json";
+import type { JsonObject } from "@excel/json-value";
 import { logger } from "@utils/logger";
 import {
   ActCheckinvsSignRequest,
@@ -178,22 +180,40 @@ interface Act24DropEntry {
 /** 掉落档位 → 概率（与 battle 掉落同表：0=必掉 / 1=75% / 2=40% / 3=15% / 4=3%） */
 const ACT24_OCC_PROB = [1, 0.75, 0.4, 0.15, 0.03];
 
+/** meldingDict 条目消费面（炼金素材分值） */
+type Act24MeldingEntry = { meldingId?: string; meldingPrice?: number };
+
+/** meldingGachaBoxDataList 条目消费面（炼金箱消耗/次数上限） */
+type Act24BoxEntry = { gachaBoxId?: string; gachaCost?: number; gachaTimesLimit?: number };
+
+/** TYPE_ACT24SIDE 活动详情消费面（excel activity 字典是未建模 JSON） */
+type Act24DetailConfig = {
+  meldingDict?: { [key: string]: Act24MeldingEntry };
+  meldingGachaBoxDataList?: Act24BoxEntry[];
+  meldingGachaBoxGoodDataMap?: { [boxId: string]: Act24Good[] };
+  meldingDropDict?: Act24Config["drops"];
+  mealDataList?: Act24Config["meals"];
+  constData?: { mealDayTimesLimit?: number };
+};
+
 /**
  * 读取 act24side 活动配置（只读）
  * @param activityId - 活动 id（客户端传 act24side）
  * @returns 归一化后的配置
  */
 function act24Config(activityId: string): Act24Config {
-  const dict = (excel.ActivityTable as { activity?: Record<string, Record<string, any>> })
-    ?.activity ?? {};
   const key = activityDictKey("TYPE_ACT24SIDE") ?? "tYPE_ACT24SIDE";
-  const detail = dict[key]?.[activityId] ?? dict[key]?.["act24side"] ?? {};
+  const detail: JsonObject =
+    activityDetailJson(excel.ActivityTable.activity, key, activityId) ??
+    activityDetailJson(excel.ActivityTable.activity, key, "act24side") ??
+    {};
+  const view = asShape<Act24DetailConfig>(detail) ?? {};
   const meldingPrice: Record<string, number> = {};
-  for (const m of Object.values(detail.meldingDict ?? {}) as any[]) {
+  for (const m of Object.values(view.meldingDict ?? {})) {
     if (m?.meldingId) meldingPrice[m.meldingId] = Number(m.meldingPrice ?? 0);
   }
   const box: Act24Config["box"] = {};
-  for (const b of Object.values(detail.meldingGachaBoxDataList ?? {}) as any[]) {
+  for (const b of Object.values(view.meldingGachaBoxDataList ?? [])) {
     if (b?.gachaBoxId) {
       box[b.gachaBoxId] = {
         gachaCost: Number(b.gachaCost ?? 0),
@@ -204,10 +224,10 @@ function act24Config(activityId: string): Act24Config {
   return {
     meldingPrice,
     box,
-    goods: (detail.meldingGachaBoxGoodDataMap ?? {}) as Record<string, Act24Good[]>,
-    drops: (detail.meldingDropDict ?? {}) as Act24Config["drops"],
-    meals: (detail.mealDataList ?? {}) as Act24Config["meals"],
-    mealDayTimesLimit: Number(detail.constData?.mealDayTimesLimit ?? 1) || 1,
+    goods: view.meldingGachaBoxGoodDataMap ?? {},
+    drops: view.meldingDropDict ?? {},
+    meals: view.mealDataList ?? {},
+    mealDayTimesLimit: Number(view.constData?.mealDayTimesLimit ?? 1) || 1,
   };
 }
 
@@ -246,16 +266,14 @@ router.post("/act24side/alchemy", validateBody(ReqSchema.act24sideAlchemySchema)
   let valid = true;
 
   await player.update(async (draft) => {
-    const act = (draft.activity as any).TYPE_ACT24SIDE as
-      | { [key: string]: any }
-      | undefined;
+    const act = draft.activity.TYPE_ACT24SIDE;
     if (!act) return;
-    if (!act[activityId]) act[activityId] = {};
-    if (!act[activityId].alchemy) {
-      act[activityId].alchemy = { price: 0, item: {}, gacha: {} };
+    const entry = act[activityId] ?? (act[activityId] = {});
+    if (!entry.alchemy) {
+      entry.alchemy = { price: 0, item: {}, gacha: {} };
     }
-    const alchemy = act[activityId].alchemy;
-    const itemsData = alchemy.item;
+    const alchemy = entry.alchemy;
+    const itemsData = alchemy.item!;
     // 校验素材是否足够（不足则整单不消耗）
     for (const [key, count] of Object.entries(items)) {
       if ((itemsData[key] ?? 0) < Number(count)) {
@@ -277,8 +295,9 @@ router.post("/act24side/alchemy", validateBody(ReqSchema.act24sideAlchemySchema)
     // 未达一次炼金阈值的余值留存（官方 price 字段跨次继承）
     alchemy.price = totalScore - gachaTimes * cost;
     if (gachaTimes <= 0 || goodList.length === 0) return;
-    if (!alchemy.gacha[gachaBox]) alchemy.gacha[gachaBox] = {};
-    const drawnMap = alchemy.gacha[gachaBox];
+    const gachaMap = alchemy.gacha!;
+    if (!gachaMap[gachaBox]) gachaMap[gachaBox] = {};
+    const drawnMap = gachaMap[gachaBox];
     // 剩余可抽池：LIMITED 按 totalCount-已抽；UNLIMITED / totalCount=0 视为无限
     const available: Array<{ good: Act24Good; remaining: number }> = goodList
       .map((good) => {
@@ -390,9 +409,7 @@ router.post("/act24side/battleFinish", validateBody(ReqSchema.act24sideBattleFin
   // 用餐加成：当日首次通关额外获得 mealRewardItemInfo（meal.chance 标记已用）
   const mealMeldingRewards: ItemBundle[] = [];
   await player.update(async (draft) => {
-    const act = (draft.activity as any).TYPE_ACT24SIDE?.[body.activityId ?? "act24side"] as
-      | { meal?: { digested?: number; chance?: number; id?: string } }
-      | undefined;
+    const act = draft.activity.TYPE_ACT24SIDE?.[body.activityId ?? "act24side"];
     const meal = act?.meal;
     if (!meal || meal.digested !== 1 || meal.chance === 1) return;
     const cfgItem = meal.id ? cfg.meals[meal.id]?.mealRewardItemInfo : undefined;
@@ -431,14 +448,10 @@ router.post("/act24side/eat", validateBody(ReqSchema.act24sideEatSchema), async 
   const today = new Date().toISOString().slice(0, 10);
   let apGain = 0;
   await player.update(async (draft) => {
-    const act = (draft.activity as any).TYPE_ACT24SIDE as
-      | { [key: string]: any }
-      | undefined;
+    const act = draft.activity.TYPE_ACT24SIDE;
     if (!act) return;
-    if (!act[activityId]) act[activityId] = {};
-    const current = act[activityId].meal as
-      | { digested?: number; chance?: number; id?: string; day?: string }
-      | undefined;
+    const entry = act[activityId] ?? (act[activityId] = {});
+    const current = entry.meal;
     // 每日限次（mealDayTimesLimit，官服为 1）：当日已用餐则忽略请求
     if (current?.day === today && cfg.mealDayTimesLimit <= 1) return;
     const cost = mealCfg?.mealCost ?? 0;
@@ -448,7 +461,7 @@ router.post("/act24side/eat", validateBody(ReqSchema.act24sideEatSchema), async 
     }
     if (cost > 0) draft.status.gold -= cost;
     // digested=1：当日首次通关额外掉落待用；chance=0：尚未使用该加成
-    act[activityId].meal = { digested: 1, chance: 0, id: body.meal, day: today };
+    entry.meal = { digested: 1, chance: 0, id: body.meal, day: today };
     apGain = mealCfg?.mealRewardAP ?? 0;
   });
   if (apGain > 0) {
@@ -469,12 +482,10 @@ router.post("/act24side/setTool", validateBody(ReqSchema.act24sideSetToolSchema)
   const player = getPlayer();
   const body = req.body as Act24sideSetToolRequest;
   await player.update(async (draft) => {
-    const act = (draft.activity as any).TYPE_ACT24SIDE?.[body.activityId] as
-      | { tool?: { [key: string]: number } }
-      | undefined;
-    if (!act?.tool) return;
-    for (const key of Object.keys(act.tool)) {
-      act.tool[key] = body.tools?.includes(key) ? 2 : 1;
+    const tool = draft.activity.TYPE_ACT24SIDE?.[body.activityId]?.tool;
+    if (!tool) return;
+    for (const key of Object.keys(tool)) {
+      tool[key] = body.tools?.includes(key) ? 2 : 1;
     }
   });
   res.send(player.delta satisfies Act24sideSetToolResponse);

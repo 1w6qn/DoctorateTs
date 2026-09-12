@@ -15,6 +15,7 @@ import { FBO } from "./vendor/fbo";
 import { LUACRYPT_MASK } from "./vendor/lua-crypt";
 import { convertTable, buildCompletion, isUpToDate, buildMeta, writeMeta } from "./excel-convert";
 import { assetRegistry } from "@asset/asset-service";
+import type { JsonValue } from "@excel/json-value";
 
 const ROOT = path.join(__dirname, "..");
 const HU = "https://ak.hycdn.cn/assetbundle/official";
@@ -66,7 +67,7 @@ function resolveLatestHulSnapshot(): string | null {
  * @param hulPath - 清单文件路径
  * @param hul - 已解析的清单对象（可选，避免重复读取）
  */
-function resVersionOf(hulPath: string, hul?: any): string {
+function resVersionOf(hulPath: string, hul?: HotUpdateList): string {
   if (hul && typeof hul.versionId === "string" && hul.versionId) return hul.versionId;
   const m = path.basename(hulPath).match(/^hot_update_list_(.+)\.json$/);
   return m ? m[1] : "unknown";
@@ -97,17 +98,33 @@ interface AbInfo {
   totalSize: number;
 }
 
+/** 官方热更清单（仅声明本管线读取的字段） */
+interface HotUpdateList {
+  versionId?: string;
+  manifestVersion?: string;
+  abInfos?: AbInfo[];
+}
+
+/**
+ * 转换 worker 上报消息（契约见 scripts/convert-worker.ts）
+ *
+ * `{ done: true }` 收尾消息不带 name/status；每条表进度消息带 name + status。
+ */
+type ConvertWorkerMessage =
+  | { done: true }
+  | { done?: false; name: string; status: "ok" | "skipped" | "fail"; error?: string };
+
 function transName(name: string): string {
   return name.replace(/\.([^.]*)$/, ".dat").replace(/\//g, "_").replace(/#/g, "__");
 }
 
-async function fetchHotUpdateList(): Promise<{ hul: any; resVersion: string }> {
+async function fetchHotUpdateList(): Promise<{ hul: HotUpdateList; resVersion: string }> {
   const verRes = await fetch(CONF_VERSION);
-  const ver = await verRes.json();
+  const ver: { resVersion: string } = await verRes.json();
   const resVersion: string = ver.resVersion;
   const url = `${HU}/Windows/assets/${resVersion}/hot_update_list.json`;
   const res = await fetch(url);
-  const hul = await res.json();
+  const hul: HotUpdateList = await res.json();
   const hulPath = path.join(HUL_DIR, `hot_update_list_${resVersion}.json`);
   fs.writeFileSync(hulPath, JSON.stringify(hul));
   return { hul, resVersion };
@@ -162,7 +179,7 @@ function saveNameCache(): void {
   } catch { /* 缓存写入失败不影响主流程 */ }
 }
 
-function aesDecrypt(script: Uint8Array): { json?: any; bson?: any } {
+function aesDecrypt(script: Uint8Array): { json?: JsonValue; bson?: Uint8Array } {
   // mask 与 lua 加密共用同一常量（vendor/lua-crypt LUACRYPT_MASK = excel 管线 MASK_V2），单点维护
   const mask = LUACRYPT_MASK;
   const data = script.subarray(128);
@@ -183,7 +200,7 @@ function aesDecrypt(script: Uint8Array): { json?: any; bson?: any } {
 }
 
 /** 解码单个 bundle：FBO（schema JSON）或 AES-JSON */
-async function decodeBundle(dat: string, base: string): Promise<any | null> {
+async function decodeBundle(dat: string, base: string): Promise<JsonValue | null> {
   const zip = await JSZip.loadAsync(fs.readFileSync(dat));
   const entry = Object.keys(zip.files)[0];
   const inner = await zip.files[entry].async("uint8array");
@@ -213,7 +230,7 @@ async function main() {
   const ti = args.indexOf("--table");
   const tableArg = ti >= 0 ? args[ti + 1] : undefined;
 
-  let hul: any;
+  let hul: HotUpdateList;
   let resVersion: string;
   let hulPath: string | null = null;
   if (doDownload && !offline) {
@@ -460,7 +477,7 @@ async function main() {
               const w = new Worker(workerPath, {
                 workerData: { tables, outDir: OUT_DIR, dataDir: DATA_EXCEL_DIR, schemaDir: SCHEMA_DIR },
               });
-              w.on("message", (m: any) => {
+              w.on("message", (m: ConvertWorkerMessage) => {
                 if (m.done) { w.terminate(); resolve(); }
                 else if (m.status === "ok") { ok++; reported.add(m.name); }
                 else if (m.status === "skipped") { reported.add(m.name); }

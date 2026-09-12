@@ -10,7 +10,7 @@ import { now } from "@utils/time";
 import { logger } from "@utils/logger";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "../../../kernel/playerdata";
-import { PlayerBuildingMeetingClue } from "../../../kernel/playerdata";
+import { PlayerBuildingMeetingClue, PlayerPushFlags } from "../../../kernel/playerdata";
 import { accountManager } from "../../account/AccountManager";
 import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst, getClueConstant, getClueReceiveBonus } from "@excel/building_excel";
 import {
@@ -24,6 +24,8 @@ import {
 } from "../buff";
 import { random } from "../../../kernel/util/random";
 import { OWN_CLUE_LIMIT } from "../clue-speed";
+import type { GetDailyClueRequest, PutClueToTheBoardAutoRequest, SendClueAutoRequest } from "../models";
+import type { MeetingRoom } from "./ext-types";
 
   /** 获取首个会客室房间 */
 export function _meetingRoom(mgr: BuildingManager) {
@@ -43,7 +45,7 @@ export function _meetingRoom(mgr: BuildingManager) {
    * @returns 加权选出的阵营
    */
 export function _clueFactionWeighted(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
-    room: any,) : string {
+    room: MeetingRoom,) : string {
     const factions = BuildingManager._CLUE_FACTIONS;
     const slot = Object.values(draft.building.roomSlots).find(
       (s) => s.roomId === "MEETING",
@@ -79,7 +81,7 @@ export function _clueFactionWeighted(mgr: BuildingManager, draft: Draft<PlayerDa
    * 真实格式：type=阵营、id={uid}#{随机}#{时间戳}
    * @param args - 请求体参数
    */
-export async function getDailyClue(mgr: BuildingManager, args: any) {
+export async function getDailyClue(mgr: BuildingManager, args: GetDailyClueRequest) {
     return await mgr._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room || room.dailyReward) return;
@@ -88,7 +90,7 @@ export async function getDailyClue(mgr: BuildingManager, args: any) {
       const meetingSlot = Object.values(draft.building.roomSlots).find(
         (s) => (s as { roomId?: string })?.roomId === "MEETING",
       );
-      if (mgr._roomCharSources(draft, (meetingSlot ?? null) as any).length === 0) return;
+      if (mgr._roomCharSources(draft, meetingSlot ?? null).length === 0) return;
       // 自有库上限 10：「最多存储 10 份，达到上限时无法继续入库」——每日发放的线索
       // 不适用干员搜集的「滞留」规则，满库时不入库（腾空后当日仍可领取，dailyReward
       // 不置位，故不会永久损失）。
@@ -162,7 +164,7 @@ export async function sendClue(mgr: BuildingManager, args: { id?: string; clueId
    * 自动发送线索（发送第一条可发线索）
    * @param args - 请求体参数
    */
-export async function sendClueAuto(mgr: BuildingManager, args: any) {
+export async function sendClueAuto(mgr: BuildingManager, args: SendClueAutoRequest) {
     return await mgr._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room || room.ownStock.length === 0) return;
@@ -191,7 +193,7 @@ export async function receiveClueToStock(mgr: BuildingManager, args: { id?: stri
     const ids = args.clues?.length ? args.clues : args.id ? [args.id] : [];
     if (ids.length === 0) return;
     return await mgr._player.update(async (draft) => {
-      const room = Object.values(draft.building.rooms.MEETING)[0];
+      const room = Object.values(draft.building.rooms.MEETING)[0] as MeetingRoom;
       if (!room) return;
       for (const id of ids) {
         const idx = room.receiveStock.findIndex((c) => c.id === id);
@@ -200,11 +202,11 @@ export async function receiveClueToStock(mgr: BuildingManager, args: { id?: stri
         room.ownStock.push(clue);
         // 接收好友线索信用（PRTS：每张依次 15/10/5，第 4 张起不获信用，每日刷新计次）
         // 数值取 clue_data.receiveTimeBonus（第 n 张 → receiveBonus）
-        const receiveIdx = (room as any).clueReceiveCount ?? 0;
+        const receiveIdx = room.clueReceiveCount ?? 0;
         const receivePt = getClueReceiveBonus(receiveIdx);
         if (receivePt > 0) {
           draft.status.socialPoint = (draft.status.socialPoint ?? 0) + receivePt;
-          (room as any).clueReceiveCount = receiveIdx + 1;
+          room.clueReceiveCount = receiveIdx + 1;
         }
       }
       mgr._refreshClueFlag(draft, room);
@@ -248,7 +250,7 @@ export async function putClueToTheBoard(mgr: BuildingManager, args: { id?: strin
    *
    * @param args - 请求体参数
    */
-export async function putClueToTheBoardAuto(mgr: BuildingManager, args: any) {
+export async function putClueToTheBoardAuto(mgr: BuildingManager, args: PutClueToTheBoardAutoRequest) {
     return await mgr._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room) return;
@@ -341,7 +343,7 @@ export async function deleteReceiveClue(mgr: BuildingManager, args: { id?: strin
    * 内部方法：清理留言板中指向指定线索 id 的条目（board = {[type]: clueId}）
    */
 export function _clearBoardEntry(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
-    room: any,
+    room: MeetingRoom,
     clueId: string,) : void {
     if (!room?.board) return;
     for (const [type, id] of Object.entries(room.board)) {
@@ -354,12 +356,17 @@ export function _clearBoardEntry(mgr: BuildingManager, draft: Draft<PlayerDataMo
    * 官方模型：上板线索保留在库存（inUse=1），不计入"待处理"红点
    */
 export function _refreshClueFlag(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
-    room: any,) : void {
+    room: MeetingRoom,) : void {
     const pending = [
       ...(room?.ownStock ?? []),
       ...(room?.receiveStock ?? []),
     ].some((c) => (c?.inUse ?? 0) === 0);
-    (draft.pushFlags ??= {} as any).hasClues = pending ? 1 : 0;
+    if (!draft.pushFlags) {
+      // 旧存档缺 pushFlags：按既有行为先建空对象再写 hasClues
+      // （生成模型声明为全字段必填，此处仅建将写入的键，故断言）
+      draft.pushFlags = {} as PlayerPushFlags;
+    }
+    draft.pushFlags.hasClues = pending ? 1 : 0;
 }
 
   /**
@@ -386,13 +393,13 @@ export function _refreshClueFlag(mgr: BuildingManager, draft: Draft<PlayerDataMo
    * @returns 移除的线索数量
    */
 export function _purgeExpiredClues(mgr: BuildingManager, draft: Draft<PlayerDataModel>,
-    room: any,
+    room: MeetingRoom,
     ts: number,) : number {
     let removed = 0;
     for (const key of ["ownStock", "receiveStock"] as const) {
       const stock = room?.[key];
       if (!Array.isArray(stock) || stock.length === 0) continue;
-      const kept: any[] = [];
+      const kept: PlayerBuildingMeetingClue[] = [];
       for (const c of stock) {
         // 旧存档线索无 ts：补写过期时间戳（从现在起算），保留并进入过期机制
         if (typeof c?.ts !== "number") {
@@ -413,11 +420,11 @@ export function _purgeExpiredClues(mgr: BuildingManager, draft: Draft<PlayerData
     // 防御：清除 board 中指向已不存在线索的孤儿索引（含历史残留）
     if (room?.board) {
       const alive = new Set<string>([
-        ...(room.ownStock ?? []).map((c: any) => c?.id),
-        ...(room.receiveStock ?? []).map((c: any) => c?.id),
+        ...(room.ownStock ?? []).map((c) => c?.id),
+        ...(room.receiveStock ?? []).map((c) => c?.id),
       ]);
       for (const [type, id] of Object.entries(room.board)) {
-        if (!alive.has(id as string)) delete room.board[type];
+        if (!alive.has(id)) delete room.board[type];
       }
     }
     if (removed > 0) {
@@ -438,7 +445,7 @@ export function _purgeExpiredClues(mgr: BuildingManager, draft: Draft<PlayerData
 export function _purgeAllExpiredClues(mgr: BuildingManager, draft: Draft<PlayerDataModel>, ts: number) : number {
     let total = 0;
     for (const roomRaw of Object.values(draft.building.rooms.MEETING ?? {})) {
-      total += mgr._purgeExpiredClues(draft, roomRaw as any, ts);
+      total += mgr._purgeExpiredClues(draft, roomRaw, ts);
     }
     return total;
 }

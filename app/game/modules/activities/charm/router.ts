@@ -154,7 +154,7 @@ router.post("/recycleCharms", validateBody(ReqSchema.recycleCharmsSchema), async
         //    存档里反而多出一个幽灵 inventory 键（客户端与后续逻辑读 status.gold）。
         // 2. **返还额数据驱动**：@@CharmTable.charmList[].price@@（如 level_cost_1 = 15），
         //    原实现硬编码「1 个硬币」。
-        const refund = Number((charmInfo as any)?.price ?? 0);
+        const refund = Number(charmInfo?.price ?? 0);
         if (refund > 0) {
           draft.status.gold = (draft.status.gold ?? 0) + refund;
         }
@@ -186,7 +186,7 @@ router.post("/tryGetCharmFirstReward", validateBody(ReqSchema.tryGetCharmFirstRe
 
   await player.update(async (draft) => {
     // 在 charm 数据中新增 firstReward 字段记录首通领取状态
-    const charmStatus = draft.charm as any;
+    const charmStatus = draft.charm;
     if (!charmStatus.firstReward) {
       charmStatus.firstReward = {};
     }
